@@ -12,9 +12,9 @@ import {
   LOGGER_PROVIDER,
   LoggerProviderInterface,
   runWithContext,
-} from '@adatechnology/logger';
-import { CACHE_PROVIDER } from '@adatechnology/cache';
-import type { CacheProviderInterface } from '@adatechnology/cache';
+} from '@adatechnology/nestjs-logger';
+import { CACHE_PROVIDER } from '@adatechnology/nestjs-cache';
+import type { CacheProviderInterface } from '@adatechnology/nestjs-cache';
 
 @Controller('cache-demo')
 export class CacheDemoController {

@@ -1,6 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { pushToTraceStack, popFromTraceStack } from '@adatechnology/logger';
+import { pushToTraceStack, popFromTraceStack } from '@adatechnology/nestjs-logger';
 import { getPackageInfo } from '../utils/package-info.service';
 
 @Injectable()

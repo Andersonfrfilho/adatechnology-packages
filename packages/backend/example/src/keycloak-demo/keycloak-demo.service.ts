@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { KeycloakClientInterface, KeycloakTokenResponse } from '@adatechnology/auth-keycloak';
-import { KEYCLOAK_CLIENT } from '@adatechnology/auth-keycloak';
+import type { KeycloakClientInterface, KeycloakTokenResponse } from '@adatechnology/nestjs-auth-keycloak';
+import { KEYCLOAK_CLIENT } from '@adatechnology/nestjs-auth-keycloak';
 
 @Injectable()
 export class KeycloakDemoService {

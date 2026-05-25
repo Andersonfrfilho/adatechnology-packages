@@ -42,13 +42,13 @@ import { LIB_NAME, LIB_VERSION } from "../../http.constants";
 /** constants, interfaces and types are moved to dedicated files */
 
 import { Inject, Injectable, Optional } from "@nestjs/common";
-import { CACHE_PROVIDER, CacheProviderInterface } from "@adatechnology/cache";
+import { CACHE_PROVIDER, CacheProviderInterface } from "@adatechnology/nestjs-cache";
 import {
   getContext,
   LOGGER_PROVIDER,
   LoggerProviderInterface,
   runWithContext,
-} from "@adatechnology/logger";
+} from "@adatechnology/nestjs-logger";
 
 /**
  * Axios-based implementation of the HTTP provider interface.

@@ -1,4 +1,4 @@
-import { validateKeycloakAdminConfig } from '@adatechnology/keycloak-admin';
+import { validateKeycloakAdminConfig } from '@adatechnology/nestjs-keycloak-admin';
 
 console.log('🧪 Testing config validation\n');
 

@@ -6,12 +6,12 @@ import { HttpClientModule } from './http-client/http-client.module';
 import {
   KeycloakModule,
   KEYCLOAK_HTTP_INTERCEPTOR,
-} from '@adatechnology/auth-keycloak';
-import { CacheModule } from '@adatechnology/cache';
+} from '@adatechnology/nestjs-auth-keycloak';
+import { CacheModule } from '@adatechnology/nestjs-cache';
 import { SecureModule } from './secure/secure.module';
 import { KeycloakDemoModule } from './keycloak-demo/keycloak-demo.module';
 import { CacheDemoModule } from './cache-demo/cache-demo.module';
-import { HTTP_LOGGING_INTERCEPTOR, LoggerModule, RequestContextMiddleware } from '@adatechnology/logger';
+import { HTTP_LOGGING_INTERCEPTOR, LoggerModule, RequestContextMiddleware } from '@adatechnology/nestjs-logger';
 import { HealthModule } from './health/health.module';
 import { TracingDemoModule } from './tracing-demo/tracing-demo.module';
 

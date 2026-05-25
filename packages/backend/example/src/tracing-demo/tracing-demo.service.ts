@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { LOGGER_PROVIDER, LoggerProviderInterface } from '@adatechnology/logger';
-import { CACHE_PROVIDER, CacheProviderInterface } from '@adatechnology/cache';
+import { LOGGER_PROVIDER, LoggerProviderInterface } from '@adatechnology/nestjs-logger';
+import { CACHE_PROVIDER, CacheProviderInterface } from '@adatechnology/nestjs-cache';
 import { TraceMethod } from '../shared/decorators/trace-method.decorator';
 
 @Injectable()
@@ -53,7 +53,7 @@ export class TracingDemoService {
       meta: { key: `order:${orderId}` },
     });
 
-    // Cache lib call → shows [@adatechnology/cache:X.X.X][InMemoryCacheProvider.get] in log
+    // Cache lib call → shows [@adatechnology/nestjs-cache:X.X.X][InMemoryCacheProvider.get] in log
     return this.cache.get<{ orderId: string; customer: any }>({ key: `order:${orderId}` });
   }
 
@@ -65,7 +65,7 @@ export class TracingDemoService {
       meta: { key: `order:${orderId}` },
     });
 
-    // Cache lib call → shows [@adatechnology/cache:X.X.X][InMemoryCacheProvider.set] in log
+    // Cache lib call → shows [@adatechnology/nestjs-cache:X.X.X][InMemoryCacheProvider.set] in log
     await this.cache.set({ key: `order:${orderId}`, value, ttlInSeconds: 60 });
   }
 

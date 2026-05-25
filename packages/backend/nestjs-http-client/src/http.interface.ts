@@ -66,7 +66,7 @@ export type HttpLogType = "request" | "response" | "error";
 
 /**
  * Contrato mínimo para um logger externo.
- * Compatível com @adatechnology/logger e outros loggers com interface parecida.
+ * Compatível com @adatechnology/nestjs-logger e outros loggers com interface parecida.
  */
 export interface HttpExternalLogger {
   debug?(payload: {

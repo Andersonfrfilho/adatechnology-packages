@@ -12,10 +12,10 @@ import {
   Roles,
   RolesGuard,
   TokenRoles,
-} from '@adatechnology/auth-keycloak';
+} from '@adatechnology/nestjs-auth-keycloak';
 
 /**
- * Demonstrates all auth patterns supported by @adatechnology/auth-keycloak.
+ * Demonstrates all auth patterns supported by @adatechnology/nestjs-auth-keycloak.
  *
  * Header contract (set by Kong):
  *   Authorization: Bearer <service_token>   → B2B caller identity

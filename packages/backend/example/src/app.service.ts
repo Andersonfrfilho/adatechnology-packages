@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { LOGGER_PROVIDER } from '@adatechnology/logger';
-import type { LoggerProviderInterface } from '@adatechnology/logger';
+import { LOGGER_PROVIDER } from '@adatechnology/nestjs-logger';
+import type { LoggerProviderInterface } from '@adatechnology/nestjs-logger';
 
 @Injectable()
 export class AppService {

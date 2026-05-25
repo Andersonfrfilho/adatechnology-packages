@@ -1,4 +1,4 @@
-export const HTTP_SERVICE_NAME: string = "@adatechnology/http-client";
+export const HTTP_SERVICE_NAME: string = "@adatechnology/nestjs-http-client";
 
 export const HTTP_ERRORS = {
   DEFAULT_STATUS: 502,

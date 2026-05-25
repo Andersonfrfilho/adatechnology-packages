@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Module, Injectable, Inject } from '@nestjs/common';
-import { KeycloakAdminModule, KeycloakAdminClient, KEYCLOAK_ADMIN_CLIENT } from '@adatechnology/keycloak-admin';
-import { HttpModule } from '@adatechnology/http-client';
+import { KeycloakAdminModule, KeycloakAdminClient, KEYCLOAK_ADMIN_CLIENT } from '@adatechnology/nestjs-keycloak-admin';
+import { HttpModule } from '@adatechnology/nestjs-http-client';
 
 @Module({
   imports: [
@@ -22,7 +22,7 @@ async function runTests() {
 
   const TEST_USER_ID = 'fc706957-30ef-4554-828e-8481eb6b9ad7';
 
-  console.log('🧪 Testing @adatechnology/keycloak-admin\n');
+  console.log('🧪 Testing @adatechnology/nestjs-keycloak-admin\n');
 
   try {
     // 1. getAdminToken

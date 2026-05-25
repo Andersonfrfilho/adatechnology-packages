@@ -2,18 +2,18 @@ import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
   HTTP_PROVIDER,
   getHttpRequestContext,
-} from "@adatechnology/http-client";
-import type { HttpProviderInterface } from "@adatechnology/http-client";
+} from "@adatechnology/nestjs-http-client";
+import type { HttpProviderInterface } from "@adatechnology/nestjs-http-client";
 import {
   getContext,
   LOGGER_PROVIDER,
   LoggerProviderInterface,
-} from "@adatechnology/logger";
+} from "@adatechnology/nestjs-logger";
 import {
   CACHE_PROVIDER,
   InMemoryCacheProvider,
   type CacheProviderInterface,
-} from "@adatechnology/cache";
+} from "@adatechnology/nestjs-cache";
 
 import type {
   KeycloakClientInterface,

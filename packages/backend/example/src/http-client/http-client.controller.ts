@@ -16,9 +16,9 @@ import { Inject } from '@nestjs/common';
 import {
   LOGGER_PROVIDER,
   LoggerProviderInterface,
-} from '@adatechnology/logger';
-import { HttpMethod, UseHttpRequestId } from '@adatechnology/http-client';
-import type { HttpProviderInterface } from '@adatechnology/http-client';
+} from '@adatechnology/nestjs-logger';
+import { HttpMethod, UseHttpRequestId } from '@adatechnology/nestjs-http-client';
+import type { HttpProviderInterface } from '@adatechnology/nestjs-http-client';
 import { HTTP_REDIS, HTTP_LOCAL } from '../constants';
 
 let lastRequestInterceptorId: number | null = null;
@@ -577,8 +577,8 @@ export class HttpClientController {
   @Get('code-samples')
   codeSamples() {
     return {
-      forRoot: `import { HttpModule } from '@adatechnology/http-client';\\n\\nimports: [HttpModule.forRoot(\\n  { baseURL: 'https://pokeapi.co/api/v2' },\\n  {\\n    logging: {\\n      enabled: true,\\n      environments: ['development', 'test'],\\n      types: ['request', 'response', 'error'],\\n      includeHeaders: true,\\n      includeBody: false,\\n      context: 'HttpClientExample',\\n    },\\n  },\\n)]`,
-      explicit: `import { HttpImplementationAxiosModule } from '@adatechnology/http-client';\\n\\nimports: [HttpImplementationAxiosModule.forRoot({ baseURL: 'https://pokeapi.co/api/v2' }), HttpModule.forRoot()]`,
+      forRoot: `import { HttpModule } from '@adatechnology/nestjs-http-client';\\n\\nimports: [HttpModule.forRoot(\\n  { baseURL: 'https://pokeapi.co/api/v2' },\\n  {\\n    logging: {\\n      enabled: true,\\n      environments: ['development', 'test'],\\n      types: ['request', 'response', 'error'],\\n      includeHeaders: true,\\n      includeBody: false,\\n      context: 'HttpClientExample',\\n    },\\n  },\\n)]`,
+      explicit: `import { HttpImplementationAxiosModule } from '@adatechnology/nestjs-http-client';\\n\\nimports: [HttpImplementationAxiosModule.forRoot({ baseURL: 'https://pokeapi.co/api/v2' }), HttpModule.forRoot()]`,
       logContext: `await httpProvider.get('/pokemon/1', {\\n  logContext: {\\n    className: 'PokemonService',\\n    methodName: 'findOne',\\n    requestId: 'req-123',\\n  },\\n});`,
       interceptors: `const id = httpProvider.addRequestInterceptor(config => { config.headers['X-Id']='1'; return config; }); httpProvider.removeRequestInterceptor(id);`,
       genericRequest: `await httpProvider.request({ method: 'GET', url: '/pokemon', params: { limit: 5 } });`,

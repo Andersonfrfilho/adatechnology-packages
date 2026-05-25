@@ -6,7 +6,7 @@ import {
   CACHE_PROVIDER,
   InMemoryCacheProvider,
   RedisCacheProvider,
-} from "@adatechnology/cache";
+} from "@adatechnology/nestjs-cache";
 import { HttpModuleOptions } from "./http.interface";
 import { validateHttpForRoot, validateHttpForRootAsync } from "./validators/validate-http-config";
 

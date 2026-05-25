@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SecureController } from './secure.controller';
-import { KeycloakModule } from '@adatechnology/auth-keycloak';
+import { KeycloakModule } from '@adatechnology/nestjs-auth-keycloak';
 
 @Module({
   imports: [

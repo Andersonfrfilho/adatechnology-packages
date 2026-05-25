@@ -1,7 +1,7 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import { AppService } from './app.service';
-import { LOGGER_PROVIDER } from '@adatechnology/logger';
-import type { LoggerProviderInterface } from '@adatechnology/logger';
+import { LOGGER_PROVIDER } from '@adatechnology/nestjs-logger';
+import type { LoggerProviderInterface } from '@adatechnology/nestjs-logger';
 
 @Controller()
 export class AppController {

@@ -10,7 +10,7 @@ import type { TracingConfig } from "./tracing.config";
  * Uso em cada serviço (substitui instrumentation.ts individual):
  * ```ts
  * // src/instrumentation.ts
- * import { initTracing } from '@adatechnology/logger';
+ * import { initTracing } from '@adatechnology/nestjs-logger';
  * initTracing();
  * ```
  *

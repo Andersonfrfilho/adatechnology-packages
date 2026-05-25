@@ -1,11 +1,11 @@
 import { Module, DynamicModule } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { HTTP_PROVIDER, HttpModule } from "@adatechnology/http-client";
-import type { HttpProviderInterface } from "@adatechnology/http-client";
-import { LOGGER_PROVIDER } from "@adatechnology/logger";
-import type { LoggerProviderInterface } from "@adatechnology/logger";
-import { CACHE_PROVIDER } from "@adatechnology/cache";
-import type { CacheProviderInterface } from "@adatechnology/cache";
+import { HTTP_PROVIDER, HttpModule } from "@adatechnology/nestjs-http-client";
+import type { HttpProviderInterface } from "@adatechnology/nestjs-http-client";
+import { LOGGER_PROVIDER } from "@adatechnology/nestjs-logger";
+import type { LoggerProviderInterface } from "@adatechnology/nestjs-logger";
+import { CACHE_PROVIDER } from "@adatechnology/nestjs-cache";
+import type { CacheProviderInterface } from "@adatechnology/nestjs-cache";
 import type { AxiosRequestConfig, AxiosInstance } from "axios";
 
 import { ApiAuthGuard } from "./api-auth.guard";

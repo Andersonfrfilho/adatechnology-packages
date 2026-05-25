@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ExcludeHttpLogging } from '@adatechnology/logger';
+import { ExcludeHttpLogging } from '@adatechnology/nestjs-logger';
 
 @ExcludeHttpLogging()
 @Controller('health')

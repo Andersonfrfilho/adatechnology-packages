@@ -1,6 +1,6 @@
-import { validateHttpForRoot, validateHttpForRootAsync, HttpConfigError } from '@adatechnology/http-client';
+import { validateHttpForRoot, validateHttpForRootAsync, HttpConfigError } from '@adatechnology/nestjs-http-client';
 
-console.log('🧪 Testing @adatechnology/http-client config validation\n');
+console.log('🧪 Testing @adatechnology/nestjs-http-client config validation\n');
 
 // Test 1: invalid first arg (array)
 try {

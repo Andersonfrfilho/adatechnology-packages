@@ -1,6 +1,6 @@
-import { validateCacheConfig, CacheConfigError } from '@adatechnology/cache';
+import { validateCacheConfig, CacheConfigError } from '@adatechnology/nestjs-cache';
 
-console.log('🧪 Testing @adatechnology/cache config validation\n');
+console.log('🧪 Testing @adatechnology/nestjs-cache config validation\n');
 
 // Test 1: invalid type (array)
 try {

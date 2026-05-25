@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Query, Inject, UseGuards } from '@nestjs/common';
-import { getContext, LOGGER_PROVIDER, LoggerProviderInterface, runWithContext } from '@adatechnology/logger';
-import { Roles, RolesGuard } from '@adatechnology/auth-keycloak';
+import { getContext, LOGGER_PROVIDER, LoggerProviderInterface, runWithContext } from '@adatechnology/nestjs-logger';
+import { Roles, RolesGuard } from '@adatechnology/nestjs-auth-keycloak';
 import { KeycloakDemoService } from './keycloak-demo.service';
 
 @Controller('keycloak')

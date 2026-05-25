@@ -28,7 +28,7 @@ function loadLoggerHelpersSync() {
   try {
     // Require at runtime to avoid TypeScript compilation issues
     // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-    const logger = require("@adatechnology/logger");
+    const logger = require("@adatechnology/nestjs-logger");
     pushToTraceStack = logger?.pushToTraceStack || null;
     popFromTraceStack = logger?.popFromTraceStack || null;
   } catch {

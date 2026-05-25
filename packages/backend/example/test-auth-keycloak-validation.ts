@@ -1,6 +1,6 @@
-import { validateKeycloakConfig } from '@adatechnology/auth-keycloak';
+import { validateKeycloakConfig } from '@adatechnology/nestjs-auth-keycloak';
 
-console.log('🧪 Testing @adatechnology/auth-keycloak config validation\n');
+console.log('🧪 Testing @adatechnology/nestjs-auth-keycloak config validation\n');
 
 // Test 1: missing config
 try {

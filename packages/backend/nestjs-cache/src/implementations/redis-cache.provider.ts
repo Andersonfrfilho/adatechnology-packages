@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { getContext, LoggerProviderInterface } from "@adatechnology/logger";
+import { getContext, LoggerProviderInterface } from "@adatechnology/nestjs-logger";
 import Redis, { RedisOptions } from "ioredis";
 
 import {

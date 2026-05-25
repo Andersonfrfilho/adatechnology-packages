@@ -9,7 +9,7 @@ export default defineConfig({
   dts: true,
   clean: true,
   outDir: "dist",
-  external: ["@nestjs/*", "@adatechnology/logger", "@adatechnology/cache"],
+  external: ["@nestjs/*", "@adatechnology/nestjs-logger", "@adatechnology/nestjs-cache"],
   // Bundle private `shared` into the published artifact so consumers don't need
   // the unpublished `@adatechnology/shared` package from npm.
   noExternal: ["@adatechnology/shared"],

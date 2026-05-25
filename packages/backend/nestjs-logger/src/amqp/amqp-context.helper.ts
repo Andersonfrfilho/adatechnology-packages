@@ -23,7 +23,7 @@ export interface AmqpExtractedContext {
  *
  * Uso nos consumers (substitui o helper local de cada serviço):
  * ```ts
- * import { extractAmqpContext, runWithContext } from '@adatechnology/logger';
+ * import { extractAmqpContext, runWithContext } from '@adatechnology/nestjs-logger';
  * import { context } from '@opentelemetry/api';
  * import type { ConsumeMessage } from 'amqplib';
  *

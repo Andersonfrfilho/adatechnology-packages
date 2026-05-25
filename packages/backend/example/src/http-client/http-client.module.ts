@@ -3,7 +3,7 @@ import { HttpClientController } from './http-client.controller';
 import {
   HttpModule,
   HttpRequestIdInterceptor,
-} from '@adatechnology/http-client';
+} from '@adatechnology/nestjs-http-client';
 import { HTTP_REDIS, HTTP_LOCAL } from '../constants';
 
 @Module({
