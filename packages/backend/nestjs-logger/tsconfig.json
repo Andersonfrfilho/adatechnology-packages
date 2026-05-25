@@ -5,9 +5,8 @@
     "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": "src",
-    "declarationDir": "dist",
     "declaration": true,
-    "composite": true
+    "composite": false
   },
   "include": ["./src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

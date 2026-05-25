@@ -358,7 +358,7 @@ export class WinstonImplementationModule {
       const writableInfo = info as WritableLogInfo;
       fillInfoFromMeta(writableInfo);
       applyDefaultInfoValues(writableInfo, config);
-      return writableInfo;
+      return info;
     });
 
     const levelColorizer = format.colorize();

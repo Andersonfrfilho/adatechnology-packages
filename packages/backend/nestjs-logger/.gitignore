@@ -5,5 +5,10 @@ dist
 *.log
 .turbo
 
+# Artefatos compilados — nunca devem estar dentro de src/
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+
 # OS
 .DS_Store
