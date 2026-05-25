@@ -31,6 +31,8 @@ export type { LoggerConfig } from "./logger.config";
 export { DEFAULT_LOGGER_CONFIG } from "./logger.config";
 export { initTracing } from "./tracing/init-tracing";
 export type { TracingConfig } from "./tracing/tracing.config";
+export { REQUEST_ID_FORMAT } from "./request-id.constants";
+export type { RequestIdFormat } from "./request-id.constants";
 export {
   extractAmqpContext,
 } from "./amqp/amqp-context.helper";

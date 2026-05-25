@@ -1,6 +1,7 @@
 import type { WinstonModuleConfig } from "./implementations/winston/winston.logger.types";
 import { LoggerLevel } from "./logger.interface";
 import type { TracingConfig } from "./tracing/tracing.config";
+import type { RequestIdFormat } from "./request-id.constants";
 
 export interface LoggerConfig extends WinstonModuleConfig {
   /**
@@ -69,6 +70,14 @@ export interface LoggerConfig extends WinstonModuleConfig {
     maxSize?: string;
     maxFiles?: string;
   };
+
+  /**
+   * Formato do requestId gerado pelo RequestContextMiddleware quando não há header x-request-id.
+   *
+   * - 'short-hash' (padrão): 12 chars hex — ex: a1b2c3d4e5f6 (legível em Loki, correlaciona com Jaeger)
+   * - 'uuid':                UUID completo — ex: 550e8400-e29b-41d4-a716-446655440000
+   */
+  requestIdFormat?: RequestIdFormat;
 
   /**
    * Configuração de tracing distribuído (OpenTelemetry).
