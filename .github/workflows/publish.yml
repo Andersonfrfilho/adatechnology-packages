@@ -9,6 +9,7 @@ on:
       - "pnpm-workspace.yaml"
       - ".changeset/**"
       - "packages/**/package.json"
+      - ".github/workflows/publish.yml"
   workflow_dispatch: {}
 
 env:
