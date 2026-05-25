@@ -1,22 +1,23 @@
 # CLAUDE.md — Full-Stack Monorepo
 
-Unified monorepo for backend NestJS libraries (`packages/nestjs/`) and frontend/mobile client libraries (`packages/frontend/`).
+Unified monorepo for backend NestJS libraries (`packages/backend/`) and frontend/mobile client libraries (`packages/frontend/`).
 
 ## Structure Overview
 
 ```
 packages/
-├── nestjs/
-│   ├── logger/                  @adatechnology/logger (published to npm)
-│   ├── cache/                   @adatechnology/cache (published to npm)
-│   ├── http/                    @adatechnology/http-client (published to npm)
+├── backend/
+│   ├── nestjs-logger/           @adatechnology/nestjs-logger (published to npm)
+│   ├── nestjs-cache/            @adatechnology/nestjs-cache (published to npm)
+│   ├── nestjs-http-client/      @adatechnology/nestjs-http-client (published to npm)
 │   ├── shared/                  @adatechnology/shared (internal, not published)
-│   ├── keycloak/                @adatechnology/auth-keycloak (published to npm)
-│   ├── keycloak-admin/          @adatechnology/keycloak-admin (published to npm)
+│   ├── nestjs-auth-keycloak/    @adatechnology/nestjs-auth-keycloak (published to npm)
+│   ├── nestjs-keycloak-admin/   @adatechnology/nestjs-keycloak-admin (published to npm)
+│   ├── nestjs-package/          @adatechnology/nestjs-package (published to npm)
 │   └── example/                 Example NestJS app (development only)
 │
 └── frontend/
-    └── logger-client/           @cawme/logger-client (isomorphic, published to npm)
+    └── logger-client/           @adatechnology/logger-client (isomorphic, published to npm)
 ```
 
 ## Common Commands
@@ -24,7 +25,7 @@ packages/
 ```bash
 # Build
 pnpm run build:all              # Build all packages
-pnpm run build:nestjs           # Build only NestJS libraries
+pnpm run build:backend          # Build only backend NestJS libraries
 pnpm run build:frontend         # Build only frontend libraries
 pnpm run build:example          # Build example app
 pnpm run watch:packages         # Watch and rebuild on changes
@@ -37,44 +38,46 @@ pnpm changeset publish          # Publish to npm
 
 ## Publishing Rules
 
-### NestJS Packages (@adatechnology/*)
-- Semver: `packages/nestjs/{package}/package.json`
+### Backend Packages (@adatechnology/nestjs-*)
+- Semver: `packages/backend/{package}/package.json`
 - Scope: `@adatechnology`
+- Prefix: `nestjs-` (runtime clarity)
 - Published to npm automatically via changesets
 - Consumer services: api, bff, cron, worker
 
-### Frontend Packages (@adatechnology/*)
+### Frontend Packages (@adatechnology/logger-client, etc.)
 - Semver: `packages/frontend/{package}/package.json`
 - Scope: `@adatechnology`
+- Suffix: `-client` (optional, depends on package)
 - Published to npm automatically via changesets
 - Consumer apps: cawme-client (mobile), cawme-web (React)
 
 ### @adatechnology/shared
 - Never published
-- Internal utilities for NestJS libraries
+- Internal utilities for backend libraries
 - Always use `workspace:*` for references
 
 ## Adding a New Package
 
-### NestJS Library
+### Backend NestJS Library
 ```bash
-cd packages/nestjs
+cd packages/backend
 # Copy template from existing library
-cp -r logger my-new-lib
-cd my-new-lib
-# Edit package.json: update name to @adatechnology/my-new-lib
+cp -r nestjs-logger nestjs-my-lib
+cd nestjs-my-lib
+# Edit package.json: update name to @adatechnology/nestjs-my-lib
 # Implement src/index.ts with exports
 pnpm install  # from root, updates lock
-pnpm run build:nestjs
+pnpm run build:backend
 ```
 
 ### Frontend Library
 ```bash
 cd packages/frontend
-mkdir my-new-client-lib
-cd my-new-client-lib
+mkdir my-client-lib
+cd my-client-lib
 # Create package.json:
-# - name: @adatechnology/my-new-client-lib
+# - name: @adatechnology/my-client-lib
 # - type: module (ESM)
 # - build script
 # Create src/index.ts
@@ -87,7 +90,7 @@ pnpm run build:frontend
 ### 1. AsyncLocalStorage (ALS) for Context
 Request-scoped context propagation without OTel `context.with()` limitations:
 ```ts
-import { getContext, runWithContext, pushToTraceStack } from '@adatechnology/logger';
+import { getContext, runWithContext, pushToTraceStack } from '@adatechnology/nestjs-logger';
 
 // In middleware:
 runWithContext({ requestId: req.id }, async () => { ... });
@@ -98,7 +101,7 @@ const ctx = getContext();  // Per-request, no concurrency issues
 
 ### 2. TraceStack — Hierarchical Call Tracing
 ```ts
-import { pushToTraceStack, popFromTraceStack } from '@adatechnology/logger';
+import { pushToTraceStack, popFromTraceStack } from '@adatechnology/nestjs-logger';
 
 // In @TraceMethod():
 pushToTraceStack(`${ClassName}.${methodName}`);
@@ -235,4 +238,3 @@ pnpm --filter=example run start:dev
 
 ### Build succeeds but types missing in dist/
 → Verify `package.json` has `"types": "dist/index.d.ts"` and build script includes `--dts`
-

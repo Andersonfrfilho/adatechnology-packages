@@ -5,15 +5,15 @@
   "version": "0.0.0",
   "description": "Full-stack monorepo: NestJS backend libraries + frontend/mobile client libraries",
   "workspaces": [
-    "packages/nestjs/*",
+    "packages/backend/*",
     "packages/frontend/*"
   ],
   "scripts": {
     "prepare": "husky install",
     "bootstrap": "pnpm install",
     "build": "pnpm run build:all",
-    "build:all": "pnpm run build:nestjs && pnpm run build:frontend",
-    "build:nestjs": "pnpm --filter='@adatechnology/logger' run build && pnpm --filter='@adatechnology/cache' run build && pnpm --filter='@adatechnology/http-client' run build && pnpm --filter='@adatechnology/shared' run build && pnpm --filter='@adatechnology/auth-keycloak' run build && pnpm --filter='@adatechnology/keycloak-admin' run build",
+    "build:all": "pnpm run build:backend && pnpm run build:frontend",
+    "build:backend": "pnpm --filter='@adatechnology/nestjs-logger' run build && pnpm --filter='@adatechnology/nestjs-cache' run build && pnpm --filter='@adatechnology/nestjs-http-client' run build && pnpm --filter='@adatechnology/shared' run build && pnpm --filter='@adatechnology/nestjs-auth-keycloak' run build && pnpm --filter='@adatechnology/nestjs-keycloak-admin' run build",
     "build:frontend": "pnpm --filter='@adatechnology/logger-client' run build",
     "build:example": "pnpm --filter=example run build",
     "clean": "rm -rf packages/**/dist",

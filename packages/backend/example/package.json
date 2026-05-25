@@ -20,10 +20,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@adatechnology/auth-keycloak": "workspace:*",
-    "@adatechnology/cache": "workspace:*",
-    "@adatechnology/http-client": "workspace:*",
-    "@adatechnology/logger": "workspace:*",
+    "@adatechnology/nestjs-auth-keycloak": "workspace:*",
+    "@adatechnology/nestjs-cache": "workspace:*",
+    "@adatechnology/nestjs-http-client": "workspace:*",
+    "@adatechnology/nestjs-logger": "workspace:*",
     "@adatechnology/shared": "workspace:*",
     "@nestjs/common": "^11.1.16",
     "@nestjs/core": "^11.1.16",

@@ -1,6 +1,6 @@
 {
-  "name": "@adatechnology/keycloak-admin",
-  "version": "0.1.15",
+  "name": "@adatechnology/nestjs-auth-keycloak",
+  "version": "0.1.17",
   "publishConfig": {
     "access": "public"
   },
@@ -11,11 +11,13 @@
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsup && cp index.d.ts dist/index.d.ts",
+    "build": "rm -rf dist && tsup",
     "build:watch": "tsup --watch",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "echo \"no tests\""
   },
   "dependencies": {
+    "@adatechnology/cache": "workspace:*",
     "@adatechnology/http-client": "workspace:*",
     "@adatechnology/logger": "workspace:*"
   },

@@ -6,13 +6,14 @@ A unified monorepo containing both backend NestJS libraries and frontend/mobile 
 
 ```
 packages/
-├── nestjs/                          # NestJS backend libraries
-│   ├── logger/                      # @adatechnology/logger (Winston + AsyncLocalStorage)
-│   ├── cache/                       # @adatechnology/cache (Redis/InMemory)
-│   ├── http/                        # @adatechnology/http-client
+├── backend/                         # Backend NestJS libraries
+│   ├── nestjs-logger/               # @adatechnology/nestjs-logger (Winston + AsyncLocalStorage)
+│   ├── nestjs-cache/                # @adatechnology/nestjs-cache (Redis/InMemory)
+│   ├── nestjs-http-client/          # @adatechnology/nestjs-http-client
 │   ├── shared/                      # @adatechnology/shared (decorators, utilities)
-│   ├── keycloak/                    # @adatechnology/auth-keycloak
-│   ├── keycloak-admin/              # @adatechnology/keycloak-admin
+│   ├── nestjs-auth-keycloak/        # @adatechnology/nestjs-auth-keycloak
+│   ├── nestjs-keycloak-admin/       # @adatechnology/nestjs-keycloak-admin
+│   ├── nestjs-package/              # @adatechnology/nestjs-package (package metadata)
 │   └── example/                     # Example NestJS application
 │
 └── frontend/

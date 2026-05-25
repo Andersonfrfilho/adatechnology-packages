@@ -1,5 +1,5 @@
 {
-  "name": "@adatechnology/logger",
+  "name": "@adatechnology/nestjs-logger",
   "version": "0.0.19",
   "publishConfig": {
     "access": "public"
