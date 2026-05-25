@@ -17,9 +17,9 @@
     "test": "echo \"no tests\""
   },
   "dependencies": {
-    "@adatechnology/cache": "workspace:*",
-    "@adatechnology/http-client": "workspace:*",
-    "@adatechnology/logger": "workspace:*"
+    "@adatechnology/nestjs-cache": "workspace:*",
+    "@adatechnology/nestjs-http-client": "workspace:*",
+    "@adatechnology/nestjs-logger": "workspace:*"
   },
   "peerDependencies": {
     "@nestjs/common": "^11.0.16",

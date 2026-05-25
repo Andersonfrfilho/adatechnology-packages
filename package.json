@@ -4,10 +4,6 @@
   "packageManager": "pnpm@10.28.2",
   "version": "0.0.0",
   "description": "Full-stack monorepo: NestJS backend libraries + frontend/mobile client libraries",
-  "workspaces": [
-    "packages/backend/*",
-    "packages/frontend/*"
-  ],
   "scripts": {
     "prepare": "husky install",
     "bootstrap": "pnpm install",

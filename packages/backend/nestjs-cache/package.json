@@ -13,7 +13,7 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@adatechnology/logger": "workspace:*",
+    "@adatechnology/nestjs-logger": "workspace:*",
     "ioredis": "^5.4.1"
   },
   "peerDependencies": {

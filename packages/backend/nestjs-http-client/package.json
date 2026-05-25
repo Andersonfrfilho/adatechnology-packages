@@ -14,8 +14,8 @@
     "check": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@adatechnology/logger": "workspace:*",
-    "@adatechnology/cache": "workspace:*",
+    "@adatechnology/nestjs-logger": "workspace:*",
+    "@adatechnology/nestjs-cache": "workspace:*",
     "axios": "^1.15.2",
     "rxjs": "^7.8.2"
   },
