@@ -1,0 +1,51 @@
+{
+  "realm": "example",
+  "enabled": true,
+  "clientScopes": [
+    {
+      "name": "openid",
+      "protocol": "openid-connect",
+      "attributes": {}
+    },
+    {
+      "name": "profile",
+      "protocol": "openid-connect",
+      "attributes": {}
+    },
+    {
+      "name": "email",
+      "protocol": "openid-connect",
+      "attributes": {}
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "example-client",
+      "publicClient": false,
+      "secret": "example-secret",
+      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email"
+      ],
+      "redirectUris": [
+        "*"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "test",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@adatechnology/http-client",
+  "version": "0.0.23",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@adatechnology/logger": "workspace:*",
+    "@adatechnology/cache": "workspace:*",
+    "axios": "^1.15.2",
+    "rxjs": "^7.8.2"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.16",
+    "@nestjs/core": "^11"
+  },
+  "devDependencies": {
+    "@esbuild-plugins/tsconfig-paths": "^0.1.2",
+    "tsup": "^8.5.1"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    {
+      "name": "tracestack-logging",
+      "description": "Complete TraceStack logging system documentation - call hierarchy tracking, format, implementation guide",
+      "path": "packages/logger/TRACESTACK.md",
+      "type": "documentation"
+    },
+    {
+      "name": "logger-package-readme",
+      "description": "Logger package overview and API documentation",
+      "path": "packages/logger/README.md",
+      "type": "documentation"
+    }
+  ]
+}

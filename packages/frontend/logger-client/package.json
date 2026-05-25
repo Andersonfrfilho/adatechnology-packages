@@ -1,0 +1,26 @@
+{
+  "name": "@cawme/logger-client",
+  "version": "0.0.1",
+  "description": "Isomorphic client logger for mobile, web, and desktop with request tracing",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --dts --format esm",
+    "build:watch": "tsup src/index.ts --watch --dts --format esm",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

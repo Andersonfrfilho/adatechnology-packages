@@ -1,0 +1,14 @@
+# Local Node & NestJS
+node_modules
+dist
+*.tsbuildinfo
+*.log
+.turbo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store

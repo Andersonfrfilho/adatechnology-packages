@@ -1,0 +1,9 @@
+# Local Node & NestJS
+node_modules
+dist
+*.tsbuildinfo
+*.log
+.turbo
+
+# OS
+.DS_Store

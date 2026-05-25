@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@adatechnology/logger": ["packages/nestjs/logger/src"],
+      "@adatechnology/logger/*": ["packages/nestjs/logger/src/*"],
+      "@adatechnology/cache": ["packages/nestjs/cache/src"],
+      "@adatechnology/cache/*": ["packages/nestjs/cache/src/*"],
+      "@adatechnology/http-client": ["packages/nestjs/http/src"],
+      "@adatechnology/http-client/*": ["packages/nestjs/http/src/*"],
+      "@adatechnology/shared": ["packages/nestjs/shared/src"],
+      "@adatechnology/shared/*": ["packages/nestjs/shared/src/*"],
+      "@adatechnology/auth-keycloak": ["packages/nestjs/keycloak/src"],
+      "@adatechnology/auth-keycloak/*": ["packages/nestjs/keycloak/src/*"],
+      "@adatechnology/keycloak-admin": ["packages/nestjs/keycloak-admin/src"],
+      "@adatechnology/keycloak-admin/*": ["packages/nestjs/keycloak-admin/src/*"],
+      "#shared": ["packages/nestjs/shared/src"],
+      "#shared/*": ["packages/nestjs/shared/src/*"],
+      "@cawme/logger-client": ["packages/frontend/logger-client/src"],
+      "@cawme/logger-client/*": ["packages/frontend/logger-client/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist"]
+}

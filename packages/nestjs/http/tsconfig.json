@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": ".",
+    "declarationDir": "dist",
+    "declaration": true,
+    "composite": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@adatechnology/*": ["../../packages/*/src"],
+      "#shared": ["../../packages/shared/src"]
+    }
+  },
+  "include": [
+    "./src/**/*.ts",
+    "./package.json"
+  ],
+  "exclude": ["node_modules", "dist"],
+  "references": [
+    { "path": "../shared" },
+    { "path": "../logger" }
+  ]
+
+}

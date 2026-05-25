@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "declaration": true,
+    "composite": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@adatechnology/*": ["../../packages/*/src"],
+      "#shared": ["../../packages/shared/src"]
+    }
+  },
+  "references": [{ "path": "../http" }],
+  "include": ["src", "package.json"]
+}

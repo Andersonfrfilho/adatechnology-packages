@@ -1,0 +1,33 @@
+{
+  "name": "@adatechnology/keycloak-admin",
+  "version": "0.1.15",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsup && cp index.d.ts dist/index.d.ts",
+    "build:watch": "tsup --watch",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@adatechnology/http-client": "workspace:*",
+    "@adatechnology/logger": "workspace:*"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^11.0.16",
+    "@nestjs/core": "^11"
+  },
+  "devDependencies": {
+    "@adatechnology/shared": "workspace:*",
+    "@esbuild-plugins/tsconfig-paths": "^0.1.2",
+    "@swc/core": "^1.15.24",
+    "tsup": "^8.5.1",
+    "typescript": "^5.2.0"
+  }
+}
