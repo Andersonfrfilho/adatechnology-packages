@@ -63,6 +63,9 @@ export function initTracing(config?: TracingConfig): void {
   const samplerArg =
     config?.samplerArg ?? process.env.OTEL_TRACES_SAMPLER_ARG ?? "1.0";
 
+  const idFormat =
+    config?.idFormat ?? process.env.OTEL_ID_FORMAT ?? "short-hash";
+
   // Carrega headers OTLP: formato 'key=value,key2=value2'
   const otlpHeaders: Record<string, string> = {};
   if (otlpHeadersRaw) {
@@ -106,7 +109,7 @@ export function initTracing(config?: TracingConfig): void {
         timeoutMillis: 5000,
       }),
       sampler: buildSampler(sampler, samplerArg),
-      idGenerator: buildIdGenerator(),
+      idGenerator: buildIdGenerator(idFormat),
       instrumentations: [
         getNodeAutoInstrumentations({
           "@opentelemetry/instrumentation-fs": { enabled: false },
@@ -117,10 +120,11 @@ export function initTracing(config?: TracingConfig): void {
       ],
     });
 
-    sdk.start();
     console.log(
-      `[tracing] OpenTelemetry initialized — service=${serviceName} endpoint=${otlpEndpoint} sampler=${sampler}`,
+      `[tracing] OpenTelemetry initialized — service=${serviceName} idFormat=${idFormat} endpoint=${otlpEndpoint} sampler=${sampler}`,
     );
+
+    sdk.start();
 
     process.on("SIGTERM", () => {
       sdk
@@ -139,13 +143,23 @@ export function initTracing(config?: TracingConfig): void {
 }
 
 /**
- * Cria um IdGenerator que gera Trace IDs em formato hex puro (32 caracteres)
- * compatível com Jaeger. O SDK padrão gera UUIDs com hífens (36 caracteres)
- * que Jaeger rejeita com: "TraceID cannot be longer than 32 hex characters".
+ * Cria um IdGenerator customizável. Suporta múltiplos formatos:
  *
- * Formato gerado: cc02d2dd9c5b488588c4b4b18325770e (sem hífens, 32 chars)
+ * - "short-hash" (padrão): 12 chars hex (como git short hashes)
+ *   Trace ID: a1b2c3d4e5f6, Span ID: 1a2b3c4d
+ *
+ * - "full-hash": 32 chars hex (compatível com Jaeger)
+ *   Trace ID: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+ *
+ * - "uuid-no-hyphens": 32 chars hex (UUID format sem hífens)
+ *   Trace ID: cc02d2dd9c5b488588c4b4b18325770e
+ *
+ * - "uuid-with-hyphens": 36 chars (UUID format original — não recomendado para Jaeger)
+ *   Trace ID: cc02d2dd-9c5b-4885-88c4-b4b18325770e
+ *
+ * Configurável via OTEL_ID_FORMAT environment variable.
  */
-function buildIdGenerator(): any {
+function buildIdGenerator(format: string): any {
   try {
     /* eslint-disable @typescript-eslint/no-require-imports */
     const { RandomIdGenerator } = require(
@@ -153,15 +167,40 @@ function buildIdGenerator(): any {
     ) as typeof import("@opentelemetry/sdk-trace-base");
     /* eslint-enable @typescript-eslint/no-require-imports */
 
-    class JaegerCompatibleIdGenerator extends RandomIdGenerator {
+    class CustomIdGenerator extends RandomIdGenerator {
+      private format: string;
+
+      constructor(format: string) {
+        super();
+        this.format = format;
+      }
+
       generateSpanId(): string {
-        // Gera 8 bytes (16 chars hex) para Span ID
-        return this.generateRandomHex(16);
+        switch (this.format) {
+          case "short-hash":
+            return this.generateRandomHex(8); // 8 chars
+          case "full-hash":
+          case "uuid-no-hyphens":
+            return this.generateRandomHex(16); // 16 chars
+          case "uuid-with-hyphens":
+            return this.generateUUID().substring(0, 8); // first 8 from UUID
+          default:
+            return this.generateRandomHex(8);
+        }
       }
 
       generateTraceId(): string {
-        // Gera 16 bytes (32 chars hex) para Trace ID — compatível com Jaeger
-        return this.generateRandomHex(32);
+        switch (this.format) {
+          case "short-hash":
+            return this.generateRandomHex(12); // 12 chars (like git short hash)
+          case "full-hash":
+          case "uuid-no-hyphens":
+            return this.generateRandomHex(32); // 32 chars (Jaeger compatible)
+          case "uuid-with-hyphens":
+            return this.generateUUID(); // 36 chars (standard UUID)
+          default:
+            return this.generateRandomHex(12);
+        }
       }
 
       private generateRandomHex(length: number): string {
@@ -172,9 +211,25 @@ function buildIdGenerator(): any {
         }
         return result;
       }
+
+      private generateUUID(): string {
+        // Gera UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+        const hex = () => Math.floor(Math.random() * 16).toString(16);
+        return (
+          this.generateRandomHex(8) +
+          "-" +
+          this.generateRandomHex(4) +
+          "-4" +
+          this.generateRandomHex(3) +
+          "-" +
+          this.generateRandomHex(4) +
+          "-" +
+          this.generateRandomHex(12)
+        );
+      }
     }
 
-    return new JaegerCompatibleIdGenerator();
+    return new CustomIdGenerator(format);
   } catch {
     return undefined; // Fallback para RandomIdGenerator padrão se falhar
   }

@@ -66,4 +66,22 @@ export interface TracingConfig {
    * Padrão: OTEL_TRACES_SAMPLER_ARG || '1.0'
    */
   samplerArg?: string;
+
+  /**
+   * Formato dos Trace IDs e Span IDs gerados.
+   * Padrão: OTEL_ID_FORMAT || 'short-hash'
+   *
+   * Opções:
+   * - 'short-hash'       — 12 chars Trace ID (como git short hashes) — RECOMENDADO
+   * - 'full-hash'        — 32 chars hex (compatível com Jaeger)
+   * - 'uuid-no-hyphens'  — 32 chars hex (UUID format sem hífens)
+   * - 'uuid-with-hyphens'— 36 chars (UUID format original)
+   *
+   * Exemplo de Trace ID por formato:
+   * - short-hash:        a1b2c3d4e5f6
+   * - full-hash:         a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+   * - uuid-no-hyphens:   cc02d2dd9c5b488588c4b4b18325770e
+   * - uuid-with-hyphens: cc02d2dd-9c5b-4885-88c4-b4b18325770e
+   */
+  idFormat?: "short-hash" | "full-hash" | "uuid-no-hyphens" | "uuid-with-hyphens";
 }
