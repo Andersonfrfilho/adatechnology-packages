@@ -4,7 +4,6 @@
     "rootDir": ".",
     "outDir": "dist",
     "skipLibCheck": true,
-    "paths": {}
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"]
