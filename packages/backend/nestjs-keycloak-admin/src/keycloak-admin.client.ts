@@ -2,11 +2,11 @@ import { Inject, Injectable, Optional } from "@nestjs/common";
 import {
   HTTP_PROVIDER,
   type HttpProviderInterface,
-} from "@adatechnology/http-client";
+} from "@adatechnology/nestjs-http-client";
 import {
   LOGGER_PROVIDER,
   type LoggerProviderInterface,
-} from "@adatechnology/logger";
+} from "@adatechnology/nestjs-logger";
 import { KeycloakAdminError } from "./errors/keycloak-admin.error";
 
 import type {

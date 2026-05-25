@@ -1,5 +1,5 @@
 import { Module, DynamicModule } from "@nestjs/common";
-import { HttpModule } from "@adatechnology/http-client";
+import { HttpModule } from "@adatechnology/nestjs-http-client";
 
 import {
   KEYCLOAK_ADMIN_CLIENT,
