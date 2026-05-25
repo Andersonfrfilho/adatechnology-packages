@@ -43,9 +43,9 @@ pnpm changeset publish          # Publish to npm
 - Published to npm automatically via changesets
 - Consumer services: api, bff, cron, worker
 
-### Frontend Packages (@cawme/*)
+### Frontend Packages (@adatechnology/*)
 - Semver: `packages/frontend/{package}/package.json`
-- Scope: `@cawme`
+- Scope: `@adatechnology`
 - Published to npm automatically via changesets
 - Consumer apps: cawme-client (mobile), cawme-web (React)
 
@@ -74,7 +74,7 @@ cd packages/frontend
 mkdir my-new-client-lib
 cd my-new-client-lib
 # Create package.json:
-# - name: @cawme/my-new-client-lib
+# - name: @adatechnology/my-new-client-lib
 # - type: module (ESM)
 # - build script
 # Create src/index.ts
@@ -158,11 +158,11 @@ async execute(params: MyParams) { ... }
 
 ## Frontend Package Usage
 
-### @cawme/logger-client
+### @adatechnology/logger-client
 Isomorphic client for request tracing in React Native, web, Node.js, Electron:
 
 ```ts
-import { initTraceContext } from '@cawme/logger-client';
+import { initTraceContext } from '@adatechnology/logger-client';
 
 // Initialize once at app startup
 const traceContext = initTraceContext({

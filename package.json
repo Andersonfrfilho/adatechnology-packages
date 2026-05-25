@@ -14,7 +14,7 @@
     "build": "pnpm run build:all",
     "build:all": "pnpm run build:nestjs && pnpm run build:frontend",
     "build:nestjs": "pnpm --filter='@adatechnology/logger' run build && pnpm --filter='@adatechnology/cache' run build && pnpm --filter='@adatechnology/http-client' run build && pnpm --filter='@adatechnology/shared' run build && pnpm --filter='@adatechnology/auth-keycloak' run build && pnpm --filter='@adatechnology/keycloak-admin' run build",
-    "build:frontend": "pnpm --filter='@cawme/logger-client' run build",
+    "build:frontend": "pnpm --filter='@adatechnology/logger-client' run build",
     "build:example": "pnpm --filter=example run build",
     "clean": "rm -rf packages/**/dist",
     "dev": "turbo run dev --parallel",

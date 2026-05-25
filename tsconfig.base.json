@@ -24,8 +24,8 @@
       "@adatechnology/keycloak-admin/*": ["packages/nestjs/keycloak-admin/src/*"],
       "#shared": ["packages/nestjs/shared/src"],
       "#shared/*": ["packages/nestjs/shared/src/*"],
-      "@cawme/logger-client": ["packages/frontend/logger-client/src"],
-      "@cawme/logger-client/*": ["packages/frontend/logger-client/src/*"]
+      "@adatechnology/logger-client": ["packages/frontend/logger-client/src"],
+      "@adatechnology/logger-client/*": ["packages/frontend/logger-client/src/*"]
     }
   },
   "exclude": ["node_modules", "dist"]
