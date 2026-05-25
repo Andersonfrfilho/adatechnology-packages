@@ -161,75 +161,60 @@ export function initTracing(config?: TracingConfig): void {
  */
 function buildIdGenerator(format: string): any {
   try {
-    /* eslint-disable @typescript-eslint/no-require-imports */
-    const { RandomIdGenerator } = require(
-      "@opentelemetry/sdk-trace-base",
-    ) as typeof import("@opentelemetry/sdk-trace-base");
-    /* eslint-enable @typescript-eslint/no-require-imports */
-
-    class CustomIdGenerator extends RandomIdGenerator {
-      private format: string;
-
-      constructor(format: string) {
-        super();
-        this.format = format;
+    const generateRandomHex = (length: number): string => {
+      const chars = "0123456789abcdef";
+      let result = "";
+      for (let i = 0; i < length; i++) {
+        result += chars[Math.floor(Math.random() * 16)];
       }
+      return result;
+    };
 
-      generateSpanId(): string {
-        switch (this.format) {
+    const generateUUID = (): string => {
+      return (
+        generateRandomHex(8) +
+        "-" +
+        generateRandomHex(4) +
+        "-4" +
+        generateRandomHex(3) +
+        "-" +
+        generateRandomHex(4) +
+        "-" +
+        generateRandomHex(12)
+      );
+    };
+
+    // Objeto que implementa a interface IdGenerator sem estender
+    const customGenerator: any = {
+      generateSpanId: (): string => {
+        switch (format) {
           case "short-hash":
-            return this.generateRandomHex(8); // 8 chars
+            return generateRandomHex(8); // 8 chars
           case "full-hash":
           case "uuid-no-hyphens":
-            return this.generateRandomHex(16); // 16 chars
+            return generateRandomHex(16); // 16 chars
           case "uuid-with-hyphens":
-            return this.generateUUID().substring(0, 8); // first 8 from UUID
+            return generateUUID().substring(0, 8); // first 8 from UUID
           default:
-            return this.generateRandomHex(8);
+            return generateRandomHex(8);
         }
-      }
-
-      generateTraceId(): string {
-        switch (this.format) {
+      },
+      generateTraceId: (): string => {
+        switch (format) {
           case "short-hash":
-            return this.generateRandomHex(12); // 12 chars (like git short hash)
+            return generateRandomHex(12); // 12 chars (like git short hash)
           case "full-hash":
           case "uuid-no-hyphens":
-            return this.generateRandomHex(32); // 32 chars (Jaeger compatible)
+            return generateRandomHex(32); // 32 chars (Jaeger compatible)
           case "uuid-with-hyphens":
-            return this.generateUUID(); // 36 chars (standard UUID)
+            return generateUUID(); // 36 chars (standard UUID)
           default:
-            return this.generateRandomHex(12);
+            return generateRandomHex(12);
         }
-      }
+      },
+    };
 
-      private generateRandomHex(length: number): string {
-        const chars = "0123456789abcdef";
-        let result = "";
-        for (let i = 0; i < length; i++) {
-          result += chars[Math.floor(Math.random() * 16)];
-        }
-        return result;
-      }
-
-      private generateUUID(): string {
-        // Gera UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-        const hex = () => Math.floor(Math.random() * 16).toString(16);
-        return (
-          this.generateRandomHex(8) +
-          "-" +
-          this.generateRandomHex(4) +
-          "-4" +
-          this.generateRandomHex(3) +
-          "-" +
-          this.generateRandomHex(4) +
-          "-" +
-          this.generateRandomHex(12)
-        );
-      }
-    }
-
-    return new CustomIdGenerator(format);
+    return customGenerator;
   } catch {
     return undefined; // Fallback para RandomIdGenerator padrão se falhar
   }
