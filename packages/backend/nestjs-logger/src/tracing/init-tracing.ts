@@ -106,6 +106,7 @@ export function initTracing(config?: TracingConfig): void {
         timeoutMillis: 5000,
       }),
       sampler: buildSampler(sampler, samplerArg),
+      idGenerator: buildIdGenerator(),
       instrumentations: [
         getNodeAutoInstrumentations({
           "@opentelemetry/instrumentation-fs": { enabled: false },
@@ -134,6 +135,48 @@ export function initTracing(config?: TracingConfig): void {
       "[tracing] Failed to initialize — tracing disabled.",
       err instanceof Error ? err.message : err,
     );
+  }
+}
+
+/**
+ * Cria um IdGenerator que gera Trace IDs em formato hex puro (32 caracteres)
+ * compatível com Jaeger. O SDK padrão gera UUIDs com hífens (36 caracteres)
+ * que Jaeger rejeita com: "TraceID cannot be longer than 32 hex characters".
+ *
+ * Formato gerado: cc02d2dd9c5b488588c4b4b18325770e (sem hífens, 32 chars)
+ */
+function buildIdGenerator(): any {
+  try {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    const { RandomIdGenerator } = require(
+      "@opentelemetry/sdk-trace-base",
+    ) as typeof import("@opentelemetry/sdk-trace-base");
+    /* eslint-enable @typescript-eslint/no-require-imports */
+
+    class JaegerCompatibleIdGenerator extends RandomIdGenerator {
+      generateSpanId(): string {
+        // Gera 8 bytes (16 chars hex) para Span ID
+        return this.generateRandomHex(16);
+      }
+
+      generateTraceId(): string {
+        // Gera 16 bytes (32 chars hex) para Trace ID — compatível com Jaeger
+        return this.generateRandomHex(32);
+      }
+
+      private generateRandomHex(length: number): string {
+        const chars = "0123456789abcdef";
+        let result = "";
+        for (let i = 0; i < length; i++) {
+          result += chars[Math.floor(Math.random() * 16)];
+        }
+        return result;
+      }
+    }
+
+    return new JaegerCompatibleIdGenerator();
+  } catch {
+    return undefined; // Fallback para RandomIdGenerator padrão se falhar
   }
 }
 
