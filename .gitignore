@@ -48,7 +48,7 @@ out/
 build/
 
 # PNPM
-pnpm-lock.yaml
+# pnpm-lock.yaml is REQUIRED for CI/CD and must be committed
 pnpm-workspace.yaml.bak
 .gemini/
 # .github/ removed — workflows must be tracked
