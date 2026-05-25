@@ -24,8 +24,8 @@
       "@adatechnology/nestjs-keycloak-admin/*": ["packages/backend/nestjs-keycloak-admin/src/*"],
       "@adatechnology/nestjs-package": ["packages/backend/nestjs-package/src"],
       "@adatechnology/nestjs-package/*": ["packages/backend/nestjs-package/src/*"],
-      "#shared": ["packages/nestjs/shared/src"],
-      "#shared/*": ["packages/nestjs/shared/src/*"],
+      "#shared": ["packages/backend/shared/src"],
+      "#shared/*": ["packages/backend/shared/src/*"],
       "@adatechnology/logger-client": ["packages/frontend/logger-client/src"],
       "@adatechnology/logger-client/*": ["packages/frontend/logger-client/src/*"]
     }
