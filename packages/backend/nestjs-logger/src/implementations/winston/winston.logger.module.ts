@@ -165,6 +165,7 @@ function formatDevelopmentLog(
   const source = asString(info.source);
   const appName = asString(info.appName);
   const appVersion = asString(info.appVersion);
+  const traceId = asString(info.traceId);
   const lib = asString(info.lib);
   const libMethod = asString(info.libMethod);
   const libVersion = asString(info.libVersion);
@@ -198,12 +199,11 @@ function formatDevelopmentLog(
     colors.reset,
     timestamp,
   );
-  const coloredRequestId = colorizeText(
-    useColors,
-    colors.cyan,
-    colors.reset,
-    requestId,
-  );
+
+  let traceIdDisplay = "";
+  if (traceId) {
+    traceIdDisplay = `[${colorizeText(useColors, colors.magenta, colors.reset, traceId)}]`;
+  }
 
   let appDisplay = "";
   if (appName) {
@@ -251,7 +251,7 @@ function formatDevelopmentLog(
     }
   }
 
-  let output = `[${coloredRequestId}][${coloredTime}]${appDisplay}${traceStackDisplay}${sourceDisplay}${libDisplay}${libMethodDisplay}[${coloredLevel}] - ${message}`;
+  let output = `${traceIdDisplay}[${coloredTime}]${appDisplay}${traceStackDisplay}${sourceDisplay}${libDisplay}${libMethodDisplay}[${coloredLevel}] - ${message}`;
 
   if (meta && typeof meta === "object" && Object.keys(meta).length > 0) {
     const inspectedMeta = inspect(meta, {
