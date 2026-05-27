@@ -1,5 +1,5 @@
 export const DEFAULT_HTTP_REQUEST_ID_HEADER = "x-request-id";
-export const DEFAULT_HTTP_REQUEST_ID_FALLBACKS = ["x-correlation-id"];
+export const DEFAULT_HTTP_REQUEST_ID_FALLBACKS = ["x-kong-request-id", "x-correlation-id"];
 
 export const HEADERS_PARAMS = {
 	REQUEST_ID: DEFAULT_HTTP_REQUEST_ID_HEADER,

@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/nestjs-http-client",
-  "version": "0.0.28",
+  "version": "0.0.30",
   "publishConfig": {
     "access": "public"
   },

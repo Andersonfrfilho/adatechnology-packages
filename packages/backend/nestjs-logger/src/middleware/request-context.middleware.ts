@@ -65,15 +65,14 @@ export class RequestContextMiddleware implements NestMiddleware {
   use(req: RequestLike, _res: ResponseLike, next: NextFunctionLike) {
     const existing =
       (req.headers?.[HEADERS_PARAMS.REQUEST_ID] as string) ||
-      (req.headers?.[HEADERS_PARAMS.FALLBACKS[0]] as string);
+      (req.headers?.[HEADERS_PARAMS.FALLBACKS[0]] as string) ||
+      (req.headers?.[HEADERS_PARAMS.FALLBACKS[1]] as string);
 
     const format = this.config?.requestIdFormat ?? "short-hash";
     let id = existing || (format === "uuid" ? randomUUID() : generateShortId());
 
-    // Normalize requestId to remove hyphens from UUID format for cleaner logs
-    if (id.length === 36 && id.includes("-")) {
-      id = id.replace(/-/g, "");
-    }
+    // Normalize requestId to 32-char hex without hyphens for consistent logging (12 → pad, 36 → remove hyphens)
+    id = normalizeToTraceId(id);
 
     // Extract or generate traceparent (W3C format)
     const incomingTraceparent = req.headers?.["traceparent"] as string | undefined;
