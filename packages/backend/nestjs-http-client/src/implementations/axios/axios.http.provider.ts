@@ -94,6 +94,17 @@ export class AxiosHttpProvider implements AxiosHttpProviderInterface {
         (config as unknown as Record<string, unknown>).__httpStartedAt =
           Date.now();
 
+        // Inject W3C traceparent header for distributed tracing
+        const asyncCtx = getContext();
+        const traceparent = asyncCtx?.traceparent as string | undefined;
+        if (traceparent) {
+          this.setHeaderValue({
+            config,
+            headerName: "traceparent",
+            value: traceparent,
+          });
+        }
+
         if (this.shouldLogType(LOG_TYPES.REQUEST)) {
           const logContext = this.extractLogContext(config);
           const method = (config.method || HttpMethod.GET).toLowerCase();
