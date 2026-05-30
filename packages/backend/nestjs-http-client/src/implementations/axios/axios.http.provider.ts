@@ -94,16 +94,9 @@ export class AxiosHttpProvider implements AxiosHttpProviderInterface {
         (config as unknown as Record<string, unknown>).__httpStartedAt =
           Date.now();
 
-        // Inject W3C traceparent header for distributed tracing
-        const asyncCtx = getContext();
-        const traceparent = asyncCtx?.traceparent as string | undefined;
-        if (traceparent) {
-          this.setHeaderValue({
-            config,
-            headerName: "traceparent",
-            value: traceparent,
-          });
-        }
+        // OpenTelemetry auto-instrumentation already propagates W3C traceparent
+        // via the active context. Manual injection here was duplicating the header
+        // and breaking distributed tracing downstream (e.g., BFF → API).
 
         if (this.shouldLogType(LOG_TYPES.REQUEST)) {
           const logContext = this.extractLogContext(config);
