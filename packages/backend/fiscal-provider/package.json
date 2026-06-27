@@ -1,0 +1,19 @@
+{
+  "name": "@adatechnology/fiscal-provider",
+  "version": "0.0.1",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "check": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}
