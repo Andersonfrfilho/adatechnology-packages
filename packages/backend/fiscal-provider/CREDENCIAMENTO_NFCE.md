@@ -36,14 +36,16 @@ open -a "Google Chrome"
 
 ---
 
-## 3. Acessar o portal SEFAZ SP
+## 3. Acessar o portal de credenciamento NFC-e (PFE)
 
-1. Abrir `https://www.nfp.fazenda.sp.gov.br/login.aspx?ReturnUrl=/`
-2. Selecionar **Contribuinte ICMS**
-3. Clicar em **Acesso via certificado digital**
-4. O macOS vai exibir um alerta pedindo a **senha de login do computador** (não é a senha do certificado) — digitar a senha do usuário macOS e clicar em **Permitir**
-5. O Chrome vai perguntar qual certificado usar — selecionar **AFR FERNANDES TRANSPORTES**
-6. Navegar até: `NFC-e → Credenciamento → Solicitar Credenciamento`
+> ⚠️ O portal correto é o **Posto Fiscal Eletrônico (PFE)**, não o NFP (Nota Fiscal Paulista).
+> O NFP é o programa de pontuação para consumidores — não serve para credenciar emissores.
+
+1. Abrir `https://www3.fazenda.sp.gov.br/PFE`
+2. Clicar em **Acesso via certificado digital**
+3. O macOS vai exibir um alerta pedindo a **senha de login do computador** (não é a senha `12345678` do certificado) — digitar a senha do usuário macOS e clicar em **Permitir**
+4. O Chrome vai perguntar qual certificado usar — selecionar **AFR FERNANDES TRANSPORTES**
+5. Navegar até: `NFC-e → Credenciamento → Solicitar Credenciamento`
 
 Preencher:
 
