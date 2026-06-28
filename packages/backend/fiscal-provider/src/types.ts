@@ -22,9 +22,12 @@ export type FiscalConfigBase = {
 
 export type NfceConfig = FiscalConfigBase & {
   readonly model: 'nfce'
-  readonly focusNfeToken: string
+  readonly certificadoBase64: string
+  readonly certificadoSenha: string
   readonly serie: string
-  readonly numeroInicial: number
+  readonly numeroNf: number
+  readonly codigoMunicipio: string
+  readonly telefone?: string
 }
 
 export type SatConfig = FiscalConfigBase & {

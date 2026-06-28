@@ -13,7 +13,13 @@
     "build:watch": "tsup --watch",
     "check": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.3",
+    "node-forge": "^1.3.1",
+    "xml-crypto": "^6.0.1"
+  },
   "devDependencies": {
+    "@types/node-forge": "^1.3.11",
     "tsup": "^8.5.1"
   }
 }

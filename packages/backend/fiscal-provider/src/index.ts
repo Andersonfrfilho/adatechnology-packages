@@ -16,7 +16,7 @@ export type {
   TestConnectionResult,
 } from './types'
 
-export { FocusNfeProvider } from './providers/FocusNfeProvider'
+export { SefazNfceProvider } from './providers/SefazNfceProvider'
 export { SatProvider } from './providers/SatProvider'
 export { createFiscalProvider } from './FiscalProviderFactory'
 

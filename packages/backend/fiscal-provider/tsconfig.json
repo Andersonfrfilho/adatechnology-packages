@@ -7,7 +7,6 @@
     "rootDir": ".",
     "declarationDir": "dist",
     "declaration": true,
-    "composite": true,
     "resolveJsonModule": true,
     "strict": true,
     "baseUrl": "."
