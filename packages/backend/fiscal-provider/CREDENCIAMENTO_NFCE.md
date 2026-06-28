@@ -38,10 +38,12 @@ open -a "Google Chrome"
 
 ## 3. Acessar o portal SEFAZ SP
 
-1. Abrir `https://www.fazenda.sp.gov.br`
-2. Clicar em **Acesso à Área Restrita** → autenticar com **Certificado Digital**
-3. O Chrome vai perguntar qual certificado usar — selecionar **AFR FERNANDES TRANSPORTES**
-4. Navegar até: `NFC-e → Credenciamento → Solicitar Credenciamento`
+1. Abrir `https://www.nfp.fazenda.sp.gov.br/login.aspx?ReturnUrl=/`
+2. Selecionar **Contribuinte ICMS**
+3. Clicar em **Acesso via certificado digital**
+4. O macOS vai exibir um alerta pedindo a **senha de login do computador** (não é a senha do certificado) — digitar a senha do usuário macOS e clicar em **Permitir**
+5. O Chrome vai perguntar qual certificado usar — selecionar **AFR FERNANDES TRANSPORTES**
+6. Navegar até: `NFC-e → Credenciamento → Solicitar Credenciamento`
 
 Preencher:
 
