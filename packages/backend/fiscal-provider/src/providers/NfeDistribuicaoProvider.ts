@@ -205,6 +205,9 @@ function parseDistribuicaoResponse(soapXml: string): NfeDistribuicaoResult {
               ?? body?.retDistDFeInt
 
   const cStat = String(retDist?.cStat ?? '')
+  if (cStat === '656') {
+    throw new Error('SEFAZ NFeDistribuicaoDFe: rate limit atingido — aguarde 1 hora antes de consultar novamente o mesmo CNPJ (cStat 656)')
+  }
   if (cStat !== '137' && cStat !== '138') {
     throw new Error(`SEFAZ NFeDistribuicaoDFe cStat ${cStat}: ${String(retDist?.xMotivo ?? 'erro desconhecido')}`)
   }
