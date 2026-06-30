@@ -11,11 +11,13 @@ import { buildChaveAcesso } from '../sefaz/SefazChave'
 import { buildNfceXml } from '../sefaz/SefazXmlBuilder'
 import { buildQrCodeUrl, buildInfNFeSupl } from '../sefaz/SefazQrCode'
 import { buildDanfce } from '../danfce/DanfceBuilder'
-import { loadCertificate, signNfceXml, type CertificateData } from '../sefaz/SefazXmlSigner'
-import { getSefazUrls, getSefazQrCodeInfo, UF_IBGE_CODES } from '../sefaz/SefazConstants'
+import { loadCertificate, isCertificateCached, signNfceXml, type CertificateData } from '../sefaz/SefazXmlSigner'
+import { getSefazUrls, getSefazQrCodeInfo, UF_IBGE_CODES, isNfceSupported } from '../sefaz/SefazConstants'
 import { sendNfceAutorizacao, sendNfceCancelamento, sendStatusServico } from '../sefaz/SefazSoapClient'
 import { withRetry } from '../sefaz/SefazRetry'
 import { FiscalError } from '../errors/FiscalError'
+import { CERT_LOG, NFCE_LOG } from '../sefaz/SefazLogMessages.constant'
+import { obfuscateMeta } from '../sefaz/LogObfuscator'
 
 const APP_NAME = 'fiscal-provider:sefaz-nfce'
 
@@ -27,7 +29,7 @@ function log(level: LogLevel, message: string, meta: Record<string, unknown> = {
     app: APP_NAME,
     level: level.toUpperCase(),
     message,
-    ...meta,
+    ...obfuscateMeta(meta),
   }
   if (level === 'error') {
     console.error(JSON.stringify(entry))
@@ -40,6 +42,19 @@ function assertNfceConfig(config: unknown): asserts config is NfceConfig {
   const c = config as NfceConfig
   if (!c || c.model !== 'nfce') {
     throw new FiscalError('Configuração inválida: modelo deve ser "nfce"', 'INVALID_CONFIG', 'model mismatch', null)
+  }
+  if (!isNfceSupported(c.uf)) {
+    const guidance: Record<string, string> = {
+      SP: 'SP utiliza SAT Fiscal (modelo "sat") para varejo presencial e NF-e modelo 55 (modelo "nfe") para demais vendas.',
+      CE: 'CE utiliza MFE — Módulo Fiscal Eletrônico (equipamento estadual equivalente ao SAT) e NF-e modelo 55 para demais vendas.',
+    }
+    const hint = guidance[c.uf] ?? 'Consulte a legislação estadual para o modelo fiscal correto.'
+    throw new FiscalError(
+      `NFC-e (modelo 65) não é suportado no estado ${c.uf}. ${hint}`,
+      'UF_NOT_SUPPORTED',
+      `uf=${c.uf} não aderiu ao NFC-e`,
+      null,
+    )
   }
   if (!c.certificadoBase64 || !c.certificadoSenha) {
     throw new FiscalError('Certificado A1 não configurado (certificadoBase64/certificadoSenha ausente)', 'MISSING_CERT', 'env vars SEFAZ_CERT_BASE64 / SEFAZ_CERT_SENHA not set', null)
@@ -55,7 +70,7 @@ export class SefazNfceProvider implements FiscalProvider {
     const dataEmissao = new Date()
     const env = config.environment
 
-    log('info', 'Iniciando emissão NFC-e via SEFAZ', { traceId, uf: config.uf, cnpj: config.cnpj, environment: env })
+    log('info', NFCE_LOG.EMIT_START, { traceId, uf: config.uf, cnpj: config.cnpj, environment: env })
 
     const certData = loadCertificateOrThrow(config, traceId)
 
@@ -66,7 +81,7 @@ export class SefazNfceProvider implements FiscalProvider {
       serie: config.serie,
       numeroNf: config.numeroNf,
     })
-    log('info', 'Chave de acesso gerada', { traceId, chaveAcesso: chave.chave })
+    log('info', NFCE_LOG.CHAVE_GERADA, { traceId, chaveAcesso: chave.chave })
 
     const tpAmb = env === 'producao' ? '1' : '2'
     const qrCodeUrls = getSefazQrCodeInfo(config.uf, env)
@@ -81,7 +96,11 @@ export class SefazNfceProvider implements FiscalProvider {
     })
 
     const nfceXml = buildNfceXml({ params, config, chave, dataEmissao })
-    log('info', 'XML NFC-e gerado', { traceId })
+    log('info', NFCE_LOG.XML_GERADO, {
+      traceId,
+      items: params.items.length,
+      totalAmount: params.items.reduce((sum, item) => sum + item.valorUnitario * item.quantidade, 0).toFixed(2),
+    })
 
     const signedResult = signXmlOrThrow(nfceXml, certData, traceId)
 
@@ -91,7 +110,7 @@ export class SefazNfceProvider implements FiscalProvider {
     const urls = getSefazUrls(config.uf, env)
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
 
-    log('info', 'Enviando NFC-e para SEFAZ', {
+    log('info', NFCE_LOG.EMIT_ENVIANDO, {
       traceId,
       endpoint: urls.autorizacao,
       environment: env,
@@ -127,16 +146,19 @@ export class SefazNfceProvider implements FiscalProvider {
     }
 
     if (finalResult.success) {
-      log('info', 'NFC-e autorizada com sucesso pela SEFAZ', {
+      log('info', NFCE_LOG.EMIT_SUCCESS, {
         traceId,
         chaveAcesso: finalResult.chaveAcesso,
         protocolo: finalResult.protocolo,
       })
     } else {
-      log('error', 'NFC-e rejeitada pela SEFAZ', {
+      log('error', NFCE_LOG.EMIT_REJECTED, {
         traceId,
         errorCode: finalResult.errorCode,
         errorMessage: finalResult.errorMessage,
+        rawResponse: typeof finalResult.rawResponse === 'string'
+          ? finalResult.rawResponse.slice(0, 600)
+          : finalResult.rawResponse,
       })
     }
 
@@ -157,6 +179,10 @@ export class SefazNfceProvider implements FiscalProvider {
     assertNfceConfig(config)
 
     if (!params.chaveAcesso || params.chaveAcesso.replace(/\D/g, '').length !== 44) {
+      log('warn', NFCE_LOG.CANCEL_CHAVE_INVALID, {
+        chaveAcesso: params.chaveAcesso,
+        tamanho: params.chaveAcesso?.replace(/\D/g, '').length ?? 0,
+      })
       return {
         success: false,
         errorCode: 'INVALID_CHAVE',
@@ -166,6 +192,9 @@ export class SefazNfceProvider implements FiscalProvider {
     }
 
     if (!params.protocolo || params.protocolo.trim() === '') {
+      log('warn', NFCE_LOG.CANCEL_PROTOCOLO_MISSING, {
+        chaveAcesso: params.chaveAcesso,
+      })
       return {
         success: false,
         errorCode: 'MISSING_PROTOCOLO',
@@ -175,6 +204,10 @@ export class SefazNfceProvider implements FiscalProvider {
     }
 
     if (!params.justificativa || params.justificativa.trim().length < 15) {
+      log('warn', NFCE_LOG.CANCEL_JUSTIFICATIVA_SHORT, {
+        chaveAcesso: params.chaveAcesso,
+        tamanho: params.justificativa?.trim().length ?? 0,
+      })
       return {
         success: false,
         errorCode: 'INVALID_JUSTIFICATIVA',
@@ -186,7 +219,7 @@ export class SefazNfceProvider implements FiscalProvider {
     const traceId = params.chaveAcesso
     const protocolo = params.protocolo as string
 
-    log('info', 'Iniciando cancelamento NFC-e via SEFAZ', { traceId, chaveAcesso: params.chaveAcesso })
+    log('info', NFCE_LOG.CANCEL_START, { traceId, chaveAcesso: params.chaveAcesso })
 
     const certData = loadCertificateOrThrow(config, traceId)
     const urls = getSefazUrls(config.uf, config.environment)
@@ -219,12 +252,15 @@ export class SefazNfceProvider implements FiscalProvider {
     )
 
     if (result.success) {
-      log('info', 'NFC-e cancelada com sucesso', { traceId, protocolo: result.protocolo })
+      log('info', NFCE_LOG.CANCEL_SUCCESS, { traceId, protocolo: result.protocolo })
     } else {
-      log('error', 'Cancelamento rejeitado pela SEFAZ', {
+      log('error', NFCE_LOG.CANCEL_REJECTED, {
         traceId,
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
+        rawResponse: typeof result.rawResponse === 'string'
+          ? result.rawResponse.slice(0, 600)
+          : result.rawResponse,
       })
     }
 
@@ -239,11 +275,11 @@ export class SefazNfceProvider implements FiscalProvider {
     const urls = getSefazUrls(config.uf, config.environment)
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
 
-    log('info', 'Verificando status do serviço SEFAZ', { uf: config.uf, environment: config.environment })
+    log('info', NFCE_LOG.STATUS_CHECK, { uf: config.uf, environment: config.environment })
 
     const status = await sendStatusServico({ endpoint: urls.statusServico, cUF, certData })
 
-    log(status.ok ? 'info' : 'warn', 'Status SEFAZ obtido', {
+    log(status.ok ? 'info' : 'warn', NFCE_LOG.STATUS_RESULT, {
       uf: config.uf,
       environment: config.environment,
       ok: status.ok,
@@ -257,12 +293,13 @@ export class SefazNfceProvider implements FiscalProvider {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function loadCertificateOrThrow(config: NfceConfig, traceId: string): CertificateData {
+  const fromCache = isCertificateCached(config.certificadoBase64, config.certificadoSenha)
   try {
     const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
-    log('info', 'Certificado A1 carregado com sucesso', { traceId })
+    log('info', CERT_LOG.LOADED, { traceId, fromCache })
     return certData
   } catch (error) {
-    log('error', 'Falha ao carregar certificado A1', {
+    log('error', CERT_LOG.LOAD_ERROR, {
       traceId,
       error: error instanceof Error ? error.message : String(error),
     })
@@ -273,10 +310,10 @@ function loadCertificateOrThrow(config: NfceConfig, traceId: string): Certificat
 function signXmlOrThrow(xml: string, certData: CertificateData, traceId: string) {
   try {
     const result = signNfceXml(xml, certData)
-    log('info', 'XML NFC-e assinado digitalmente', { traceId })
+    log('info', NFCE_LOG.XML_ASSINADO, { traceId })
     return result
   } catch (error) {
-    log('error', 'Falha ao assinar XML da NFC-e', {
+    log('error', NFCE_LOG.XML_SIGN_ERROR, {
       traceId,
       error: error instanceof Error ? error.message : String(error),
     })

@@ -66,24 +66,24 @@ type NotaRpCancelarPayload = {
 }
 
 type NotaRpEmitirResponse = {
-  sucesso: boolean
-  mensagem?: string
+  success: boolean
+  message?: string
   id_nota?: number
   numero_nota?: string
   serie?: string
   status?: string
-  erros?: string[]
+  errors?: string[]
 }
 
 type NotaRpCancelarResponse = {
-  sucesso: boolean
-  mensagem?: string
-  erros?: string[]
+  success: boolean
+  message?: string
+  errors?: string[]
 }
 
 type NotaRpEmpresaListarResponse = {
-  sucesso: boolean
-  mensagem?: string
+  success: boolean
+  message?: string
   empresas?: unknown[]
 }
 
@@ -200,8 +200,8 @@ export class NotaRpNfseProvider implements FiscalProvider {
     const payload = buildEmitirPayload(data)
     const result = await doRequest<NotaRpEmitirResponse>(url, 'POST', buildHeaders(config), payload)
 
-    if (!result.sucesso) {
-      const mensagem = result.mensagem ?? result.erros?.join('; ') ?? 'Erro desconhecido na emissão'
+    if (!result.success) {
+      const mensagem = result.message ?? result.errors?.join('; ') ?? 'Erro desconhecido na emissão'
       throw new FiscalRejectionError('NOTARP_REJECT', mensagem, result)
     }
 
@@ -237,8 +237,8 @@ export class NotaRpNfseProvider implements FiscalProvider {
 
     const result = await doRequest<NotaRpCancelarResponse>(url, 'POST', buildHeaders(config), payload)
 
-    if (!result.sucesso) {
-      const mensagem = result.mensagem ?? result.erros?.join('; ') ?? 'Erro desconhecido no cancelamento'
+    if (!result.success) {
+      const mensagem = result.message ?? result.errors?.join('; ') ?? 'Erro desconhecido no cancelamento'
       throw new FiscalRejectionError('NOTARP_CANCEL_REJECT', mensagem, result)
     }
 
@@ -264,10 +264,17 @@ export class NotaRpNfseProvider implements FiscalProvider {
       return { ok: false, message: String(error) }
     }
 
-    if (!result.sucesso) {
+    if (!result.success) {
+      const rawMessage = result.message ?? ''
+      if (rawMessage.toLowerCase().includes('v3')) {
+        return {
+          ok: false,
+          message: `Município não migrado para Nota RP v3: ${rawMessage} — use NfseProvider (ABRASF direto) ou aguarde migração.`,
+        }
+      }
       return {
         ok: false,
-        message: result.mensagem ?? 'Autenticação rejeitada pelo NotaRP — verifique apiToken, CNPJ e inscrição municipal',
+        message: rawMessage || 'Autenticação rejeitada pelo NotaRP — verifique apiToken, CNPJ e inscrição municipal',
       }
     }
 

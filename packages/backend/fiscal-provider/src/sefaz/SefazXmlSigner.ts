@@ -60,6 +60,95 @@ export function evictCertificate(pfxBase64: string, password: string): void {
   certificateCache.delete(buildCacheKey(pfxBase64, password))
 }
 
+/** Indica se o certificado já está no cache, sem disparar o parse */
+export function isCertificateCached(pfxBase64: string, password: string): boolean {
+  return certificateCache.has(buildCacheKey(pfxBase64, password))
+}
+
+export function signNfeEventoXml(xml: string, certData: CertificateData): SignedXmlResult {
+  try {
+    const idMatch = xml.match(/infEvento Id="([^"]+)"/)
+    if (!idMatch?.[1]) throw new Error('Id do infEvento não encontrado no XML')
+    const eventoId = idMatch[1]
+
+    const sig = new SignedXml({
+      privateKey: certData.privateKeyPem,
+      publicCert: certData.certificatePem,
+    })
+
+    sig.canonicalizationAlgorithm = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315'
+    sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
+
+    sig.addReference({
+      xpath: `//*[@Id='${eventoId}']`,
+      digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1',
+      transforms: [
+        'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
+        'http://www.w3.org/TR/2001/REC-xml-c14n-20010315',
+      ],
+    })
+
+    sig.computeSignature(xml, {
+      location: { reference: `//*[@Id='${eventoId}']`, action: 'after' },
+    })
+
+    return {
+      signedXml: sig.getSignedXml(),
+      certificatePem: certData.certificatePem,
+    }
+  } catch (error) {
+    if (error instanceof FiscalError) throw error
+    throw new FiscalError(
+      `Falha ao assinar XML de evento NF-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
+      'XML_SIGN_ERROR',
+      error instanceof Error ? error.message : 'unknown',
+      null
+    )
+  }
+}
+
+export function signNfseXml(xml: string, certData: CertificateData): SignedXmlResult {
+  try {
+    const idMatch = xml.match(/InfDeclaracaoPrestacaoServico Id="([^"]+)"/)
+    if (!idMatch?.[1]) throw new Error('Id do InfDeclaracaoPrestacaoServico não encontrado no XML')
+    const rpsId = idMatch[1]
+
+    const sig = new SignedXml({
+      privateKey: certData.privateKeyPem,
+      publicCert: certData.certificatePem,
+    })
+
+    sig.canonicalizationAlgorithm = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315'
+    sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
+
+    sig.addReference({
+      xpath: `//*[@Id='${rpsId}']`,
+      digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1',
+      transforms: [
+        'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
+        'http://www.w3.org/TR/2001/REC-xml-c14n-20010315',
+      ],
+    })
+
+    sig.computeSignature(xml, {
+      location: { reference: `//*[@Id='${rpsId}']`, action: 'after' },
+    })
+
+    return {
+      signedXml: sig.getSignedXml(),
+      certificatePem: certData.certificatePem,
+    }
+  } catch (error) {
+    if (error instanceof FiscalError) throw error
+    throw new FiscalError(
+      `Falha ao assinar XML da NFS-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
+      'XML_SIGN_ERROR',
+      error instanceof Error ? error.message : 'unknown',
+      null
+    )
+  }
+}
+
 export function signNfceXml(xml: string, certData: CertificateData): SignedXmlResult {
   try {
     const nfeIdMatch = xml.match(/infNFe Id="([^"]+)"/)

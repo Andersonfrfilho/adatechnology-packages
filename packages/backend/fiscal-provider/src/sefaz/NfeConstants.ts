@@ -32,7 +32,7 @@ const STATE_NFE_ENDPOINTS: Record<string, Record<'homologacao' | 'producao', Sef
       retAutorizacao:    'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeRetAutorizacao4.asmx',
       consultaProtocolo: 'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeConsultaProtocolo4.asmx',
       statusServico:     'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx',
-      recepcaoEvento:    'https://homologacao.nfe.fazenda.sp.gov.br/ws/RecepcaoEvento4.asmx',
+      recepcaoEvento:    'https://homologacao.nfe.fazenda.sp.gov.br/ws/NfeRecepcaoEvento4.asmx',
       wsdlNamespace:     'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4',
     },
     producao: {
@@ -40,7 +40,7 @@ const STATE_NFE_ENDPOINTS: Record<string, Record<'homologacao' | 'producao', Sef
       retAutorizacao:    'https://nfe.fazenda.sp.gov.br/ws/NfeRetAutorizacao4.asmx',
       consultaProtocolo: 'https://nfe.fazenda.sp.gov.br/ws/NfeConsultaProtocolo4.asmx',
       statusServico:     'https://nfe.fazenda.sp.gov.br/ws/NfeStatusServico4.asmx',
-      recepcaoEvento:    'https://nfe.fazenda.sp.gov.br/ws/RecepcaoEvento4.asmx',
+      recepcaoEvento:    'https://nfe.fazenda.sp.gov.br/ws/NfeRecepcaoEvento4.asmx',
       wsdlNamespace:     'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4',
     },
   },

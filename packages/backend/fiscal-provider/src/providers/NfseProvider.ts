@@ -10,7 +10,7 @@ import type {
   NfseData,
   NfseCancelCode,
 } from '../types'
-import { loadCertificate, signNfceXml } from '../sefaz/SefazXmlSigner'
+import { loadCertificate, signNfseXml } from '../sefaz/SefazXmlSigner'
 import { FiscalError, FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
 
 const REQUEST_TIMEOUT_MS = 30_000
@@ -530,7 +530,7 @@ function signOrThrow(
   context: string
 ): string {
   try {
-    const result = signNfceXml(xml, certData)
+    const result = signNfseXml(xml, certData)
     return result.signedXml
   } catch (error) {
     throw new FiscalError(

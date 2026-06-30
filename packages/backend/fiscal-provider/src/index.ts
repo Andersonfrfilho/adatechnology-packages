@@ -25,6 +25,7 @@ export type {
   DanfceData,
 } from './types'
 
+export { isNfceSupported, NFCE_UNSUPPORTED_UFS } from './sefaz/SefazConstants'
 export { buildDanfce } from './danfce/DanfceBuilder'
 export { buildQrCodeUrl } from './sefaz/SefazQrCode'
 export { validateCertificate } from './sefaz/CertificateValidator'

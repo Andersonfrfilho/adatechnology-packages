@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser'
 import { FiscalError, FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
 import type { FiscalResult } from '../types'
 import { SEFAZ_RETRYABLE_CODES } from './SefazConstants'
+import { signNfeEventoXml } from './SefazXmlSigner'
 import type { CertificateData } from './SefazXmlSigner'
 
 const REQUEST_TIMEOUT_MS = 30_000
@@ -65,7 +66,9 @@ export async function sendNfceCancelamento(params: {
   tpAmb: string
   certData: CertificateData
 }): Promise<FiscalResult> {
-  const eventoXml = buildCancelamentoEventoXml(params)
+  const unsignedXml = buildCancelamentoEventoXml(params)
+  const { signedXml } = signNfeEventoXml(unsignedXml, params.certData)
+  const eventoXml = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
   const soapBody = buildEventoSoapEnvelope({ cUF: params.cUF, eventoXml })
 
   const response = await fetchWithTimeout(
@@ -123,20 +126,8 @@ function buildNfeSoapEnvelope({ cUF, signedNfeXml, loteId, wsdlNamespace }: Soap
 }
 
 function buildNfeEventoSoapEnvelope({ cUF, eventoXml }: { cUF: string; eventoXml: string }): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Header>
-    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
-      <cUF>${cUF}</cUF>
-      <versaoDados>1.00</versaoDados>
-    </nfeCabecMsg>
-  </soap12:Header>
-  <soap12:Body>
-    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
-      ${eventoXml}
-    </nfeDadosMsg>
-  </soap12:Body>
-</soap12:Envelope>`
+  // Compact: SP SEFAZ rejects whitespace between tags (cStat 588)
+  return `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4"><cUF>${cUF}</cUF><versaoDados>1.00</versaoDados></nfeCabecMsg></soap12:Header><soap12:Body><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">${eventoXml}</nfeDadosMsg></soap12:Body></soap12:Envelope>`
 }
 
 function buildNfeStatusServicoSoap(cUF: string): string {
@@ -152,20 +143,8 @@ function buildSoapEnvelope({ cUF, signedNfeXml, loteId, wsdlNamespace }: SoapSen
 }
 
 function buildEventoSoapEnvelope({ cUF, eventoXml }: { cUF: string; eventoXml: string }): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Header>
-    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
-      <cUF>${cUF}</cUF>
-      <versaoDados>1.00</versaoDados>
-    </nfeCabecMsg>
-  </soap12:Header>
-  <soap12:Body>
-    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">
-      ${eventoXml}
-    </nfeDadosMsg>
-  </soap12:Body>
-</soap12:Envelope>`
+  // Compact: SP SEFAZ rejects whitespace between tags (cStat 588)
+  return `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4"><cUF>${cUF}</cUF><versaoDados>1.00</versaoDados></nfeCabecMsg></soap12:Header><soap12:Body><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">${eventoXml}</nfeDadosMsg></soap12:Body></soap12:Envelope>`
 }
 
 function buildCancelamentoEventoXml(params: {
@@ -179,26 +158,8 @@ function buildCancelamentoEventoXml(params: {
   tpAmb: string
 }): string {
   const id = `ID110111${params.chaveAcesso}${params.nSeqEvento.padStart(2, '0')}`
-  return `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-  <idLote>1</idLote>
-  <evento versao="1.00">
-    <infEvento Id="${id}">
-      <cOrgao>${params.cUF}</cOrgao>
-      <tpAmb>${params.tpAmb}</tpAmb>
-      <CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ>
-      <chNFe>${params.chaveAcesso}</chNFe>
-      <dhEvento>${params.dhEvento}</dhEvento>
-      <tpEvento>110111</tpEvento>
-      <nSeqEvento>${params.nSeqEvento}</nSeqEvento>
-      <verEvento>1.00</verEvento>
-      <detEvento versao="1.00">
-        <descEvento>Cancelamento</descEvento>
-        <nProt>${params.protocolo}</nProt>
-        <xJust>${params.justificativa}</xJust>
-      </detEvento>
-    </infEvento>
-  </evento>
-</envEvento>`
+  // Compact: SP SEFAZ rejects whitespace between tags (cStat 588)
+  return `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></evento></envEvento>`
 }
 
 function buildStatusServicoSoap(cUF: string): string {
@@ -412,7 +373,9 @@ export async function sendNfeCancelamento(params: {
   tpAmb: string
   certData: CertificateData
 }): Promise<FiscalResult> {
-  const eventoXml = buildCancelamentoEventoXml(params)
+  const unsignedXml = buildCancelamentoEventoXml(params)
+  const { signedXml } = signNfeEventoXml(unsignedXml, params.certData)
+  const eventoXml = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
   const soapBody = buildNfeEventoSoapEnvelope({ cUF: params.cUF, eventoXml })
 
   const response = await fetchWithTimeout(

@@ -14,6 +14,8 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
   const tpAmb = config.environment === 'producao' ? '1' : '2'
   const cUF = UF_IBGE_CODES[config.uf] ?? '00'
   const dhEmi = formatDateTime(dataEmissao)
+  const serieNum = String(parseInt(config.serie, 10) || 1)
+  const ie = config.inscricaoEstadual.replace(/\D/g, '') || 'ISENTO'
   const totalProdutos = params.items.reduce((sum, item) => sum + item.valorTotal, 0).toFixed(2)
   const totalNf = params.totalAmount.toFixed(2)
   const totalDesc = params.discountAmount.toFixed(2)
@@ -54,9 +56,7 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
     ? `<dest><CPF>${params.customerCpf.replace(/\D/g, '')}</CPF><indIEDest>9</indIEDest></dest>`
     : ''
 
-  const descXml = params.discountAmount > 0
-    ? `<vDesc>${totalDesc}</vDesc>`
-    : ''
+  const descXml = `<vDesc>${totalDesc}</vDesc>`
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
@@ -66,7 +66,7 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
       <cNF>${chave.cNF}</cNF>
       <natOp>Venda ao consumidor</natOp>
       <mod>65</mod>
-      <serie>${config.serie.padStart(3, '0')}</serie>
+      <serie>${serieNum}</serie>
       <nNF>${config.numeroNf}</nNF>
       <dhEmi>${dhEmi}</dhEmi>
       <tpNF>1</tpNF>
@@ -99,6 +99,7 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
         <xPais>Brasil</xPais>
         ${config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''}
       </enderEmit>
+      <IE>${ie}</IE>
       <CRT>${config.crt}</CRT>
     </emit>
     ${destXml}
