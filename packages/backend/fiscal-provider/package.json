@@ -25,7 +25,8 @@
     "controlid:install": "bun run scripts/install-controlid.ts",
     "controlid:middleware": "bun run scripts/satid-middleware-server.ts",
     "controlid:start": "bash scripts/start-controlid.sh",
-    "controlid:test": "bun run scripts/test-satid-lib.ts"
+    "controlid:test": "bun run scripts/test-satid-lib.ts",
+    "controlid:setup-code": "bun run scripts/setup-activation-code.ts"
   },
   "dependencies": {
     "fast-xml-parser": "^4.5.3",
