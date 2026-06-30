@@ -11,7 +11,17 @@
     "prebuild": "rm -rf dist",
     "build": "tsup",
     "build:watch": "tsup --watch",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun run scripts/test-fiscal.ts",
+    "test:sat": "bun run scripts/test-fiscal.ts --sat",
+    "test:nfce": "bun run scripts/test-fiscal.ts --nfce",
+    "test:nfe": "bun run scripts/test-fiscal.ts --nfe",
+    "test:nfse": "bun run scripts/test-fiscal.ts --nfse",
+    "test:nfse-sub": "bun run scripts/test-fiscal.ts --nfse-sub",
+    "test:notarp": "bun run scripts/test-fiscal.ts --notarp",
+    "test:all": "bun run scripts/test-fiscal.ts --all",
+    "mock": "bun run scripts/mock-sefaz.ts",
+    "test:mock": "MOCK_SEFAZ_URL=http://localhost:9090 bun run scripts/test-fiscal.ts --nfce --nfe"
   },
   "dependencies": {
     "fast-xml-parser": "^4.5.3",

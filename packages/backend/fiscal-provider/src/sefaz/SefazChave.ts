@@ -6,6 +6,7 @@ type BuildChaveParams = {
   readonly cnpj: string
   readonly serie: string
   readonly numeroNf: number
+  readonly mod?: '55' | '65'
 }
 
 export type ChaveAcesso = {
@@ -23,7 +24,7 @@ export function buildChaveAcesso(params: BuildChaveParams): ChaveAcesso {
   const AAMM = `${year}${month}`
 
   const cnpj = params.cnpj.replace(/\D/g, '').padStart(14, '0')
-  const mod = '65'
+  const mod = params.mod ?? '65'
   const serie = params.serie.padStart(3, '0')
   const nNF = params.numeroNf.toString().padStart(9, '0')
   const tpEmis = '1'

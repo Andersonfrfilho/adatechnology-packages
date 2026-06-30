@@ -1,23 +1,40 @@
 export type { FiscalProvider } from './FiscalProvider.interface'
 
+export { FiscalModel, FiscalEnvironment, PaymentMethod } from './types'
+
 export type {
-  FiscalModel,
-  FiscalEnvironment,
   FiscalConfig,
   NfceConfig,
+  NfeConfig,
+  NfeDestinatario,
+  NfeData,
   SatConfig,
+  NfseConfig,
+  NfseData,
+  NotaRpConfig,
+  NotaRpTomador,
+  NotaRpNfseData,
+  NfseCancelCode,
   FiscalItem,
   FiscalPayment,
-  PaymentMethod,
   EmitFiscalParams,
   CancelFiscalParams,
   TestConnectionParams,
   FiscalResult,
   TestConnectionResult,
+  DanfceData,
 } from './types'
 
+export { buildDanfce } from './danfce/DanfceBuilder'
+export { buildQrCodeUrl } from './sefaz/SefazQrCode'
+export { validateCertificate } from './sefaz/CertificateValidator'
+export type { CertificateValidation } from './sefaz/CertificateValidator'
+
 export { SefazNfceProvider } from './providers/SefazNfceProvider'
+export { SefazNfeProvider } from './providers/SefazNfeProvider'
 export { SatProvider } from './providers/SatProvider'
+export { NfseProvider } from './providers/NfseProvider'
+export { NotaRpNfseProvider } from './providers/NotaRpNfseProvider'
 export { createFiscalProvider } from './FiscalProviderFactory'
 
 export {

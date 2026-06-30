@@ -40,19 +40,19 @@ const SVRS_NFCE: Record<'homologacao' | 'producao', SefazUrls> = {
 const STATE_NFCE_ENDPOINTS: Record<string, Record<'homologacao' | 'producao', SefazUrls>> = {
   SP: {
     homologacao: {
-      autorizacao:      'https://homologacao.nfce.fazenda.sp.gov.br/nfceweb/services/NfceAutorizacao4.asmx',
-      retAutorizacao:   'https://homologacao.nfce.fazenda.sp.gov.br/nfceweb/services/NfceRetAutorizacao4.asmx',
-      consultaProtocolo:'https://homologacao.nfce.fazenda.sp.gov.br/nfceweb/services/NfceConsultaProtocolo4.asmx',
-      statusServico:    'https://homologacao.nfce.fazenda.sp.gov.br/nfceweb/services/NfceStatusServico4.asmx',
-      recepcaoEvento:   'https://homologacao.nfce.fazenda.sp.gov.br/nfceweb/services/NfceRecepcaoEvento4.asmx',
+      autorizacao:      'https://homologacao.nfce.fazenda.sp.gov.br/ws/NfceAutorizacao4.asmx',
+      retAutorizacao:   'https://homologacao.nfce.fazenda.sp.gov.br/ws/NfceRetAutorizacao4.asmx',
+      consultaProtocolo:'https://homologacao.nfce.fazenda.sp.gov.br/ws/NfceConsultaProtocolo4.asmx',
+      statusServico:    'https://homologacao.nfce.fazenda.sp.gov.br/ws/NfceStatusServico4.asmx',
+      recepcaoEvento:   'https://homologacao.nfce.fazenda.sp.gov.br/ws/NfceRecepcaoEvento4.asmx',
       wsdlNamespace:    'http://www.portalfiscal.inf.br/nfe/wsdl/NfceAutorizacao4',
     },
     producao: {
-      autorizacao:      'https://nfce.fazenda.sp.gov.br/nfceweb/services/NfceAutorizacao4.asmx',
-      retAutorizacao:   'https://nfce.fazenda.sp.gov.br/nfceweb/services/NfceRetAutorizacao4.asmx',
-      consultaProtocolo:'https://nfce.fazenda.sp.gov.br/nfceweb/services/NfceConsultaProtocolo4.asmx',
-      statusServico:    'https://nfce.fazenda.sp.gov.br/nfceweb/services/NfceStatusServico4.asmx',
-      recepcaoEvento:   'https://nfce.fazenda.sp.gov.br/nfceweb/services/NfceRecepcaoEvento4.asmx',
+      autorizacao:      'https://nfce.fazenda.sp.gov.br/ws/NfceAutorizacao4.asmx',
+      retAutorizacao:   'https://nfce.fazenda.sp.gov.br/ws/NfceRetAutorizacao4.asmx',
+      consultaProtocolo:'https://nfce.fazenda.sp.gov.br/ws/NfceConsultaProtocolo4.asmx',
+      statusServico:    'https://nfce.fazenda.sp.gov.br/ws/NfceStatusServico4.asmx',
+      recepcaoEvento:   'https://nfce.fazenda.sp.gov.br/ws/NfceRecepcaoEvento4.asmx',
       wsdlNamespace:    'http://www.portalfiscal.inf.br/nfe/wsdl/NfceAutorizacao4',
     },
   },
@@ -113,8 +113,84 @@ const STATE_NFCE_ENDPOINTS: Record<string, Record<'homologacao' | 'producao', Se
 }
 
 export function getSefazUrls(uf: string, environment: 'homologacao' | 'producao'): SefazUrls {
+  const mockBase = process.env['MOCK_SEFAZ_URL']
+  if (mockBase) {
+    return {
+      autorizacao:       `${mockBase}/ws/NfceAutorizacao4.asmx`,
+      retAutorizacao:    `${mockBase}/ws/NfceRetAutorizacao4.asmx`,
+      consultaProtocolo: `${mockBase}/ws/NfceConsultaProtocolo4.asmx`,
+      statusServico:     `${mockBase}/ws/NfceStatusServico4.asmx`,
+      recepcaoEvento:    `${mockBase}/ws/NfceRecepcaoEvento4.asmx`,
+      wsdlNamespace:     'http://www.portalfiscal.inf.br/nfe/wsdl/NfceAutorizacao4',
+    }
+  }
   return STATE_NFCE_ENDPOINTS[uf]?.[environment] ?? SVRS_NFCE[environment]
 }
 
 // Códigos SEFAZ que indicam indisponibilidade temporária — passíveis de retry
 export const SEFAZ_RETRYABLE_CODES = new Set(['108', '109', '110', '999'])
+
+// ─── QR Code URLs por UF ──────────────────────────────────────────────────────
+
+export type SefazQrCodeInfo = {
+  readonly qrCode: string
+  readonly urlFe: string
+}
+
+const SVRS_QRCODE: Record<'homologacao' | 'producao', SefazQrCodeInfo> = {
+  homologacao: {
+    qrCode: 'https://www.homologacao.nfce.fazenda.gov.br/qrcode',
+    urlFe:  'https://www.homologacao.nfce.fazenda.gov.br/consulta',
+  },
+  producao: {
+    qrCode: 'https://www.nfce.fazenda.gov.br/qrcode',
+    urlFe:  'https://www.nfce.fazenda.gov.br/consulta',
+  },
+}
+
+const STATE_NFCE_QRCODE: Record<string, Record<'homologacao' | 'producao', SefazQrCodeInfo>> = {
+  SP: {
+    homologacao: {
+      qrCode: 'https://homologacao.nfce.fazenda.sp.gov.br/qrcode',
+      urlFe:  'https://homologacao.nfce.fazenda.sp.gov.br/consulta',
+    },
+    producao: {
+      qrCode: 'https://nfce.fazenda.sp.gov.br/qrcode',
+      urlFe:  'https://nfce.fazenda.sp.gov.br/consulta',
+    },
+  },
+  MG: {
+    homologacao: {
+      qrCode: 'https://hnfe.fazenda.mg.gov.br/portalnfce/sistema/qrcode',
+      urlFe:  'https://hnfe.fazenda.mg.gov.br/portalnfce',
+    },
+    producao: {
+      qrCode: 'https://portalsped.fazenda.mg.gov.br/portalnfce/sistema/qrcode',
+      urlFe:  'https://portalsped.fazenda.mg.gov.br/portalnfce',
+    },
+  },
+  RS: {
+    homologacao: {
+      qrCode: 'https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx',
+      urlFe:  'https://www.sefaz.rs.gov.br/NFCE',
+    },
+    producao: {
+      qrCode: 'https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx',
+      urlFe:  'https://www.sefaz.rs.gov.br/NFCE',
+    },
+  },
+  PR: {
+    homologacao: {
+      qrCode: 'https://homologacao.nfe.sefa.pr.gov.br/nfce/qrcode',
+      urlFe:  'https://homologacao.nfe.sefa.pr.gov.br/nfce',
+    },
+    producao: {
+      qrCode: 'https://www.nfe.sefa.pr.gov.br/nfce/qrcode',
+      urlFe:  'https://www.nfe.sefa.pr.gov.br/nfce',
+    },
+  },
+}
+
+export function getSefazQrCodeInfo(uf: string, environment: 'homologacao' | 'producao'): SefazQrCodeInfo {
+  return STATE_NFCE_QRCODE[uf]?.[environment] ?? SVRS_QRCODE[environment]
+}

@@ -1,18 +1,13 @@
 # Credenciamento NFC-e — SEFAZ SP
 
-Empresa: **AFR FERNANDES TRANSPORTES E SERVICOS LTDA**
-CNPJ: `61156864000191`
-Certificado: `certificado-12345678-2025-6-nov.pfx`
-Senha: `12345678`
-
 ---
 
 ## 1. Instalar o certificado no macOS
 
 ```bash
-security import ~/Desktop/certificado-12345678-2025-6-nov.pfx \
+security import /caminho/para/certificado.pfx \
   -k ~/Library/Keychains/login.keychain-db \
-  -P 12345678 \
+  -P <SENHA_CERTIFICADO> \
   -T /Applications/Google\ Chrome.app \
   -T /Applications/Safari.app
 ```
@@ -20,10 +15,8 @@ security import ~/Desktop/certificado-12345678-2025-6-nov.pfx \
 Verificar se instalou:
 
 ```bash
-security find-certificate -c "AFR FERNANDES" ~/Library/Keychains/login.keychain-db
+security find-certificate -c "RAZAO SOCIAL DA EMPRESA" ~/Library/Keychains/login.keychain-db
 ```
-
-Esperado na saída: `labl"AFR FERNANDES TRANSPORTES E SERVICOS LTDA"`
 
 ---
 
@@ -43,8 +36,8 @@ open -a "Google Chrome"
 
 1. Abrir `https://www3.fazenda.sp.gov.br/PFE`
 2. Clicar em **Acesso via certificado digital**
-3. O macOS vai exibir um alerta pedindo a **senha de login do computador** (não é a senha `12345678` do certificado) — digitar a senha do usuário macOS e clicar em **Permitir**
-4. O Chrome vai perguntar qual certificado usar — selecionar **AFR FERNANDES TRANSPORTES**
+3. O macOS vai exibir um alerta pedindo a **senha de login do computador** (não é a senha do certificado) — digitar a senha do usuário macOS e clicar em **Permitir**
+4. O Chrome vai perguntar qual certificado usar — selecionar o certificado da empresa
 5. Navegar até: `NFC-e → Credenciamento → Solicitar Credenciamento`
 
 Preencher:
@@ -54,7 +47,42 @@ Preencher:
 | Modelo | 65 (NFC-e) |
 | Ambiente | Homologação e Produção |
 | Série | 001 |
-| CNPJ | 61156864000191 |
+| CNPJ | `<CNPJ_DA_EMPRESA>` |
+
+---
+
+## ⚠️ Diagnóstico: O que causa HTTP 404 nos testes
+
+Durante os testes de homologação, endpoints SP NFC-e podem retornar **HTTP 404** mesmo com certificado apresentado no handshake TLS. As causas mais comuns:
+
+### Causa 1 — Certificado com uso restrito (`VideoConferencia`)
+
+Alguns certificados e-CNPJ A1 são emitidos com:
+
+```
+OU = VideoConferencia
+```
+
+Esse OU indica um e-CNPJ para uso em **videoconferência gov**, não para emissão de documentos fiscais. O SEFAZ aceita o TLS (cert válido ICP-Brasil), mas rejeita na camada de aplicação porque o perfil do certificado não corresponde a um certificado NF-e/NFC-e padrão.
+
+**Para NFC-e é necessário um e-CNPJ A1 de uso geral (sem OU VideoConferencia).** Esses certificados são emitidos por ACs como Certisign, Serpro, Valid, Safeweb — comprando o plano "e-CNPJ A1 — Nota Fiscal Eletrônica" ou equivalente.
+
+### Causa 2 — Credenciamento CNPJ não realizado
+
+SP exige que o CNPJ do emitente seja credenciado antes de aceitar requisições NFC-e. Sem credenciamento:
+
+- Sem cert → HTTP 403 (exige mTLS)
+- **Com cert → HTTP 404** (cert aceito no TLS, CNPJ não cadastrado)
+- Com cert + credenciado → SOAP response normal
+
+### Caminhos SP NFC-e (confirmados)
+
+Os endpoints SP usam `/ws/` (não `/nfceweb/services/` como em documentações antigas):
+
+```
+Homologação:  https://homologacao.nfce.fazenda.sp.gov.br/ws/NfceAutorizacao/NfceAutorizacao4.asmx
+Produção:     https://nfce.fazenda.sp.gov.br/ws/NfceAutorizacao/NfceAutorizacao4.asmx
+```
 
 ---
 
@@ -63,11 +91,11 @@ Preencher:
 ```bash
 cd packages/fiscal-provider
 
-export SEFAZ_CERT_BASE64=$(base64 -i ~/Desktop/certificado-12345678-2025-6-nov.pfx | tr -d '\n')
-export SEFAZ_CERT_SENHA=12345678
-export SEFAZ_CNPJ=61156864000191
+export SEFAZ_CERT_BASE64=$(base64 -i /caminho/para/certificado.pfx | tr -d '\n')
+export SEFAZ_CERT_SENHA=<SENHA_CERTIFICADO>
+export SEFAZ_CNPJ=<CNPJ_DA_EMPRESA>
 export SEFAZ_UF=SP
-export SEFAZ_CODIGO_MUNICIPIO=3543402
+export SEFAZ_CODIGO_MUNICIPIO=<CODIGO_IBGE_7_DIGITOS>
 
 bun run test:sefaz
 ```
@@ -87,13 +115,13 @@ Resultado esperado após credenciamento:
 
 ```bash
 # Converter certificado para base64 e gravar no .env
-CERT_B64=$(base64 -i ~/Desktop/certificado-12345678-2025-6-nov.pfx | tr -d '\n')
+CERT_B64=$(base64 -i /caminho/para/certificado.pfx | tr -d '\n')
 
 cat >> apps/api/.env <<EOF
 SEFAZ_CERT_BASE64=${CERT_B64}
-SEFAZ_CERT_SENHA=12345678
+SEFAZ_CERT_SENHA=<SENHA_CERTIFICADO>
 SEFAZ_UF=SP
-SEFAZ_CODIGO_MUNICIPIO=3543402
+SEFAZ_CODIGO_MUNICIPIO=<CODIGO_IBGE_7_DIGITOS>
 SEFAZ_SERIE=001
 SEFAZ_ENVIRONMENT=homologacao
 EOF
