@@ -29,6 +29,7 @@ export { buildDanfce } from './danfce/DanfceBuilder'
 export { buildQrCodeUrl } from './sefaz/SefazQrCode'
 export { validateCertificate } from './sefaz/CertificateValidator'
 export type { CertificateValidation } from './sefaz/CertificateValidator'
+export { evictCertificate } from './sefaz/SefazXmlSigner'
 
 export { SefazNfceProvider } from './providers/SefazNfceProvider'
 export { SefazNfeProvider } from './providers/SefazNfeProvider'

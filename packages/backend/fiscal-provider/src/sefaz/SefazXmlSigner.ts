@@ -1,5 +1,6 @@
 import { SignedXml } from 'xml-crypto'
 import * as forge from 'node-forge'
+import { createHash } from 'crypto'
 import { FiscalError } from '../errors/FiscalError'
 
 export type CertificateData = {
@@ -12,7 +13,18 @@ type SignedXmlResult = {
   readonly certificatePem: string
 }
 
+// Parse de PFX custa ~50ms — cache evita repetição por emissão em multi-tenant
+const certificateCache = new Map<string, CertificateData>()
+
+function buildCacheKey(pfxBase64: string, password: string): string {
+  return createHash('sha256').update(`${pfxBase64}:${password}`).digest('hex')
+}
+
 export function loadCertificate(pfxBase64: string, password: string): CertificateData {
+  const cacheKey = buildCacheKey(pfxBase64, password)
+  const cached = certificateCache.get(cacheKey)
+  if (cached) return cached
+
   try {
     const pfxDer = forge.util.decode64(pfxBase64)
     const pfxAsn1 = forge.asn1.fromDer(pfxDer)
@@ -26,10 +38,12 @@ export function loadCertificate(pfxBase64: string, password: string): Certificat
     const certBag = certBags[forge.pki.oids.certBag]?.[0]
     if (!certBag?.cert) throw new Error('Certificado público não encontrado no .pfx')
 
-    return {
+    const certData: CertificateData = {
       privateKeyPem: forge.pki.privateKeyToPem(keyBag.key),
       certificatePem: forge.pki.certificateToPem(certBag.cert),
     }
+    certificateCache.set(cacheKey, certData)
+    return certData
   } catch (error) {
     if (error instanceof FiscalError) throw error
     throw new FiscalError(
@@ -39,6 +53,11 @@ export function loadCertificate(pfxBase64: string, password: string): Certificat
       null
     )
   }
+}
+
+/** Remove o certificado do cache — útil ao trocar o .pfx sem reiniciar o processo */
+export function evictCertificate(pfxBase64: string, password: string): void {
+  certificateCache.delete(buildCacheKey(pfxBase64, password))
 }
 
 export function signNfceXml(xml: string, certData: CertificateData): SignedXmlResult {
