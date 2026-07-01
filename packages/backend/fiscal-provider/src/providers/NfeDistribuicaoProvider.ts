@@ -197,9 +197,15 @@ function resolveDescricaoEvento(tipoEvento: string | undefined): string | undefi
 
 // ─── NF-e Distribuição DFe ────────────────────────────────────────────────────
 
+// chave: `${cnpj}:${environment}` → timestamp até quando o cooldown expira
+const DIST_NSU_COOLDOWN_MS = 60 * 60 * 1_000 // 1 hora — regra SEFAZ após cStat 137
+const distNsuCooldowns = new Map<string, number>()
+
 export class NfeDistribuicaoProvider {
   /**
    * Paginação incremental — retorna até 50 DFes por chamada a partir do ultNSU informado.
+   * Proteção automática contra cStat 656: se a consulta anterior retornou 137 (sem documentos),
+   * novas chamadas são bloqueadas em memória por 1 hora sem bater no SEFAZ.
    *
    * ```typescript
    * let ultNSU = await db.getUltNSU(cnpj) ?? '000000000000000'
@@ -213,19 +219,39 @@ export class NfeDistribuicaoProvider {
    */
   async consultarDFe(params: ConsultarDFeParams): Promise<NfeDistribuicaoResult> {
     const { config, ultNSU, filtros } = params
+    const cnpjClean = config.cnpj.replace(/\D/g, '')
+    const cooldownKey = `${cnpjClean}:${config.environment}`
+    const cooldownUntil = distNsuCooldowns.get(cooldownKey)
+
+    if (cooldownUntil !== undefined && Date.now() < cooldownUntil) {
+      const restanteMs = cooldownUntil - Date.now()
+      const restanteMin = Math.ceil(restanteMs / 60_000)
+      throw new Error(
+        `SEFAZ NFeDistribuicaoDFe: aguarde ${restanteMin} min antes de consultar o CNPJ ${cnpjClean} novamente (cooldown local pós-cStat 137)`
+      )
+    }
+
     const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
     const tpAmb = config.environment === 'producao' ? '1' : '2'
     const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
-    const cnpjClean = config.cnpj.replace(/\D/g, '')
 
     const soapBody = buildDistNsuSoap({ cUF, cnpj: cnpjClean, ultNSU, tpAmb })
     const responseText = await this.fetchSefaz(config, certData, soapBody)
     const result = parseDistribuicaoResponse(responseText)
+
+    // cStat 137 = sem documentos → ativa cooldown de 1h para evitar 656
+    if (result.itens.length === 0 && !result.temMais) {
+      distNsuCooldowns.set(cooldownKey, Date.now() + DIST_NSU_COOLDOWN_MS)
+    } else {
+      distNsuCooldowns.delete(cooldownKey)
+    }
+
     return filtros ? { ...result, itens: aplicarFiltros(result.itens, filtros) } : result
   }
 
   /**
    * Consulta um NSU específico — retorna 0 ou 1 item.
+   * Não sujeito ao rate limit de 1h do distNSU.
    */
   async consultarPorNsu(params: ConsultarPorNsuParams): Promise<DfeItem | undefined> {
     const { config, nsu } = params
