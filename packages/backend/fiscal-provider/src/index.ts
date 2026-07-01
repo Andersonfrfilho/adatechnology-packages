@@ -43,7 +43,10 @@ export type {
   NfeDistribuicaoConfig,
   NfeDistribuicaoResult,
   DfeItem,
+  FiltrosDfe,
   ConsultarDFeParams,
+  ConsultarPorNsuParams,
+  ConsultarPorChaveParams,
 } from './types'
 
 export { isNfceSupported, NFCE_UNSUPPORTED_UFS } from './sefaz/SefazConstants'
@@ -59,7 +62,7 @@ export { SatProvider } from './providers/SatProvider'
 export { NfseProvider } from './providers/NfseProvider'
 export { NotaRpNfseProvider } from './providers/NotaRpNfseProvider'
 export { SefazCteProvider } from './providers/SefazCteProvider'
-export { NfeDistribuicaoProvider, consultarCnpj } from './providers/NfeDistribuicaoProvider'
+export { NfeDistribuicaoProvider, consultarCnpj, importarNfeXml } from './providers/NfeDistribuicaoProvider'
 export type { CnpjInfo } from './providers/NfeDistribuicaoProvider'
 export { createFiscalProvider } from './FiscalProviderFactory'
 

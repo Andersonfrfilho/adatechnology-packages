@@ -5,7 +5,10 @@ import type {
   NfeDistribuicaoConfig,
   NfeDistribuicaoResult,
   DfeItem,
+  FiltrosDfe,
   ConsultarDFeParams,
+  ConsultarPorNsuParams,
+  ConsultarPorChaveParams,
 } from '../types'
 import { loadCertificate } from '../sefaz/SefazXmlSigner'
 import { NFE_DISTRIBUICAO_ENDPOINT, UF_IBGE_CODES_CTE } from '../sefaz/CteConstants'
@@ -45,11 +48,6 @@ export type CnpjInfo = {
   readonly meEpp?: boolean
 }
 
-/**
- * Consulta dados cadastrais de um CNPJ via BrasilAPI.
- * Sem autenticação — limite de taxa aplicado pela API pública.
- * Ideal para exibir informações do emissor/destinatário de NF-e/CT-e.
- */
 export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
   const cnpjClean = cnpj.replace(/\D/g, '')
   if (cnpjClean.length !== 14) {
@@ -71,17 +69,9 @@ export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
     throw new Error(`Falha de rede ao consultar CNPJ: ${error instanceof Error ? error.message : 'desconhecido'}`)
   }
 
-  if (response.status === 404) {
-    throw new Error(`CNPJ ${cnpjClean} não encontrado na Receita Federal`)
-  }
-
-  if (response.status === 429) {
-    throw new Error('Rate limit excedido na BrasilAPI — aguarde alguns segundos')
-  }
-
-  if (!response.ok) {
-    throw new Error(`BrasilAPI retornou HTTP ${response.status}`)
-  }
+  if (response.status === 404) throw new Error(`CNPJ ${cnpjClean} não encontrado na Receita Federal`)
+  if (response.status === 429) throw new Error('Rate limit excedido na BrasilAPI — aguarde alguns segundos')
+  if (!response.ok)            throw new Error(`BrasilAPI retornou HTTP ${response.status}`)
 
   const data = await response.json() as Record<string, unknown>
   const company = data['company'] as Record<string, unknown> | undefined
@@ -111,38 +101,185 @@ export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
   }
 }
 
-// ─── NF-e Distribuição DFe ────────────────────────────────────────────────────
+// ─── XML Import ───────────────────────────────────────────────────────────────
 
 /**
- * Consulta NF-es, NFC-es e eventos vinculados ao CNPJ do interessado (destinatário,
- * transportador, emitente) na SEFAZ Nacional.
- *
- * **Paginação incremental para sincronização com banco:**
- * ```typescript
- * // 1ª chamada — pega tudo desde o início
- * let ultNSU = await db.getUltNSU(cnpj) ?? '000000000000000'
- *
- * do {
- *   const page = await provider.consultarDFe({ config, ultNSU })
- *   await db.upsertNFes(page.itens)           // salva/atualiza no banco
- *   await db.setUltNSU(cnpj, page.ultNSU)    // persiste paginação
- *   ultNSU = page.ultNSU
- * } while (page.temMais)
- *
- * // Próxima execução (cron/webhook) retoma do ultNSU salvo
- * ```
+ * Importa uma NF-e a partir de um XML recebido externamente (e-mail, portal, etc).
+ * Suporta os formatos: nfeProc (autorizada), NFe (sem protocolo), procEventoNFe (evento).
+ * Retorna um DfeItem com schema='xml-import' e nsu=''.
  */
-export class NfeDistribuicaoProvider {
-  async consultarDFe(params: ConsultarDFeParams): Promise<NfeDistribuicaoResult> {
-    const { config, ultNSU } = params
-    const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
+export function importarNfeXml(xml: string): DfeItem {
+  const parsed = XML_PARSER.parse(xml)
 
-    const endpoint = NFE_DISTRIBUICAO_ENDPOINT[config.environment]
-    const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
+  // nfeProc ou procNFe — XML completo com protocolo de autorização
+  const nfeProc = parsed?.nfeProc ?? parsed?.procNFe
+  if (nfeProc) {
+    const infNFe = nfeProc?.NFe?.infNFe ?? nfeProc?.infNFe
+    const chaveNfe = String(infNFe?.Id ?? '').replace(/^NFe/, '')
+    return {
+      nsu: '',
+      schema: 'xml-import',
+      xmlComprimido: '',
+      xmlDecoded: xml,
+      chaveNfe: chaveNfe || undefined,
+      mod: String(infNFe?.ide?.mod ?? '55'),
+      emitenteCnpj: String(infNFe?.emit?.CNPJ ?? infNFe?.emit?.CPF ?? '') || undefined,
+      emitenteNome: String(infNFe?.emit?.xNome ?? '') || undefined,
+      valorTotal: infNFe?.total?.ICMSTot?.vNF !== undefined ? Number(infNFe.total.ICMSTot.vNF) : undefined,
+      dataEmissao: String(infNFe?.ide?.dhEmi ?? infNFe?.ide?.dEmi ?? '') || undefined,
+      situacao: '1',
+    }
+  }
+
+  // NFe sem protocolo (rascunho ou contingência)
+  const bareNfe = parsed?.NFe
+  if (bareNfe) {
+    const infNFe = bareNfe?.infNFe
+    const chaveNfe = String(infNFe?.Id ?? '').replace(/^NFe/, '')
+    return {
+      nsu: '',
+      schema: 'xml-import',
+      xmlComprimido: '',
+      xmlDecoded: xml,
+      chaveNfe: chaveNfe || undefined,
+      mod: String(infNFe?.ide?.mod ?? '55'),
+      emitenteCnpj: String(infNFe?.emit?.CNPJ ?? infNFe?.emit?.CPF ?? '') || undefined,
+      emitenteNome: String(infNFe?.emit?.xNome ?? '') || undefined,
+      valorTotal: infNFe?.total?.ICMSTot?.vNF !== undefined ? Number(infNFe.total.ICMSTot.vNF) : undefined,
+      dataEmissao: String(infNFe?.ide?.dhEmi ?? infNFe?.ide?.dEmi ?? '') || undefined,
+      situacao: undefined,
+    }
+  }
+
+  // procEventoNFe — XML de evento (cancelamento, carta de correção, etc.)
+  const procEvento = parsed?.procEventoNFe ?? parsed?.retEnvEvento
+  if (procEvento) {
+    const infEvento = procEvento?.evento?.infEvento ?? procEvento?.infEvento
+    const retInfEvento = procEvento?.retEvento?.infEvento ?? procEvento?.retInfEvento
+    const chaveNfe = String(infEvento?.chNFe ?? retInfEvento?.chNFe ?? '') || undefined
+    const tipoEvento = String(infEvento?.tpEvento ?? retInfEvento?.tpEvento ?? '') || undefined
+    return {
+      nsu: '',
+      schema: 'xml-import',
+      xmlComprimido: '',
+      xmlDecoded: xml,
+      chaveNfe,
+      mod: '55',
+      emitenteCnpj: undefined,
+      emitenteNome: undefined,
+      valorTotal: undefined,
+      dataEmissao: String(infEvento?.dhEvento ?? '') || undefined,
+      situacao: undefined,
+      tipoEvento,
+      descricaoEvento: resolveDescricaoEvento(tipoEvento),
+      dataEvento: String(infEvento?.dhEvento ?? retInfEvento?.dhEvento ?? '') || undefined,
+    }
+  }
+
+  throw new Error('XML não reconhecido — esperado: nfeProc, NFe, ou procEventoNFe')
+}
+
+function resolveDescricaoEvento(tipoEvento: string | undefined): string | undefined {
+  if (!tipoEvento) return undefined
+  const descricoes: Record<string, string> = {
+    '110111': 'Cancelamento',
+    '110110': 'Carta de Correção',
+    '110140': 'EPEC',
+    '110120': 'Ficou sem Efeito',
+    '110130': 'Autorização do Fisco',
+    '210200': 'Ciência da Operação',
+    '210210': 'Confirmação da Operação',
+    '210220': 'Desconhecimento da Operação',
+    '210240': 'Operação não Realizada',
+  }
+  return descricoes[tipoEvento]
+}
+
+// ─── NF-e Distribuição DFe ────────────────────────────────────────────────────
+
+export class NfeDistribuicaoProvider {
+  /**
+   * Paginação incremental — retorna até 50 DFes por chamada a partir do ultNSU informado.
+   *
+   * ```typescript
+   * let ultNSU = await db.getUltNSU(cnpj) ?? '000000000000000'
+   * do {
+   *   const page = await provider.consultarDFe({ config, ultNSU })
+   *   await db.upsertNFes(page.itens)
+   *   await db.setUltNSU(cnpj, page.ultNSU)
+   *   ultNSU = page.ultNSU
+   * } while (page.temMais)
+   * ```
+   */
+  async consultarDFe(params: ConsultarDFeParams): Promise<NfeDistribuicaoResult> {
+    const { config, ultNSU, filtros } = params
+    const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
     const tpAmb = config.environment === 'producao' ? '1' : '2'
+    const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
     const cnpjClean = config.cnpj.replace(/\D/g, '')
 
-    const soapBody = buildDistribuicaoSoap({ cUF, cnpj: cnpjClean, ultNSU, tpAmb })
+    const soapBody = buildDistNsuSoap({ cUF, cnpj: cnpjClean, ultNSU, tpAmb })
+    const responseText = await this.fetchSefaz(config, certData, soapBody)
+    const result = parseDistribuicaoResponse(responseText)
+    return filtros ? { ...result, itens: aplicarFiltros(result.itens, filtros) } : result
+  }
+
+  /**
+   * Consulta um NSU específico — retorna 0 ou 1 item.
+   */
+  async consultarPorNsu(params: ConsultarPorNsuParams): Promise<DfeItem | undefined> {
+    const { config, nsu } = params
+    const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
+    const tpAmb = config.environment === 'producao' ? '1' : '2'
+    const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
+    const cnpjClean = config.cnpj.replace(/\D/g, '')
+
+    const soapBody = buildConsNsuSoap({ cUF, cnpj: cnpjClean, nsu, tpAmb })
+    const responseText = await this.fetchSefaz(config, certData, soapBody)
+    const result = parseDistribuicaoResponse(responseText)
+    return result.itens[0]
+  }
+
+  /**
+   * Consulta pelo número de chave de acesso (44 dígitos).
+   * Retorna a NF-e se o CNPJ configurado for destinatário, transportador ou emitente dela.
+   */
+  async consultarPorChave(params: ConsultarPorChaveParams): Promise<DfeItem | undefined> {
+    const { config, chaveNfe } = params
+    const chaveClean = chaveNfe.replace(/\D/g, '')
+    if (chaveClean.length !== 44) {
+      throw new Error(`Chave de acesso inválida: "${chaveNfe}" — deve conter 44 dígitos`)
+    }
+
+    const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
+    const tpAmb = config.environment === 'producao' ? '1' : '2'
+    const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
+    const cnpjClean = config.cnpj.replace(/\D/g, '')
+
+    const soapBody = buildConsChaveSoap({ cUF, cnpj: cnpjClean, chaveNfe: chaveClean, tpAmb })
+    const responseText = await this.fetchSefaz(config, certData, soapBody)
+    const result = parseDistribuicaoResponse(responseText)
+    return result.itens[0]
+  }
+
+  /**
+   * Importa uma NF-e a partir de XML recebido externamente.
+   * Delega para a função standalone `importarNfeXml`.
+   */
+  importarXml(xml: string): DfeItem {
+    return importarNfeXml(xml)
+  }
+
+  async consultarCnpj(cnpj: string): Promise<CnpjInfo> {
+    return consultarCnpj(cnpj)
+  }
+
+  private async fetchSefaz(
+    config: NfeDistribuicaoConfig,
+    certData: ReturnType<typeof loadCertificate>,
+    soapBody: string,
+  ): Promise<string> {
+    const endpoint = NFE_DISTRIBUICAO_ENDPOINT[config.environment]
 
     let response: Response
     try {
@@ -171,28 +308,48 @@ export class NfeDistribuicaoProvider {
       throw new FiscalConnectionError('SEFAZ NFeDistribuicaoDFe', error instanceof Error ? error.message : 'desconhecido')
     }
 
-    const responseText = await response.text()
-    return parseDistribuicaoResponse(responseText)
-  }
-
-  /** Alias direto para consultarCnpj — disponível na instância para uso uniforme */
-  async consultarCnpj(cnpj: string): Promise<CnpjInfo> {
-    return consultarCnpj(cnpj)
+    return response.text()
   }
 }
 
-// ─── Builders ─────────────────────────────────────────────────────────────────
+// ─── SOAP Builders ────────────────────────────────────────────────────────────
 
-function buildDistribuicaoSoap(params: {
-  cUF: string
-  cnpj: string
-  ultNSU: string
-  tpAmb: string
-}): string {
+type SoapBaseParams = { cUF: string; cnpj: string; tpAmb: string }
+
+function buildDistNsuSoap(params: SoapBaseParams & { ultNSU: string }): string {
   const nsu = params.ultNSU.padStart(15, '0')
+  return buildSoapEnvelope(params, `<distNSU><ultNSU>${nsu}</ultNSU></distNSU>`)
+}
+
+function buildConsNsuSoap(params: SoapBaseParams & { nsu: string }): string {
+  const nsu = params.nsu.padStart(15, '0')
+  return buildSoapEnvelope(params, `<consNSU><NSU>${nsu}</NSU></consNSU>`)
+}
+
+function buildConsChaveSoap(params: SoapBaseParams & { chaveNfe: string }): string {
+  return buildSoapEnvelope(params, `<consChNFe><chNFe>${params.chaveNfe}</chNFe></consChNFe>`)
+}
+
+function buildSoapEnvelope(params: SoapBaseParams, queryBody: string): string {
   const ns = 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe'
   const nfens = 'http://www.portalfiscal.inf.br/nfe'
-  return `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDistDFeInteresse xmlns="${ns}"><nfeDadosMsg><distDFeInt versao="1.01" xmlns="${nfens}"><tpAmb>${params.tpAmb}</tpAmb><cUFAutor>${params.cUF}</cUFAutor><CNPJ>${params.cnpj}</CNPJ><distNSU><ultNSU>${nsu}</ultNSU></distNSU></distDFeInt></nfeDadosMsg></nfeDistDFeInteresse></soap12:Body></soap12:Envelope>`
+  return `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDistDFeInteresse xmlns="${ns}"><nfeDadosMsg><distDFeInt versao="1.01" xmlns="${nfens}"><tpAmb>${params.tpAmb}</tpAmb><cUFAutor>${params.cUF}</cUFAutor><CNPJ>${params.cnpj}</CNPJ>${queryBody}</distDFeInt></nfeDadosMsg></nfeDistDFeInteresse></soap12:Body></soap12:Envelope>`
+}
+
+// ─── Filtros ──────────────────────────────────────────────────────────────────
+
+function aplicarFiltros(itens: readonly DfeItem[], filtros: FiltrosDfe): readonly DfeItem[] {
+  return itens.filter((item) => {
+    if (filtros.modelo && item.mod !== filtros.modelo) return false
+    if (filtros.cnpjEmitente && item.emitenteCnpj?.replace(/\D/g, '') !== filtros.cnpjEmitente.replace(/\D/g, '')) return false
+    if (filtros.situacao && item.situacao !== filtros.situacao) return false
+    if (filtros.schemas && !filtros.schemas.includes(item.schema)) return false
+    if (filtros.valorMinimo !== undefined && (item.valorTotal === undefined || item.valorTotal < filtros.valorMinimo)) return false
+    if (filtros.valorMaximo !== undefined && (item.valorTotal === undefined || item.valorTotal > filtros.valorMaximo)) return false
+    if (filtros.dataInicio && item.dataEmissao && item.dataEmissao < filtros.dataInicio) return false
+    if (filtros.dataFim && item.dataEmissao && item.dataEmissao > filtros.dataFim) return false
+    return true
+  })
 }
 
 // ─── Parser ───────────────────────────────────────────────────────────────────
@@ -216,63 +373,89 @@ function parseDistribuicaoResponse(soapXml: string): NfeDistribuicaoResult {
   const maxNSU = String(retDist?.maxNSU ?? ultNSU)
 
   const rawDocs = retDist?.loteDistDFeInt?.docZip
-  const docs: unknown[] = !rawDocs
-    ? []
-    : Array.isArray(rawDocs) ? rawDocs : [rawDocs]
+  const docs: unknown[] = !rawDocs ? [] : Array.isArray(rawDocs) ? rawDocs : [rawDocs]
 
-  const itens: DfeItem[] = docs.map((doc) => {
-    const d = doc as Record<string, unknown>
-    const nsu = String(d['NSU'] ?? d['nsu'] ?? '')
-    const schema = String(d['schema'] ?? '')
-    const xmlComprimido = String(d['#text'] ?? d['_'] ?? '')
-
-    let xmlDecoded: string | undefined
-    let chaveNfe: string | undefined
-    let emitenteCnpj: string | undefined
-    let emitenteNome: string | undefined
-    let valorTotal: number | undefined
-    let dataEmissao: string | undefined
-    let situacao: string | undefined
-    let mod: string | undefined
-
-    try {
-      const buffer = Buffer.from(xmlComprimido, 'base64')
-      xmlDecoded = inflateSync(buffer).toString('utf-8')
-
-      const docParsed = XML_PARSER.parse(xmlDecoded)
-
-      // resNFe — resumo (campo mais comum para distribuição de transportador)
-      const resNFe = docParsed?.resNFe
-      if (resNFe) {
-        chaveNfe = String(resNFe.chNFe ?? '')
-        emitenteCnpj = String(resNFe.CNPJ ?? resNFe.CPF ?? '')
-        emitenteNome = String(resNFe.xNome ?? '')
-        valorTotal = resNFe.vNF !== undefined ? Number(resNFe.vNF) : undefined
-        dataEmissao = String(resNFe.dhEmi ?? '')
-        situacao = String(resNFe.cSitNFe ?? '')
-        mod = String(resNFe.mod ?? '55')
-      }
-
-      // procNFe — XML completo autorizado
-      const procNFe = docParsed?.nfeProc ?? docParsed?.procNFe
-      if (procNFe) {
-        const infNFe = procNFe?.NFe?.infNFe ?? procNFe?.infNFe
-        chaveNfe = String(infNFe?.Id ?? '').replace(/^NFe/, '')
-        emitenteCnpj = String(infNFe?.emit?.CNPJ ?? infNFe?.emit?.CPF ?? '')
-        emitenteNome = String(infNFe?.emit?.xNome ?? '')
-        valorTotal = infNFe?.total?.ICMSTot?.vNF !== undefined ? Number(infNFe.total.ICMSTot.vNF) : undefined
-        dataEmissao = String(infNFe?.ide?.dhEmi ?? '')
-        mod = String(infNFe?.ide?.mod ?? '55')
-        situacao = '1'
-      }
-    } catch {
-      // gzip decode failure — leave decoded undefined
-    }
-
-    return { nsu, schema, xmlComprimido, xmlDecoded, chaveNfe, mod, emitenteCnpj, emitenteNome, valorTotal, dataEmissao, situacao }
-  })
+  const itens: DfeItem[] = docs.map((doc) => parseDocZip(doc as Record<string, unknown>))
 
   const temMais = cStat === '138' || (maxNSU !== ultNSU && docs.length >= 50)
 
   return { itens, ultNSU, maxNSU, temMais }
+}
+
+function parseDocZip(doc: Record<string, unknown>): DfeItem {
+  const nsu = String(doc['NSU'] ?? doc['nsu'] ?? '')
+  const schema = String(doc['schema'] ?? '')
+  const xmlComprimido = String(doc['#text'] ?? doc['_'] ?? '')
+
+  let xmlDecoded: string | undefined
+  let chaveNfe: string | undefined
+  let emitenteCnpj: string | undefined
+  let emitenteNome: string | undefined
+  let valorTotal: number | undefined
+  let dataEmissao: string | undefined
+  let situacao: string | undefined
+  let mod: string | undefined
+  let tipoEvento: string | undefined
+  let descricaoEvento: string | undefined
+  let dataEvento: string | undefined
+
+  try {
+    const buffer = Buffer.from(xmlComprimido, 'base64')
+    xmlDecoded = inflateSync(buffer).toString('utf-8')
+    const docParsed = XML_PARSER.parse(xmlDecoded)
+
+    // resNFe — resumo da NF-e (distribuição para transportador/destinatário)
+    const resNFe = docParsed?.resNFe
+    if (resNFe) {
+      chaveNfe = String(resNFe.chNFe ?? '')
+      emitenteCnpj = String(resNFe.CNPJ ?? resNFe.CPF ?? '')
+      emitenteNome = String(resNFe.xNome ?? '')
+      valorTotal = resNFe.vNF !== undefined ? Number(resNFe.vNF) : undefined
+      dataEmissao = String(resNFe.dhEmi ?? '')
+      situacao = String(resNFe.cSitNFe ?? '')
+      mod = String(resNFe.mod ?? '55')
+    }
+
+    // procNFe / nfeProc — XML completo autorizado
+    const procNFe = docParsed?.nfeProc ?? docParsed?.procNFe
+    if (procNFe) {
+      const infNFe = procNFe?.NFe?.infNFe ?? procNFe?.infNFe
+      chaveNfe = String(infNFe?.Id ?? '').replace(/^NFe/, '')
+      emitenteCnpj = String(infNFe?.emit?.CNPJ ?? infNFe?.emit?.CPF ?? '')
+      emitenteNome = String(infNFe?.emit?.xNome ?? '')
+      valorTotal = infNFe?.total?.ICMSTot?.vNF !== undefined ? Number(infNFe.total.ICMSTot.vNF) : undefined
+      dataEmissao = String(infNFe?.ide?.dhEmi ?? '')
+      mod = String(infNFe?.ide?.mod ?? '55')
+      situacao = '1'
+    }
+
+    // resEvento — resumo de evento (cancelamento, CCe, etc.)
+    const resEvento = docParsed?.resEvento
+    if (resEvento) {
+      chaveNfe = String(resEvento.chNFe ?? '') || undefined
+      tipoEvento = String(resEvento.tpEvento ?? '') || undefined
+      descricaoEvento = String(resEvento.xEvento ?? '') || resolveDescricaoEvento(tipoEvento)
+      dataEvento = String(resEvento.dhEvento ?? '') || undefined
+      dataEmissao = dataEvento
+      situacao = String(resEvento.cSitNFe ?? '') || undefined
+      mod = String(resEvento.mod ?? '55')
+    }
+
+    // procEventoNFe — evento completo
+    const procEvento = docParsed?.procEventoNFe
+    if (procEvento) {
+      const infEvento = procEvento?.evento?.infEvento
+      const retInfEvento = procEvento?.retEvento?.infEvento
+      chaveNfe = String(infEvento?.chNFe ?? retInfEvento?.chNFe ?? '') || undefined
+      tipoEvento = String(infEvento?.tpEvento ?? '') || undefined
+      descricaoEvento = resolveDescricaoEvento(tipoEvento)
+      dataEvento = String(infEvento?.dhEvento ?? retInfEvento?.dhRegEvento ?? '') || undefined
+      dataEmissao = dataEvento
+      mod = '55'
+    }
+  } catch {
+    // gzip decode failure — retorna item com campos mínimos
+  }
+
+  return { nsu, schema, xmlComprimido, xmlDecoded, chaveNfe, mod, emitenteCnpj, emitenteNome, valorTotal, dataEmissao, situacao, tipoEvento, descricaoEvento, dataEvento }
 }

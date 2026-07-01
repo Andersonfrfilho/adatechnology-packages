@@ -463,23 +463,23 @@ export type NfeDistribuicaoConfig = {
 }
 
 /**
- * Item retornado pelo NF-e Distribuição DFe.
- * Um DFe pode ser um resumo (resNFe) ou o XML completo autorizado (procNFe).
+ * Item retornado pelo NF-e Distribuição DFe ou por importação de XML.
+ * Cobre resumos (resNFe/resEvento), documentos completos (procNFe) e eventos (procEventoNFe).
  */
 export type DfeItem = {
-  /** NSU — Número Sequencial Único do DFe na SEFAZ Nacional */
+  /** NSU — Número Sequencial Único do DFe na SEFAZ Nacional. Vazio em importações por XML. */
   readonly nsu: string
-  /** Schema do documento: 'resNFe', 'procNFe', 'resEvento', 'procEventoNFe' */
+  /** Schema do documento: 'resNFe', 'procNFe', 'resEvento', 'procEventoNFe', 'xml-import' */
   readonly schema: string
-  /** XML comprimido em gzip+base64 — exatamente como a SEFAZ retorna */
+  /** XML comprimido em gzip+base64 — exatamente como a SEFAZ retorna. Vazio em importações. */
   readonly xmlComprimido: string
-  /** XML descomprimido e decodificado (quando disponível) */
+  /** XML descomprimido e decodificado (sempre presente em importações por XML) */
   readonly xmlDecoded?: string
-  /** Chave de acesso de 44 dígitos — extraída do XML quando schema = procNFe */
+  /** Chave de acesso de 44 dígitos */
   readonly chaveNfe?: string
   /** Modelo: '55' = NF-e, '65' = NFC-e */
   readonly mod?: string
-  /** CNPJ do emitente — extraído do resumo */
+  /** CNPJ do emitente */
   readonly emitenteCnpj?: string
   readonly emitenteNome?: string
   /** Valor total da NF-e */
@@ -487,6 +487,35 @@ export type DfeItem = {
   readonly dataEmissao?: string
   /** cSitNFe: '1' = Uso autorizado, '2' = Cancelada, '3' = Denegada */
   readonly situacao?: string
+  /** Código do tipo de evento — presente quando schema = resEvento ou procEventoNFe */
+  readonly tipoEvento?: string
+  /** Descrição do evento (ex: 'Cancelamento', 'Carta de Correção') */
+  readonly descricaoEvento?: string
+  /** Data/hora do evento */
+  readonly dataEvento?: string
+}
+
+/**
+ * Filtros opcionais aplicados client-side após o retorno do SEFAZ.
+ * O SEFAZ não suporta filtragem server-side — todos os filtros são aplicados sobre o resultado.
+ */
+export type FiltrosDfe = {
+  /** Filtra por modelo de documento: '55' = NF-e, '65' = NFC-e */
+  readonly modelo?: '55' | '65'
+  /** Filtra por CNPJ do emitente (somente dígitos) */
+  readonly cnpjEmitente?: string
+  /** Filtra por situação: '1' = Autorizada, '2' = Cancelada, '3' = Denegada */
+  readonly situacao?: '1' | '2' | '3'
+  /** Filtra documentos com dataEmissao >= dataInicio (ISO 8601 ou YYYY-MM-DD) */
+  readonly dataInicio?: string
+  /** Filtra documentos com dataEmissao <= dataFim (ISO 8601 ou YYYY-MM-DD) */
+  readonly dataFim?: string
+  /** Filtra documentos com valorTotal >= valorMinimo */
+  readonly valorMinimo?: number
+  /** Filtra documentos com valorTotal <= valorMaximo */
+  readonly valorMaximo?: number
+  /** Filtra por schema — ex: ['resNFe', 'procNFe'] para excluir eventos */
+  readonly schemas?: readonly string[]
 }
 
 export type NfeDistribuicaoResult = {
@@ -507,6 +536,20 @@ export type ConsultarDFeParams = {
    * Persista e reutilize o `ultNSU` retornado para sincronização incremental.
    */
   readonly ultNSU: string
+  /** Filtros opcionais aplicados client-side sobre o resultado retornado pelo SEFAZ */
+  readonly filtros?: FiltrosDfe
+}
+
+export type ConsultarPorNsuParams = {
+  readonly config: NfeDistribuicaoConfig
+  /** NSU exato a consultar — 15 dígitos (zero-padded automaticamente) */
+  readonly nsu: string
+}
+
+export type ConsultarPorChaveParams = {
+  readonly config: NfeDistribuicaoConfig
+  /** Chave de acesso de 44 dígitos da NF-e */
+  readonly chaveNfe: string
 }
 
 export type FiscalConfig = NfceConfig | NfeConfig | SatConfig | NfseConfig | NotaRpConfig | CteConfig | NfeDistribuicaoConfig
