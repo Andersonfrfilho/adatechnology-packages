@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+echo "Running type checks and tests..."
+
+changed=$(git diff --name-only origin/main...HEAD -- packages/backend/whatsapp-provider/ 2>/dev/null)
+if [ -n "$changed" ]; then
+  echo "WhatsApp Provider changed — running typecheck, build, and tests..."
+  (cd packages/backend/whatsapp-provider && bun run check && bun run build && bun run test) || exit 1
+fi
+
+changed_fiscal=$(git diff --name-only origin/main...HEAD -- packages/backend/fiscal-provider/ 2>/dev/null)
+if [ -n "$changed_fiscal" ]; then
+  echo "Fiscal Provider changed — running typecheck..."
+  (cd packages/backend/fiscal-provider && pnpm run check) || exit 1
+fi
+
+echo "All checks passed"
