@@ -389,6 +389,12 @@ importers:
         specifier: ^1.8.0
         version: 1.9.1
 
+  packages/backend/whatsapp-provider:
+    devDependencies:
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.40)(postcss@8.5.15)(typescript@5.9.3)(yaml@2.9.0)
+
   packages/frontend/logger-client:
     devDependencies:
       tsup:
