@@ -33,14 +33,21 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.26.0",
+    "@eslint/js": "^9.18.0",
     "@types/node": "^22.10.7",
     "changesets": "^1.0.2",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^16.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
     "pnpm": "^10.28.2",
+    "prettier": "^3.4.2",
     "tslib": "^2.5.0",
     "turbo": "^2.9.14",
     "typescript": "^5.2.0",
+    "typescript-eslint": "^8.20.0",
     "vitepress": "^1.6.4"
   },
   "dependencies": {
@@ -70,6 +77,8 @@
       "@nestjs/common": ">=11.1.18",
       "@nestjs/platform-express": ">=11.1.18",
       "ajv": ">=8.18.0",
+      "@eslint/eslintrc>ajv": "^6.14.0",
+      "eslint>ajv": "^6.14.0",
       "qs": ">=6.15.2"
     }
   }

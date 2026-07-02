@@ -28,6 +28,10 @@ export type {
   CatalogProductSetInput,
   UpdateCatalogProductSetParams,
   CatalogProductSetResult,
+  WhatsAppCatalogSummary,
+  CreateCatalogParams,
+  CreateCatalogResult,
+  UpdateCatalogParams,
 } from './types'
 
 export type { WhatsAppProvider } from './WhatsAppProviderFactory'

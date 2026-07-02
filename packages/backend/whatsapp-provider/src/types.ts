@@ -4,6 +4,7 @@ export type WhatsAppProviderConfig = {
   readonly phoneNumberId?: string
   readonly catalogId?: string
   readonly wabaId?: string
+  readonly businessId?: string
 }
 
 // ---- Messages ----
@@ -151,6 +152,7 @@ export type CatalogProductInput = {
   readonly availability?: ProductAvailability
   readonly condition?: ProductCondition
   readonly url?: string
+  readonly catalogId?: string
 }
 
 export type UpdateCatalogProductParams = {
@@ -165,6 +167,7 @@ export type CatalogProductResult = {
 export type CatalogProductSetInput = {
   readonly name: string
   readonly categoryLabel: string
+  readonly catalogId?: string
 }
 
 export type UpdateCatalogProductSetParams = {
@@ -178,4 +181,23 @@ export type CatalogProductSetResult = {
 
 export type CatalogProductDetail = CatalogProductInput & {
   readonly id: string
+}
+
+export type WhatsAppCatalogSummary = {
+  readonly id: string
+  readonly name: string
+}
+
+export type CreateCatalogParams = {
+  readonly name: string
+  readonly vertical?: string
+}
+
+export type CreateCatalogResult = {
+  readonly id: string
+}
+
+export type UpdateCatalogParams = {
+  readonly catalogId: string
+  readonly name: string
 }

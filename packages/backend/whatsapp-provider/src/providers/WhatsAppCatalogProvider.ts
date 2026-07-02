@@ -9,16 +9,29 @@ import type {
   CatalogProductSetInput,
   UpdateCatalogProductSetParams,
   CatalogProductSetResult,
+  WhatsAppCatalogSummary,
+  CreateCatalogParams,
+  CreateCatalogResult,
+  UpdateCatalogParams,
 } from '../types'
 
 const DEFAULT_AVAILABILITY = 'in stock'
 const DEFAULT_CONDITION = 'new'
+const DEFAULT_CATALOG_VERTICAL = 'commerce'
 
 export class WhatsAppCatalogProvider {
   constructor(private readonly config: WhatsAppProviderConfig) {}
 
-  private get catalogId(): string {
-    return assertConfigField(this.config.catalogId, 'catalogId')
+  private resolveCatalogId(override?: string): string {
+    return assertConfigField(override ?? this.config.catalogId, 'catalogId')
+  }
+
+  private get wabaId(): string {
+    return assertConfigField(this.config.wabaId, 'wabaId')
+  }
+
+  private get businessId(): string {
+    return assertConfigField(this.config.businessId, 'businessId')
   }
 
   private toProductPayload(input: Partial<CatalogProductInput>): Record<string, unknown> {
@@ -43,12 +56,12 @@ export class WhatsAppCatalogProvider {
       condition: input.condition ?? DEFAULT_CONDITION,
     })
 
-    const response = await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, `${this.catalogId}/products`),
+    const response = (await graphFetch({
+      url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/products`),
       accessToken: this.config.accessToken,
       method: 'POST',
       jsonBody: payload,
-    }) as { id: string }
+    })) as { id: string }
 
     return { id: response.id }
   }
@@ -68,7 +81,7 @@ export class WhatsAppCatalogProvider {
 
   async getProduct(productId: string): Promise<CatalogProductDetail> {
     const url = `${buildGraphUrl(this.config.apiVersion, productId)}?fields=id,retailer_id,name,description,price,currency,image_url,availability,condition,url,custom_label_0`
-    const response = await graphFetch({ url, accessToken: this.config.accessToken }) as {
+    const response = (await graphFetch({ url, accessToken: this.config.accessToken })) as {
       id: string
       retailer_id: string
       name: string
@@ -106,15 +119,15 @@ export class WhatsAppCatalogProvider {
   }
 
   async createProductSet(input: CatalogProductSetInput): Promise<CatalogProductSetResult> {
-    const response = await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, `${this.catalogId}/product_sets`),
+    const response = (await graphFetch({
+      url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/product_sets`),
       accessToken: this.config.accessToken,
       method: 'POST',
       jsonBody: {
         name: input.name,
         filter: JSON.stringify({ custom_label_0: { eq: input.categoryLabel } }),
       },
-    }) as { id: string }
+    })) as { id: string }
 
     return { id: response.id }
   }
@@ -133,6 +146,43 @@ export class WhatsAppCatalogProvider {
   async deleteProductSet(productSetId: string): Promise<void> {
     await graphFetch({
       url: buildGraphUrl(this.config.apiVersion, productSetId),
+      accessToken: this.config.accessToken,
+      method: 'DELETE',
+    })
+  }
+
+  async listCatalogs(): Promise<readonly WhatsAppCatalogSummary[]> {
+    const url = `${buildGraphUrl(this.config.apiVersion, `${this.wabaId}/product_catalogs`)}?fields=id,name`
+    const response = (await graphFetch({ url, accessToken: this.config.accessToken })) as {
+      data: readonly { id: string; name: string }[]
+    }
+
+    return response.data.map((catalog) => ({ id: catalog.id, name: catalog.name }))
+  }
+
+  async createCatalog(params: CreateCatalogParams): Promise<CreateCatalogResult> {
+    const response = (await graphFetch({
+      url: buildGraphUrl(this.config.apiVersion, `${this.businessId}/owned_product_catalogs`),
+      accessToken: this.config.accessToken,
+      method: 'POST',
+      jsonBody: { name: params.name, vertical: params.vertical ?? DEFAULT_CATALOG_VERTICAL },
+    })) as { id: string }
+
+    return { id: response.id }
+  }
+
+  async updateCatalog(params: UpdateCatalogParams): Promise<void> {
+    await graphFetch({
+      url: buildGraphUrl(this.config.apiVersion, params.catalogId),
+      accessToken: this.config.accessToken,
+      method: 'POST',
+      jsonBody: { name: params.name },
+    })
+  }
+
+  async deleteCatalog(catalogId: string): Promise<void> {
+    await graphFetch({
+      url: buildGraphUrl(this.config.apiVersion, catalogId),
       accessToken: this.config.accessToken,
       method: 'DELETE',
     })
