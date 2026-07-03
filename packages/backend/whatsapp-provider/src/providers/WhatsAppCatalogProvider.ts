@@ -1,5 +1,11 @@
 import { assertConfigField } from '../shared/assertConfigField'
 import { buildGraphUrl, graphFetch } from '../shared/graphFetch'
+import {
+  parseGraphResponse,
+  idResponseSchema,
+  catalogListResponseSchema,
+  productDetailResponseSchema,
+} from '../shared/graphResponseSchemas'
 import type {
   WhatsAppProviderConfig,
   CatalogProductInput,
@@ -56,12 +62,15 @@ export class WhatsAppCatalogProvider {
       condition: input.condition ?? DEFAULT_CONDITION,
     })
 
-    const response = (await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/products`),
-      accessToken: this.config.accessToken,
-      method: 'POST',
-      jsonBody: payload,
-    })) as { id: string }
+    const response = parseGraphResponse(
+      idResponseSchema,
+      await graphFetch({
+        url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/products`),
+        accessToken: this.config.accessToken,
+        method: 'POST',
+        jsonBody: payload,
+      }),
+    )
 
     return { id: response.id }
   }
@@ -81,19 +90,10 @@ export class WhatsAppCatalogProvider {
 
   async getProduct(productId: string): Promise<CatalogProductDetail> {
     const url = `${buildGraphUrl(this.config.apiVersion, productId)}?fields=id,retailer_id,name,description,price,currency,image_url,availability,condition,url,custom_label_0`
-    const response = (await graphFetch({ url, accessToken: this.config.accessToken })) as {
-      id: string
-      retailer_id: string
-      name: string
-      description: string
-      price: number
-      currency: string
-      image_url: string
-      availability: CatalogProductInput['availability']
-      condition: CatalogProductInput['condition']
-      url?: string
-      custom_label_0: string
-    }
+    const response = parseGraphResponse(
+      productDetailResponseSchema,
+      await graphFetch({ url, accessToken: this.config.accessToken }),
+    )
 
     return {
       id: response.id,
@@ -119,15 +119,18 @@ export class WhatsAppCatalogProvider {
   }
 
   async createProductSet(input: CatalogProductSetInput): Promise<CatalogProductSetResult> {
-    const response = (await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/product_sets`),
-      accessToken: this.config.accessToken,
-      method: 'POST',
-      jsonBody: {
-        name: input.name,
-        filter: JSON.stringify({ custom_label_0: { eq: input.categoryLabel } }),
-      },
-    })) as { id: string }
+    const response = parseGraphResponse(
+      idResponseSchema,
+      await graphFetch({
+        url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/product_sets`),
+        accessToken: this.config.accessToken,
+        method: 'POST',
+        jsonBody: {
+          name: input.name,
+          filter: JSON.stringify({ custom_label_0: { eq: input.categoryLabel } }),
+        },
+      }),
+    )
 
     return { id: response.id }
   }
@@ -153,20 +156,24 @@ export class WhatsAppCatalogProvider {
 
   async listCatalogs(): Promise<readonly WhatsAppCatalogSummary[]> {
     const url = `${buildGraphUrl(this.config.apiVersion, `${this.wabaId}/product_catalogs`)}?fields=id,name`
-    const response = (await graphFetch({ url, accessToken: this.config.accessToken })) as {
-      data: readonly { id: string; name: string }[]
-    }
+    const response = parseGraphResponse(
+      catalogListResponseSchema,
+      await graphFetch({ url, accessToken: this.config.accessToken }),
+    )
 
     return response.data.map((catalog) => ({ id: catalog.id, name: catalog.name }))
   }
 
   async createCatalog(params: CreateCatalogParams): Promise<CreateCatalogResult> {
-    const response = (await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, `${this.businessId}/owned_product_catalogs`),
-      accessToken: this.config.accessToken,
-      method: 'POST',
-      jsonBody: { name: params.name, vertical: params.vertical ?? DEFAULT_CATALOG_VERTICAL },
-    })) as { id: string }
+    const response = parseGraphResponse(
+      idResponseSchema,
+      await graphFetch({
+        url: buildGraphUrl(this.config.apiVersion, `${this.businessId}/owned_product_catalogs`),
+        accessToken: this.config.accessToken,
+        method: 'POST',
+        jsonBody: { name: params.name, vertical: params.vertical ?? DEFAULT_CATALOG_VERTICAL },
+      }),
+    )
 
     return { id: response.id }
   }

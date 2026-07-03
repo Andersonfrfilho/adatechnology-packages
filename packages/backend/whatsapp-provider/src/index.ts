@@ -50,4 +50,5 @@ export {
   WhatsAppTimeoutError,
   WhatsAppWindowExpiredError,
   WhatsAppTemplateDuplicateError,
+  WhatsAppUnexpectedResponseError,
 } from './errors/WhatsAppError'

@@ -59,7 +59,24 @@ export class WhatsAppWindowExpiredError extends WhatsAppError {
 
 export class WhatsAppTemplateDuplicateError extends WhatsAppError {
   constructor(rawResponse: unknown) {
-    super('Já existe um template com este nome no WhatsApp.', 'WHATSAPP_TEMPLATE_DUPLICATE', 'duplicate template name', rawResponse)
+    super(
+      'Já existe um template com este nome no WhatsApp.',
+      'WHATSAPP_TEMPLATE_DUPLICATE',
+      'duplicate template name',
+      rawResponse,
+    )
     this.name = 'WhatsAppTemplateDuplicateError'
+  }
+}
+
+export class WhatsAppUnexpectedResponseError extends WhatsAppError {
+  constructor(validationMessage: string, rawResponse: unknown) {
+    super(
+      `Resposta inesperada da API do WhatsApp: ${validationMessage}`,
+      'WHATSAPP_UNEXPECTED_RESPONSE',
+      validationMessage,
+      rawResponse,
+    )
+    this.name = 'WhatsAppUnexpectedResponseError'
   }
 }

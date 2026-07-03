@@ -21,7 +21,9 @@
     "test:catalog": "bun run scripts/test-whatsapp.ts --catalog",
     "test:all": "bun run scripts/test-whatsapp.ts --all"
   },
-  "dependencies": {},
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
   "devDependencies": {
     "tsup": "^8.5.1"
   }
