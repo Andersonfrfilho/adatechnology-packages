@@ -49,6 +49,18 @@ jobs:
       - name: Version packages
         run: pnpm changeset version
 
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No version changes to commit"
+          else
+            git add -A
+            git commit -m "chore(release): version packages"
+            git push origin HEAD:main
+          fi
+
       - name: Publish packages
         run: pnpm run publish:changesets
         env:
