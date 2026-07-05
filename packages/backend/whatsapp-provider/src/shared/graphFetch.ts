@@ -4,10 +4,12 @@ const GRAPH_BASE_URL = 'https://graph.facebook.com'
 const DEFAULT_API_VERSION = 'v21.0'
 const DEFAULT_TIMEOUT_MS = 10_000
 
-// baseUrl é opcional e vem de WhatsAppProviderConfig — permite apontar para um mock local
-// (ex.: WireMock) em dev/teste sem tocar no restante do provider.
+// Prioridade: baseUrl explícito no config > WHATSAPP_GRAPH_BASE_URL do ambiente > Graph API real.
+// A env var permite apontar para um mock local (ex.: WireMock) em dev/teste sem que a app
+// consumidora precise ler process.env e repassar via config manualmente.
 export function buildGraphUrl(apiVersion: string | undefined, path: string, baseUrl?: string): string {
-  return `${baseUrl ?? GRAPH_BASE_URL}/${apiVersion ?? DEFAULT_API_VERSION}/${path}`
+  const resolvedBaseUrl = baseUrl ?? process.env['WHATSAPP_GRAPH_BASE_URL'] ?? GRAPH_BASE_URL
+  return `${resolvedBaseUrl}/${apiVersion ?? DEFAULT_API_VERSION}/${path}`
 }
 
 export type GraphFetchParams = {
