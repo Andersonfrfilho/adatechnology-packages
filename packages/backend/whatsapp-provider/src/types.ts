@@ -5,6 +5,9 @@ export type WhatsAppProviderConfig = {
   readonly catalogId?: string
   readonly wabaId?: string
   readonly businessId?: string
+  // Sobrescreve https://graph.facebook.com — usado para apontar para um mock local (ex.: WireMock)
+  // em dev/teste. Em produção, deixe undefined para usar a Graph API real.
+  readonly baseUrl?: string
 }
 
 // ---- Messages ----

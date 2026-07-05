@@ -65,7 +65,11 @@ export class WhatsAppCatalogProvider {
     const response = parseGraphResponse(
       idResponseSchema,
       await graphFetch({
-        url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/products`),
+        url: buildGraphUrl(
+          this.config.apiVersion,
+          `${this.resolveCatalogId(input.catalogId)}/products`,
+          this.config.baseUrl,
+        ),
         accessToken: this.config.accessToken,
         method: 'POST',
         jsonBody: payload,
@@ -79,7 +83,7 @@ export class WhatsAppCatalogProvider {
     const payload = this.toProductPayload(params.input)
 
     await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, params.productId),
+      url: buildGraphUrl(this.config.apiVersion, params.productId, this.config.baseUrl),
       accessToken: this.config.accessToken,
       method: 'POST',
       jsonBody: payload,
@@ -89,7 +93,7 @@ export class WhatsAppCatalogProvider {
   }
 
   async getProduct(productId: string): Promise<CatalogProductDetail> {
-    const url = `${buildGraphUrl(this.config.apiVersion, productId)}?fields=id,retailer_id,name,description,price,currency,image_url,availability,condition,url,custom_label_0`
+    const url = `${buildGraphUrl(this.config.apiVersion, productId, this.config.baseUrl)}?fields=id,retailer_id,name,description,price,currency,image_url,availability,condition,url,custom_label_0`
     const response = parseGraphResponse(
       productDetailResponseSchema,
       await graphFetch({ url, accessToken: this.config.accessToken }),
@@ -112,7 +116,7 @@ export class WhatsAppCatalogProvider {
 
   async deleteProduct(productId: string): Promise<void> {
     await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, productId),
+      url: buildGraphUrl(this.config.apiVersion, productId, this.config.baseUrl),
       accessToken: this.config.accessToken,
       method: 'DELETE',
     })
@@ -122,7 +126,11 @@ export class WhatsAppCatalogProvider {
     const response = parseGraphResponse(
       idResponseSchema,
       await graphFetch({
-        url: buildGraphUrl(this.config.apiVersion, `${this.resolveCatalogId(input.catalogId)}/product_sets`),
+        url: buildGraphUrl(
+          this.config.apiVersion,
+          `${this.resolveCatalogId(input.catalogId)}/product_sets`,
+          this.config.baseUrl,
+        ),
         accessToken: this.config.accessToken,
         method: 'POST',
         jsonBody: {
@@ -137,7 +145,7 @@ export class WhatsAppCatalogProvider {
 
   async updateProductSet(params: UpdateCatalogProductSetParams): Promise<CatalogProductSetResult> {
     await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, params.productSetId),
+      url: buildGraphUrl(this.config.apiVersion, params.productSetId, this.config.baseUrl),
       accessToken: this.config.accessToken,
       method: 'POST',
       jsonBody: { name: params.name },
@@ -148,14 +156,14 @@ export class WhatsAppCatalogProvider {
 
   async deleteProductSet(productSetId: string): Promise<void> {
     await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, productSetId),
+      url: buildGraphUrl(this.config.apiVersion, productSetId, this.config.baseUrl),
       accessToken: this.config.accessToken,
       method: 'DELETE',
     })
   }
 
   async listCatalogs(): Promise<readonly WhatsAppCatalogSummary[]> {
-    const url = `${buildGraphUrl(this.config.apiVersion, `${this.wabaId}/product_catalogs`)}?fields=id,name`
+    const url = `${buildGraphUrl(this.config.apiVersion, `${this.wabaId}/product_catalogs`, this.config.baseUrl)}?fields=id,name`
     const response = parseGraphResponse(
       catalogListResponseSchema,
       await graphFetch({ url, accessToken: this.config.accessToken }),
@@ -168,7 +176,7 @@ export class WhatsAppCatalogProvider {
     const response = parseGraphResponse(
       idResponseSchema,
       await graphFetch({
-        url: buildGraphUrl(this.config.apiVersion, `${this.businessId}/owned_product_catalogs`),
+        url: buildGraphUrl(this.config.apiVersion, `${this.businessId}/owned_product_catalogs`, this.config.baseUrl),
         accessToken: this.config.accessToken,
         method: 'POST',
         jsonBody: { name: params.name, vertical: params.vertical ?? DEFAULT_CATALOG_VERTICAL },
@@ -180,7 +188,7 @@ export class WhatsAppCatalogProvider {
 
   async updateCatalog(params: UpdateCatalogParams): Promise<void> {
     await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, params.catalogId),
+      url: buildGraphUrl(this.config.apiVersion, params.catalogId, this.config.baseUrl),
       accessToken: this.config.accessToken,
       method: 'POST',
       jsonBody: { name: params.name },
@@ -189,7 +197,7 @@ export class WhatsAppCatalogProvider {
 
   async deleteCatalog(catalogId: string): Promise<void> {
     await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, catalogId),
+      url: buildGraphUrl(this.config.apiVersion, catalogId, this.config.baseUrl),
       accessToken: this.config.accessToken,
       method: 'DELETE',
     })

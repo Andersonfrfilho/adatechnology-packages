@@ -26,7 +26,7 @@ export class WhatsAppMessageProvider {
   }
 
   private messagesUrl(): string {
-    return buildGraphUrl(this.config.apiVersion, `${this.phoneNumberId}/messages`)
+    return buildGraphUrl(this.config.apiVersion, `${this.phoneNumberId}/messages`, this.config.baseUrl)
   }
 
   private async postMessage(payload: Record<string, unknown>): Promise<SendMessageResult> {
@@ -65,10 +65,13 @@ export class WhatsAppMessageProvider {
     const { to, buffer, mimeType, filename, caption } = params
     const mediaId = await this.uploadMedia(buffer, mimeType, filename)
 
-    const type = mimeType.startsWith('image/') ? 'image'
-      : mimeType.startsWith('audio/') ? 'audio'
-      : mimeType.startsWith('video/') ? 'video'
-      : 'document'
+    const type = mimeType.startsWith('image/')
+      ? 'image'
+      : mimeType.startsWith('audio/')
+        ? 'audio'
+        : mimeType.startsWith('video/')
+          ? 'video'
+          : 'document'
 
     const mediaBody: Record<string, string> = { id: mediaId }
     if (type === 'document') mediaBody['filename'] = filename
@@ -90,7 +93,7 @@ export class WhatsAppMessageProvider {
     form.append('type', mimeType)
 
     const response = await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, `${this.phoneNumberId}/media`),
+      url: buildGraphUrl(this.config.apiVersion, `${this.phoneNumberId}/media`, this.config.baseUrl),
       accessToken: this.config.accessToken,
       method: 'POST',
       formBody: form,
@@ -101,9 +104,10 @@ export class WhatsAppMessageProvider {
 
   async sendTemplate(params: SendTemplateParams): Promise<SendMessageResult> {
     const { to, templateName, languageCode = 'pt_BR', bodyParameters = [] } = params
-    const components = bodyParameters.length > 0
-      ? [{ type: 'body', parameters: bodyParameters.map((text) => ({ type: 'text', text })) }]
-      : undefined
+    const components =
+      bodyParameters.length > 0
+        ? [{ type: 'body', parameters: bodyParameters.map((text) => ({ type: 'text', text })) }]
+        : undefined
 
     return this.postMessage({
       messaging_product: 'whatsapp',
@@ -120,7 +124,11 @@ export class WhatsAppMessageProvider {
   async sendInteractiveButtons(params: SendInteractiveButtonsParams): Promise<SendMessageResult> {
     const { to, bodyText, buttons } = params
     if (buttons.length === 0 || buttons.length > MAX_INTERACTIVE_BUTTONS) {
-      throw new WhatsAppRejectionError('WHATSAPP_INVALID_INPUT', `interactive buttons must be between 1 and ${MAX_INTERACTIVE_BUTTONS}`, null)
+      throw new WhatsAppRejectionError(
+        'WHATSAPP_INVALID_INPUT',
+        `interactive buttons must be between 1 and ${MAX_INTERACTIVE_BUTTONS}`,
+        null,
+      )
     }
 
     return this.postMessage({
@@ -130,7 +138,9 @@ export class WhatsAppMessageProvider {
       interactive: {
         type: 'button',
         body: { text: bodyText },
-        action: { buttons: buttons.map((button) => ({ type: 'reply', reply: { id: button.id, title: button.title } })) },
+        action: {
+          buttons: buttons.map((button) => ({ type: 'reply', reply: { id: button.id, title: button.title } })),
+        },
       },
     })
   }
@@ -139,7 +149,11 @@ export class WhatsAppMessageProvider {
     const { to, bodyText, buttonText, sections } = params
     const totalRows = sections.reduce((sum, section) => sum + section.rows.length, 0)
     if (totalRows === 0 || totalRows > MAX_INTERACTIVE_LIST_ROWS) {
-      throw new WhatsAppRejectionError('WHATSAPP_INVALID_INPUT', `interactive list rows must be between 1 and ${MAX_INTERACTIVE_LIST_ROWS}`, null)
+      throw new WhatsAppRejectionError(
+        'WHATSAPP_INVALID_INPUT',
+        `interactive list rows must be between 1 and ${MAX_INTERACTIVE_LIST_ROWS}`,
+        null,
+      )
     }
 
     return this.postMessage({
@@ -218,10 +232,10 @@ export class WhatsAppMessageProvider {
   }
 
   async fetchMediaAsBase64(mediaId: string): Promise<FetchMediaResult> {
-    const urlData = await graphFetch({
-      url: buildGraphUrl(this.config.apiVersion, mediaId),
+    const urlData = (await graphFetch({
+      url: buildGraphUrl(this.config.apiVersion, mediaId, this.config.baseUrl),
       accessToken: this.config.accessToken,
-    }) as { url: string; mime_type: string }
+    })) as { url: string; mime_type: string }
 
     let dataResponse: Response
     try {

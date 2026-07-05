@@ -4,8 +4,10 @@ const GRAPH_BASE_URL = 'https://graph.facebook.com'
 const DEFAULT_API_VERSION = 'v21.0'
 const DEFAULT_TIMEOUT_MS = 10_000
 
-export function buildGraphUrl(apiVersion: string | undefined, path: string): string {
-  return `${GRAPH_BASE_URL}/${apiVersion ?? DEFAULT_API_VERSION}/${path}`
+// baseUrl é opcional e vem de WhatsAppProviderConfig — permite apontar para um mock local
+// (ex.: WireMock) em dev/teste sem tocar no restante do provider.
+export function buildGraphUrl(apiVersion: string | undefined, path: string, baseUrl?: string): string {
+  return `${baseUrl ?? GRAPH_BASE_URL}/${apiVersion ?? DEFAULT_API_VERSION}/${path}`
 }
 
 export type GraphFetchParams = {

@@ -21,12 +21,12 @@ export class WhatsAppTemplateProvider {
   }
 
   private templatesUrl(): string {
-    return buildGraphUrl(this.config.apiVersion, `${this.wabaId}/message_templates`)
+    return buildGraphUrl(this.config.apiVersion, `${this.wabaId}/message_templates`, this.config.baseUrl)
   }
 
   async listTemplates(): Promise<readonly WhatsAppTemplateSummary[]> {
     const url = `${this.templatesUrl()}?fields=id,name,status,category,language,components&limit=100`
-    const response = await graphFetch({ url, accessToken: this.config.accessToken }) as {
+    const response = (await graphFetch({ url, accessToken: this.config.accessToken })) as {
       data: ReadonlyArray<{
         id: string
         name: string
@@ -67,8 +67,8 @@ export class WhatsAppTemplateProvider {
   }
 
   async getTemplate(templateId: string): Promise<WhatsAppTemplateDetail> {
-    const url = `${buildGraphUrl(this.config.apiVersion, templateId)}?fields=id,name,status,category,language,components`
-    const template = await graphFetch({ url, accessToken: this.config.accessToken }) as {
+    const url = `${buildGraphUrl(this.config.apiVersion, templateId, this.config.baseUrl)}?fields=id,name,status,category,language,components`
+    const template = (await graphFetch({ url, accessToken: this.config.accessToken })) as {
       id: string
       name: string
       status: string
@@ -90,13 +90,13 @@ export class WhatsAppTemplateProvider {
 
     let response: { id?: string; name?: string; status?: string }
     try {
-      response = await graphFetch({
+      response = (await graphFetch({
         url: this.templatesUrl(),
         accessToken: this.config.accessToken,
         method: 'POST',
         jsonBody: { name, category, language, components },
         timeoutMs: 15_000,
-      }) as { id?: string; name?: string; status?: string }
+      })) as { id?: string; name?: string; status?: string }
     } catch (error) {
       if (error instanceof WhatsAppRejectionError && error.providerMessage.toLowerCase().includes('duplicate')) {
         throw new WhatsAppTemplateDuplicateError(error.rawResponse)
