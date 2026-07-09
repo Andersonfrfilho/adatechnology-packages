@@ -1,5 +1,6 @@
 packages:
   - 'packages/backend/nestjs/*'
   - 'packages/backend/fiscal-provider/example/*'
+  - 'packages/backend/example/*'
   - 'packages/backend/*'
   - 'packages/frontend/*'

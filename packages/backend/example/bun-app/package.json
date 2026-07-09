@@ -1,0 +1,23 @@
+{
+  "name": "bun-app-example",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Integrated example using all @adatechnology Bun/Node libraries",
+  "scripts": {
+    "start": "bun run src/main.ts",
+    "dev": "bun --watch run src/main.ts",
+    "build": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@adatechnology/auth-keycloak": "workspace:*",
+    "@adatechnology/cache": "workspace:*",
+    "@adatechnology/http-client": "workspace:*",
+    "@adatechnology/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  }
+}
