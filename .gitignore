@@ -61,3 +61,6 @@ agents/
 .history/
 .windsurf/
 .skill-lock.json
+
+# Graphify (regenerable knowledge graph output)
+graphify-out/

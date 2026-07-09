@@ -87,6 +87,15 @@ function extractUser(payload: Record<string, unknown>): KeycloakUser {
 export async function verifyToken(token: string, config: KeycloakConfig): Promise<TokenValidationResult> {
   try {
     const { header, payload } = parseJwt(token)
+
+    const now = Math.floor(Date.now() / 1000)
+    if (payload['exp'] && Number(payload['exp']) < now) return { valid: false, error: 'Token expired' }
+    if (payload['nbf'] && Number(payload['nbf']) > now) return { valid: false, error: 'Token not yet valid' }
+
+    const expectedIss = `${config.authServerUrl}/realms/${config.realm}`
+    if (payload['iss'] && payload['iss'] !== expectedIss)
+      return { valid: false, error: `Invalid issuer: ${payload['iss']}` }
+
     const kid = header['kid'] as string | undefined
 
     const jwks = await fetchJwks(config.authServerUrl, config.realm)
@@ -115,14 +124,6 @@ export async function verifyToken(token: string, config: KeycloakConfig): Promis
     if (!verifier.verify(pem, signature)) {
       return { valid: false, error: 'Signature verification failed' }
     }
-
-    const now = Math.floor(Date.now() / 1000)
-    if (payload['exp'] && Number(payload['exp']) < now) return { valid: false, error: 'Token expired' }
-    if (payload['nbf'] && Number(payload['nbf']) > now) return { valid: false, error: 'Token not yet valid' }
-
-    const expectedIss = `${config.authServerUrl}/realms/${config.realm}`
-    if (payload['iss'] && payload['iss'] !== expectedIss)
-      return { valid: false, error: `Invalid issuer: ${payload['iss']}` }
 
     return { valid: true, user: extractUser(payload) }
   } catch (err) {

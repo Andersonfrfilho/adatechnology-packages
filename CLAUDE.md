@@ -213,6 +213,14 @@ pnpm run build:example     # Build example (NestJS test app)
 pnpm --filter=example run start:dev
 ```
 
+## Codebase Knowledge Graph (Graphify)
+
+This repo has a [Graphify](https://graphify.net/) knowledge graph (`graphify-out/`, gitignored — regenerable, never commit it) covering both code (AST, 339 files) and docs (50 files).
+
+- **Kept up to date automatically** — `post-commit` and `post-checkout` git hooks (installed via `graphify hook install`, see `.husky/post-commit` and `.husky/post-checkout`) rebuild the code graph in the background after every commit and branch switch. No manual step needed, no LLM call (code-only rebuild).
+- **Manual refresh** (only needed after pulling doc/markdown changes, which the hooks don't re-run semantic extraction for): `graphify update .` (code, free) or `graphify extract . --token-budget 20000` (full rebuild incl. docs, costs a small amount of LLM tokens — this org's OpenAI TPM limit is 30k, so keep `--token-budget` below that).
+- **Querying**: use the `/graphify` skill or CLI (`graphify query "<question>"`, `graphify affected "<file>"`, `graphify path "A" "B"`, `graphify explain "<node>"`) instead of grepping the whole repo for cross-cutting questions (e.g. "what depends on the fiscal-provider interfaces").
+
 ## Publishing Flow
 
 1. **Make changes** in a package

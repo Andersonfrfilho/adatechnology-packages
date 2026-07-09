@@ -7,7 +7,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsup",
-    "test": "bun run examples/basic.ts",
+    "test": "bun test",
+    "test:example": "bun run examples/basic.ts",
     "check": "tsc --noEmit"
   },
   "devDependencies": {
