@@ -7,17 +7,21 @@ Unified monorepo for backend NestJS libraries (`packages/backend/`) and frontend
 ```
 packages/
 ├── backend/
-│   ├── nestjs-logger/           @adatechnology/nestjs-logger (published to npm)
-│   ├── nestjs-cache/            @adatechnology/nestjs-cache (published to npm)
-│   ├── nestjs-http-client/      @adatechnology/nestjs-http-client (published to npm)
-│   ├── shared/                  @adatechnology/shared (internal, not published)
-│   ├── nestjs-auth-keycloak/    @adatechnology/nestjs-auth-keycloak (published to npm)
-│   ├── nestjs-keycloak-admin/   @adatechnology/nestjs-keycloak-admin (published to npm)
-│   ├── nestjs-package/          @adatechnology/nestjs-package (published to npm)
-│   └── example/                 Example NestJS app (development only)
+│   ├── nestjs/
+│   │   ├── logger/              @adatechnology/nestjs-logger (published)
+│   │   ├── cache/               @adatechnology/nestjs-cache (published)
+│   │   ├── http-client/         @adatechnology/nestjs-http-client (published)
+│   │   ├── auth-keycloak/       @adatechnology/nestjs-auth-keycloak (published)
+│   │   └── keycloak-admin/      @adatechnology/nestjs-keycloak-admin (published)
+│   ├── shared/                  @adatechnology/shared (internal)
+│   ├── fiscal-provider/         @adatechnology/fiscal-provider (published)
+│   │   └── example/
+│   │       ├── api/             NestJS backend demo
+│   │       └── web/             React frontend demo (Vite)
+│   └── example/                 Generic NestJS test app
 │
 └── frontend/
-    └── logger-client/           @adatechnology/logger-client (isomorphic, published to npm)
+    └── logger-client/           @adatechnology/logger-client (isomorphic, published)
 ```
 
 ## Common Commands
@@ -39,7 +43,7 @@ pnpm changeset publish          # Publish to npm
 ## Publishing Rules
 
 ### Backend Packages (@adatechnology/nestjs-*)
-- Semver: `packages/backend/{package}/package.json`
+- Semver: `packages/backend/nestjs/{package}/package.json`
 - Scope: `@adatechnology`
 - Prefix: `nestjs-` (runtime clarity)
 - Published to npm automatically via changesets
@@ -61,9 +65,9 @@ pnpm changeset publish          # Publish to npm
 
 ### Backend NestJS Library
 ```bash
-cd packages/backend
+cd packages/backend/nestjs
 # Copy template from existing library
-cp -r nestjs-logger nestjs-my-lib
+cp -r logger nestjs-my-lib
 cd nestjs-my-lib
 # Edit package.json: update name to @adatechnology/nestjs-my-lib
 # Implement src/index.ts with exports

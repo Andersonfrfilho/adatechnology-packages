@@ -6,7 +6,9 @@
   "updateInternalDependencies": "patch",
   "commit": false,
   "ignore": [
-    "example"
+    "example",
+    "fiscal-example",
+    "fiscal-example-frontend"
   ],
   "privatePackages": {
     "version": true,
