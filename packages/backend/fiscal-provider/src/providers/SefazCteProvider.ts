@@ -154,6 +154,7 @@ export class SefazCteProvider implements FiscalProvider {
       const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
       const urls = getCteUrls(config.uf, config.environment)
       const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
+      const tpAmb = config.environment === 'producao' ? '1' : '2'
 
       const result = await sendCteStatusServico({
         endpoint: urls.statusServico,
