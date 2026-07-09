@@ -1,3 +1,4 @@
 packages:
   - 'packages/backend/*'
   - 'packages/frontend/*'
+  - 'packages/backend/fiscal-provider/example/*'

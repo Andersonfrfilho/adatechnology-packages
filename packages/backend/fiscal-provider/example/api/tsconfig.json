@@ -18,10 +18,10 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@adatechnology/fiscal-provider": ["../fiscal-provider/src"],
-      "@adatechnology/fiscal-provider/*": ["../fiscal-provider/src/*"],
-      "@adatechnology/nestjs-logger": ["../nestjs-logger/src"],
-      "@adatechnology/nestjs-logger/*": ["../nestjs-logger/src/*"]
+      "@adatechnology/fiscal-provider": ["../../src"],
+      "@adatechnology/fiscal-provider/*": ["../../src/*"],
+      "@adatechnology/nestjs-logger": ["../../nestjs-logger/src"],
+      "@adatechnology/nestjs-logger/*": ["../../nestjs-logger/src/*"]
     }
   },
   "include": ["src/**/*"],
