@@ -178,15 +178,88 @@ Legenda: ✅ Validado | 🔄 Implementado, aguardando teste | ❌ Não implement
 | 6.9 | `CREDENCIAIS_TESTE.md` — guia de setup por modelo | ✅ | Sem dados reais, apenas placeholders |
 | 6.10 | `CREDENCIAMENTO_NFCE.md` — guia credenciamento SEFAZ | ✅ | Sanitizado |
 | 6.11 | `CHANGELOG.md` — v0.0.2 com todas as correções schema | ✅ | |
-| 6.12 | `FiscalProviderFactory` — criação por `model` string | ✅ | nfce, nfe, sat, nfse, nfse-notarp |
+| 6.12 | `FiscalProviderFactory` — criação por `model` string | ✅ | nfce, nfe, sat, nfse, nfse-notarp, cte (nfe-distribuicao não usa factory) |
 | 6.13 | Testes E2E via `scripts/test-fiscal.ts` | 🔄 | Roda, mas sem CI automatizado |
+
+---
+
+## 7. CT-e — Conhecimento de Transporte Eletrônico (modelo 57)
+
+**Provider:** `SefazCteProvider`  
+**Gateway:** SEFAZ estadual (SOAP 1.2 + mTLS) — SP próprio; demais via SVRS (RS)  
+**Destinatário:** Transportadoras (RNTRC obrigatório)
+
+| # | Cenário | Status | Observação |
+|---|---------|--------|------------|
+| 7.1 | `testConnection` — status SEFAZ CT-e SP homologação | 🔄 | Implementado, não testado (requer RNTRC) |
+| 7.2 | Emissão modal rodoviário — homologação | 🔄 | Implementado |
+| 7.3 | Emissão modal aéreo — homologação | 🔄 | Implementado |
+| 7.4 | Emissão modal aquaviário — homologação | 🔄 | Implementado |
+| 7.5 | Emissão modal ferroviário — homologação | 🔄 | Implementado |
+| 7.6 | Cancelamento CT-e — homologação | 🔄 | Implementado |
+| 7.7 | Assinatura digital CT-e (`signCteXml`) | ✅ | Mesma estrutura RSA-SHA1 + C14N da NF-e; testado via typecheck |
+| 7.8 | Assinatura digital evento CT-e (`signCteEventoXml`) | ✅ | Implementado |
+| 7.9 | Build de chave 44 dígitos CT-e (`buildChaveCte`) | ✅ | Mod11, cUF+AAMM+CNPJ+57+serie+nCT+tpEmis+cCT+cDV |
+| 7.10 | Endpoints SP, MG, PR, RS, BA (servidor próprio) | ✅ | `CteConstants.ts` — demais estados via SVRS |
+
+**Arquivos:**
+- `src/sefaz/CteConstants.ts` — endpoints, UF→IBGE, SVRS fallback
+- `src/sefaz/CteXmlBuilder.ts` — builders XML para todos os modais + ICMS discriminado por CST
+- `src/sefaz/CteSoapClient.ts` — sendCteAutorizacao, sendCteStatusServico, sendCteCancelamento
+- `src/providers/SefazCteProvider.ts` — implementa FiscalProvider
+
+**Pendências antes de validar:**
+- RNTRC (Registro Nacional de Transportadores Rodoviários de Cargas)
+- Série CT-e do estabelecimento no SEFAZ
+- Dados reais da carga (remetente, destinatário, documentos da carga)
+
+---
+
+## 8. NF-e Distribuição DFe — Consulta de documentos vinculados ao CNPJ
+
+**Provider:** `NfeDistribuicaoProvider` (não usa `FiscalProvider` interface — instanciar diretamente)  
+**Gateway:** SEFAZ Nacional (`nfe.fazenda.gov.br`) — mTLS obrigatório  
+**Uso:** Transportadoras e destinatários consultando NF-es onde seu CNPJ figura
+
+| # | Cenário | Status | Observação |
+|---|---------|--------|------------|
+| 8.1 | `consultarDFe` paginação incremental — homologação | ✅ | cStat 137 (sem docs em hom), cStat 656 rate limit identificado e tratado |
+| 8.2 | `consultarDFe` paginação incremental — produção | 🔄 | Rate limit ativo (1h/CNPJ após cStat 137) — revalidar após expirar |
+| 8.3 | `consultarPorNsu` — busca NSU específico (`<consNSU>`) | 🔄 | Implementado, não testado contra SEFAZ |
+| 8.4 | `consultarPorChave` — busca por chave 44 dígitos (`<consChNFe>`) | 🔄 | Implementado, não testado contra SEFAZ |
+| 8.5 | `importarXml` / `importarNfeXml` — parse de XML externo | ✅ | Testado com nfeProc, NFe bare e procEventoNFe |
+| 8.6 | Parse `resNFe` (resumo) — extração de campos | ✅ | chaveNfe, emitenteCnpj, emitenteNome, valorTotal, dataEmissao, situacao |
+| 8.7 | Parse `procNFe` (XML completo autorizado) | ✅ | Mesmo mapeamento, situacao='1' |
+| 8.8 | Parse `resEvento` (resumo de evento) | ✅ | tipoEvento, descricaoEvento (110111=Cancelamento etc.), dataEvento |
+| 8.9 | Parse `procEventoNFe` (evento completo) | ✅ | Mapeamento completo |
+| 8.10 | `FiltrosDfe` — filtros client-side pós-SEFAZ | ✅ | modelo, cnpjEmitente, situacao, dataInicio/Fim, valorMin/Max, schemas |
+| 8.11 | Cooldown local 1h por CNPJ+ambiente após cStat 137 | ✅ | Map de módulo compartilhado; bloqueia request antes de bater no SEFAZ |
+| 8.12 | cStat 656 (rate limit SEFAZ) — tratamento com mensagem clara | ✅ | Lançado antes de tentar decodificar resposta |
+| 8.13 | `consultarCnpj` via BrasilAPI | ✅ | Testado com CNPJ `61156864000191` (AFR Fernandes) — retornou razaoSocial, CNAE, Simples |
+| 8.14 | Decode gzip+base64 dos docZip | ✅ | inflateSync + UTF-8 |
+
+**Rate limit SEFAZ Nacional:**
+- `<distNSU>` (paginação): cStat 137 → bloqueio de 1h por CNPJ
+- `<consNSU>` e `<consChNFe>`: sem rate limit específico documentado
+- Proteção local: `distNsuCooldowns` Map no módulo — compartilhado entre instâncias do mesmo processo
+
+**Arquivos:**
+- `src/providers/NfeDistribuicaoProvider.ts` — todos os métodos + `consultarCnpj` + `importarNfeXml`
+- `src/sefaz/CteConstants.ts` — `NFE_DISTRIBUICAO_ENDPOINT` (hom1 + www1)
+
+**Pendências:**
+- Validar `consultarDFe` produção quando rate limit expirar (~1h após última chamada)
+- Validar `consultarPorNsu` e `consultarPorChave` com NSU/chave reais
+- Validar parse de `resEvento` e `procEventoNFe` com documentos reais da SEFAZ
 
 ---
 
 ## Próximos passos recomendados (prioridade)
 
-1. **NFC-e** — obter CSC homologação e rodar `make test:nfce` (maior volume de uso, PDV)
-2. **NFS-e ABRASF** — validar contra prefeitura real (Ribeirão Preto ou SP)
-3. **NFS-e Nota RP** — configurar API key sandbox e webhook
-4. **SAT** — depende de hardware; validar por último ou em ambiente de cliente
-5. **NF-e produção** — habilitar ambiente produção após validação completa em homologação
+1. **NF-e Distribuição DFe produção** — aguardar expirar rate limit (~1h) e revalidar `consultarDFe` com CNPJ `61156864000191`; validar `consultarPorNsu` e `consultarPorChave`
+2. **NFC-e** — obter CSC homologação (portal SEFAZ MG, RS ou PR) e rodar `make test:nfce`
+3. **CT-e** — obter RNTRC e série CT-e de uma transportadora para testar emissão e cancelamento
+4. **NFS-e ABRASF** — validar contra prefeitura real com servidor de IP autorizado
+5. **NFS-e Nota RP** — aguardar migração de Ribeirão Preto para v3
+6. **SAT** — depende de hardware físico; validar por último ou em ambiente de cliente
+7. **NF-e produção** — habilitar após validação completa em homologação

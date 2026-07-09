@@ -1,0 +1,19 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": ".",
+    "declarationDir": "dist",
+    "declaration": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "baseUrl": "."
+  },
+  "include": [
+    "./src/**/*.ts",
+    "./package.json"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

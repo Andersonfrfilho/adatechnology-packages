@@ -26,6 +26,8 @@
       "@adatechnology/nestjs-package/*": ["packages/backend/nestjs-package/src/*"],
       "@adatechnology/fiscal-provider": ["packages/backend/fiscal-provider/src"],
       "@adatechnology/fiscal-provider/*": ["packages/backend/fiscal-provider/src/*"],
+      "@adatechnology/whatsapp-provider": ["packages/backend/whatsapp-provider/src"],
+      "@adatechnology/whatsapp-provider/*": ["packages/backend/whatsapp-provider/src/*"],
       "#shared": ["packages/backend/shared/src"],
       "#shared/*": ["packages/backend/shared/src/*"],
       "@adatechnology/logger-client": ["packages/frontend/logger-client/src"],

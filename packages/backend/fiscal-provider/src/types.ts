@@ -1,9 +1,11 @@
 export const FiscalModel = {
-  NFCE:        'nfce',
-  NFE:         'nfe',
-  SAT:         'sat',
-  NFSE:        'nfse',
-  NFSE_NOTARP: 'nfse-notarp',
+  NFCE:             'nfce',
+  NFE:              'nfe',
+  SAT:              'sat',
+  NFSE:             'nfse',
+  NFSE_NOTARP:      'nfse-notarp',
+  CTE:              'cte',
+  NFE_DISTRIBUICAO: 'nfe-distribuicao',
 } as const
 export type FiscalModel = (typeof FiscalModel)[keyof typeof FiscalModel]
 
@@ -241,7 +243,316 @@ export type NotaRpNfseData = {
   readonly enviarEmail?: boolean
 }
 
-export type FiscalConfig = NfceConfig | NfeConfig | SatConfig | NfseConfig | NotaRpConfig
+// ─── CT-e — Conhecimento de Transporte Eletrônico (modelo 57) ────────────────
+
+export const CteModal = {
+  RODOVIARIO:  '01',
+  AEREO:       '02',
+  AQUAVIARIO:  '03',
+  FERROVIARIO: '04',
+  DUTOVIARIO:  '05',
+} as const
+export type CteModal = (typeof CteModal)[keyof typeof CteModal]
+
+export const CteTipoServico = {
+  NORMAL:                  '0',
+  SUBCONTRATACAO:          '1',
+  REDESPACHO:              '2',
+  REDESPACHO_INTERMEDIARIO: '3',
+  SEM_DESEMPENHO:          '4',
+} as const
+export type CteTipoServico = (typeof CteTipoServico)[keyof typeof CteTipoServico]
+
+export const CteTomador = {
+  REMETENTE:   '0',
+  EXPEDIDOR:   '1',
+  RECEBEDOR:   '2',
+  DESTINATARIO: '3',
+} as const
+export type CteTomador = (typeof CteTomador)[keyof typeof CteTomador]
+
+export type CteParticipante = {
+  readonly cnpj?: string
+  readonly cpf?: string
+  readonly ie?: string
+  readonly xNome: string
+  readonly xFant?: string
+  readonly xLgr: string
+  readonly nro: string
+  readonly xCpl?: string
+  readonly xBairro: string
+  readonly cMun: string
+  readonly xMun: string
+  readonly uf: string
+  readonly cep?: string
+  readonly fone?: string
+  readonly email?: string
+}
+
+export type CteMunicipio = {
+  readonly codigo: string
+  readonly nome: string
+  readonly uf: string
+}
+
+/** Componente de custo do frete (ex: frete, pedágio, despacho) */
+export type CteComponenteValor = {
+  readonly xNome: string
+  readonly vComp: number
+}
+
+/** Quantidade de carga transportada */
+export type CteQuantidadeCarga = {
+  /** '00'=m3, '01'=kg, '02'=ton, '03'=unidade, '04'=litros */
+  readonly cUnid: '00' | '01' | '02' | '03' | '04'
+  readonly tpMed: string
+  readonly qCarga: number
+}
+
+/** NF-e vinculada ao CT-e */
+export type CteDocumentoNfe = {
+  readonly tipo: 'nfe'
+  readonly chave: string
+  readonly pin?: string
+  /** Informações de produto perigoso */
+  readonly peri?: ReadonlyArray<{
+    readonly nONU: string
+    readonly xNomeAE: string
+    readonly xClaRisco: string
+    readonly grEmb: string
+    readonly qTotProd: string
+    readonly qVolTipo: string
+  }>
+}
+
+/** Outros documentos (nota manual, fatura, etc.) */
+export type CteDocumentoOutro = {
+  readonly tipo: 'outro'
+  readonly tpDoc: '00' | '10' | '59' | '65' | '99'
+  readonly descOutros?: string
+  readonly numero?: string
+  readonly valor?: number
+  readonly data?: string
+}
+
+export type CteDocumento = CteDocumentoNfe | CteDocumentoOutro
+
+// ─── Dados específicos por modal ──────────────────────────────────────────────
+
+export type CteRodoviarioData = {
+  readonly modal: '01'
+  /** RNTRC — Registro Nacional de Transportadores Rodoviários de Cargas */
+  readonly rntrc: string
+  readonly veicTracao?: {
+    readonly cInt?: string
+    readonly placa: string
+    readonly RENAVAM?: string
+    readonly tara: number
+    readonly capKG?: number
+    readonly capM3?: number
+    readonly tpProp: '0' | '1' | '2' | '3'
+    readonly tpVeic: string
+    readonly tpRod: string
+    readonly tpCar: string
+    readonly UF: string
+  }
+  readonly motoristas?: ReadonlyArray<{ readonly CPF: string; readonly xNome: string }>
+  readonly CIOT?: string
+  readonly contratante?: { readonly CNPJ?: string; readonly CPF?: string; readonly xNome: string }
+}
+
+export type CteAereoData = {
+  readonly modal: '02'
+  readonly nMinu: string
+  readonly nOCA: string
+  readonly dPrev: string
+  readonly natCarga: { readonly xDime?: string; readonly cInfManu: readonly string[] }
+  readonly tarifa: {
+    readonly CL: 'G' | 'U'
+    readonly cTar?: string
+    readonly vTar: number
+  }
+  readonly peri?: ReadonlyArray<{
+    readonly nONU: string
+    readonly qTotProd: string
+    readonly qVolTipo: string
+  }>
+}
+
+export type CteAquaviarioData = {
+  readonly modal: '03'
+  readonly irin: string
+  readonly tpNav: '0' | '1'
+  readonly balsa?: ReadonlyArray<{ readonly xBalsa: string; readonly nViag?: string; readonly cEmbar: string; readonly xEmbar: string }>
+  readonly detCont?: ReadonlyArray<{
+    readonly nCont: string
+    readonly lacre?: ReadonlyArray<{ readonly nLacre: string }>
+    readonly infSucatan?: ReadonlyArray<{ readonly nSucatan: string }>
+  }>
+}
+
+export type CteFerroviarioData = {
+  readonly modal: '04'
+  readonly tpTraf: '0' | '1' | '2' | '3'
+  readonly ferrEmi?: { readonly CNPJ: string; readonly cInt?: string; readonly IE: string; readonly xNome: string; readonly fluxo: string }
+  readonly vagao?: ReadonlyArray<{
+    readonly serie: string
+    readonly nVag: string
+    readonly nSeq: number
+    readonly TU: number
+  }>
+}
+
+export type CteModalData = CteRodoviarioData | CteAereoData | CteAquaviarioData | CteFerroviarioData
+
+export type CteIcms =
+  | { readonly cst: '00'; readonly vBC: number; readonly pICMS: number; readonly vICMS: number }
+  | { readonly cst: '20'; readonly pRedBC: number; readonly vBC: number; readonly pICMS: number; readonly vICMS: number }
+  | { readonly cst: '40' | '41' | '51' }
+  | { readonly cst: '60'; readonly vBCSTRet: number; readonly pICMSSTRet: number; readonly vICMSSTRet: number }
+  | { readonly cst: '90'; readonly vBC?: number; readonly pICMS?: number; readonly vICMS?: number }
+
+export type CteData = {
+  readonly cfop: string
+  readonly naturezaOperacao: string
+  readonly tipoServico: CteTipoServico
+  readonly municipioOrigem: CteMunicipio
+  readonly municipioDestino: CteMunicipio
+  readonly tomador: CteTomador
+  readonly remetente: CteParticipante
+  readonly destinatario: CteParticipante
+  readonly expedidor?: CteParticipante
+  readonly recebedor?: CteParticipante
+  readonly valorTotalPrestacao: number
+  readonly valorTotalReceber: number
+  readonly componentesValor: readonly CteComponenteValor[]
+  readonly icms: CteIcms
+  readonly carga: {
+    readonly vCarga: number
+    readonly proPred: string
+    readonly xOutCat?: string
+    readonly quantidades: readonly CteQuantidadeCarga[]
+  }
+  readonly documentos: readonly CteDocumento[]
+  readonly modal: CteModalData
+  readonly informacoesAdicionais?: string
+  readonly observacoes?: string
+}
+
+export type CteConfig = FiscalConfigBase & {
+  readonly model: 'cte'
+  readonly certificadoBase64: string
+  readonly certificadoSenha: string
+  readonly serie: string
+  readonly numeroCte: number
+  readonly codigoMunicipio: string
+  /** RNTRC — Registro Nacional de Transportadores Rodoviários de Cargas */
+  readonly rntrc: string
+  readonly telefone?: string
+}
+
+// ─── NF-e Distribuição DFe — consulta por CNPJ do interessado ─────────────────
+
+export type NfeDistribuicaoConfig = {
+  readonly model: 'nfe-distribuicao'
+  readonly cnpj: string
+  readonly uf: string
+  readonly environment: FiscalEnvironment
+  readonly certificadoBase64: string
+  readonly certificadoSenha: string
+}
+
+/**
+ * Item retornado pelo NF-e Distribuição DFe ou por importação de XML.
+ * Cobre resumos (resNFe/resEvento), documentos completos (procNFe) e eventos (procEventoNFe).
+ */
+export type DfeItem = {
+  /** NSU — Número Sequencial Único do DFe na SEFAZ Nacional. Vazio em importações por XML. */
+  readonly nsu: string
+  /** Schema do documento: 'resNFe', 'procNFe', 'resEvento', 'procEventoNFe', 'xml-import' */
+  readonly schema: string
+  /** XML comprimido em gzip+base64 — exatamente como a SEFAZ retorna. Vazio em importações. */
+  readonly xmlComprimido: string
+  /** XML descomprimido e decodificado (sempre presente em importações por XML) */
+  readonly xmlDecoded?: string
+  /** Chave de acesso de 44 dígitos */
+  readonly chaveNfe?: string
+  /** Modelo: '55' = NF-e, '65' = NFC-e */
+  readonly mod?: string
+  /** CNPJ do emitente */
+  readonly emitenteCnpj?: string
+  readonly emitenteNome?: string
+  /** Valor total da NF-e */
+  readonly valorTotal?: number
+  readonly dataEmissao?: string
+  /** cSitNFe: '1' = Uso autorizado, '2' = Cancelada, '3' = Denegada */
+  readonly situacao?: string
+  /** Código do tipo de evento — presente quando schema = resEvento ou procEventoNFe */
+  readonly tipoEvento?: string
+  /** Descrição do evento (ex: 'Cancelamento', 'Carta de Correção') */
+  readonly descricaoEvento?: string
+  /** Data/hora do evento */
+  readonly dataEvento?: string
+}
+
+/**
+ * Filtros opcionais aplicados client-side após o retorno do SEFAZ.
+ * O SEFAZ não suporta filtragem server-side — todos os filtros são aplicados sobre o resultado.
+ */
+export type FiltrosDfe = {
+  /** Filtra por modelo de documento: '55' = NF-e, '65' = NFC-e */
+  readonly modelo?: '55' | '65'
+  /** Filtra por CNPJ do emitente (somente dígitos) */
+  readonly cnpjEmitente?: string
+  /** Filtra por situação: '1' = Autorizada, '2' = Cancelada, '3' = Denegada */
+  readonly situacao?: '1' | '2' | '3'
+  /** Filtra documentos com dataEmissao >= dataInicio (ISO 8601 ou YYYY-MM-DD) */
+  readonly dataInicio?: string
+  /** Filtra documentos com dataEmissao <= dataFim (ISO 8601 ou YYYY-MM-DD) */
+  readonly dataFim?: string
+  /** Filtra documentos com valorTotal >= valorMinimo */
+  readonly valorMinimo?: number
+  /** Filtra documentos com valorTotal <= valorMaximo */
+  readonly valorMaximo?: number
+  /** Filtra por schema — ex: ['resNFe', 'procNFe'] para excluir eventos */
+  readonly schemas?: readonly string[]
+}
+
+export type NfeDistribuicaoResult = {
+  readonly itens: readonly DfeItem[]
+  /** Último NSU recebido — persista este valor no banco para retomar na próxima chamada */
+  readonly ultNSU: string
+  /** NSU máximo disponível na SEFAZ no momento da consulta */
+  readonly maxNSU: string
+  /** true se há mais páginas — continue chamando com o ultNSU atualizado */
+  readonly temMais: boolean
+}
+
+export type ConsultarDFeParams = {
+  readonly config: NfeDistribuicaoConfig
+  /**
+   * NSU a partir do qual buscar.
+   * Use '000000000000000' na primeira chamada.
+   * Persista e reutilize o `ultNSU` retornado para sincronização incremental.
+   */
+  readonly ultNSU: string
+  /** Filtros opcionais aplicados client-side sobre o resultado retornado pelo SEFAZ */
+  readonly filtros?: FiltrosDfe
+}
+
+export type ConsultarPorNsuParams = {
+  readonly config: NfeDistribuicaoConfig
+  /** NSU exato a consultar — 15 dígitos (zero-padded automaticamente) */
+  readonly nsu: string
+}
+
+export type ConsultarPorChaveParams = {
+  readonly config: NfeDistribuicaoConfig
+  /** Chave de acesso de 44 dígitos da NF-e */
+  readonly chaveNfe: string
+}
+
+export type FiscalConfig = NfceConfig | NfeConfig | SatConfig | NfseConfig | NotaRpConfig | CteConfig | NfeDistribuicaoConfig
 
 export type FiscalItem = {
   /** Código interno do produto */
@@ -298,6 +609,8 @@ export type EmitFiscalParams = {
   readonly nfeData?: NfeData
   /** Dados adicionais obrigatórios para NFS-e NotaRP */
   readonly notaRpNfseData?: NotaRpNfseData
+  /** Dados obrigatórios para CT-e (modelo 57) */
+  readonly cteData?: CteData
 }
 
 export type NfseCancelCode = '1' | '2' | '3' | '4' | '5'

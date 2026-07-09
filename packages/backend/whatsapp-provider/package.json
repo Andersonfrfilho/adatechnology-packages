@@ -1,0 +1,30 @@
+{
+  "name": "@adatechnology/whatsapp-provider",
+  "version": "0.2.3",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun run scripts/test-whatsapp.ts",
+    "test:messages": "bun run scripts/test-whatsapp.ts --messages",
+    "test:templates": "bun run scripts/test-whatsapp.ts --templates",
+    "test:catalog": "bun run scripts/test-whatsapp.ts --catalog",
+    "test:all": "bun run scripts/test-whatsapp.ts --all"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}
