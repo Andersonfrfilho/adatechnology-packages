@@ -1,8 +1,9 @@
 import { XMLParser } from 'fast-xml-parser'
-import { FiscalError, FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
+import { FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
 import type { FiscalResult } from '../types'
 import { signCteEventoXml } from './SefazXmlSigner'
 import type { CertificateData } from './SefazXmlSigner'
+import { CTE_WS_NS } from './CteConstants'
 
 const REQUEST_TIMEOUT_MS = 30_000
 const CTE_NS = 'http://www.portalfiscal.inf.br/cte'
@@ -20,15 +21,16 @@ export async function sendCteAutorizacao(params: {
   endpoint: string
   cUF: string
   signedCteXml: string
-  loteId: string
-  wsdlNamespace: string
+  /** CT-e 4.00 usa sempre 'sincrono' (CTeRecepcaoSincV4) */
+  modoAutorizacao: 'sincrono' | 'assincrono'
   certData: CertificateData
 }): Promise<FiscalResult> {
+  const ns = params.modoAutorizacao === 'sincrono' ? CTE_WS_NS.sincrona : CTE_WS_NS.autorizacao
   const fragment = params.signedCteXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
-  // Compact: SEFAZ rejects whitespace between tags (cStat 588)
-  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><cteCabecMsg xmlns="${params.wsdlNamespace}"><cUF>${params.cUF}</cUF><versaoDados>4.00</versaoDados></cteCabecMsg></soap12:Header><soap12:Body><cteDadosMsg xmlns="${params.wsdlNamespace}"><enviCTe versao="4.00" xmlns="${CTE_NS}"><idLote>${params.loteId.padStart(15, '0')}</idLote><indSinc>1</indSinc>${fragment}</enviCTe></cteDadosMsg></soap12:Body></soap12:Envelope>`
 
-  const soapAction = `"${params.wsdlNamespace}/cteRecepcaoLote"`
+  // CT-e 4.00 CTeRecepcaoSincV4: sem cteCabecMsg, sem enviCTe wrapper — CT-e direto no cteDadosMsg
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><cteDadosMsg xmlns="${ns}">${fragment}</cteDadosMsg></soap12:Body></soap12:Envelope>`
+  const soapAction = `"${ns}/cteRecepcao"`
 
   const response = await fetchWithTimeout(
     params.endpoint,
@@ -36,7 +38,7 @@ export async function sendCteAutorizacao(params: {
       method: 'POST',
       headers: {
         'Content-Type': `application/soap+xml; charset=utf-8; action=${soapAction}`,
-        'SOAPAction': soapAction,
+        SOAPAction: soapAction,
       },
       body: soapBody,
     },
@@ -48,7 +50,7 @@ export async function sendCteAutorizacao(params: {
     return {
       success: false,
       errorCode: `HTTP_${response.status}`,
-      errorMessage: `SEFAZ CT-e retornou HTTP ${response.status}`,
+      errorMessage: `SEFAZ CT-e retornou HTTP ${response.status}: ${responseText.slice(0, 200)}`,
       rawResponse: responseText,
     }
   }
@@ -59,12 +61,13 @@ export async function sendCteAutorizacao(params: {
 export async function sendCteStatusServico(params: {
   endpoint: string
   cUF: string
-  wsdlNamespace: string
   tpAmb: string
   certData: CertificateData
 }): Promise<{ ok: boolean; message: string }> {
-  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><cteCabecMsg xmlns="${params.wsdlNamespace}"><cUF>${params.cUF}</cUF><versaoDados>4.00</versaoDados></cteCabecMsg></soap12:Header><soap12:Body><cteDadosMsg xmlns="${params.wsdlNamespace}"><consStatServCte versao="4.00" xmlns="${CTE_NS}"><tpAmb>${params.tpAmb}</tpAmb><xServ>STATUS</xServ></consStatServCte></cteDadosMsg></soap12:Body></soap12:Envelope>`
-  const soapAction = `"${params.wsdlNamespace}/cteStatusServicoCT"`
+  const ns = CTE_WS_NS.status
+  // CT-e 4.00: consStatServCTe com ordem cUF antes de xServ
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><cteDadosMsg xmlns="${ns}"><consStatServCTe versao="4.00" xmlns="${CTE_NS}"><tpAmb>${params.tpAmb}</tpAmb><cUF>${params.cUF}</cUF><xServ>STATUS</xServ></consStatServCTe></cteDadosMsg></soap12:Body></soap12:Envelope>`
+  const soapAction = `"${ns}/cteStatusServicoCT"`
 
   try {
     const response = await fetchWithTimeout(
@@ -73,7 +76,7 @@ export async function sendCteStatusServico(params: {
         method: 'POST',
         headers: {
           'Content-Type': `application/soap+xml; charset=utf-8; action=${soapAction}`,
-          'SOAPAction': soapAction,
+          SOAPAction: soapAction,
         },
         body: soapBody,
       },
@@ -81,8 +84,11 @@ export async function sendCteStatusServico(params: {
     )
     const text = await response.text()
     return parseCteStatusResponse(text)
-  } catch {
-    return { ok: false, message: 'SEFAZ CT-e não respondeu ao status' }
+  } catch (error) {
+    return {
+      ok: false,
+      message: `SEFAZ CT-e não respondeu ao status: ${error instanceof Error ? error.message : 'desconhecido'}`,
+    }
   }
 }
 
@@ -94,19 +100,18 @@ export async function sendCteCancelamento(params: {
   justificativa: string
   cnpj: string
   dhEvento: string
-  wsdlNamespace: string
   tpAmb: string
   certData: CertificateData
 }): Promise<FiscalResult> {
+  const ns = CTE_WS_NS.evento
   const id = `ID110111${params.chaveAcesso}01`
-  // Compact: SEFAZ rejects whitespace between tags (cStat 588)
   const eventoXml = `<eventoCTe versao="3.00" xmlns="${CTE_NS}"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chCTe>${params.chaveAcesso}</chCTe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><detEvento versao="3.00"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></eventoCTe>`
 
   const { signedXml } = signCteEventoXml(eventoXml, params.certData)
   const fragment = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
 
-  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><cteCabecMsg xmlns="${params.wsdlNamespace}"><cUF>${params.cUF}</cUF><versaoDados>3.00</versaoDados></cteCabecMsg></soap12:Header><soap12:Body><cteDadosMsg xmlns="${params.wsdlNamespace}">${fragment}</cteDadosMsg></soap12:Body></soap12:Envelope>`
-  const soapAction = `"${params.wsdlNamespace}/cteRecepcaoEvento"`
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><cteCabecMsg xmlns="${ns}"><cUF>${params.cUF}</cUF><versaoDados>3.00</versaoDados></cteCabecMsg></soap12:Header><soap12:Body><cteDadosMsg xmlns="${ns}">${fragment}</cteDadosMsg></soap12:Body></soap12:Envelope>`
+  const soapAction = `"${ns}/cteRecepcaoEventoCT"`
 
   const response = await fetchWithTimeout(
     params.endpoint,
@@ -114,7 +119,7 @@ export async function sendCteCancelamento(params: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/soap+xml; charset=utf-8',
-        'SOAPAction': soapAction,
+        SOAPAction: soapAction,
       },
       body: soapBody,
     },
@@ -131,28 +136,21 @@ function parseCteAutorizacaoResponse(soapXml: string): FiscalResult {
   try {
     const parsed = XML_PARSER.parse(soapXml)
     const body = parsed?.Envelope?.Body
-    const resultMsg = body?.cteResultMsg ?? body?.nfeResultMsg
-    const retEnvi = resultMsg?.retEnviCTe ?? resultMsg?.retEnviNFe
+
+    // CT-e 4.00 sync: cteRecepcaoResult > retCTeSinc
+    // CT-e 3.x legacy: cteResultMsg > retEnviCTe
+    const retEnvi = body?.cteRecepcaoResult?.retCTeSinc ?? body?.cteResultMsg?.retEnviCTe ?? body?.cteResultMsg?.retCTe
 
     const cStat = String(retEnvi?.cStat ?? retEnvi?.infRec?.cStat ?? '')
     const xMotivo = String(retEnvi?.xMotivo ?? '')
 
-    if (cStat === '104') {
-      const prot = retEnvi?.protCTe?.infProt ?? retEnvi?.protNFe?.infProt
-      const cStatCte = String(prot?.cStat ?? '')
-      const xMotivoCte = String(prot?.xMotivo ?? '')
-      if (cStatCte === '100' || cStatCte === '150') {
-        return {
-          success: true,
-          chaveAcesso: String(prot?.chCTe ?? prot?.chNFe ?? ''),
-          protocolo: String(prot?.nProt ?? ''),
-          rawResponse: retEnvi,
-        }
-      }
+    // cStat 100/150 = autorizado (CT-e 4.00 sincrono retorna protCTe diretamente)
+    if (cStat === '100' || cStat === '150') {
+      const prot = retEnvi?.protCTe?.infProt
       return {
-        success: false,
-        errorCode: cStatCte,
-        errorMessage: xMotivoCte || `SEFAZ CT-e rejeitou: ${cStatCte}`,
+        success: true,
+        chaveAcesso: String(prot?.chCTe ?? ''),
+        protocolo: String(prot?.nProt ?? ''),
         rawResponse: retEnvi,
       }
     }
@@ -177,7 +175,12 @@ function parseCteStatusResponse(soapXml: string): { ok: boolean; message: string
   try {
     const parsed = XML_PARSER.parse(soapXml)
     const body = parsed?.Envelope?.Body
-    const retStatus = body?.cteResultMsg?.retConsStatServCte ?? body?.cteResultMsg?.retConsStatServ
+    // CT-e 4.00 response: cteStatusServicoCTResult > retConsStatServCTe
+    const retStatus =
+      body?.cteStatusServicoCTResult?.retConsStatServCTe ??
+      body?.cteStatusServicoCTResult?.retConsStatServCte ??
+      body?.cteResultMsg?.retConsStatServCTe ??
+      body?.cteResultMsg?.retConsStatServCte
     const cStat = String(retStatus?.cStat ?? '')
     const xMotivo = String(retStatus?.xMotivo ?? '')
     if (cStat === '107') return { ok: true, message: xMotivo || 'Serviço CT-e em operação' }
@@ -219,24 +222,21 @@ function parseCteEventoResponse(soapXml: string): FiscalResult {
 
 // ─── HTTP ─────────────────────────────────────────────────────────────────────
 
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  certData: CertificateData,
-): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit, certData: CertificateData): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
-  const tlsOptions = {
-    tls: {
-      cert: certData.certificatePem,
-      key: certData.privateKeyPem,
-      rejectUnauthorized: false,
-    },
-  }
-
   try {
-    return await fetch(url, { ...options, signal: controller.signal, ...tlsOptions })
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      // @ts-expect-error — Bun TLS extension para mTLS
+      tls: {
+        cert: certData.certificatePem,
+        key: certData.privateKeyPem,
+        rejectUnauthorized: false,
+      },
+    })
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new FiscalTimeoutError('SEFAZ CT-e')

@@ -1,12 +1,5 @@
-import { createHash, randomInt } from 'crypto'
-import type {
-  CteConfig,
-  CteData,
-  CteParticipante,
-  CteIcms,
-  CteModalData,
-  CteDocumento,
-} from '../types'
+import { randomInt } from 'crypto'
+import type { CteConfig, CteData, CteParticipante, CteIcms, CteModalData, CteDocumento } from '../types'
 import { UF_IBGE_CODES_CTE } from './CteConstants'
 
 const CTE_NS = 'http://www.portalfiscal.inf.br/cte'
@@ -47,14 +40,6 @@ function buildChaveCte(params: {
 
 // ─── Endereço ─────────────────────────────────────────────────────────────────
 
-function buildEndereco(p: CteParticipante): string {
-  const cep = p.cep ? `<CEP>${p.cep.replace(/\D/g, '')}</CEP>` : ''
-  const fone = p.fone ? `<fone>${p.fone.replace(/\D/g, '')}</fone>` : ''
-  const email = p.email ? `<email>${p.email}</email>` : ''
-  return `<enderEmit><xLgr>${p.xLgr}</xLgr><nro>${p.nro}</nro>${p.xCpl ? `<xCpl>${p.xCpl}</xCpl>` : ''}<xBairro>${p.xBairro}</xBairro><cMun>${p.cMun}</cMun><xMun>${p.xMun}</xMun><CEP>${p.cep?.replace(/\D/g, '') ?? ''}</CEP><UF>${p.uf}</UF>${fone}${email}</enderEmit>`
-    .replace('<enderEmit>', '<enderEmit>')  // noop, just ensure tag
-}
-
 function buildEnderecoTag(tag: string, p: CteParticipante): string {
   const fone = p.fone ? `<fone>${p.fone.replace(/\D/g, '')}</fone>` : ''
   const email = p.email ? `<email>${p.email}</email>` : ''
@@ -67,7 +52,6 @@ function buildEnderecoTag(tag: string, p: CteParticipante): string {
 
 function buildParticipante(tag: string, p: CteParticipante): string {
   const doc = p.cnpj ? `<CNPJ>${p.cnpj.replace(/\D/g, '')}</CNPJ>` : `<CPF>${p.cpf!.replace(/\D/g, '')}</CPF>`
-  const ie = p.ie ? `<IE>${p.ie}</IE>` : ''
   const xFant = p.xFant ? `<xFant>${p.xFant}</xFant>` : ''
   return `<${tag}>${doc}<IE>${p.ie ?? 'ISENTO'}</IE><xNome>${p.xNome}</xNome>${xFant}${buildEnderecoTag(`ender${tag.charAt(0).toUpperCase()}${tag.slice(1)}`, p)}</${tag}>`
 }
@@ -97,68 +81,109 @@ function buildIcms(icms: CteIcms): string {
 // ─── Documentos vinculados ────────────────────────────────────────────────────
 
 function buildDocumentos(docs: readonly CteDocumento[]): string {
-  return docs.map(doc => {
-    if (doc.tipo === 'nfe') {
-      const peri = doc.peri?.map(p =>
-        `<peri><nONU>${p.nONU}</nONU><xNomeAE>${p.xNomeAE}</xNomeAE><xClaRisco>${p.xClaRisco}</xClaRisco><grEmb>${p.grEmb}</grEmb><qTotProd>${p.qTotProd}</qTotProd><qVolTipo>${p.qVolTipo}</qVolTipo></peri>`
-      ).join('') ?? ''
-      return `<infNFe><chave>${doc.chave}</chave>${doc.pin ? `<PIN>${doc.pin}</PIN>` : ''}${peri}</infNFe>`
-    }
-    const num = doc.numero ? `<nDoc>${doc.numero}</nDoc>` : ''
-    const val = doc.valor !== undefined ? `<vDoc>${doc.valor.toFixed(2)}</vDoc>` : ''
-    const dat = doc.data ? `<dEmis>${doc.data}</dEmis>` : ''
-    const desc = doc.descOutros ? `<descOutros>${doc.descOutros}</descOutros>` : ''
-    return `<infOutros><tpDoc>${doc.tpDoc}</tpDoc>${desc}${num}${dat}${val}</infOutros>`
-  }).join('')
+  return docs
+    .map((doc) => {
+      if (doc.tipo === 'nfe') {
+        const peri =
+          doc.peri
+            ?.map(
+              (p) =>
+                `<peri><nONU>${p.nONU}</nONU><xNomeAE>${p.xNomeAE}</xNomeAE><xClaRisco>${p.xClaRisco}</xClaRisco><grEmb>${p.grEmb}</grEmb><qTotProd>${p.qTotProd}</qTotProd><qVolTipo>${p.qVolTipo}</qVolTipo></peri>`,
+            )
+            .join('') ?? ''
+        return `<infNFe><chave>${doc.chave}</chave>${doc.pin ? `<PIN>${doc.pin}</PIN>` : ''}${peri}</infNFe>`
+      }
+      const num = doc.numero ? `<nDoc>${doc.numero}</nDoc>` : ''
+      const val = doc.valor !== undefined ? `<vDoc>${doc.valor.toFixed(2)}</vDoc>` : ''
+      const dat = doc.data ? `<dEmis>${doc.data}</dEmis>` : ''
+      const desc = doc.descOutros ? `<descOutros>${doc.descOutros}</descOutros>` : ''
+      return `<infOutros><tpDoc>${doc.tpDoc}</tpDoc>${desc}${num}${dat}${val}</infOutros>`
+    })
+    .join('')
 }
 
 // ─── Modal rodoviário ─────────────────────────────────────────────────────────
 
 function buildModalRodoviario(modal: Extract<CteModalData, { modal: '01' }>): string {
   const veic = modal.veicTracao
-  const veicXml = veic ? `<veicTracao><cInt>${veic.cInt ?? ''}</cInt><placa>${veic.placa}</placa>${veic.RENAVAM ? `<RENAVAM>${veic.RENAVAM}</RENAVAM>` : ''}<tara>${veic.tara}</tara>${veic.capKG !== undefined ? `<capKG>${veic.capKG}</capKG>` : ''}${veic.capM3 !== undefined ? `<capM3>${veic.capM3}</capM3>` : ''}<tpProp>${veic.tpProp}</tpProp><tpVeic>${veic.tpVeic}</tpVeic><tpRod>${veic.tpRod}</tpRod><tpCar>${veic.tpCar}</tpCar><UF>${veic.UF}</UF></veicTracao>` : ''
-  const mots = modal.motoristas?.map(m => `<moto><CPF>${m.CPF.replace(/\D/g, '')}</CPF><xNome>${m.xNome}</xNome></moto>`).join('') ?? ''
+  const veicXml = veic
+    ? `<veicTracao><cInt>${veic.cInt ?? ''}</cInt><placa>${veic.placa}</placa>${veic.RENAVAM ? `<RENAVAM>${veic.RENAVAM}</RENAVAM>` : ''}<tara>${veic.tara}</tara>${veic.capKG !== undefined ? `<capKG>${veic.capKG}</capKG>` : ''}${veic.capM3 !== undefined ? `<capM3>${veic.capM3}</capM3>` : ''}<tpProp>${veic.tpProp}</tpProp><tpVeic>${veic.tpVeic}</tpVeic><tpRod>${veic.tpRod}</tpRod><tpCar>${veic.tpCar}</tpCar><UF>${veic.UF}</UF></veicTracao>`
+    : ''
+  const mots =
+    modal.motoristas
+      ?.map((m) => `<moto><CPF>${m.CPF.replace(/\D/g, '')}</CPF><xNome>${m.xNome}</xNome></moto>`)
+      .join('') ?? ''
   const ciot = modal.CIOT ? `<CIOT><CIOT>${modal.CIOT}</CIOT></CIOT>` : ''
-  const contr = modal.contratante ? `<contratante>${modal.contratante.CNPJ ? `<CNPJ>${modal.contratante.CNPJ.replace(/\D/g, '')}</CNPJ>` : `<CPF>${modal.contratante.CPF!.replace(/\D/g, '')}</CPF>`}<xNome>${modal.contratante.xNome}</xNome></contratante>` : ''
+  const contr = modal.contratante
+    ? `<contratante>${modal.contratante.CNPJ ? `<CNPJ>${modal.contratante.CNPJ.replace(/\D/g, '')}</CNPJ>` : `<CPF>${modal.contratante.CPF!.replace(/\D/g, '')}</CPF>`}<xNome>${modal.contratante.xNome}</xNome></contratante>`
+    : ''
   return `<rodo><RNTRC>${modal.rntrc}</RNTRC>${veicXml}${mots}${ciot}${contr}</rodo>`
 }
 
 // ─── Modal aéreo ──────────────────────────────────────────────────────────────
 
 function buildModalAereo(modal: Extract<CteModalData, { modal: '02' }>): string {
-  const manu = modal.natCarga.cInfManu.map(c => `<cInfManu>${c}</cInfManu>`).join('')
+  const manu = modal.natCarga.cInfManu.map((c) => `<cInfManu>${c}</cInfManu>`).join('')
   const dime = modal.natCarga.xDime ? `<xDime>${modal.natCarga.xDime}</xDime>` : ''
-  const peri = modal.peri?.map(p => `<peri><nONU>${p.nONU}</nONU><qTotProd>${p.qTotProd}</qTotProd><qVolTipo>${p.qVolTipo}</qVolTipo></peri>`).join('') ?? ''
+  const peri =
+    modal.peri
+      ?.map(
+        (p) =>
+          `<peri><nONU>${p.nONU}</nONU><qTotProd>${p.qTotProd}</qTotProd><qVolTipo>${p.qVolTipo}</qVolTipo></peri>`,
+      )
+      .join('') ?? ''
   return `<aeri><nMinu>${modal.nMinu}</nMinu><nOCA>${modal.nOCA}</nOCA><dPrev>${modal.dPrev}</dPrev><natCarga>${dime}${manu}</natCarga><tarifa><CL>${modal.tarifa.CL}</CL>${modal.tarifa.cTar ? `<cTar>${modal.tarifa.cTar}</cTar>` : ''}<vTar>${modal.tarifa.vTar.toFixed(2)}</vTar></tarifa>${peri}</aeri>`
 }
 
 // ─── Modal aquaviário ─────────────────────────────────────────────────────────
 
 function buildModalAquaviario(modal: Extract<CteModalData, { modal: '03' }>): string {
-  const balsas = modal.balsa?.map(b => `<balsa><xBalsa>${b.xBalsa}</xBalsa>${b.nViag ? `<nViag>${b.nViag}</nViag>` : ''}<cEmbar>${b.cEmbar}</cEmbar><xEmbar>${b.xEmbar}</xEmbar></balsa>`).join('') ?? ''
-  const conts = modal.detCont?.map(c => {
-    const lacres = c.lacre?.map(l => `<lacre><nLacre>${l.nLacre}</nLacre></lacre>`).join('') ?? ''
-    const sucs = c.infSucatan?.map(s => `<infSucatan><nSucatan>${s.nSucatan}</nSucatan></infSucatan>`).join('') ?? ''
-    return `<detCont><nCont>${c.nCont}</nCont>${lacres}${sucs}</detCont>`
-  }).join('') ?? ''
+  const balsas =
+    modal.balsa
+      ?.map(
+        (b) =>
+          `<balsa><xBalsa>${b.xBalsa}</xBalsa>${b.nViag ? `<nViag>${b.nViag}</nViag>` : ''}<cEmbar>${b.cEmbar}</cEmbar><xEmbar>${b.xEmbar}</xEmbar></balsa>`,
+      )
+      .join('') ?? ''
+  const conts =
+    modal.detCont
+      ?.map((c) => {
+        const lacres = c.lacre?.map((l) => `<lacre><nLacre>${l.nLacre}</nLacre></lacre>`).join('') ?? ''
+        const sucs =
+          c.infSucatan?.map((s) => `<infSucatan><nSucatan>${s.nSucatan}</nSucatan></infSucatan>`).join('') ?? ''
+        return `<detCont><nCont>${c.nCont}</nCont>${lacres}${sucs}</detCont>`
+      })
+      .join('') ?? ''
   return `<aquav><irin>${modal.irin}</irin><tpNav>${modal.tpNav}</tpNav>${balsas}${conts}</aquav>`
 }
 
 // ─── Modal ferroviário ────────────────────────────────────────────────────────
 
 function buildModalFerroviario(modal: Extract<CteModalData, { modal: '04' }>): string {
-  const ferr = modal.ferrEmi ? `<ferrEmi><CNPJ>${modal.ferrEmi.CNPJ.replace(/\D/g, '')}</CNPJ>${modal.ferrEmi.cInt ? `<cInt>${modal.ferrEmi.cInt}</cInt>` : ''}<IE>${modal.ferrEmi.IE}</IE><xNome>${modal.ferrEmi.xNome}</xNome><fluxo>${modal.ferrEmi.fluxo}</fluxo></ferrEmi>` : ''
-  const vagoes = modal.vagao?.map(v => `<vagao><serie>${v.serie}</serie><nVag>${v.nVag}</nVag><nSeq>${v.nSeq}</nSeq><TU>${v.TU}</TU></vagao>`).join('') ?? ''
+  const ferr = modal.ferrEmi
+    ? `<ferrEmi><CNPJ>${modal.ferrEmi.CNPJ.replace(/\D/g, '')}</CNPJ>${modal.ferrEmi.cInt ? `<cInt>${modal.ferrEmi.cInt}</cInt>` : ''}<IE>${modal.ferrEmi.IE}</IE><xNome>${modal.ferrEmi.xNome}</xNome><fluxo>${modal.ferrEmi.fluxo}</fluxo></ferrEmi>`
+    : ''
+  const vagoes =
+    modal.vagao
+      ?.map(
+        (v) => `<vagao><serie>${v.serie}</serie><nVag>${v.nVag}</nVag><nSeq>${v.nSeq}</nSeq><TU>${v.TU}</TU></vagao>`,
+      )
+      .join('') ?? ''
   return `<ferrov><tpTraf>${modal.tpTraf}</tpTraf>${ferr}${vagoes}</ferrov>`
 }
 
 function buildModal(modal: CteModalData): string {
   switch (modal.modal) {
-    case '01': return buildModalRodoviario(modal)
-    case '02': return buildModalAereo(modal)
-    case '03': return buildModalAquaviario(modal)
-    case '04': return buildModalFerroviario(modal)
-    default:   return ''
+    case '01':
+      return buildModalRodoviario(modal)
+    case '02':
+      return buildModalAereo(modal)
+    case '03':
+      return buildModalAquaviario(modal)
+    case '04':
+      return buildModalFerroviario(modal)
+    default:
+      return ''
   }
 }
 
@@ -205,14 +230,20 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   const receb = data.recebedor ? buildParticipante('receb', data.recebedor) : ''
 
   // vPrest
-  const comps = data.componentesValor.map(c => `<Comp><xNome>${c.xNome}</xNome><vComp>${c.vComp.toFixed(2)}</vComp></Comp>`).join('')
+  const comps = data.componentesValor
+    .map((c) => `<Comp><xNome>${c.xNome}</xNome><vComp>${c.vComp.toFixed(2)}</vComp></Comp>`)
+    .join('')
   const vPrest = `<vPrest><vTPrest>${data.valorTotalPrestacao.toFixed(2)}</vTPrest><vRec>${data.valorTotalReceber.toFixed(2)}</vRec>${comps}</vPrest>`
 
   // imp
   const imp = `<imp>${buildIcms(data.icms)}<vTotTrib>0.00</vTotTrib></imp>`
 
   // infCTeNorm — carga e documentos
-  const qtds = data.carga.quantidades.map(q => `<infQ><cUnid>${q.cUnid}</cUnid><tpMed>${q.tpMed}</tpMed><qCarga>${q.qCarga.toFixed(3)}</qCarga></infQ>`).join('')
+  const qtds = data.carga.quantidades
+    .map(
+      (q) => `<infQ><cUnid>${q.cUnid}</cUnid><tpMed>${q.tpMed}</tpMed><qCarga>${q.qCarga.toFixed(3)}</qCarga></infQ>`,
+    )
+    .join('')
   const infCarga = `<infCarga><vCarga>${data.carga.vCarga.toFixed(2)}</vCarga><proPred>${data.carga.proPred}</proPred>${data.carga.xOutCat ? `<xOutCat>${data.carga.xOutCat}</xOutCat>` : ''}${qtds}</infCarga>`
   const infDoc = `<infDoc>${buildDocumentos(data.documentos)}</infDoc>`
   const infModal = `<infModal versao="4.00">${buildModal(data.modal)}</infModal>`
@@ -222,7 +253,7 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   const infAdic = data.observacoes ? `<infAdic><infCpl>${data.observacoes}</infCpl></infAdic>` : ''
 
   const infCteId = `CTe${chave}`
-  const xml = `<?xml version="1.0" encoding="UTF-8"?><CTeOS versao="4.00" xmlns="${CTE_NS}"><infCte Id="${infCteId}"><ide><cUF>${cUF}</cUF><cCT>${cCT}</cCT><CFOP>${data.cfop}</CFOP><natOp>${data.naturezaOperacao}</natOp><mod>57</mod><serie>${serie}</serie><nCT>${nCT}</nCT><dhEmi>${dhEmi}</dhEmi><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${cDV}</cDV><tpAmb>${tpAmb}</tpAmb><tpCTe>0</tpCTe><procEmi>0</procEmi><verProc>fiscal-provider@1.0</verProc><cMunEnv>${config.codigoMunicipio}</cMunEnv><xMunEnv>${config.municipio}</xMunEnv><UFEnv>${config.uf}</UFEnv><modal>${data.modal.modal}</modal><tpServ>${tpServ}</tpServ><cMunIni>${data.municipioOrigem.codigo}</cMunIni><xMunIni>${data.municipioOrigem.nome}</xMunIni><UFIni>${data.municipioOrigem.uf}</UFIni><cMunFim>${data.municipioDestino.codigo}</cMunFim><xMunFim>${data.municipioDestino.nome}</xMunFim><UFFim>${data.municipioDestino.uf}</UFFim><retira>0</retira><indIEToma>9</indIEToma>${toma}</ide>${obsGer}${emit}${rem}${exped}${receb}${dest}${vPrest}${imp}${infCTeNorm}${infAdic}</infCte></CTeOS>`
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><CTe versao="4.00" xmlns="${CTE_NS}"><infCTe Id="${infCteId}"><ide><cUF>${cUF}</cUF><cCT>${cCT}</cCT><CFOP>${data.cfop}</CFOP><natOp>${data.naturezaOperacao}</natOp><mod>57</mod><serie>${serie}</serie><nCT>${nCT}</nCT><dhEmi>${dhEmi}</dhEmi><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${cDV}</cDV><tpAmb>${tpAmb}</tpAmb><tpCTe>0</tpCTe><procEmi>0</procEmi><verProc>fiscal-provider@1.0</verProc><cMunEnv>${config.codigoMunicipio}</cMunEnv><xMunEnv>${config.municipio}</xMunEnv><UFEnv>${config.uf}</UFEnv><modal>${data.modal.modal}</modal><tpServ>${tpServ}</tpServ><cMunIni>${data.municipioOrigem.codigo}</cMunIni><xMunIni>${data.municipioOrigem.nome}</xMunIni><UFIni>${data.municipioOrigem.uf}</UFIni><cMunFim>${data.municipioDestino.codigo}</cMunFim><xMunFim>${data.municipioDestino.nome}</xMunFim><UFFim>${data.municipioDestino.uf}</UFFim><retira>0</retira><indIEToma>9</indIEToma>${toma}</ide>${obsGer}${emit}${rem}${exped}${receb}${dest}${vPrest}${imp}${infCTeNorm}${infAdic}</infCTe></CTe>`
 
   return { xml, chaveAcesso: chave, cCT }
 }

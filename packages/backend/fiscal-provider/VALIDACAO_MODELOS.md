@@ -200,18 +200,34 @@ Legenda: ✅ Validado | 🔄 Implementado, aguardando teste | ❌ Não implement
 | 7.7 | Assinatura digital CT-e (`signCteXml`) | ✅ | Mesma estrutura RSA-SHA1 + C14N da NF-e; testado via typecheck |
 | 7.8 | Assinatura digital evento CT-e (`signCteEventoXml`) | ✅ | Implementado |
 | 7.9 | Build de chave 44 dígitos CT-e (`buildChaveCte`) | ✅ | Mod11, cUF+AAMM+CNPJ+57+serie+nCT+tpEmis+cCT+cDV |
-| 7.10 | Endpoints SP, MG, PR, RS, BA (servidor próprio) | ✅ | `CteConstants.ts` — demais estados via SVRS |
+| 7.10 | `testConnection` — status CT-e SP/SVSP homologação | ✅ | cStat 107 — Serviço em Operação (nfe.fazenda.sp.gov.br/CTeWS) |
+| 7.11 | `testConnection` — status CT-e MG homologação | ✅ | cStat 107 — Serviço em Operação |
+| 7.12 | `testConnection` — status CT-e PR homologação | ✅ | cStat 107 — Serviço em Operação |
+| 7.13 | `testConnection` — status CT-e RS/SVRS homologação | ✅ | cStat 107 — Serviço em Operação |
+| 7.14 | `testConnection` — status CT-e MS homologação | ✅ | cStat 107 — Serviço em Operação |
+| 7.15 | `testConnection` — status CT-e MT homologação | ✅ | cStat 107 — Serviço em Operação |
+
+**Correções CT-e 4.00 (versus CT-e 3.x) — 2026-06-30:**
+- CT-e 4.00 usa exclusivamente `CTeRecepcaoSincV4` (síncrono) — não existe mais fluxo assíncrono (CTeRecepcao4 + CTeRetRecepcao4)
+- URLs SVRS atualizadas para `/ws/CTeStatusServicoV4/CTeStatusServicoV4.asmx` (padrão `/ws/<ServiceV4>/<ServiceV4>.asmx`)
+- SP tem servidor próprio: `nfe.fazenda.sp.gov.br/CTeWS/WS/<ServiceV4>.asmx`
+- Elemento de status mudou de `consStatServCte` para `consStatServCTe` (capital T) com ordem: `tpAmb → cUF → xServ`
+- Header `cteCabecMsg` removido — CT-e 4.00 não requer
+- SOAP action mudou de `cteRecepcaoCT` para `cteRecepcao`
+- Resposta de status: wrapper `cteStatusServicoCTResult` (não `cteResultMsg`)
+- Resposta de autorização: wrapper `cteRecepcaoResult > retCTeSinc` (não `cteResultMsg > retEnviCTe`)
 
 **Arquivos:**
-- `src/sefaz/CteConstants.ts` — endpoints, UF→IBGE, SVRS fallback
+- `src/sefaz/CteConstants.ts` — endpoints corretos v4, SP incluído, todos sincrono, SVRS fallback
 - `src/sefaz/CteXmlBuilder.ts` — builders XML para todos os modais + ICMS discriminado por CST
 - `src/sefaz/CteSoapClient.ts` — sendCteAutorizacao, sendCteStatusServico, sendCteCancelamento
 - `src/providers/SefazCteProvider.ts` — implementa FiscalProvider
 
-**Pendências antes de validar:**
+**Pendências antes de validar emissão:**
 - RNTRC (Registro Nacional de Transportadores Rodoviários de Cargas)
 - Série CT-e do estabelecimento no SEFAZ
 - Dados reais da carga (remetente, destinatário, documentos da carga)
+- Verificar se `buildCteXml` gera `<CTe>` root correto para v4 (não `<enviCTe>` batch)
 
 ---
 
@@ -256,9 +272,9 @@ Legenda: ✅ Validado | 🔄 Implementado, aguardando teste | ❌ Não implement
 
 ## Próximos passos recomendados (prioridade)
 
-1. **NF-e Distribuição DFe produção** — aguardar expirar rate limit (~1h) e revalidar `consultarDFe` com CNPJ `61156864000191`; validar `consultarPorNsu` e `consultarPorChave`
-2. **NFC-e** — obter CSC homologação (portal SEFAZ MG, RS ou PR) e rodar `make test:nfce`
-3. **CT-e** — obter RNTRC e série CT-e de uma transportadora para testar emissão e cancelamento
+1. **NF-e Distribuição DFe produção** — revalidar `consultarDFe` com CNPJ `61156864000191` (rate limit ~1h após última chamada); validar `consultarPorNsu` e `consultarPorChave`
+2. **CT-e — emissão real** — obter RNTRC e série CT-e; verificar se `buildCteXml` gera root `<CTe>` (v4) correto antes de transmitir
+3. **NFC-e** — obter CSC homologação (portal SEFAZ MG, RS ou PR) e testar `SefazNfceProvider`
 4. **NFS-e ABRASF** — validar contra prefeitura real com servidor de IP autorizado
 5. **NFS-e Nota RP** — aguardar migração de Ribeirão Preto para v3
 6. **SAT** — depende de hardware físico; validar por último ou em ambiente de cliente

@@ -1,0 +1,12 @@
+services:
+  api:
+    build:
+      context: ../../..
+      dockerfile: packages/backend/fiscal-example/Dockerfile
+    container_name: fiscal-provider-api
+    ports:
+      - '3333:3333'
+    environment:
+      - PORT=3333
+      - NODE_ENV=development
+    restart: unless-stopped

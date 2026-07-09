@@ -57,6 +57,8 @@ import {
   type SatConfig,
   type NfseConfig,
   type NotaRpConfig,
+  type CteConfig,
+  type CteData,
   type EmitFiscalParams,
   type FiscalResult,
 } from '../src/index'
@@ -64,6 +66,8 @@ import { buildChaveAcesso } from '../src/sefaz/SefazChave'
 import { buildQrCodeUrl } from '../src/sefaz/SefazQrCode'
 import { buildDanfce } from '../src/danfce/DanfceBuilder'
 import { buildNfeXml } from '../src/sefaz/NfeXmlBuilder'
+import { buildCteXml } from '../src/sefaz/CteXmlBuilder'
+import { signCteXml, loadCertificate } from '../src/sefaz/SefazXmlSigner'
 
 const args = process.argv.slice(2)
 const runAll = args.includes('--all')
@@ -73,6 +77,7 @@ const runNfe = runAll || args.includes('--nfe')
 const runNfse = runAll || args.includes('--nfse')
 const runNfseSub = runAll || args.includes('--nfse-sub')
 const runNotaRp = runAll || args.includes('--notarp')
+const runCte = runAll || args.includes('--cte')
 
 let passed = 0
 let failed = 0
@@ -131,21 +136,23 @@ function buildBaseEmitParams(config: EmitFiscalParams['config']): EmitFiscalPara
   return {
     referenceId: `TEST-${Date.now()}`,
     config,
-    totalAmount: 10.00,
+    totalAmount: 10.0,
     discountAmount: 0,
     customerCpf: '00000000000',
-    items: [{
-      codigo: '001',
-      descricao: 'Produto de Teste',
-      ncm: '21069090',
-      cfop: '5102',
-      cst: '400',
-      unidade: 'UN',
-      quantidade: 1,
-      valorUnitario: 10.00,
-      valorTotal: 10.00,
-    }],
-    payments: [{ method: 'pix', amount: 10.00 }],
+    items: [
+      {
+        codigo: '001',
+        descricao: 'Produto de Teste',
+        ncm: '21069090',
+        cfop: '5102',
+        cst: '400',
+        unidade: 'UN',
+        quantidade: 1,
+        valorUnitario: 10.0,
+        valorTotal: 10.0,
+      },
+    ],
+    payments: [{ method: 'pix', amount: 10.0 }],
   }
 }
 
@@ -177,8 +184,16 @@ try {
     environment: 'homologacao',
     tpAmb: '2',
   })
-  ok('NFC-e: chave 44 dígitos com mod=65', chaveNfce.chave.length === 44 && chaveNfce.chave.includes('65'), chaveNfce.chave.slice(0, 10) + '…')
-  ok('NF-e:  chave 44 dígitos com mod=55', chaveNfe.chave.length === 44 && chaveNfe.chave.includes('55'), chaveNfe.chave.slice(0, 10) + '…')
+  ok(
+    'NFC-e: chave 44 dígitos com mod=65',
+    chaveNfce.chave.length === 44 && chaveNfce.chave.includes('65'),
+    chaveNfce.chave.slice(0, 10) + '…',
+  )
+  ok(
+    'NF-e:  chave 44 dígitos com mod=55',
+    chaveNfe.chave.length === 44 && chaveNfe.chave.includes('55'),
+    chaveNfe.chave.slice(0, 10) + '…',
+  )
   ok('buildQrCodeUrl retorna URL com parâmetros', url.includes('?p='), url.slice(0, 80))
 } catch (error) {
   ok('buildChaveAcesso / buildQrCodeUrl', false, String(error))
@@ -401,12 +416,22 @@ section('NF-e direta SEFAZ (modelo 55)')
 if (!runNfe) {
   skip('testConnection NF-e', 'use --nfe para executar')
   skip('emissão NF-e', 'use --nfe para executar')
-} else if (!requireEnv(
-  'FISCAL_CERT_BASE64', 'FISCAL_CERT_SENHA', 'FISCAL_CODIGO_MUNICIPIO',
-  'FISCAL_NFE_DEST_CNPJ', 'FISCAL_NFE_DEST_NOME', 'FISCAL_NFE_DEST_CEP',
-  'FISCAL_NFE_DEST_LOGRADOURO', 'FISCAL_NFE_DEST_NUMERO', 'FISCAL_NFE_DEST_BAIRRO',
-  'FISCAL_NFE_DEST_MUNICIPIO', 'FISCAL_NFE_DEST_UF', 'FISCAL_NFE_DEST_COD_MUN',
-)) {
+} else if (
+  !requireEnv(
+    'FISCAL_CERT_BASE64',
+    'FISCAL_CERT_SENHA',
+    'FISCAL_CODIGO_MUNICIPIO',
+    'FISCAL_NFE_DEST_CNPJ',
+    'FISCAL_NFE_DEST_NOME',
+    'FISCAL_NFE_DEST_CEP',
+    'FISCAL_NFE_DEST_LOGRADOURO',
+    'FISCAL_NFE_DEST_NUMERO',
+    'FISCAL_NFE_DEST_BAIRRO',
+    'FISCAL_NFE_DEST_MUNICIPIO',
+    'FISCAL_NFE_DEST_UF',
+    'FISCAL_NFE_DEST_COD_MUN',
+  )
+) {
   // ausentes já logados
 } else {
   const nfeConfig: NfeConfig = {
@@ -470,11 +495,16 @@ if (!runNfse) {
   skip('testConnection NFS-e', 'use --nfse para executar')
   skip('emissão NFS-e', 'use --nfse para executar')
   skip('cancelamento NFS-e', 'use --nfse para executar')
-} else if (!requireEnv(
-  'FISCAL_CERT_BASE64', 'FISCAL_CERT_SENHA',
-  'FISCAL_NFSE_URL', 'FISCAL_INSCRICAO_MUNICIPAL',
-  'FISCAL_CODIGO_MUNICIPIO', 'FISCAL_CODIGO_SERVICO'
-)) {
+} else if (
+  !requireEnv(
+    'FISCAL_CERT_BASE64',
+    'FISCAL_CERT_SENHA',
+    'FISCAL_NFSE_URL',
+    'FISCAL_INSCRICAO_MUNICIPAL',
+    'FISCAL_CODIGO_MUNICIPIO',
+    'FISCAL_CODIGO_SERVICO',
+  )
+) {
   // ausentes já logados
 } else {
   const nfseConfig: NfseConfig = {
@@ -497,8 +527,8 @@ if (!runNfse) {
   if (conn.ok) {
     const emitParams: EmitFiscalParams = {
       ...buildBaseEmitParams(nfseConfig),
-      totalAmount: 500.00,
-      payments: [{ method: 'pix', amount: 500.00 }],
+      totalAmount: 500.0,
+      payments: [{ method: 'pix', amount: 500.0 }],
       nfseData: {
         discriminacao: 'Serviços de tecnologia da informação — teste automatizado',
         competencia: new Date().toISOString().slice(0, 7),
@@ -529,12 +559,17 @@ section('NFS-e substituição (SubstituirNfse)')
 
 if (!runNfseSub) {
   skip('emissão NFS-e substituta', 'use --nfse-sub para executar')
-} else if (!requireEnv(
-  'FISCAL_CERT_BASE64', 'FISCAL_CERT_SENHA',
-  'FISCAL_NFSE_URL', 'FISCAL_INSCRICAO_MUNICIPAL',
-  'FISCAL_CODIGO_MUNICIPIO', 'FISCAL_CODIGO_SERVICO',
-  'FISCAL_NFSE_NUMERO_ORIGINAL',
-)) {
+} else if (
+  !requireEnv(
+    'FISCAL_CERT_BASE64',
+    'FISCAL_CERT_SENHA',
+    'FISCAL_NFSE_URL',
+    'FISCAL_INSCRICAO_MUNICIPAL',
+    'FISCAL_CODIGO_MUNICIPIO',
+    'FISCAL_CODIGO_SERVICO',
+    'FISCAL_NFSE_NUMERO_ORIGINAL',
+  )
+) {
   // ausentes já logados
 } else {
   const nfseSubConfig: NfseConfig = {
@@ -554,8 +589,8 @@ if (!runNfseSub) {
 
   const subEmitParams: EmitFiscalParams = {
     ...buildBaseEmitParams(nfseSubConfig),
-    totalAmount: 600.00,
-    payments: [{ method: 'pix', amount: 600.00 }],
+    totalAmount: 600.0,
+    payments: [{ method: 'pix', amount: 600.0 }],
     nfseData: {
       discriminacao: 'Substituição de NFS-e — teste automatizado SubstituirNfse',
       competencia: new Date().toISOString().slice(0, 7),
@@ -595,16 +630,18 @@ if (!runNotaRp) {
   skip('testConnection NotaRP', 'use --notarp para executar')
   skip('emissão NFS-e NotaRP', 'use --notarp para executar')
   skip('cancelamento NFS-e NotaRP', 'use --notarp para executar')
-} else if (!requireEnv(
-  'NOTARP_API_TOKEN',
-  'NOTARP_CNPJ',
-  'NOTARP_INSCRICAO_MUNICIPAL',
-  'NOTARP_COD_TRIBUTACAO_NAC',
-  'NOTARP_COD_TRIBUTACAO_MUN',
-  'NOTARP_COD_NBS',
-  'NOTARP_MUNICIPIO_IBGE',
-  'NOTARP_ALIQUOTA_ISS',
-)) {
+} else if (
+  !requireEnv(
+    'NOTARP_API_TOKEN',
+    'NOTARP_CNPJ',
+    'NOTARP_INSCRICAO_MUNICIPAL',
+    'NOTARP_COD_TRIBUTACAO_NAC',
+    'NOTARP_COD_TRIBUTACAO_MUN',
+    'NOTARP_COD_NBS',
+    'NOTARP_MUNICIPIO_IBGE',
+    'NOTARP_ALIQUOTA_ISS',
+  )
+) {
   // ausentes já logados
 } else {
   const notarpConfig: NotaRpConfig = {
@@ -630,13 +667,13 @@ if (!runNotaRp) {
     const emitParams: EmitFiscalParams = {
       referenceId: `notarp-teste-${Date.now()}`,
       items: [],
-      payments: [{ method: 'pix', amount: 100.00 }],
-      totalAmount: 100.00,
+      payments: [{ method: 'pix', amount: 100.0 }],
+      totalAmount: 100.0,
       discountAmount: 0,
       config: notarpConfig,
       notaRpNfseData: {
         descricao: 'Serviço de teste automatizado — NotaRpNfseProvider',
-        valorTotal: 100.00,
+        valorTotal: 100.0,
         codigoTributacaoNacional: env('NOTARP_COD_TRIBUTACAO_NAC')!,
         codigoTributacaoMunicipal: env('NOTARP_COD_TRIBUTACAO_MUN')!,
         codigoNbs: env('NOTARP_COD_NBS')!,
@@ -667,6 +704,117 @@ if (!runNotaRp) {
   } else {
     skip('emissão NFS-e NotaRP', 'testConnection falhou')
     skip('cancelamento NFS-e NotaRP', 'testConnection falhou')
+  }
+}
+
+// ─── CT-e ─────────────────────────────────────────────────────────────────────
+
+if (runCte) {
+  section('CT-e 4.00 — build + assinatura (local)')
+
+  const cteConfig: CteConfig = {
+    model: 'cte',
+    environment: 'homologacao',
+    cnpj: env('FISCAL_CNPJ') ?? '11222333000181',
+    inscricaoEstadual: env('FISCAL_IE') ?? '111111111111',
+    razaoSocial: env('FISCAL_RAZAO') ?? 'TRANSPORTADORA TESTE LTDA',
+    uf: env('FISCAL_UF') ?? 'SP',
+    municipio: env('FISCAL_MUNICIPIO') ?? 'São Paulo',
+    codigoMunicipio: env('FISCAL_CODIGO_MUNICIPIO') ?? '3550308',
+    cep: env('FISCAL_CEP') ?? '01310100',
+    logradouro: env('FISCAL_LOGRADOURO') ?? 'Av Paulista',
+    numero: env('FISCAL_NUMERO') ?? '1000',
+    bairro: env('FISCAL_BAIRRO') ?? 'Bela Vista',
+    crt: '1',
+    certificadoBase64: env('FISCAL_CERT_BASE64') ?? '',
+    certificadoSenha: env('FISCAL_CERT_SENHA') ?? '',
+    serie: env('FISCAL_SERIE') ?? '001',
+    numeroCte: parseInt(env('FISCAL_NUMERO_NF') ?? '1', 10),
+    rntrc: env('FISCAL_RNTRC') ?? '00000000',
+    telefone: '11999999999',
+  }
+
+  const cteData: CteData = {
+    cfop: '6353',
+    naturezaOperacao: 'PRESTAÇÃO DE SERVIÇO DE TRANSPORTE',
+    tipoServico: '0',
+    tomador: '3',
+    municipioOrigem: { codigo: '3550308', nome: 'São Paulo', uf: 'SP' },
+    municipioDestino: { codigo: '3304557', nome: 'Rio de Janeiro', uf: 'RJ' },
+    remetente: {
+      cnpj: '11222333000181',
+      xNome: 'REMETENTE TESTE LTDA',
+      xLgr: 'Rua Teste',
+      nro: '1',
+      xBairro: 'Centro',
+      cMun: '3550308',
+      xMun: 'São Paulo',
+      uf: 'SP',
+      cep: '01001000',
+    },
+    destinatario: {
+      cnpj: '99888777000100',
+      xNome: 'DESTINATARIO TESTE LTDA',
+      xLgr: 'Rua Destino',
+      nro: '200',
+      xBairro: 'Flamengo',
+      cMun: '3304557',
+      xMun: 'Rio de Janeiro',
+      uf: 'RJ',
+      cep: '22210030',
+    },
+    valorTotalPrestacao: 500.0,
+    valorTotalReceber: 500.0,
+    componentesValor: [{ xNome: 'FRETE', vComp: 500.0 }],
+    icms: { cst: '40' },
+    carga: {
+      vCarga: 5000.0,
+      proPred: 'CARGA GERAL',
+      quantidades: [{ cUnid: '00', tpMed: 'PESO BRUTO', qCarga: 100 }],
+    },
+    documentos: [{ tipo: 'outros', tpDoc: '00' }],
+    modal: {
+      modal: '01',
+      rntrc: env('FISCAL_RNTRC') ?? '00000000',
+    },
+  }
+
+  try {
+    const { xml, chaveAcesso } = buildCteXml(cteConfig, cteData)
+    ok('buildCteXml gera XML', xml.length > 0)
+    ok('raiz é <CTe>', xml.includes('<CTe versao="4.00"'))
+    ok('elemento <infCTe> (T maiúsculo)', xml.includes('<infCTe Id='))
+    ok('fecha </infCTe></CTe>', xml.includes('</infCTe></CTe>'))
+    ok('chave 44 dígitos', chaveAcesso.length === 44)
+    ok('mod=57 no XML', xml.includes('<mod>57</mod>'))
+
+    if (cteConfig.certificadoBase64) {
+      try {
+        const certData = loadCertificate(cteConfig.certificadoBase64, cteConfig.certificadoSenha)
+        const { signedXml } = signCteXml(xml, certData)
+        ok('signCteXml encontra infCTe Id', signedXml.includes('<Signature'))
+        ok('XML assinado contém <Signature>', signedXml.includes('<Signature'))
+      } catch (err) {
+        ok('signCteXml', false, err instanceof Error ? err.message : 'erro desconhecido')
+      }
+    } else {
+      skip('signCteXml', 'FISCAL_CERT_BASE64 não definido')
+    }
+  } catch (err) {
+    ok('buildCteXml', false, err instanceof Error ? err.message : 'erro desconhecido')
+    skip('raiz <CTe>', 'buildCteXml falhou')
+    skip('elemento <infCTe>', 'buildCteXml falhou')
+  }
+
+  section('CT-e 4.00 — testConnection SEFAZ homologação')
+
+  if (cteConfig.certificadoBase64) {
+    const cteProvider = createFiscalProvider({ model: 'cte', ...cteConfig } as CteConfig)
+    const connResult = await cteProvider.testConnection({ config: cteConfig })
+    ok('SEFAZ CT-e SP homologação cStat 107', connResult.ok, connResult.message)
+    if (connResult.ok) console.log(`    ${connResult.message}`)
+  } else {
+    skip('testConnection CT-e SEFAZ', 'FISCAL_CERT_BASE64 não definido')
   }
 }
 

@@ -38,6 +38,7 @@ export type CnpjInfo = {
   readonly complemento?: string
   readonly bairro?: string
   readonly municipio?: string
+  readonly codigoMunicipio?: string
   readonly uf?: string
   readonly cep?: string
   readonly telefone?: string
@@ -46,6 +47,7 @@ export type CnpjInfo = {
   readonly porte?: string
   readonly optanteSimplesNacional?: boolean
   readonly meEpp?: boolean
+  readonly inscricaoEstadual?: string
 }
 
 export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
@@ -71,9 +73,9 @@ export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
 
   if (response.status === 404) throw new Error(`CNPJ ${cnpjClean} não encontrado na Receita Federal`)
   if (response.status === 429) throw new Error('Rate limit excedido na BrasilAPI — aguarde alguns segundos')
-  if (!response.ok)            throw new Error(`BrasilAPI retornou HTTP ${response.status}`)
+  if (!response.ok) throw new Error(`BrasilAPI retornou HTTP ${response.status}`)
 
-  const data = await response.json() as Record<string, unknown>
+  const data = (await response.json()) as Record<string, unknown>
   const company = data['company'] as Record<string, unknown> | undefined
 
   return {
@@ -90,6 +92,7 @@ export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
     complemento: data['complemento'] ? String(data['complemento']) : undefined,
     bairro: data['bairro'] ? String(data['bairro']) : undefined,
     municipio: data['municipio'] ? String(data['municipio']) : undefined,
+    codigoMunicipio: data['codigo_municipio_ibge'] ? String(data['codigo_municipio_ibge']) : undefined,
     uf: data['uf'] ? String(data['uf']) : undefined,
     cep: data['cep'] ? String(data['cep']).replace(/\D/g, '') : undefined,
     telefone: data['ddd_telefone_1'] ? String(data['ddd_telefone_1']).replace(/\D/g, '') : undefined,
@@ -227,7 +230,7 @@ export class NfeDistribuicaoProvider {
       const restanteMs = cooldownUntil - Date.now()
       const restanteMin = Math.ceil(restanteMs / 60_000)
       throw new Error(
-        `SEFAZ NFeDistribuicaoDFe: aguarde ${restanteMin} min antes de consultar o CNPJ ${cnpjClean} novamente (cooldown local pós-cStat 137)`
+        `SEFAZ NFeDistribuicaoDFe: aguarde ${restanteMin} min antes de consultar o CNPJ ${cnpjClean} novamente (cooldown local pós-cStat 137)`,
       )
     }
 
@@ -315,11 +318,11 @@ export class NfeDistribuicaoProvider {
         method: 'POST',
         headers: {
           'Content-Type': 'application/soap+xml; charset=utf-8',
-          'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
+          SOAPAction: '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe/nfeDistDFeInteresse"',
         },
         body: soapBody,
         signal: controller.signal,
-        // @ts-ignore — Bun TLS extension para mTLS
+        // @ts-expect-error — Bun TLS extension para mTLS
         tls: {
           cert: certData.certificatePem,
           key: certData.privateKeyPem,
@@ -331,7 +334,10 @@ export class NfeDistribuicaoProvider {
       if (error instanceof Error && error.name === 'AbortError') {
         throw new FiscalTimeoutError('SEFAZ NFeDistribuicaoDFe')
       }
-      throw new FiscalConnectionError('SEFAZ NFeDistribuicaoDFe', error instanceof Error ? error.message : 'desconhecido')
+      throw new FiscalConnectionError(
+        'SEFAZ NFeDistribuicaoDFe',
+        error instanceof Error ? error.message : 'desconhecido',
+      )
     }
 
     return response.text()
@@ -367,11 +373,14 @@ function buildSoapEnvelope(params: SoapBaseParams, queryBody: string): string {
 function aplicarFiltros(itens: readonly DfeItem[], filtros: FiltrosDfe): readonly DfeItem[] {
   return itens.filter((item) => {
     if (filtros.modelo && item.mod !== filtros.modelo) return false
-    if (filtros.cnpjEmitente && item.emitenteCnpj?.replace(/\D/g, '') !== filtros.cnpjEmitente.replace(/\D/g, '')) return false
+    if (filtros.cnpjEmitente && item.emitenteCnpj?.replace(/\D/g, '') !== filtros.cnpjEmitente.replace(/\D/g, ''))
+      return false
     if (filtros.situacao && item.situacao !== filtros.situacao) return false
     if (filtros.schemas && !filtros.schemas.includes(item.schema)) return false
-    if (filtros.valorMinimo !== undefined && (item.valorTotal === undefined || item.valorTotal < filtros.valorMinimo)) return false
-    if (filtros.valorMaximo !== undefined && (item.valorTotal === undefined || item.valorTotal > filtros.valorMaximo)) return false
+    if (filtros.valorMinimo !== undefined && (item.valorTotal === undefined || item.valorTotal < filtros.valorMinimo))
+      return false
+    if (filtros.valorMaximo !== undefined && (item.valorTotal === undefined || item.valorTotal > filtros.valorMaximo))
+      return false
     if (filtros.dataInicio && item.dataEmissao && item.dataEmissao < filtros.dataInicio) return false
     if (filtros.dataFim && item.dataEmissao && item.dataEmissao > filtros.dataFim) return false
     return true
@@ -383,13 +392,16 @@ function aplicarFiltros(itens: readonly DfeItem[], filtros: FiltrosDfe): readonl
 function parseDistribuicaoResponse(soapXml: string): NfeDistribuicaoResult {
   const parsed = XML_PARSER.parse(soapXml)
   const body = parsed?.Envelope?.Body
-  const retDist = body?.nfeDistDFeInteresseResponse?.nfeDistDFeInteresseResult?.retDistDFeInt
-              ?? body?.nfeDistDFeInteresseResult?.retDistDFeInt
-              ?? body?.retDistDFeInt
+  const retDist =
+    body?.nfeDistDFeInteresseResponse?.nfeDistDFeInteresseResult?.retDistDFeInt ??
+    body?.nfeDistDFeInteresseResult?.retDistDFeInt ??
+    body?.retDistDFeInt
 
   const cStat = String(retDist?.cStat ?? '')
   if (cStat === '656') {
-    throw new Error('SEFAZ NFeDistribuicaoDFe: rate limit atingido — aguarde 1 hora antes de consultar novamente o mesmo CNPJ (cStat 656)')
+    throw new Error(
+      'SEFAZ NFeDistribuicaoDFe: rate limit atingido — aguarde 1 hora antes de consultar novamente o mesmo CNPJ (cStat 656)',
+    )
   }
   if (cStat !== '137' && cStat !== '138') {
     throw new Error(`SEFAZ NFeDistribuicaoDFe cStat ${cStat}: ${String(retDist?.xMotivo ?? 'erro desconhecido')}`)
@@ -483,5 +495,20 @@ function parseDocZip(doc: Record<string, unknown>): DfeItem {
     // gzip decode failure — retorna item com campos mínimos
   }
 
-  return { nsu, schema, xmlComprimido, xmlDecoded, chaveNfe, mod, emitenteCnpj, emitenteNome, valorTotal, dataEmissao, situacao, tipoEvento, descricaoEvento, dataEvento }
+  return {
+    nsu,
+    schema,
+    xmlComprimido,
+    xmlDecoded,
+    chaveNfe,
+    mod,
+    emitenteCnpj,
+    emitenteNome,
+    valorTotal,
+    dataEmissao,
+    situacao,
+    tipoEvento,
+    descricaoEvento,
+    dataEvento,
+  }
 }

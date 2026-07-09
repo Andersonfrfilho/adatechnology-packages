@@ -50,7 +50,7 @@ export function loadCertificate(pfxBase64: string, password: string): Certificat
       `Falha ao carregar certificado A1: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       'CERT_LOAD_ERROR',
       error instanceof Error ? error.message : 'unknown',
-      null
+      null,
     )
   }
 }
@@ -67,8 +67,8 @@ export function isCertificateCached(pfxBase64: string, password: string): boolea
 
 export function signCteXml(xml: string, certData: CertificateData): SignedXmlResult {
   try {
-    const idMatch = xml.match(/infCte Id="([^"]+)"/)
-    if (!idMatch?.[1]) throw new Error('Id do infCte não encontrado no XML')
+    const idMatch = xml.match(/infCTe Id="([^"]+)"/)
+    if (!idMatch?.[1]) throw new Error('Id do infCTe não encontrado no XML')
     const cteId = idMatch[1]
 
     const sig = new SignedXml({
@@ -102,7 +102,7 @@ export function signCteXml(xml: string, certData: CertificateData): SignedXmlRes
       `Falha ao assinar XML do CT-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       'XML_SIGN_ERROR',
       error instanceof Error ? error.message : 'unknown',
-      null
+      null,
     )
   }
 }
@@ -144,7 +144,7 @@ export function signNfeEventoXml(xml: string, certData: CertificateData): Signed
       `Falha ao assinar XML de evento NF-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       'XML_SIGN_ERROR',
       error instanceof Error ? error.message : 'unknown',
-      null
+      null,
     )
   }
 }
@@ -186,7 +186,7 @@ export function signCteEventoXml(xml: string, certData: CertificateData): Signed
       `Falha ao assinar XML de evento CT-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       'XML_SIGN_ERROR',
       error instanceof Error ? error.message : 'unknown',
-      null
+      null,
     )
   }
 }
@@ -228,7 +228,7 @@ export function signNfseXml(xml: string, certData: CertificateData): SignedXmlRe
       `Falha ao assinar XML da NFS-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       'XML_SIGN_ERROR',
       error instanceof Error ? error.message : 'unknown',
-      null
+      null,
     )
   }
 }
@@ -270,7 +270,7 @@ export function signNfceXml(xml: string, certData: CertificateData): SignedXmlRe
       `Falha ao assinar XML da NFC-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       'XML_SIGN_ERROR',
       error instanceof Error ? error.message : 'unknown',
-      null
+      null,
     )
   }
 }

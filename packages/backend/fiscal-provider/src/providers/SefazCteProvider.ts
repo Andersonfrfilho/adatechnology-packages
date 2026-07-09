@@ -6,18 +6,13 @@ import type {
   FiscalResult,
   TestConnectionResult,
   CteConfig,
-  CteData,
 } from '../types'
-import { FiscalError, FiscalRejectionError } from '../errors/FiscalError'
+import { FiscalError } from '../errors/FiscalError'
 import { loadCertificate } from '../sefaz/SefazXmlSigner'
 import { signCteXml } from '../sefaz/SefazXmlSigner'
 import { buildCteXml } from '../sefaz/CteXmlBuilder'
 import { getCteUrls, UF_IBGE_CODES_CTE } from '../sefaz/CteConstants'
-import {
-  sendCteAutorizacao,
-  sendCteStatusServico,
-  sendCteCancelamento,
-} from '../sefaz/CteSoapClient'
+import { sendCteAutorizacao, sendCteStatusServico, sendCteCancelamento } from '../sefaz/CteSoapClient'
 
 function log(level: 'info' | 'warn' | 'error', message: string, meta: Record<string, unknown> = {}): void {
   const entry = {
@@ -74,7 +69,6 @@ export class SefazCteProvider implements FiscalProvider {
 
     const urls = getCteUrls(config.uf, config.environment)
     const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
-    const tpAmb = config.environment === 'producao' ? '1' : '2'
 
     log('info', 'Transmitindo CT-e', { traceId, chaveAcesso: `${chaveAcesso.slice(0, 6)}...${chaveAcesso.slice(-4)}` })
 
@@ -82,15 +76,22 @@ export class SefazCteProvider implements FiscalProvider {
       endpoint: urls.autorizacao,
       cUF,
       signedCteXml: signedXml,
-      loteId: String(config.numeroCte),
-      wsdlNamespace: urls.wsdlNamespace,
+      modoAutorizacao: urls.modoAutorizacao,
       certData,
     })
 
     if (result.success) {
-      log('info', 'CT-e autorizado com sucesso', { traceId, chaveAcesso: result.chaveAcesso, protocolo: result.protocolo })
+      log('info', 'CT-e autorizado com sucesso', {
+        traceId,
+        chaveAcesso: result.chaveAcesso,
+        protocolo: result.protocolo,
+      })
     } else {
-      log('error', 'CT-e rejeitado pela SEFAZ', { traceId, errorCode: result.errorCode, errorMessage: result.errorMessage })
+      log('error', 'CT-e rejeitado pela SEFAZ', {
+        traceId,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+      })
     }
 
     return result
@@ -133,7 +134,6 @@ export class SefazCteProvider implements FiscalProvider {
       justificativa: params.justificativa,
       cnpj: config.cnpj,
       dhEvento: formatDhEvento(new Date()),
-      wsdlNamespace: urls.wsdlNamespace,
       tpAmb,
       certData,
     })
@@ -154,12 +154,10 @@ export class SefazCteProvider implements FiscalProvider {
       const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
       const urls = getCteUrls(config.uf, config.environment)
       const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
-      const tpAmb = config.environment === 'producao' ? '1' : '2'
 
       const result = await sendCteStatusServico({
         endpoint: urls.statusServico,
         cUF,
-        wsdlNamespace: urls.wsdlNamespace,
         tpAmb,
         certData,
       })
