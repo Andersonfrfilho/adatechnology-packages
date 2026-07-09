@@ -1,0 +1,22 @@
+{
+  "name": "@adatechnology/logger",
+  "version": "0.0.1",
+  "description": "Structured JSON logger with ALS context, TraceStack, and uWebSockets.js/Bun middleware",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": ["logger", "logging", "tracing", "als", "bun", "uwebsockets"],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

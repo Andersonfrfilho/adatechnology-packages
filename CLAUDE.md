@@ -13,6 +13,10 @@ packages/
 │   │   ├── http-client/         @adatechnology/nestjs-http-client (published)
 │   │   ├── auth-keycloak/       @adatechnology/nestjs-auth-keycloak (published)
 │   │   └── keycloak-admin/      @adatechnology/nestjs-keycloak-admin (published)
+│   ├── logger/                  @adatechnology/logger (published, Bun/Node)
+│   ├── cache/                   @adatechnology/cache (published, Bun/Node)
+│   ├── http-client/             @adatechnology/http-client (published, Bun/Node)
+│   ├── auth-keycloak/           @adatechnology/auth-keycloak (published, Bun/Node)
 │   ├── shared/                  @adatechnology/shared (internal)
 │   ├── fiscal-provider/         @adatechnology/fiscal-provider (published)
 │   │   └── example/
