@@ -42,9 +42,9 @@ Legenda: ✅ Validado | 🔄 Implementado, aguardando teste | ❌ Não implement
 **Gateway:** SEFAZ estadual (SOAP 1.2 + mTLS)  
 **Destinatário:** Consumidor final (sem identificação obrigatória)
 
-> ⚠️ **SP NÃO usa NFC-e.** São Paulo adotou SAT Fiscal para varejo e NF-e modelo 55 para demais operações.
-> O provider agora rejeita `uf: 'SP'` com `errorCode: 'UF_NOT_SUPPORTED'` antes de qualquer chamada à SEFAZ.
-> Estados confirmados com suporte: MG, RS, PR (própria SEFAZ) + demais via SVRS.
+> ⚠️ **SP emite NFC-e desde 01/01/2026** (substituiu CF-e-SAT no varejo paulista).
+> Webservices próprios: `nfce.fazenda.sp.gov.br`. Credenciamento + CSC no [Portal NFC-e SP](https://portal.fazenda.sp.gov.br/servicos/nfce).
+> CE ainda não aderiu — usar MFE / NF-e 55.
 
 | # | Cenário | Status | Observação |
 |---|---------|--------|------------|
@@ -56,6 +56,7 @@ Legenda: ✅ Validado | 🔄 Implementado, aguardando teste | ❌ Não implement
 | 2.6 | QR Code gerado e validável pelo app da SEFAZ | 🔄 | Implementado, não testado visualmente |
 | 2.7 | DANFCE gerado com dados corretos | 🔄 | Implementado |
 | 2.8 | Schema XML validado contra PL009 (XSD local) | ✅ | 100% válido após correção de `serie`, `vDesc` e `<IE>` ausente |
+| 2.9 | Emissão SP (SEFAZ-SP própria) — homologação/produção | 🔄 | Endpoints SP liberados (regra antiga UF_NOT_SUPPORTED removida) |
 
 **Bugs corrigidos antes do primeiro teste SEFAZ (evitam cStat 225 certo):**
 

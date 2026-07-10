@@ -50,32 +50,39 @@ export type CnpjInfo = {
   readonly inscricaoEstadual?: string
 }
 
-export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
-  const cnpjClean = cnpj.replace(/\D/g, '')
-  if (cnpjClean.length !== 14) {
-    throw new Error(`CNPJ inválido: "${cnpj}" — deve conter 14 dígitos`)
-  }
+const CNPJ_FETCH_HEADERS = {
+  Accept: 'application/json',
+  // BrasilAPI bloqueia fetch do Node sem User-Agent (HTTP 403)
+  'User-Agent': 'Mozilla/5.0 (compatible; @adatechnology/fiscal-provider; +https://github.com/adatechnology)',
+} as const
 
-  let response: Response
+async function fetchCnpjFromBrasilApi(cnpjClean: string): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-    response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjClean}`, {
+    return await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjClean}`, {
       signal: controller.signal,
+      headers: CNPJ_FETCH_HEADERS,
     })
+  } finally {
     clearTimeout(timer)
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Timeout na consulta de CNPJ — BrasilAPI não respondeu em 30s')
-    }
-    throw new Error(`Falha de rede ao consultar CNPJ: ${error instanceof Error ? error.message : 'desconhecido'}`)
   }
+}
 
-  if (response.status === 404) throw new Error(`CNPJ ${cnpjClean} não encontrado na Receita Federal`)
-  if (response.status === 429) throw new Error('Rate limit excedido na BrasilAPI — aguarde alguns segundos')
-  if (!response.ok) throw new Error(`BrasilAPI retornou HTTP ${response.status}`)
+async function fetchCnpjFromReceitaWs(cnpjClean: string): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    return await fetch(`https://receitaws.com.br/v1/cnpj/${cnpjClean}`, {
+      signal: controller.signal,
+      headers: CNPJ_FETCH_HEADERS,
+    })
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
-  const data = (await response.json()) as Record<string, unknown>
+function mapBrasilApiCnpj(cnpjClean: string, data: Record<string, unknown>): CnpjInfo {
   const company = data['company'] as Record<string, unknown> | undefined
 
   return {
@@ -102,6 +109,79 @@ export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
     optanteSimplesNacional: data['opcao_pelo_simples'] === true,
     meEpp: data['descricao_porte'] === 'MICRO EMPRESA' || data['descricao_porte'] === 'EMPRESA DE PEQUENO PORTE',
   }
+}
+
+function mapReceitaWsCnpj(cnpjClean: string, data: Record<string, unknown>): CnpjInfo {
+  const atividade = data['atividade_principal'] as Array<Record<string, unknown>> | undefined
+  const cnaePrincipal = atividade?.[0]
+
+  return {
+    cnpj: cnpjClean,
+    razaoSocial: String(data['nome'] ?? ''),
+    nomeFantasia: data['fantasia'] ? String(data['fantasia']) : undefined,
+    situacao: String(data['situacao'] ?? ''),
+    dataAbertura: data['abertura'] ? String(data['abertura']) : undefined,
+    naturezaJuridica: data['natureza_juridica'] ? String(data['natureza_juridica']) : undefined,
+    cnae: cnaePrincipal?.['code'] ? String(cnaePrincipal['code']).replace(/\D/g, '') : undefined,
+    cnaeDescricao: cnaePrincipal?.['text'] ? String(cnaePrincipal['text']) : undefined,
+    logradouro: data['logradouro'] ? String(data['logradouro']) : undefined,
+    numero: data['numero'] ? String(data['numero']) : undefined,
+    complemento: data['complemento'] ? String(data['complemento']) : undefined,
+    bairro: data['bairro'] ? String(data['bairro']) : undefined,
+    municipio: data['municipio'] ? String(data['municipio']) : undefined,
+    uf: data['uf'] ? String(data['uf']) : undefined,
+    cep: data['cep'] ? String(data['cep']).replace(/\D/g, '') : undefined,
+    telefone: data['telefone'] ? String(data['telefone']).replace(/\D/g, '') : undefined,
+    email: data['email'] ? String(data['email']).toLowerCase() : undefined,
+    capitalSocial: data['capital_social']
+      ? Number(String(data['capital_social']).replace(/\./g, '').replace(',', '.'))
+      : undefined,
+    porte: data['porte'] ? String(data['porte']) : undefined,
+  }
+}
+
+export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
+  const cnpjClean = cnpj.replace(/\D/g, '')
+  if (cnpjClean.length !== 14) {
+    throw new Error(`CNPJ inválido: "${cnpj}" — deve conter 14 dígitos`)
+  }
+
+  let response: Response
+  try {
+    response = await fetchCnpjFromBrasilApi(cnpjClean)
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Timeout na consulta de CNPJ — BrasilAPI não respondeu em 30s')
+    }
+    throw new Error(`Falha de rede ao consultar CNPJ: ${error instanceof Error ? error.message : 'desconhecido'}`)
+  }
+
+  if (response.status === 404) throw new Error(`CNPJ ${cnpjClean} não encontrado na Receita Federal`)
+  if (response.status === 429) throw new Error('Rate limit excedido na BrasilAPI — aguarde alguns segundos')
+
+  if (!response.ok) {
+    // Fallback: ReceitaWS (quando BrasilAPI bloqueia/falha)
+    try {
+      const fallback = await fetchCnpjFromReceitaWs(cnpjClean)
+      if (fallback.status === 404) throw new Error(`CNPJ ${cnpjClean} não encontrado na Receita Federal`)
+      if (!fallback.ok) {
+        throw new Error(`BrasilAPI retornou HTTP ${response.status} e fallback ReceitaWS HTTP ${fallback.status}`)
+      }
+      const fallbackData = (await fallback.json()) as Record<string, unknown>
+      if (fallbackData['status'] === 'ERROR') {
+        throw new Error(String(fallbackData['message'] ?? `CNPJ ${cnpjClean} não encontrado`))
+      }
+      return mapReceitaWsCnpj(cnpjClean, fallbackData)
+    } catch (fallbackError) {
+      if (fallbackError instanceof Error && fallbackError.message.includes('não encontrado')) {
+        throw fallbackError
+      }
+      throw new Error(`BrasilAPI retornou HTTP ${response.status}`)
+    }
+  }
+
+  const data = (await response.json()) as Record<string, unknown>
+  return mapBrasilApiCnpj(cnpjClean, data)
 }
 
 // ─── XML Import ───────────────────────────────────────────────────────────────

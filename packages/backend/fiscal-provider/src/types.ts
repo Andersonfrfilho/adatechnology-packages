@@ -1,26 +1,26 @@
 export const FiscalModel = {
-  NFCE:             'nfce',
-  NFE:              'nfe',
-  SAT:              'sat',
-  NFSE:             'nfse',
-  NFSE_NOTARP:      'nfse-notarp',
-  CTE:              'cte',
+  NFCE: 'nfce',
+  NFE: 'nfe',
+  SAT: 'sat',
+  NFSE: 'nfse',
+  NFSE_NOTARP: 'nfse-notarp',
+  CTE: 'cte',
   NFE_DISTRIBUICAO: 'nfe-distribuicao',
 } as const
 export type FiscalModel = (typeof FiscalModel)[keyof typeof FiscalModel]
 
 export const FiscalEnvironment = {
   HOMOLOGACAO: 'homologacao',
-  PRODUCAO:    'producao',
+  PRODUCAO: 'producao',
 } as const
 export type FiscalEnvironment = (typeof FiscalEnvironment)[keyof typeof FiscalEnvironment]
 
 export const PaymentMethod = {
-  PIX:         'pix',
+  PIX: 'pix',
   CARD_CREDIT: 'card_credit',
-  CARD_DEBIT:  'card_debit',
-  CASH:        'cash',
-  VOUCHER:     'voucher',
+  CARD_DEBIT: 'card_debit',
+  CASH: 'cash',
+  VOUCHER: 'voucher',
 } as const
 export type PaymentMethod = (typeof PaymentMethod)[keyof typeof PaymentMethod]
 
@@ -194,15 +194,15 @@ export type NotaRpConfig = {
   readonly razaoSocial: string
   readonly inscricaoMunicipal: string
   readonly apiToken: string
-  readonly baseUrl?: string  // padrão https://www.notarp.com.br — trocar para v2 quando RP for suportado
+  readonly baseUrl?: string // padrão https://www.notarp.com.br — trocar para v2 quando RP for suportado
 }
 
 export type NotaRpTomador = {
-  readonly documento?: string         // CNPJ ou CPF sem formatação
+  readonly documento?: string // CNPJ ou CPF sem formatação
   readonly nome?: string
   readonly email?: string
   readonly telefone?: string
-  readonly pais?: string              // padrão 'BR'
+  readonly pais?: string // padrão 'BR'
   readonly cep?: string
   readonly estado?: string
   readonly cidade?: string
@@ -214,21 +214,21 @@ export type NotaRpTomador = {
 export type NotaRpNfseData = {
   readonly descricao: string
   readonly valorTotal: number
-  readonly codigoTributacaoNacional: string    // ex: '0105'
-  readonly codigoTributacaoMunicipal: string   // ex: '010501'
-  readonly codigoNbs: string                   // ex: '1.0501'
-  readonly dataCompetencia: string             // DD/MM/YYYY
-  readonly municipio: string                   // código IBGE 7 dígitos
+  readonly codigoTributacaoNacional: string // ex: '0105'
+  readonly codigoTributacaoMunicipal: string // ex: '010501'
+  readonly codigoNbs: string // ex: '1.0501'
+  readonly dataCompetencia: string // DD/MM/YYYY
+  readonly municipio: string // código IBGE 7 dígitos
   readonly aliquotaIssqn: number
-  readonly incidenciaIssqn?: string            // padrão 'operacao_tributavel'
+  readonly incidenciaIssqn?: string // padrão 'operacao_tributavel'
   readonly issqnRetido?: boolean
-  readonly regimeEspecialTributacao?: string   // padrão 'nenhum'
+  readonly regimeEspecialTributacao?: string // padrão 'nenhum'
   readonly informacoesComplementares?: string
   readonly descontoIncondicionado?: number
   readonly descontoCondicionado?: number
-  readonly cstPisCofins?: string               // padrão 'aliquota_basica'
-  readonly aliquotaPis?: number                // padrão 0.65
-  readonly aliquotaCofins?: number             // padrão 3.00
+  readonly cstPisCofins?: string // padrão 'aliquota_basica'
+  readonly aliquotaPis?: number // padrão 0.65
+  readonly aliquotaCofins?: number // padrão 3.00
   readonly pisRetido?: boolean
   readonly cofinsRetido?: boolean
   readonly aliquotaSimplesNacional?: number
@@ -238,7 +238,7 @@ export type NotaRpNfseData = {
     readonly indop: string
   }
   readonly tomador?: NotaRpTomador
-  readonly hashPedido?: string                 // chave de idempotência
+  readonly hashPedido?: string // chave de idempotência
   readonly webhookUrl?: string
   readonly enviarEmail?: boolean
 }
@@ -246,27 +246,27 @@ export type NotaRpNfseData = {
 // ─── CT-e — Conhecimento de Transporte Eletrônico (modelo 57) ────────────────
 
 export const CteModal = {
-  RODOVIARIO:  '01',
-  AEREO:       '02',
-  AQUAVIARIO:  '03',
+  RODOVIARIO: '01',
+  AEREO: '02',
+  AQUAVIARIO: '03',
   FERROVIARIO: '04',
-  DUTOVIARIO:  '05',
+  DUTOVIARIO: '05',
 } as const
 export type CteModal = (typeof CteModal)[keyof typeof CteModal]
 
 export const CteTipoServico = {
-  NORMAL:                  '0',
-  SUBCONTRATACAO:          '1',
-  REDESPACHO:              '2',
+  NORMAL: '0',
+  SUBCONTRATACAO: '1',
+  REDESPACHO: '2',
   REDESPACHO_INTERMEDIARIO: '3',
-  SEM_DESEMPENHO:          '4',
+  SEM_DESEMPENHO: '4',
 } as const
 export type CteTipoServico = (typeof CteTipoServico)[keyof typeof CteTipoServico]
 
 export const CteTomador = {
-  REMETENTE:   '0',
-  EXPEDIDOR:   '1',
-  RECEBEDOR:   '2',
+  REMETENTE: '0',
+  EXPEDIDOR: '1',
+  RECEBEDOR: '2',
   DESTINATARIO: '3',
 } as const
 export type CteTomador = (typeof CteTomador)[keyof typeof CteTomador]
@@ -383,7 +383,12 @@ export type CteAquaviarioData = {
   readonly modal: '03'
   readonly irin: string
   readonly tpNav: '0' | '1'
-  readonly balsa?: ReadonlyArray<{ readonly xBalsa: string; readonly nViag?: string; readonly cEmbar: string; readonly xEmbar: string }>
+  readonly balsa?: ReadonlyArray<{
+    readonly xBalsa: string
+    readonly nViag?: string
+    readonly cEmbar: string
+    readonly xEmbar: string
+  }>
   readonly detCont?: ReadonlyArray<{
     readonly nCont: string
     readonly lacre?: ReadonlyArray<{ readonly nLacre: string }>
@@ -394,7 +399,13 @@ export type CteAquaviarioData = {
 export type CteFerroviarioData = {
   readonly modal: '04'
   readonly tpTraf: '0' | '1' | '2' | '3'
-  readonly ferrEmi?: { readonly CNPJ: string; readonly cInt?: string; readonly IE: string; readonly xNome: string; readonly fluxo: string }
+  readonly ferrEmi?: {
+    readonly CNPJ: string
+    readonly cInt?: string
+    readonly IE: string
+    readonly xNome: string
+    readonly fluxo: string
+  }
   readonly vagao?: ReadonlyArray<{
     readonly serie: string
     readonly nVag: string
@@ -407,7 +418,13 @@ export type CteModalData = CteRodoviarioData | CteAereoData | CteAquaviarioData 
 
 export type CteIcms =
   | { readonly cst: '00'; readonly vBC: number; readonly pICMS: number; readonly vICMS: number }
-  | { readonly cst: '20'; readonly pRedBC: number; readonly vBC: number; readonly pICMS: number; readonly vICMS: number }
+  | {
+      readonly cst: '20'
+      readonly pRedBC: number
+      readonly vBC: number
+      readonly pICMS: number
+      readonly vICMS: number
+    }
   | { readonly cst: '40' | '41' | '51' }
   | { readonly cst: '60'; readonly vBCSTRet: number; readonly pICMSSTRet: number; readonly vICMSSTRet: number }
   | { readonly cst: '90'; readonly vBC?: number; readonly pICMS?: number; readonly vICMS?: number }
@@ -552,7 +569,14 @@ export type ConsultarPorChaveParams = {
   readonly chaveNfe: string
 }
 
-export type FiscalConfig = NfceConfig | NfeConfig | SatConfig | NfseConfig | NotaRpConfig | CteConfig | NfeDistribuicaoConfig
+export type FiscalConfig =
+  | NfceConfig
+  | NfeConfig
+  | SatConfig
+  | NfseConfig
+  | NotaRpConfig
+  | CteConfig
+  | NfeDistribuicaoConfig
 
 export type FiscalItem = {
   /** Código interno do produto */
@@ -636,6 +660,13 @@ export type DanfceData = {
   readonly urlConsulta: string
 }
 
+/** PDF do cupom fiscal (DANFCE / CF-e) em Base64 — pronto para download/impressão */
+export type CupomPdfData = {
+  readonly base64: string
+  readonly mimeType: 'application/pdf'
+  readonly fileName: string
+}
+
 export type FiscalResult = {
   readonly success: boolean
   /** Chave de acesso de 44 dígitos — guardar para cancelamento e consulta */
@@ -647,7 +678,10 @@ export type FiscalResult = {
   readonly xmlAutorizado?: string
   readonly qrCodeUrl?: string
   readonly danfce?: DanfceData
+  /** @deprecated Prefira `cupomPdf.base64` — mantido por compatibilidade */
   readonly danfePdfUrl?: string
+  /** PDF 80mm com QR Code gerado após autorização */
+  readonly cupomPdf?: CupomPdfData
   /** Código cStat da SEFAZ — ex: '100' autorizado, '225' falha schema, '209' IE inválida */
   readonly errorCode?: string
   readonly errorMessage?: string

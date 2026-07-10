@@ -9,6 +9,8 @@ import type {
 } from '../types'
 import { toSatPaymentCode } from '../utils/mapPaymentMethod'
 import { FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
+import { buildCupomPdf } from '../danfce/CupomPdfBuilder'
+import { gerarURLQRCode } from './controlid-qrcode'
 
 const REQUEST_TIMEOUT_MS = 10_000
 
@@ -38,10 +40,7 @@ type SatCancelResponse = {
 const SAT_OK_CODE = '06000'
 
 export class SatProvider implements FiscalProvider {
-  private async fetchWithTimeout(
-    url: string,
-    options: RequestInit
-  ): Promise<Response> {
+  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
@@ -53,7 +52,7 @@ export class SatProvider implements FiscalProvider {
       }
       throw new FiscalConnectionError(
         'SAT',
-        error instanceof Error ? error.message : 'Verifique se o equipamento SAT está ligado e acessível'
+        error instanceof Error ? error.message : 'Verifique se o equipamento SAT está ligado e acessível',
       )
     } finally {
       clearTimeout(timer)
@@ -62,8 +61,9 @@ export class SatProvider implements FiscalProvider {
 
   private buildCfeXml(params: EmitFiscalParams, config: SatConfig): string {
     const items = params.items
-      .map((item, index) =>
-        `<det itemNot="${index + 1}">
+      .map(
+        (item, index) =>
+          `<det itemNot="${index + 1}">
           <prod>
             <cProd>${item.codigo}</cProd>
             <xProd>${this.escapeXml(item.descricao)}</xProd>
@@ -88,16 +88,17 @@ export class SatProvider implements FiscalProvider {
               <COFINSNT><CST>07</CST></COFINSNT>
             </COFINS>
           </imposto>
-        </det>`
+        </det>`,
       )
       .join('\n')
 
     const payments = params.payments
-      .map((payment) =>
-        `<MP>
+      .map(
+        (payment) =>
+          `<MP>
           <cMP>${toSatPaymentCode(payment.method)}</cMP>
           <vMP>${payment.amount.toFixed(2)}</vMP>
-        </MP>`
+        </MP>`,
       )
       .join('\n')
 
@@ -147,20 +148,18 @@ export class SatProvider implements FiscalProvider {
       dadosVenda: xml,
     })
 
-    const response = await this.fetchWithTimeout(
-      `${config.satUrl}/SAT/ComunicarUnsignedSaleData`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      }
-    )
+    const response = await this.fetchWithTimeout(`${config.satUrl}/SAT/ComunicarUnsignedSaleData`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    })
 
-    const raw = await response.json() as SatEmitResponse
+    const raw = (await response.json()) as SatEmitResponse
 
     if (raw.EEEEE === SAT_OK_CODE && raw.xml_retorno) {
       const chaveAcesso = raw.chave_nfe ?? this.extractChaveAcesso(raw.xml_retorno)
-      return {
+      const dataEmissao = new Date()
+      const fiscalResult: FiscalResult = {
         success: true,
         chaveAcesso,
         numeroDocumento: raw.numero_nota ? parseInt(raw.numero_nota, 10) : undefined,
@@ -168,6 +167,28 @@ export class SatProvider implements FiscalProvider {
         xmlAutorizado: raw.xml_retorno,
         rawResponse: raw,
       }
+
+      const qrCodeUrl = chaveAcesso
+        ? gerarURLQRCode({
+            chaveAcesso,
+            cnpj: config.cnpj,
+            dataEmissao: `${String(dataEmissao.getDate()).padStart(2, '0')}${String(dataEmissao.getMonth() + 1).padStart(2, '0')}${String(dataEmissao.getFullYear()).slice(-2)}`,
+            valorTotal: params.totalAmount.toFixed(2),
+            ambiente: config.environment === 'producao' ? '1' : '2',
+          })
+        : `CHAVE:${chaveAcesso ?? 'SEM_CHAVE'}`
+
+      const cupomPdf = await buildCupomPdf({
+        emitParams: params,
+        config,
+        result: fiscalResult,
+        qrCodePayload: qrCodeUrl,
+        urlConsulta: 'https://satsp.fazenda.sp.gov.br/COMSAT/Public/ConsultaPublica/ConsultaPublicaCfe.aspx',
+        dataEmissao,
+        documentLabel: 'CUPOM FISCAL ELETRÔNICO — SAT (CF-e)',
+      })
+
+      return { ...fiscalResult, qrCodeUrl, cupomPdf }
     }
 
     return {
@@ -197,16 +218,13 @@ export class SatProvider implements FiscalProvider {
       justificativa: params.justificativa,
     })
 
-    const response = await this.fetchWithTimeout(
-      `${config.satUrl}/SAT/CancelarUltimaVenda`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body.toString(),
-      }
-    )
+    const response = await this.fetchWithTimeout(`${config.satUrl}/SAT/CancelarUltimaVenda`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    })
 
-    const raw = await response.json() as SatCancelResponse
+    const raw = (await response.json()) as SatCancelResponse
 
     if (raw.EEEEE === SAT_OK_CODE) {
       return {
@@ -233,16 +251,13 @@ export class SatProvider implements FiscalProvider {
         codigoDeAtivacao: config.activationCode,
       })
 
-      const response = await this.fetchWithTimeout(
-        `${config.satUrl}/SAT/ConsultarSAT`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body.toString(),
-        }
-      )
+      const response = await this.fetchWithTimeout(`${config.satUrl}/SAT/ConsultarSAT`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      })
 
-      const raw = await response.json() as SatStatusResponse
+      const raw = (await response.json()) as SatStatusResponse
 
       if (raw.EEEEE === SAT_OK_CODE) {
         return { ok: true, message: `SAT respondeu OK: ${raw.mensagem}` }

@@ -1,5 +1,5 @@
 import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
-import { testConnection, emitDocument, cancelDocument, certificateInfo, consultaCnpj, validateXml, importXmlBatch, consultarDistribuicao } from './api/fiscal';
+import { testConnection, emitDocument, cancelDocument, certificateInfo, consultaCnpj, validateXml, importXmlBatch, consultarDistribuicao, previewCupom, downloadCupomPdf, openCupomPdf } from './api/fiscal';
 import type { ConnectionResult, EmitResult, CancelResult, CertificateInfo } from './types';
 import type { XmlValidationResult, BatchImportResult, DfeItemResult, ConsultarDistribuicaoResult } from './api/fiscal';
 import {
@@ -239,10 +239,34 @@ function App() {
 
 function ResultBox({ result }: { result: unknown }) {
   if (!result) return null;
+
+  const emit = result as EmitResult & { cupomPdf?: EmitResult['cupomPdf'] }
+  const hasCupom = Boolean(emit?.cupomPdf?.base64)
+  const display = hasCupom
+    ? {
+        ...emit,
+        cupomPdf: {
+          mimeType: emit.cupomPdf!.mimeType,
+          fileName: emit.cupomPdf!.fileName,
+          base64: `[${Math.round((emit.cupomPdf!.base64.length * 3) / 4 / 1024)} KB omitido — use os botões abaixo]`,
+        },
+      }
+    : result
+
   return (
     <div className="result-box">
-      <h3>Resultado</h3>
-      <pre>{JSON.stringify(result, null, 2)}</pre>
+      <h3>Resultado{emit?.preview ? ' (Preview)' : ''}</h3>
+      {hasCupom && (
+        <div className="form-actions" style={{ marginBottom: 12 }}>
+          <button type="button" className="btn btn-primary" onClick={() => openCupomPdf(emit.cupomPdf!)}>
+            Abrir Cupom PDF
+          </button>
+          <button type="button" className="btn btn-outline" onClick={() => downloadCupomPdf(emit.cupomPdf!)}>
+            Baixar PDF ({emit.cupomPdf!.fileName})
+          </button>
+        </div>
+      )}
+      <pre>{JSON.stringify(display, null, 2)}</pre>
     </div>
   );
 }
@@ -504,6 +528,15 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
     e.preventDefault();
     setLoading(true); setResult(null); setError(null);
     try {
+      const ufCheck = String(form.uf || '').toUpperCase();
+      if (form.model === 'nfce' && ufCheck === 'CE') {
+        setResult({
+          success: false,
+          errorCode: 'UF_NOT_SUPPORTED',
+          errorMessage: 'NFC-e não é suportado no CE. Use MFE ou NF-e modelo 55.',
+        });
+        return;
+      }
       const item = {
         codigo: form.itemCodigo, descricao: form.itemDescricao,
         ncm: form.itemNcm || undefined, cfop: form.itemCfop || undefined,
@@ -535,12 +568,46 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
     finally { setLoading(false); }
   };
 
+  const handlePreviewCupom = async () => {
+    setLoading(true); setResult(null); setError(null);
+    try {
+      const item = {
+        codigo: form.itemCodigo, descricao: form.itemDescricao,
+        ncm: form.itemNcm || undefined, cfop: form.itemCfop || undefined,
+        cst: form.itemCst || undefined, unidade: form.itemUnidade,
+        quantidade: Number(form.itemQuantidade), valorUnitario: Number(form.itemValorUnitario),
+        valorTotal: Number(form.itemQuantidade) * Number(form.itemValorUnitario),
+      };
+      const payment = { method: form.paymentMethod, amount: Number(form.totalAmount) };
+      const config: Record<string, unknown> = {
+        model: form.model, environment: form.environment, uf: form.uf, cnpj: form.cnpj,
+        inscricaoEstadual: form.inscricaoEstadual, razaoSocial: form.razaoSocial,
+        codigoMunicipio: form.codigoMunicipio, cep: form.cep, logradouro: form.logradouro,
+        numero: form.numero, bairro: form.bairro, municipio: form.municipio,
+        crt: form.crt, serie: form.serie, numeroNf: Number(form.numeroNf),
+        satUrl: form.satUrl, activationCode: form.activationCode, signatureAC: form.signatureAC,
+      };
+      const res = await previewCupom({
+        referenceId: form.referenceId || `preview-${Date.now()}`,
+        config,
+        totalAmount: Number(form.totalAmount),
+        discountAmount: Number(form.discountAmount),
+        items: [item],
+        payments: [payment],
+      });
+      setResult(res);
+    } catch (err: any) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
   const info = MODEL_INFO[form.model as ModelType];
   const showNfce = form.model === 'nfce';
   const showNfe = form.model === 'nfe';
   const showSat = form.model === 'sat';
   const showNfse = form.model === 'nfse';
   const showNfseNotarp = form.model === 'nfse-notarp';
+  const ufUpper = String(form.uf || '').toUpperCase();
+  const nfceUfBloqueada = showNfce && ufUpper === 'CE';
 
   return (
     <div>
@@ -548,6 +615,18 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
       <p className="desc">{info.desc}</p>
       {info.certRequired && !certBase64 && (
         <div className="hint-box">Este modelo requer certificado A1. Faça upload do .pfx na barra superior.</div>
+      )}
+      {showNfce && ufUpper === 'SP' && (
+        <div className="hint-box">
+          <strong>SP emite NFC-e desde 01/01/2026</strong> (substituiu o SAT no varejo).
+          Use CSC/CSC ID do <a href="https://www.nfce.fazenda.sp.gov.br/NFCePortal/" target="_blank" rel="noreferrer">Portal NFC-e SEFAZ-SP</a>,
+          certificado A1 e credenciamento ativos. Ambiente Homologação = testes; Produção = nota com validade jurídica (como no GerencieAqui).
+        </div>
+      )}
+      {nfceUfBloqueada && (
+        <div className="hint-box" style={{ borderColor: '#c0392b', background: '#fdecea', color: '#922b21' }}>
+          <strong>UF CE não emite NFC-e.</strong> No Ceará use MFE (equipamento estadual) ou NF-e modelo 55.
+        </div>
       )}
 
       <form onSubmit={submit} className="form">
@@ -648,6 +727,9 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
         <div className="form-actions">
           <button type="button" className="btn btn-outline" onClick={() => gerarDados(form.model as ModelType)} title="Gerar novos dados aleatórios para todos os campos">
             Regenerar Dados
+          </button>
+          <button type="button" className="btn btn-outline" onClick={handlePreviewCupom} disabled={loading} title="Gera PDF do cupom com QR sem emitir no SEFAZ/SAT">
+            {loading ? 'Gerando...' : 'Preview Cupom PDF'}
           </button>
           <button type="submit" disabled={loading} className="btn btn-primary">
             {loading ? 'Emitindo...' : 'Emitir Documento'}

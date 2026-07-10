@@ -11,6 +11,7 @@ import { buildChaveAcesso } from '../sefaz/SefazChave'
 import { buildNfceXml } from '../sefaz/SefazXmlBuilder'
 import { buildQrCodeUrl, buildInfNFeSupl } from '../sefaz/SefazQrCode'
 import { buildDanfce } from '../danfce/DanfceBuilder'
+import { buildCupomPdf } from '../danfce/CupomPdfBuilder'
 import { loadCertificate, isCertificateCached, signNfceXml, type CertificateData } from '../sefaz/SefazXmlSigner'
 import { getSefazUrls, getSefazQrCodeInfo, UF_IBGE_CODES, isNfceSupported } from '../sefaz/SefazConstants'
 import { sendNfceAutorizacao, sendNfceCancelamento, sendStatusServico } from '../sefaz/SefazSoapClient'
@@ -45,10 +46,9 @@ function assertNfceConfig(config: unknown): asserts config is NfceConfig {
   }
   if (!isNfceSupported(c.uf)) {
     const guidance: Record<string, string> = {
-      SP: 'SP utiliza SAT Fiscal (modelo "sat") para varejo presencial e NF-e modelo 55 (modelo "nfe") para demais vendas.',
       CE: 'CE utiliza MFE — Módulo Fiscal Eletrônico (equipamento estadual equivalente ao SAT) e NF-e modelo 55 para demais vendas.',
     }
-    const hint = guidance[c.uf] ?? 'Consulte a legislação estadual para o modelo fiscal correto.'
+    const hint = guidance[c.uf.toUpperCase()] ?? 'Consulte a legislação estadual para o modelo fiscal correto.'
     throw new FiscalError(
       `NFC-e (modelo 65) não é suportado no estado ${c.uf}. ${hint}`,
       'UF_NOT_SUPPORTED',
@@ -57,7 +57,12 @@ function assertNfceConfig(config: unknown): asserts config is NfceConfig {
     )
   }
   if (!c.certificadoBase64 || !c.certificadoSenha) {
-    throw new FiscalError('Certificado A1 não configurado (certificadoBase64/certificadoSenha ausente)', 'MISSING_CERT', 'env vars SEFAZ_CERT_BASE64 / SEFAZ_CERT_SENHA not set', null)
+    throw new FiscalError(
+      'Certificado A1 não configurado (certificadoBase64/certificadoSenha ausente)',
+      'MISSING_CERT',
+      'env vars SEFAZ_CERT_BASE64 / SEFAZ_CERT_SENHA not set',
+      null,
+    )
   }
 }
 
@@ -105,7 +110,10 @@ export class SefazNfceProvider implements FiscalProvider {
     const signedResult = signXmlOrThrow(nfceXml, certData, traceId)
 
     const infNFeSupl = buildInfNFeSupl(qrCodeUrl, qrCodeUrls.urlFe)
-    const finalXml = signedResult.signedXml.replace('<Signature', `${infNFeSupl}<Signature`)
+    // Compactar: SP rejeita whitespace entre tags (cStat 225)
+    const finalXml = compactXml(
+      signedResult.signedXml.replace('<Signature', `${infNFeSupl}<Signature`),
+    )
 
     const urls = getSefazUrls(config.uf, env)
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
@@ -134,7 +142,7 @@ export class SefazNfceProvider implements FiscalProvider {
       {
         operationName: 'SEFAZ NFC-e autorizacao',
         logger: { warn: (message, meta) => log('warn', message, meta ?? {}) },
-      }
+      },
     )
 
     const finalResult: FiscalResult = {
@@ -156,9 +164,8 @@ export class SefazNfceProvider implements FiscalProvider {
         traceId,
         errorCode: finalResult.errorCode,
         errorMessage: finalResult.errorMessage,
-        rawResponse: typeof finalResult.rawResponse === 'string'
-          ? finalResult.rawResponse.slice(0, 600)
-          : finalResult.rawResponse,
+        rawResponse:
+          typeof finalResult.rawResponse === 'string' ? finalResult.rawResponse.slice(0, 600) : finalResult.rawResponse,
       })
     }
 
@@ -171,7 +178,19 @@ export class SefazNfceProvider implements FiscalProvider {
       dataEmissao,
     })
 
-    return { ...finalResult, danfce }
+    let cupomPdf: Awaited<ReturnType<typeof buildCupomPdf>> | undefined
+    if (finalResult.success) {
+      cupomPdf = await buildCupomPdf({
+        emitParams: params,
+        config,
+        result: finalResult,
+        qrCodePayload: qrCodeUrl,
+        urlConsulta: qrCodeUrls.urlFe,
+        dataEmissao,
+      })
+    }
+
+    return { ...finalResult, danfce, cupomPdf, qrCodeUrl }
   }
 
   async cancel(params: CancelFiscalParams): Promise<FiscalResult> {
@@ -198,7 +217,8 @@ export class SefazNfceProvider implements FiscalProvider {
       return {
         success: false,
         errorCode: 'MISSING_PROTOCOLO',
-        errorMessage: 'protocolo é obrigatório para cancelamento — use o nProt retornado pela SEFAZ na autorização original',
+        errorMessage:
+          'protocolo é obrigatório para cancelamento — use o nProt retornado pela SEFAZ na autorização original',
         rawResponse: null,
       }
     }
@@ -248,7 +268,7 @@ export class SefazNfceProvider implements FiscalProvider {
       {
         operationName: 'SEFAZ cancelamento NFC-e',
         logger: { warn: (message, meta) => log('warn', message, meta ?? {}) },
-      }
+      },
     )
 
     if (result.success) {
@@ -258,9 +278,7 @@ export class SefazNfceProvider implements FiscalProvider {
         traceId,
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
-        rawResponse: typeof result.rawResponse === 'string'
-          ? result.rawResponse.slice(0, 600)
-          : result.rawResponse,
+        rawResponse: typeof result.rawResponse === 'string' ? result.rawResponse.slice(0, 600) : result.rawResponse,
       })
     }
 
@@ -277,7 +295,14 @@ export class SefazNfceProvider implements FiscalProvider {
 
     log('info', NFCE_LOG.STATUS_CHECK, { uf: config.uf, environment: config.environment })
 
-    const status = await sendStatusServico({ endpoint: urls.statusServico, cUF, certData })
+    const status = await sendStatusServico({
+      endpoint: urls.statusServico,
+      cUF,
+      certData,
+      wsdlNamespace: urls.wsdlNamespace.includes('NFeAutorizacao4')
+        ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4'
+        : undefined,
+    })
 
     log(status.ok ? 'info' : 'warn', NFCE_LOG.STATUS_RESULT, {
       uf: config.uf,
@@ -324,4 +349,9 @@ function signXmlOrThrow(xml: string, certData: CertificateData, traceId: string)
 function formatSefazDateTime(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}-03:00`
+}
+
+/** Remove whitespace entre tags — exigido pela SEFAZ-SP (cStat 225). */
+function compactXml(xml: string): string {
+  return xml.replace(/>\s+</g, '><').trim()
 }

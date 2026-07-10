@@ -1,9 +1,10 @@
 import { XMLParser } from 'fast-xml-parser'
-import { FiscalError, FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
+import { FiscalError } from '../errors/FiscalError'
 import type { FiscalResult } from '../types'
 import { SEFAZ_RETRYABLE_CODES } from './SefazConstants'
 import { signNfeEventoXml } from './SefazXmlSigner'
 import type { CertificateData } from './SefazXmlSigner'
+import { sefazFetch } from './SefazHttpClient'
 
 const REQUEST_TIMEOUT_MS = 30_000
 
@@ -25,7 +26,11 @@ const XML_PARSER = new XMLParser({
 
 export async function sendNfceAutorizacao(params: SoapSendParams): Promise<FiscalResult> {
   const soapBody = buildSoapEnvelope(params)
-  const soapAction = `"${params.wsdlNamespace}/nfceAutorizacaoNF"`
+  // SP usa WSDL NFeAutorizacao4 (método nfeAutorizacaoLote); demais UFs usam NfceAutorizacao4
+  const method = params.wsdlNamespace.includes('NFeAutorizacao4')
+    ? 'nfeAutorizacaoLote'
+    : 'nfceAutorizacaoNF'
+  const soapAction = `"${params.wsdlNamespace}/${method}"`
 
   const response = await fetchWithTimeout(
     params.endpoint,
@@ -92,9 +97,17 @@ export async function sendStatusServico(params: {
   endpoint: string
   cUF: string
   certData: CertificateData
+  /** Namespace WSDL — SP usa NFeStatusServico4; demais NfceStatusServico4 */
+  wsdlNamespace?: string
 }): Promise<{ ok: boolean; message: string }> {
-  const soapBody = buildStatusServicoSoap(params.cUF)
-  const soapAction = '"http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4/nfceStatusServico"'
+  const ns =
+    params.wsdlNamespace ??
+    (params.endpoint.includes('nfce.fazenda.sp.gov.br')
+      ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4'
+      : 'http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4')
+  const soapBody = buildStatusServicoSoap(params.cUF, ns)
+  const method = ns.includes('NFeStatusServico4') ? 'nfeStatusServicoNF' : 'nfceStatusServico'
+  const soapAction = `"${ns}/${method}"`
 
   try {
     const response = await fetchWithTimeout(
@@ -162,16 +175,16 @@ function buildCancelamentoEventoXml(params: {
   return `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></evento></envEvento>`
 }
 
-function buildStatusServicoSoap(cUF: string): string {
+function buildStatusServicoSoap(cUF: string, wsdlNamespace = 'http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4'): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Header>
-    <nfeCabecMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4">
+    <nfeCabecMsg xmlns="${wsdlNamespace}">
       <cUF>${cUF}</cUF><versaoDados>4.00</versaoDados>
     </nfeCabecMsg>
   </soap12:Header>
   <soap12:Body>
-    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4">
+    <nfeDadosMsg xmlns="${wsdlNamespace}">
       <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
         <tpAmb>2</tpAmb><cUF>${cUF}</cUF><xServ>STATUS</xServ>
       </consStatServ>
@@ -431,30 +444,23 @@ async function fetchWithTimeout(
   options: RequestInit,
   certData: CertificateData,
 ): Promise<Response> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  // SEFAZ exige mTLS: certificado A1 apresentado no handshake TLS.
-  // ICP-Brasil não está no bundle padrão — rejectUnauthorized: false aceita o cert do servidor.
-  const tlsOptions = {
-    tls: {
-      cert: certData.certificatePem,
-      key: certData.privateKeyPem,
-      rejectUnauthorized: false,
+  const headers: Record<string, string> = {}
+  if (options.headers) {
+    const h = new Headers(options.headers)
+    h.forEach((value, key) => {
+      headers[key] = value
+    })
+  }
+  return sefazFetch(
+    url,
+    {
+      method: options.method,
+      headers,
+      body: typeof options.body === 'string' ? options.body : undefined,
+      signal: options.signal ?? undefined,
     },
-  }
-
-  try {
-    return await fetch(url, { ...options, signal: controller.signal, ...tlsOptions })
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new FiscalTimeoutError('SEFAZ')
-    }
-    throw new FiscalConnectionError(
-      'SEFAZ',
-      error instanceof Error ? error.message : 'erro de rede desconhecido'
-    )
-  } finally {
-    clearTimeout(timer)
-  }
+    certData,
+    REQUEST_TIMEOUT_MS,
+    'SEFAZ',
+  )
 }

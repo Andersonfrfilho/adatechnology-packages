@@ -23,6 +23,7 @@ export type {
   FiscalResult,
   TestConnectionResult,
   DanfceData,
+  CupomPdfData,
   // CT-e
   CteConfig,
   CteData,
@@ -51,6 +52,8 @@ export type {
 
 export { isNfceSupported, NFCE_UNSUPPORTED_UFS } from './sefaz/SefazConstants'
 export { buildDanfce } from './danfce/DanfceBuilder'
+export { buildCupomPdf } from './danfce/CupomPdfBuilder'
+export type { BuildCupomPdfParams, CupomPdfResult } from './danfce/CupomPdfBuilder'
 export { buildQrCodeUrl } from './sefaz/SefazQrCode'
 export { validateCertificate } from './sefaz/CertificateValidator'
 export type { CertificateValidation } from './sefaz/CertificateValidator'
@@ -66,9 +69,4 @@ export { NfeDistribuicaoProvider, consultarCnpj, importarNfeXml } from './provid
 export type { CnpjInfo } from './providers/NfeDistribuicaoProvider'
 export { createFiscalProvider } from './FiscalProviderFactory'
 
-export {
-  FiscalError,
-  FiscalConnectionError,
-  FiscalRejectionError,
-  FiscalTimeoutError,
-} from './errors/FiscalError'
+export { FiscalError, FiscalConnectionError, FiscalRejectionError, FiscalTimeoutError } from './errors/FiscalError'

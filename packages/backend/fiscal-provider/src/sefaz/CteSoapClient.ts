@@ -1,9 +1,9 @@
 import { XMLParser } from 'fast-xml-parser'
-import { FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
 import type { FiscalResult } from '../types'
 import { signCteEventoXml } from './SefazXmlSigner'
 import type { CertificateData } from './SefazXmlSigner'
 import { CTE_WS_NS } from './CteConstants'
+import { sefazFetch } from './SefazHttpClient'
 
 const REQUEST_TIMEOUT_MS = 30_000
 const CTE_NS = 'http://www.portalfiscal.inf.br/cte'
@@ -223,26 +223,23 @@ function parseCteEventoResponse(soapXml: string): FiscalResult {
 // ─── HTTP ─────────────────────────────────────────────────────────────────────
 
 async function fetchWithTimeout(url: string, options: RequestInit, certData: CertificateData): Promise<Response> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  try {
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      // @ts-expect-error — Bun TLS extension para mTLS
-      tls: {
-        cert: certData.certificatePem,
-        key: certData.privateKeyPem,
-        rejectUnauthorized: false,
-      },
+  const headers: Record<string, string> = {}
+  if (options.headers) {
+    const h = new Headers(options.headers)
+    h.forEach((value, key) => {
+      headers[key] = value
     })
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new FiscalTimeoutError('SEFAZ CT-e')
-    }
-    throw new FiscalConnectionError('SEFAZ CT-e', error instanceof Error ? error.message : 'desconhecido')
-  } finally {
-    clearTimeout(timer)
   }
+  return sefazFetch(
+    url,
+    {
+      method: options.method,
+      headers,
+      body: typeof options.body === 'string' ? options.body : undefined,
+      signal: options.signal ?? undefined,
+    },
+    certData,
+    REQUEST_TIMEOUT_MS,
+    'SEFAZ CT-e',
+  )
 }

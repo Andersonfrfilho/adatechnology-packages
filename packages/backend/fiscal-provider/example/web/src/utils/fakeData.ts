@@ -106,8 +106,8 @@ const CODIGOS_MUNICIPIO: Record<string, string> = {
   MT: '5103403',
 }
 
-const NFCE_UF = ['MG', 'RS', 'PR', 'SC', 'RJ', 'BA', 'PE', 'GO', 'DF', 'ES', 'AM', 'PA', 'MT']
-const SAT_UF = ['SP', 'CE']
+const NFCE_UF = ['SP', 'MG', 'RS', 'PR', 'SC', 'RJ', 'BA', 'PE', 'GO', 'DF', 'ES', 'AM', 'PA', 'MT']
+const SAT_UF = ['SP', 'CE'] // SAT ainda existe como legado/contingência; CE usa MFE
 
 function rand(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
@@ -182,7 +182,8 @@ export function gerarNfeExtra(): FakeNfeExtra {
 
 export function gerarSatExtra(): FakeSatExtra {
   return {
-    satUrl: `http://localhost:${rand(8000, 9999)}`,
+    // Porta padrão do middleware Control-ID / SAT (não randomizar — senão a emissão falha)
+    satUrl: 'http://localhost:9090',
     activationCode: faker.string.numeric({ length: 8 }),
     signatureAC: faker.string.alphanumeric({ length: 32, casing: 'upper' }),
   }

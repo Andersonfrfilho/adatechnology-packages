@@ -10,6 +10,7 @@ import {
   importarNfeXml,
   NfeDistribuicaoProvider,
   FiscalError,
+  buildCupomPdf,
 } from '@adatechnology/fiscal-provider'
 
 @Injectable()
@@ -241,6 +242,7 @@ export class FiscalService {
           xmlAutorizado: result.xmlAutorizado,
           qrCodeUrl: result.qrCodeUrl,
           danfce: result.danfce,
+          cupomPdf: result.cupomPdf,
         }
       }
 
@@ -315,8 +317,88 @@ export class FiscalService {
     }
   }
 
+  async previewCupom(payload: {
+    referenceId: string
+    config: Record<string, any>
+    totalAmount: number
+    discountAmount?: number
+    items: {
+      codigo: string
+      descricao: string
+      ncm?: string
+      cfop?: string
+      cst?: string
+      unidade: string
+      quantidade: number
+      valorUnitario: number
+      valorTotal: number
+    }[]
+    payments: { method: string; amount: number }[]
+    chaveAcesso?: string
+    protocolo?: string
+    qrCodeUrl?: string
+  }) {
+    const config = this.buildConfig(payload.config)
+    const dataEmissao = new Date()
+    const chaveAcesso =
+      payload.chaveAcesso ??
+      `PREVIEW${payload.config.cnpj ?? '00000000000000'}${Date.now()}`.replace(/\D/g, '').padEnd(44, '0').slice(0, 44)
+
+    const emitParams = {
+      referenceId: payload.referenceId || `preview-${Date.now()}`,
+      config,
+      totalAmount: payload.totalAmount,
+      discountAmount: payload.discountAmount ?? 0,
+      items: payload.items,
+      payments: payload.payments,
+    } as EmitFiscalParams
+
+    const fakeResult = {
+      success: true,
+      chaveAcesso,
+      protocolo: payload.protocolo ?? '000000000000000',
+      numeroDocumento: Number(payload.config.numeroNf ?? 1),
+      serie: String(payload.config.serie ?? '1'),
+      rawResponse: { preview: true },
+    }
+
+    const model = payload.config.model || 'nfce'
+    const qrCodePayload =
+      payload.qrCodeUrl ??
+      (model === 'sat'
+        ? `https://satsp.fazenda.sp.gov.br/?chCFe=${chaveAcesso}`
+        : `https://www.nfce.fazenda.gov.br/qrcode?p=${chaveAcesso}`)
+
+    const urlConsulta =
+      model === 'sat'
+        ? 'https://satsp.fazenda.sp.gov.br/COMSAT/Public/ConsultaPublica/ConsultaPublicaCfe.aspx'
+        : 'https://www.nfce.fazenda.gov.br/consulta'
+
+    const cupomPdf = await buildCupomPdf({
+      emitParams,
+      config,
+      result: fakeResult,
+      qrCodePayload,
+      urlConsulta,
+      dataEmissao,
+      documentLabel: model === 'sat' ? 'CUPOM FISCAL ELETRÔNICO — SAT (CF-e) [PREVIEW]' : 'NFC-e — DANFCE [PREVIEW]',
+    })
+
+    return {
+      success: true,
+      preview: true,
+      chaveAcesso,
+      qrCodeUrl: qrCodePayload,
+      cupomPdf,
+    }
+  }
+
   async consultaCnpj(cnpj: string) {
-    return consultarCnpj(cnpj)
+    try {
+      return await consultarCnpj(cnpj)
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : 'Falha ao consultar CNPJ')
+    }
   }
 
   async validateXml(xml: string) {

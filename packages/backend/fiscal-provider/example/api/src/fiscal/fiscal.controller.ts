@@ -49,6 +49,23 @@ export class FiscalController {
     })
   }
 
+  @Post('preview-cupom')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Gerar PDF de preview do cupom (80mm + QR) sem emitir no SEFAZ/SAT',
+  })
+  @ApiResponse({ status: 200, description: 'PDF do cupom em Base64' })
+  async previewCupom(@Body() dto: EmitDocumentDto) {
+    return this.fiscalService.previewCupom({
+      referenceId: dto.referenceId || `preview-${Date.now()}`,
+      config: { ...(dto.config as any) },
+      totalAmount: dto.totalAmount,
+      discountAmount: dto.discountAmount,
+      items: dto.items,
+      payments: dto.payments,
+    })
+  }
+
   @Post('cancel')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cancelar documento fiscal' })

@@ -31,6 +31,40 @@ export async function emitDocument(data: {
   return request<EmitResult>('/fiscal/emit', data)
 }
 
+/** Gera PDF do cupom sem emitir (para testar layout / impressão Elgin i8) */
+export async function previewCupom(data: {
+  referenceId: string
+  config: Record<string, unknown>
+  totalAmount: number
+  discountAmount?: number
+  items: EmitItem[]
+  payments: EmitPayment[]
+}): Promise<EmitResult> {
+  return request<EmitResult>('/fiscal/preview-cupom', data)
+}
+
+export function downloadCupomPdf(cupomPdf: { base64: string; mimeType: string; fileName: string }): void {
+  const binary = atob(cupomPdf.base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: cupomPdf.mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = cupomPdf.fileName
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export function openCupomPdf(cupomPdf: { base64: string; mimeType: string }): void {
+  const binary = atob(cupomPdf.base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: cupomPdf.mimeType })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
+}
+
 export async function cancelDocument(data: {
   chaveAcesso: string
   protocolo: string

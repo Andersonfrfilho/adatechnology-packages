@@ -39,10 +39,10 @@ const SVRS_NFCE: Record<'homologacao' | 'producao', SefazUrls> = {
 /**
  * UFs que NÃO aderiram ao NFC-e (modelo 65) e o modelo fiscal correto a usar.
  *
- * SP — São Paulo
- *   Não emite NFC-e. Utilizar:
- *   - SAT Fiscal (equipamento físico, modelo `sat`) para varejo/PDV presencial
- *   - NF-e modelo 55 (modelo `nfe`) para demais operações de venda
+ * SP — São Paulo (atualizado 2026)
+ *   NFC-e (modelo 65) é o documento padrão do varejo desde 01/01/2026
+ *   (substitui CF-e-SAT). Webservices próprios da SEFAZ-SP.
+ *   Ref: https://portal.fazenda.sp.gov.br/servicos/nfce
  *
  * CE — Ceará
  *   Não emite NFC-e. Utilizar:
@@ -52,15 +52,34 @@ const SVRS_NFCE: Record<'homologacao' | 'producao', SefazUrls> = {
  *
  * Demais estados: aderiram ao NFC-e via SVRS ou SEFAZ própria — usar modelo `nfce`.
  */
-export const NFCE_UNSUPPORTED_UFS = new Set(['SP', 'CE'])
+export const NFCE_UNSUPPORTED_UFS = new Set(['CE'])
 
 /** Retorna true se o estado emite NFC-e (modelo 65). */
 export function isNfceSupported(uf: string): boolean {
-  return !NFCE_UNSUPPORTED_UFS.has(uf)
+  return !NFCE_UNSUPPORTED_UFS.has(uf.toUpperCase())
 }
 
 // Estados com SEFAZ própria para NFC-e
 const STATE_NFCE_ENDPOINTS: Record<string, Record<'homologacao' | 'producao', SefazUrls>> = {
+  // Fontes oficiais: portal.fazenda.sp.gov.br/servicos/nfce (WebServices) + dfe-portal.svrs.rs.gov.br
+  SP: {
+    homologacao: {
+      autorizacao:      'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx',
+      retAutorizacao:   'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx',
+      consultaProtocolo:'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
+      statusServico:    'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
+      recepcaoEvento:   'https://homologacao.nfce.fazenda.sp.gov.br/ws/NFeRecepcaoEvento4.asmx',
+      wsdlNamespace:    'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4',
+    },
+    producao: {
+      autorizacao:      'https://nfce.fazenda.sp.gov.br/ws/NFeAutorizacao4.asmx',
+      retAutorizacao:   'https://nfce.fazenda.sp.gov.br/ws/NFeRetAutorizacao4.asmx',
+      consultaProtocolo:'https://nfce.fazenda.sp.gov.br/ws/NFeConsultaProtocolo4.asmx',
+      statusServico:    'https://nfce.fazenda.sp.gov.br/ws/NFeStatusServico4.asmx',
+      recepcaoEvento:   'https://nfce.fazenda.sp.gov.br/ws/NFeRecepcaoEvento4.asmx',
+      wsdlNamespace:    'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4',
+    },
+  },
   MG: {
     homologacao: {
       autorizacao:      'https://hnfe.fazenda.mg.gov.br/nfe2/services/NfceAutorizacao4',
@@ -154,6 +173,16 @@ const SVRS_QRCODE: Record<'homologacao' | 'producao', SefazQrCodeInfo> = {
 }
 
 const STATE_NFCE_QRCODE: Record<string, Record<'homologacao' | 'producao', SefazQrCodeInfo>> = {
+  SP: {
+    homologacao: {
+      qrCode: 'https://www.homologacao.nfce.fazenda.sp.gov.br/qrcode',
+      urlFe:  'https://www.homologacao.nfce.fazenda.sp.gov.br/NFCeConsultaPublica',
+    },
+    producao: {
+      qrCode: 'https://www.nfce.fazenda.sp.gov.br/qrcode',
+      urlFe:  'https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica',
+    },
+  },
   MG: {
     homologacao: {
       qrCode: 'https://hnfe.fazenda.mg.gov.br/portalnfce/sistema/qrcode',

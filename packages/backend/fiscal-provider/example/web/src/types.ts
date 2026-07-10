@@ -39,6 +39,12 @@ export interface EmitResult {
     qrCodeUrl: string
     urlConsulta: string
   }
+  cupomPdf?: {
+    base64: string
+    mimeType: 'application/pdf'
+    fileName: string
+  }
+  preview?: boolean
   errorCode?: string
   errorMessage?: string
 }
