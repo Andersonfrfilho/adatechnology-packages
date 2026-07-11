@@ -11,6 +11,7 @@ import { toSatPaymentCode } from '../utils/mapPaymentMethod'
 import { FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
 import { buildCupomPdf } from '../danfce/CupomPdfBuilder'
 import { gerarURLQRCode } from './controlid-qrcode'
+import { assertValidNcm, assertValidCfop } from '../validation/FiscalItemValidator'
 
 const REQUEST_TIMEOUT_MS = 10_000
 
@@ -140,6 +141,11 @@ export class SatProvider implements FiscalProvider {
 
   async emit(params: EmitFiscalParams): Promise<FiscalResult> {
     const config = params.config as SatConfig
+    // CST não é validado aqui: o CF-e do SAT sempre grava CSOSN 500 fixo (ver buildCfeXml), ignorando item.cst.
+    params.items.forEach((item, index) => {
+      assertValidNcm(item.ncm, index + 1)
+      assertValidCfop(item.cfop, index + 1)
+    })
     const xml = this.buildCfeXml(params, config)
 
     const body = new URLSearchParams({

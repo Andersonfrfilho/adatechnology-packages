@@ -12,15 +12,20 @@ import { buildNfeXml } from '../sefaz/NfeXmlBuilder'
 import { loadCertificate, isCertificateCached, signNfceXml, type CertificateData } from '../sefaz/SefazXmlSigner'
 import { getNfeUrls } from '../sefaz/NfeConstants'
 import { UF_IBGE_CODES } from '../sefaz/SefazConstants'
+import { resolveErrorHint } from '../sefaz/SefazCstatHints'
 import {
-  sendNfeAutorizacao,
-  sendNfeCancelamento,
-  sendNfeStatusServico,
-} from '../sefaz/SefazSoapClient'
+  CANCEL_TIMING_REJECT_CODES,
+  CANCEL_MAX_ATTEMPTS,
+  CANCEL_RETRY_DELAY_MS,
+  cancelEventoDate,
+  cancelSleep,
+} from '../sefaz/SefazCancelTiming'
+import { sendNfeAutorizacao, sendNfeCancelamento, sendNfeStatusServico } from '../sefaz/SefazSoapClient'
 import { withRetry } from '../sefaz/SefazRetry'
 import { FiscalError } from '../errors/FiscalError'
 import { CERT_LOG, NFE_LOG } from '../sefaz/SefazLogMessages.constant'
 import { obfuscateMeta } from '../sefaz/LogObfuscator'
+import { assertValidFiscalItems } from '../validation/FiscalItemValidator'
 
 const APP_NAME = 'fiscal-provider:sefaz-nfe'
 
@@ -60,6 +65,7 @@ export class SefazNfeProvider implements FiscalProvider {
   async emit(params: EmitFiscalParams): Promise<FiscalResult> {
     const { config } = params
     assertNfeConfig(config)
+    assertValidFiscalItems({ items: params.items, crt: config.crt })
 
     if (!params.nfeData) {
       log('warn', NFE_LOG.NFEDATA_MISSING, { traceId: params.referenceId })
@@ -121,11 +127,18 @@ export class SefazNfeProvider implements FiscalProvider {
       },
     )
 
+    const xmlAutorizado =
+      result.success && result.xmlProtocolo
+        ? `<?xml version="1.0" encoding="UTF-8"?><nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">${signedResult.signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')}${result.xmlProtocolo}</nfeProc>`
+        : undefined
+
     const finalResult: FiscalResult = {
       ...result,
       chaveAcesso: result.chaveAcesso ?? chave.chave,
       serie: config.serie,
       numeroDocumento: config.numeroNf,
+      xmlAutorizado,
+      errorHint: resolveErrorHint(result.errorCode, config.environment),
     }
 
     if (finalResult.success) {
@@ -139,9 +152,8 @@ export class SefazNfeProvider implements FiscalProvider {
         traceId,
         errorCode: finalResult.errorCode,
         errorMessage: finalResult.errorMessage,
-        rawResponse: typeof finalResult.rawResponse === 'string'
-          ? finalResult.rawResponse.slice(0, 600)
-          : finalResult.rawResponse,
+        rawResponse:
+          typeof finalResult.rawResponse === 'string' ? finalResult.rawResponse.slice(0, 600) : finalResult.rawResponse,
       })
     }
 
@@ -198,30 +210,43 @@ export class SefazNfeProvider implements FiscalProvider {
     const certData = loadCertificateOrThrow(config, traceId)
     const urls = getNfeUrls(config.uf, config.environment)
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
-    const dhEvento = formatSefazDateTime(new Date())
     const tpAmb = config.environment === 'producao' ? '1' : '2'
 
-    const result = await withRetry(
-      (attempt) => {
-        if (attempt > 1) log('warn', `Retentativa ${attempt} de cancelamento NF-e`, { traceId, attempt })
-        return sendNfeCancelamento({
-          endpoint: urls.recepcaoEvento,
-          cUF,
-          chaveAcesso: params.chaveAcesso,
-          protocolo,
-          justificativa: params.justificativa,
-          cnpj: config.cnpj,
-          dhEvento,
-          nSeqEvento: '1',
-          tpAmb,
-          certData,
+    let result!: FiscalResult
+    for (let tentativa = 1; tentativa <= CANCEL_MAX_ATTEMPTS; tentativa++) {
+      // dhEvento com buffer no passado (contra clock skew), recalculado a cada tentativa
+      const dhEvento = formatSefazDateTime(cancelEventoDate())
+      result = await withRetry(
+        (attempt) => {
+          if (attempt > 1) log('warn', `Retentativa ${attempt} de cancelamento NF-e`, { traceId, attempt })
+          return sendNfeCancelamento({
+            endpoint: urls.recepcaoEvento,
+            cUF,
+            chaveAcesso: params.chaveAcesso,
+            protocolo,
+            justificativa: params.justificativa,
+            cnpj: config.cnpj,
+            dhEvento,
+            nSeqEvento: '1',
+            tpAmb,
+            certData,
+          })
+        },
+        {
+          operationName: 'SEFAZ cancelamento NF-e',
+          logger: { warn: (message, meta) => log('warn', message, meta ?? {}) },
+        },
+      )
+
+      if (result.success || !CANCEL_TIMING_REJECT_CODES.has(result.errorCode ?? '')) break
+      if (tentativa < CANCEL_MAX_ATTEMPTS) {
+        log('warn', `Cancelamento NF-e rejeitado por data (cStat ${result.errorCode}) — reagendando dhEvento`, {
+          traceId,
+          tentativa,
         })
-      },
-      {
-        operationName: 'SEFAZ cancelamento NF-e',
-        logger: { warn: (message, meta) => log('warn', message, meta ?? {}) },
-      },
-    )
+        await cancelSleep(CANCEL_RETRY_DELAY_MS)
+      }
+    }
 
     if (result.success) {
       log('info', NFE_LOG.CANCEL_SUCCESS, { traceId, protocolo: result.protocolo })
@@ -230,9 +255,7 @@ export class SefazNfeProvider implements FiscalProvider {
         traceId,
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
-        rawResponse: typeof result.rawResponse === 'string'
-          ? result.rawResponse.slice(0, 600)
-          : result.rawResponse,
+        rawResponse: typeof result.rawResponse === 'string' ? result.rawResponse.slice(0, 600) : result.rawResponse,
       })
     }
 

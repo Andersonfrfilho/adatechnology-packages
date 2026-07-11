@@ -47,6 +47,7 @@ export interface EmitResult {
   preview?: boolean
   errorCode?: string
   errorMessage?: string
+  errorHint?: string
 }
 
 export interface CancelResult {
@@ -55,6 +56,7 @@ export interface CancelResult {
   xmlEvento?: string
   errorCode?: string
   errorMessage?: string
+  errorHint?: string
 }
 
 export interface CertificateInfo {

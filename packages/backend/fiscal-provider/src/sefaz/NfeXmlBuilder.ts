@@ -2,6 +2,7 @@ import type { EmitFiscalParams, NfeConfig, NfeData, NfeDestinatario } from '../t
 import type { ChaveAcesso } from './SefazChave'
 import { UF_IBGE_CODES } from './SefazConstants'
 import { toNfcePaymentCode } from '../utils/mapPaymentMethod'
+import { formatDhEmi } from './SefazDateTime'
 
 type BuildNfeXmlParams = {
   readonly params: EmitFiscalParams
@@ -14,7 +15,7 @@ type BuildNfeXmlParams = {
 export function buildNfeXml({ params, config, nfeData, chave, dataEmissao }: BuildNfeXmlParams): string {
   const tpAmb = config.environment === 'producao' ? '1' : '2'
   const cUF = UF_IBGE_CODES[config.uf] ?? '00'
-  const dhEmi = formatDateTime(dataEmissao)
+  const dhEmi = formatDhEmi(dataEmissao)
   const dest = nfeData.destinatario
   const natOp = nfeData.naturezaOperacao ?? 'Venda de mercadoria'
   const finNFe = nfeData.finalidade ?? '1'
@@ -27,17 +28,24 @@ export function buildNfeXml({ params, config, nfeData, chave, dataEmissao }: Bui
   const serieNum = String(parseInt(config.serie, 10) || 1)
 
   // SEFAZ exige este xNome fixo em homologação (cStat 598 caso contrário)
-  const destEffective = tpAmb === '2'
-    ? { ...nfeData.destinatario, xNome: 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' }
-    : nfeData.destinatario
+  const destEffective =
+    tpAmb === '2'
+      ? { ...nfeData.destinatario, xNome: 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' }
+      : nfeData.destinatario
 
-  const itensXml = params.items.map((item, index) =>
-    `<det nItem="${index + 1}"><prod><cProd>${escapeXml(item.codigo)}</cProd><cEAN>SEM GTIN</cEAN><xProd>${escapeXml(item.descricao)}</xProd><NCM>${item.ncm}</NCM><CFOP>${item.cfop}</CFOP><uCom>${item.unidade}</uCom><qCom>${item.quantidade.toFixed(4)}</qCom><vUnCom>${item.valorUnitario.toFixed(10)}</vUnCom><vProd>${item.valorTotal.toFixed(2)}</vProd><cEANTrib>SEM GTIN</cEANTrib><uTrib>${item.unidade}</uTrib><qTrib>${item.quantidade.toFixed(4)}</qTrib><vUnTrib>${item.valorUnitario.toFixed(10)}</vUnTrib><indTot>1</indTot></prod><imposto><vTotTrib>0.00</vTotTrib>${buildIcmsXml(item.cst, config.crt)}<PIS><PISNT><CST>07</CST></PISNT></PIS><COFINS><COFINSNT><CST>07</CST></COFINSNT></COFINS></imposto></det>`
-  ).join('')
+  const itensXml = params.items
+    .map(
+      (item, index) =>
+        `<det nItem="${index + 1}"><prod><cProd>${escapeXml(item.codigo)}</cProd><cEAN>SEM GTIN</cEAN><xProd>${escapeXml(item.descricao)}</xProd><NCM>${item.ncm}</NCM><CFOP>${item.cfop}</CFOP><uCom>${item.unidade}</uCom><qCom>${item.quantidade.toFixed(4)}</qCom><vUnCom>${item.valorUnitario.toFixed(10)}</vUnCom><vProd>${item.valorTotal.toFixed(2)}</vProd><cEANTrib>SEM GTIN</cEANTrib><uTrib>${item.unidade}</uTrib><qTrib>${item.quantidade.toFixed(4)}</qTrib><vUnTrib>${item.valorUnitario.toFixed(10)}</vUnTrib><indTot>1</indTot></prod><imposto><vTotTrib>0.00</vTotTrib>${buildIcmsXml(item.cst, config.crt)}<PIS><PISNT><CST>07</CST></PISNT></PIS><COFINS><COFINSNT><CST>07</CST></COFINSNT></COFINS></imposto></det>`,
+    )
+    .join('')
 
-  const pagXml = params.payments.map(payment =>
-    `<detPag><tPag>${toNfcePaymentCode(payment.method)}</tPag><vPag>${payment.amount.toFixed(2)}</vPag></detPag>`
-  ).join('')
+  const pagXml = params.payments
+    .map(
+      (payment) =>
+        `<detPag><tPag>${toNfcePaymentCode(payment.method)}</tPag><vPag>${payment.amount.toFixed(2)}</vPag></detPag>`,
+    )
+    .join('')
 
   const descXml = `<vDesc>${totalDesc}</vDesc>`
 
@@ -49,20 +57,22 @@ export function buildNfeXml({ params, config, nfeData, chave, dataEmissao }: Bui
 }
 
 function buildEmitXml(config: NfeConfig): string {
-  const xCpl  = config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''
-  const fone  = config.telefone    ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''
-  const ie    = config.inscricaoEstadual.replace(/\D/g, '') || 'ISENTO'
+  const xCpl = config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''
+  const fone = config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''
+  const ie = config.inscricaoEstadual.replace(/\D/g, '') || 'ISENTO'
   return `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><xNome>${escapeXml(config.razaoSocial)}</xNome><enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${xCpl}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><UF>${config.uf}</UF><CEP>${config.cep.replace(/\D/g, '')}</CEP><cPais>1058</cPais><xPais>Brasil</xPais>${fone}</enderEmit><IE>${ie}</IE><CRT>${config.crt}</CRT></emit>`
 }
 
 function buildDestXml(dest: NfeDestinatario): string {
-  const docXml  = dest.cnpj ? `<CNPJ>${dest.cnpj.replace(/\D/g, '')}</CNPJ>`
-                : dest.cpf  ? `<CPF>${dest.cpf.replace(/\D/g, '')}</CPF>`
-                : ''
-  const xCpl    = dest.complemento ? `<xCpl>${escapeXml(dest.complemento)}</xCpl>` : ''
-  const fone    = dest.telefone    ? `<fone>${dest.telefone.replace(/\D/g, '')}</fone>` : ''
-  const ieXml   = dest.indicadorIe === '1' && dest.inscricaoEstadual
-    ? `<IE>${dest.inscricaoEstadual.replace(/\D/g, '')}</IE>` : ''
+  const docXml = dest.cnpj
+    ? `<CNPJ>${dest.cnpj.replace(/\D/g, '')}</CNPJ>`
+    : dest.cpf
+      ? `<CPF>${dest.cpf.replace(/\D/g, '')}</CPF>`
+      : ''
+  const xCpl = dest.complemento ? `<xCpl>${escapeXml(dest.complemento)}</xCpl>` : ''
+  const fone = dest.telefone ? `<fone>${dest.telefone.replace(/\D/g, '')}</fone>` : ''
+  const ieXml =
+    dest.indicadorIe === '1' && dest.inscricaoEstadual ? `<IE>${dest.inscricaoEstadual.replace(/\D/g, '')}</IE>` : ''
   const emailXml = dest.email ? `<email>${escapeXml(dest.email)}</email>` : ''
 
   return `<dest>${docXml}<xNome>${escapeXml(dest.xNome)}</xNome><enderDest><xLgr>${escapeXml(dest.logradouro)}</xLgr><nro>${escapeXml(dest.numero)}</nro>${xCpl}<xBairro>${escapeXml(dest.bairro)}</xBairro><cMun>${dest.codigoMunicipio}</cMun><xMun>${escapeXml(dest.municipio)}</xMun><UF>${dest.uf}</UF><CEP>${dest.cep.replace(/\D/g, '')}</CEP><cPais>1058</cPais><xPais>Brasil</xPais>${fone}</enderDest><indIEDest>${dest.indicadorIe}</indIEDest>${ieXml}${emailXml}</dest>`
@@ -78,17 +88,6 @@ function buildIcmsXml(cst: string, crt: string): string {
 function computeIdDest(emitUf: string, destUf: string): '1' | '2' | '3' {
   if (!destUf || destUf === emitUf) return '1'
   return '2'
-}
-
-function formatDateTime(date: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  const year = date.getFullYear()
-  const month = pad(date.getMonth() + 1)
-  const day = pad(date.getDate())
-  const hours = pad(date.getHours())
-  const minutes = pad(date.getMinutes())
-  const seconds = pad(date.getSeconds())
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}-03:00`
 }
 
 function escapeXml(text: string): string {

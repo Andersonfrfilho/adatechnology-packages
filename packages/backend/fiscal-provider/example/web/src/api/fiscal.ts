@@ -65,6 +65,57 @@ export function openCupomPdf(cupomPdf: { base64: string; mimeType: string }): vo
   window.open(url, '_blank')
 }
 
+/** Abre o cupom (DANFCE com QR) e dispara a impressão — versão de impressão do documento. */
+export function printCupomPdf(cupomPdf: { base64: string; mimeType: string }): void {
+  const binary = atob(cupomPdf.base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: cupomPdf.mimeType })
+  const url = URL.createObjectURL(blob)
+  const win = window.open(url, '_blank')
+  if (win) {
+    win.addEventListener('load', () => {
+      win.focus()
+      win.print()
+    })
+  }
+}
+
+export interface QrCodeCheck {
+  name: string
+  passed: boolean
+  detail?: string
+}
+
+export interface VerifyQrCodeResult {
+  valid: boolean
+  expectedHash?: string
+  parts?: {
+    baseUrl: string
+    chave: string
+    versao: string
+    tpAmb: string
+    cIdToken: string
+    hash: string
+  }
+  checks: QrCodeCheck[]
+}
+
+export async function verifyQrCode(qrCodeUrl: string, cscToken: string): Promise<VerifyQrCodeResult> {
+  return request<VerifyQrCodeResult>('/fiscal/verify-qrcode', { qrCodeUrl, cscToken })
+}
+
+/** Baixa o XML autorizado como arquivo .xml */
+export function downloadXml(xml: string, fileName: string): void {
+  const blob = new Blob([xml], { type: 'application/xml' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function cancelDocument(data: {
   chaveAcesso: string
   protocolo: string

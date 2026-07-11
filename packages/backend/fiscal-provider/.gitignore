@@ -1,3 +1,12 @@
 node_modules/
 dist/
 *.js.map
+
+# Segredos — NUNCA commitar (certificados, CSC, senhas, notas reais)
+*.pfx
+*.p12
+*.pem
+test-nfce-real.ts
+test-nfce-dump.ts
+casos/
+NFe*.xml

@@ -21,15 +21,13 @@ const XML_PARSER = new XMLParser({
   ignoreAttributes: false,
   removeNSPrefix: true,
   attributeNamePrefix: '',
-  parseTagValue: false,   // mantém valores como string — evita chave 44 dígitos virar notação científica
+  parseTagValue: false, // mantém valores como string — evita chave 44 dígitos virar notação científica
 })
 
 export async function sendNfceAutorizacao(params: SoapSendParams): Promise<FiscalResult> {
   const soapBody = buildSoapEnvelope(params)
   // SP usa WSDL NFeAutorizacao4 (método nfeAutorizacaoLote); demais UFs usam NfceAutorizacao4
-  const method = params.wsdlNamespace.includes('NFeAutorizacao4')
-    ? 'nfeAutorizacaoLote'
-    : 'nfceAutorizacaoNF'
+  const method = params.wsdlNamespace.includes('NFeAutorizacao4') ? 'nfeAutorizacaoLote' : 'nfceAutorizacaoNF'
   const soapAction = `"${params.wsdlNamespace}/${method}"`
 
   const response = await fetchWithTimeout(
@@ -38,7 +36,7 @@ export async function sendNfceAutorizacao(params: SoapSendParams): Promise<Fisca
       method: 'POST',
       headers: {
         'Content-Type': `application/soap+xml; charset=utf-8; action=${soapAction}`,
-        'SOAPAction': soapAction,
+        SOAPAction: soapAction,
       },
       body: soapBody,
     },
@@ -82,7 +80,7 @@ export async function sendNfceCancelamento(params: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/soap+xml; charset=utf-8',
-        'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NfceRecepcaoEvento4/nfceRecepcaoEvento"',
+        SOAPAction: '"http://www.portalfiscal.inf.br/nfe/wsdl/NfceRecepcaoEvento4/nfceRecepcaoEvento"',
       },
       body: soapBody,
     },
@@ -97,6 +95,8 @@ export async function sendStatusServico(params: {
   endpoint: string
   cUF: string
   certData: CertificateData
+  /** '1'=produção, '2'=homologação — deve casar com o ambiente do endpoint (cStat 252 caso divirja) */
+  tpAmb?: string
   /** Namespace WSDL — SP usa NFeStatusServico4; demais NfceStatusServico4 */
   wsdlNamespace?: string
 }): Promise<{ ok: boolean; message: string }> {
@@ -105,7 +105,7 @@ export async function sendStatusServico(params: {
     (params.endpoint.includes('nfce.fazenda.sp.gov.br')
       ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4'
       : 'http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4')
-  const soapBody = buildStatusServicoSoap(params.cUF, ns)
+  const soapBody = buildStatusServicoSoap(params.cUF, ns, params.tpAmb ?? '2')
   const method = ns.includes('NFeStatusServico4') ? 'nfeStatusServicoNF' : 'nfceStatusServico'
   const soapAction = `"${ns}/${method}"`
 
@@ -116,7 +116,7 @@ export async function sendStatusServico(params: {
         method: 'POST',
         headers: {
           'Content-Type': 'application/soap+xml; charset=utf-8',
-          'SOAPAction': soapAction,
+          SOAPAction: soapAction,
         },
         body: soapBody,
       },
@@ -175,22 +175,13 @@ function buildCancelamentoEventoXml(params: {
   return `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></evento></envEvento>`
 }
 
-function buildStatusServicoSoap(cUF: string, wsdlNamespace = 'http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4'): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Header>
-    <nfeCabecMsg xmlns="${wsdlNamespace}">
-      <cUF>${cUF}</cUF><versaoDados>4.00</versaoDados>
-    </nfeCabecMsg>
-  </soap12:Header>
-  <soap12:Body>
-    <nfeDadosMsg xmlns="${wsdlNamespace}">
-      <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
-        <tpAmb>2</tpAmb><cUF>${cUF}</cUF><xServ>STATUS</xServ>
-      </consStatServ>
-    </nfeDadosMsg>
-  </soap12:Body>
-</soap12:Envelope>`
+function buildStatusServicoSoap(
+  cUF: string,
+  wsdlNamespace = 'http://www.portalfiscal.inf.br/nfe/wsdl/NfceStatusServico4',
+  tpAmb = '2',
+): string {
+  // Compact: SP SEFAZ rejects whitespace between tags (cStat 588)
+  return `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><nfeCabecMsg xmlns="${wsdlNamespace}"><cUF>${cUF}</cUF><versaoDados>4.00</versaoDados></nfeCabecMsg></soap12:Header><soap12:Body><nfeDadosMsg xmlns="${wsdlNamespace}"><consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><tpAmb>${tpAmb}</tpAmb><cUF>${cUF}</cUF><xServ>STATUS</xServ></consStatServ></nfeDadosMsg></soap12:Body></soap12:Envelope>`
 }
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
@@ -215,6 +206,7 @@ function parseSefazResponse(soapXml: string): FiscalResult {
           success: true,
           chaveAcesso: String(prot?.chNFe ?? ''),
           protocolo: String(prot?.nProt ?? ''),
+          xmlProtocolo: soapXml.match(/<protNFe[\s\S]*?<\/protNFe>/)?.[0],
           rawResponse: retEnvi,
         }
       }
@@ -297,11 +289,13 @@ function parseStatusResponse(soapXml: string): { ok: boolean; message: string } 
   try {
     if (soapXml.trimStart().startsWith('<') && soapXml.includes('<html')) {
       const isNotFound = soapXml.includes('resource cannot be found') || soapXml.includes('404')
-      const isForbidden = soapXml.includes('403') || soapXml.includes('Forbidden') || soapXml.includes('Access is denied')
+      const isForbidden =
+        soapXml.includes('403') || soapXml.includes('Forbidden') || soapXml.includes('Access is denied')
       if (isNotFound) {
         return {
           ok: false,
-          message: 'SEFAZ retornou HTML 404 — certificado rejeitado na camada de aplicação (OU=VideoConferencia não autorizado para NFC-e/NF-e). Necessário e-CNPJ A1 de uso fiscal.',
+          message:
+            'SEFAZ retornou HTML 404 — certificado rejeitado na camada de aplicação (OU=VideoConferencia não autorizado para NFC-e/NF-e). Necessário e-CNPJ A1 de uso fiscal.',
         }
       }
       if (isForbidden) {
@@ -318,8 +312,7 @@ function parseStatusResponse(soapXml: string): { ok: boolean; message: string } 
 
     const parsed = XML_PARSER.parse(soapXml)
     const body = parsed?.Envelope?.Body
-    const retStatus = body?.nfceResultMsg?.retConsStatServ
-                   ?? body?.nfeResultMsg?.retConsStatServ
+    const retStatus = body?.nfceResultMsg?.retConsStatServ ?? body?.nfeResultMsg?.retConsStatServ
     const cStat = String(retStatus?.cStat ?? '')
     const xMotivo = String(retStatus?.xMotivo ?? '')
 
@@ -353,7 +346,7 @@ export async function sendNfeAutorizacao(params: SoapSendParams): Promise<Fiscal
       method: 'POST',
       headers: {
         'Content-Type': `application/soap+xml; charset=utf-8; action=${soapAction}`,
-        'SOAPAction': soapAction,
+        SOAPAction: soapAction,
       },
       body: soapBody,
     },
@@ -397,7 +390,7 @@ export async function sendNfeCancelamento(params: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/soap+xml; charset=utf-8',
-        'SOAPAction': '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"',
+        SOAPAction: '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4/nfeRecepcaoEvento"',
       },
       body: soapBody,
     },
@@ -415,7 +408,7 @@ export async function sendNfeStatusServico(params: {
 }): Promise<{ ok: boolean; message: string }> {
   // Namespace confirma do WSDL real SP: NFeStatusServico4 (NF maiúsculo)
   const soapAction = '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"'
-  const soapBody   = buildNfeStatusServicoSoap(params.cUF)
+  const soapBody = buildNfeStatusServicoSoap(params.cUF)
 
   try {
     const response = await fetchWithTimeout(
@@ -424,7 +417,7 @@ export async function sendNfeStatusServico(params: {
         method: 'POST',
         headers: {
           'Content-Type': `application/soap+xml; charset=utf-8; action=${soapAction}`,
-          'SOAPAction': soapAction,
+          SOAPAction: soapAction,
         },
         body: soapBody,
       },
@@ -439,11 +432,7 @@ export async function sendNfeStatusServico(params: {
 
 // ─── HTTP ─────────────────────────────────────────────────────────────────────
 
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  certData: CertificateData,
-): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit, certData: CertificateData): Promise<Response> {
   const headers: Record<string, string> = {}
   if (options.headers) {
     const h = new Headers(options.headers)

@@ -19,6 +19,7 @@
     "dev:fiscal-api": "pnpm --filter=fiscal-example run start:dev",
     "dev:fiscal-web": "pnpm --filter=fiscal-example-frontend run dev",
     "dev:fiscal": "pnpm run dev:fiscal-api & pnpm run dev:fiscal-web & wait",
+    "fiscal-provider:dev:all": "make -C packages/backend/fiscal-provider/example all",
     "clean": "rm -rf packages/**/dist",
     "dev": "turbo run dev --parallel",
     "changeset": "changeset",

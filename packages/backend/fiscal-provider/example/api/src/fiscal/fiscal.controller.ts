@@ -117,6 +117,17 @@ export class FiscalController {
     return this.fiscalService.uploadCertificate(file, senha)
   }
 
+  @Post('verify-qrcode')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verificar QR Code da NFC-e (estrutura + dígito verificador + hash/CSC)' })
+  @ApiResponse({ status: 200, description: 'Resultado da verificação do QR Code' })
+  async verifyQrCode(@Body() body: { qrCodeUrl: string; cscToken?: string }) {
+    if (!body.qrCodeUrl) {
+      throw new BadRequestException('qrCodeUrl é obrigatório')
+    }
+    return this.fiscalService.verifyQrCode({ qrCodeUrl: body.qrCodeUrl, cscToken: body.cscToken ?? '' })
+  }
+
   @Get('consulta-cnpj/:cnpj')
   @ApiOperation({ summary: 'Consultar CNPJ na BrasilAPI e retornar dados da empresa' })
   @ApiResponse({ status: 200, description: 'Dados da empresa' })

@@ -11,6 +11,7 @@ import {
   NfeDistribuicaoProvider,
   FiscalError,
   buildCupomPdf,
+  verifyQrCode,
 } from '@adatechnology/fiscal-provider'
 
 @Injectable()
@@ -250,6 +251,7 @@ export class FiscalService {
         success: false,
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
+        errorHint: result.errorHint,
       }
     } catch (error) {
       if (error instanceof FiscalError) {
@@ -280,6 +282,9 @@ export class FiscalService {
         success: result.success,
         protocoloCancelamento: result.protocolo,
         xmlEvento: result.xmlAutorizado,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        errorHint: result.errorHint,
       }
     } catch (error) {
       if (error instanceof FiscalError) {
@@ -391,6 +396,10 @@ export class FiscalService {
       qrCodeUrl: qrCodePayload,
       cupomPdf,
     }
+  }
+
+  async verifyQrCode(payload: { qrCodeUrl: string; cscToken: string }) {
+    return verifyQrCode({ qrCodeUrl: payload.qrCodeUrl, cscToken: payload.cscToken })
   }
 
   async consultaCnpj(cnpj: string) {

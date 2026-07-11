@@ -2,6 +2,11 @@ import type { EmitFiscalParams, NfceConfig } from '../types'
 import type { ChaveAcesso } from './SefazChave'
 import { UF_IBGE_CODES } from './SefazConstants'
 import { toNfcePaymentCode } from '../utils/mapPaymentMethod'
+import { formatDhEmi } from './SefazDateTime'
+import { buildIbsCbsItem, buildIbsCbsTotal, resolveIbsCbsRates, type IbsCbsAmounts } from './IbsCbsBuilder'
+
+/** Códigos tPag que exigem o grupo <card> (cartão + arranjos eletrônicos). */
+const TPAG_REQUER_CARD = new Set(['03', '04', '17', '18'])
 
 type BuildNfceXmlParams = {
   readonly params: EmitFiscalParams
@@ -16,7 +21,7 @@ type BuildNfceXmlParams = {
 export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXmlParams): string {
   const tpAmb = config.environment === 'producao' ? '1' : '2'
   const cUF = UF_IBGE_CODES[config.uf] ?? '00'
-  const dhEmi = formatDateTime(dataEmissao)
+  const dhEmi = formatDhEmi(dataEmissao)
   const serieNum = String(parseInt(config.serie, 10) || 1)
   const ie = config.inscricaoEstadual.replace(/\D/g, '') || 'ISENTO'
   const totalProdutos = params.items.reduce((sum, item) => sum + item.valorTotal, 0).toFixed(2)
@@ -37,10 +42,15 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
         ]
       : params.items
 
+  const ibsCbsRates = resolveIbsCbsRates(config.ibsCbs)
+  const ibsCbsAmounts: IbsCbsAmounts[] = []
+
   const itensXml = items
     .map((item, index) => {
       const ncm = (item.ncm ?? '').replace(/\D/g, '').padStart(8, '0').slice(0, 8)
       const cfop = (item.cfop ?? '5102').replace(/\D/g, '').slice(0, 4)
+      const ibsCbs = buildIbsCbsItem({ baseCalculo: item.valorTotal, rates: ibsCbsRates })
+      ibsCbsAmounts.push(ibsCbs.amounts)
       return (
         `<det nItem="${index + 1}">` +
         `<prod>` +
@@ -64,6 +74,7 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
         `${buildIcmsXml(item.cst ?? '', config.crt)}` +
         `<PIS><PISNT><CST>07</CST></PISNT></PIS>` +
         `<COFINS><COFINSNT><CST>07</CST></COFINSNT></COFINS>` +
+        `${ibsCbs.xml}` +
         `</imposto>` +
         `</det>`
       )
@@ -73,9 +84,14 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
   const pagXml = params.payments
     .map((payment) => {
       const tPag = toNfcePaymentCode(payment.method as never)
-      return `<detPag><tPag>${tPag}</tPag><vPag>${payment.amount.toFixed(2)}</vPag></detPag>`
+      // SEFAZ exige o grupo <card><tpIntegra> para cartão (03/04) e arranjos eletrônicos
+      // como PIX/carteira digital (17/18) — cStat 391 caso ausente. tpIntegra=2 (não integrado).
+      const card = TPAG_REQUER_CARD.has(tPag) ? `<card><tpIntegra>2</tpIntegra></card>` : ''
+      return `<detPag><tPag>${tPag}</tPag><vPag>${payment.amount.toFixed(2)}</vPag>${card}</detPag>`
     })
     .join('')
+  const totalPago = params.payments.reduce((sum, payment) => sum + payment.amount, 0)
+  const vTroco = Math.max(totalPago - params.totalAmount, 0).toFixed(2)
 
   const destXml = params.customerCpf
     ? `<dest><CPF>${params.customerCpf.replace(/\D/g, '')}</CPF><indIEDest>9</indIEDest></dest>`
@@ -150,7 +166,10 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
     `<vCOFINS>0.00</vCOFINS>` +
     `<vOutro>0.00</vOutro>` +
     `<vNF>${totalNf}</vNF>` +
-    `</ICMSTot></total>`
+    `<vTotTrib>0.00</vTotTrib>` +
+    `</ICMSTot>` +
+    `${buildIbsCbsTotal(ibsCbsAmounts)}` +
+    `</total>`
 
   return (
     `<?xml version="1.0" encoding="UTF-8"?>` +
@@ -158,7 +177,7 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
     `<infNFe Id="${chave.id}" versao="4.00">` +
     `${ide}${emit}${destXml}${itensXml}${total}` +
     `<transp><modFrete>9</modFrete></transp>` +
-    `<pag>${pagXml}</pag>` +
+    `<pag>${pagXml}<vTroco>${vTroco}</vTroco></pag>` +
     `<infAdic><infCpl>Emitido por @adatechnology/fiscal-provider</infCpl></infAdic>` +
     `</infNFe>` +
     `</NFe>`
@@ -194,18 +213,6 @@ function buildIcmsXml(cstOrCsosn: string, crt: string): string {
   }
   // Default tributado integralmente
   return `<ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>0.00</vBC><pICMS>0.00</pICMS><vICMS>0.00</vICMS></ICMS00></ICMS>`
-}
-
-function formatDateTime(date: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  const year = date.getFullYear()
-  const month = pad(date.getMonth() + 1)
-  const day = pad(date.getDate())
-  const hours = pad(date.getHours())
-  const minutes = pad(date.getMinutes())
-  const seconds = pad(date.getSeconds())
-  // Offset fixo -03:00 (SP) — schema exige timezone
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}-03:00`
 }
 
 function escapeXml(text: string): string {

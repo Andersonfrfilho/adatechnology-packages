@@ -1,6 +1,7 @@
 import { randomInt } from 'crypto'
 import type { CteConfig, CteData, CteParticipante, CteIcms, CteModalData, CteDocumento } from '../types'
 import { UF_IBGE_CODES_CTE } from './CteConstants'
+import { formatDhEmi, toBrasiliaWallClock } from './SefazDateTime'
 
 const CTE_NS = 'http://www.portalfiscal.inf.br/cte'
 
@@ -27,7 +28,8 @@ function buildChaveCte(params: {
   tpEmis: string
 }): string {
   const { cUF, dhEmi, cnpj, serie, nCT, tpEmis } = params
-  const aamm = `${dhEmi.getFullYear().toString().slice(2)}${String(dhEmi.getMonth() + 1).padStart(2, '0')}`
+  const wallClock = toBrasiliaWallClock(dhEmi)
+  const aamm = `${wallClock.getUTCFullYear().toString().slice(2)}${String(wallClock.getUTCMonth() + 1).padStart(2, '0')}`
   const cnpjClean = cnpj.replace(/\D/g, '').padStart(14, '0')
   const mod = '57'
   const serieStr = String(parseInt(serie, 10)).padStart(3, '0')
@@ -210,8 +212,7 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   const cCT = chave.slice(35, 43)
   const cDV = chave.slice(43)
 
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const dhEmi = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}-03:00`
+  const dhEmi = formatDhEmi(now)
 
   const tpServ = data.tipoServico
   const serie = String(parseInt(config.serie, 10)).padStart(3, '0')

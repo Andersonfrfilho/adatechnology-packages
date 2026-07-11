@@ -72,6 +72,17 @@ export type NfceConfig = FiscalConfigBase & {
   readonly cscId: string
   /** Token CSC — obtido no portal SEFAZ do estado junto com cscId */
   readonly cscToken: string
+  /**
+   * Reforma Tributária (NT 2025.002) — sobrescreve os defaults de transição do grupo IBS/CBS.
+   * Deixe indefinido para usar CST 000 e as alíquotas simbólicas da fase de teste (IBS 0,1% / CBS 0,9%).
+   */
+  readonly ibsCbs?: {
+    readonly cst?: string
+    readonly classTrib?: string
+    readonly pIbsUf?: number
+    readonly pIbsMun?: number
+    readonly pCbs?: number
+  }
 }
 
 export type SatConfig = FiscalConfigBase & {
@@ -676,6 +687,8 @@ export type FiscalResult = {
   readonly numeroDocumento?: number
   readonly serie?: string
   readonly xmlAutorizado?: string
+  /** XML cru do <protNFe> devolvido pela SEFAZ — usado internamente para montar o nfeProc (xmlAutorizado). */
+  readonly xmlProtocolo?: string
   readonly qrCodeUrl?: string
   readonly danfce?: DanfceData
   /** @deprecated Prefira `cupomPdf.base64` — mantido por compatibilidade */
@@ -685,6 +698,8 @@ export type FiscalResult = {
   /** Código cStat da SEFAZ — ex: '100' autorizado, '225' falha schema, '209' IE inválida */
   readonly errorCode?: string
   readonly errorMessage?: string
+  /** Orientação acionável em pt-BR para o cStat de rejeição, quando houver (ver SefazCstatHints). */
+  readonly errorHint?: string
   readonly rawResponse: unknown
 }
 
