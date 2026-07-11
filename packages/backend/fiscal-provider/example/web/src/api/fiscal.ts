@@ -105,6 +105,39 @@ export async function verifyQrCode(qrCodeUrl: string, cscToken: string): Promise
   return request<VerifyQrCodeResult>('/fiscal/verify-qrcode', { qrCodeUrl, cscToken })
 }
 
+export interface ConsultaResult {
+  situacao: string
+  descricao: string
+  autorizada: boolean
+  cancelada: boolean
+  protocolo?: string
+  chaveAcesso: string
+}
+
+export async function consultarNfe(chaveAcesso: string, config: Record<string, unknown>): Promise<ConsultaResult> {
+  return request<ConsultaResult>('/fiscal/consultar-nfe', { chaveAcesso, config })
+}
+
+export async function cartaCorrecao(data: {
+  chaveAcesso: string
+  correcao: string
+  sequenciaEvento?: number
+  config: Record<string, unknown>
+}): Promise<{ success: boolean; protocolo?: string; errorCode?: string; errorMessage?: string; errorHint?: string }> {
+  return request('/fiscal/carta-correcao', data)
+}
+
+export async function inutilizar(data: {
+  serie: string
+  numeroInicial: number
+  numeroFinal: number
+  justificativa: string
+  ano?: number
+  config: Record<string, unknown>
+}): Promise<{ success: boolean; protocolo?: string; errorCode?: string; errorMessage?: string; errorHint?: string }> {
+  return request('/fiscal/inutilizar', data)
+}
+
 /** Baixa o XML autorizado como arquivo .xml */
 export function downloadXml(xml: string, fileName: string): void {
   const blob = new Blob([xml], { type: 'application/xml' })

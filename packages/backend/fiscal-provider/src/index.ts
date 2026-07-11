@@ -65,6 +65,8 @@ export type {
 } from './sefaz/SefazQrCodeVerifier'
 export { isChaveDvValid } from './sefaz/SefazChave'
 export { resolveErrorHint, SEFAZ_CSTAT_HINT } from './sefaz/SefazCstatHints'
+export { consultarNfe, cartaCorrecao, inutilizar } from './sefaz/SefazDocumentOps'
+export type { ConsultaResult } from './sefaz/SefazSoapClient'
 export { validateCertificate } from './sefaz/CertificateValidator'
 export type { CertificateValidation } from './sefaz/CertificateValidator'
 export { evictCertificate } from './sefaz/SefazXmlSigner'

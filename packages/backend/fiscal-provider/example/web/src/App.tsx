@@ -1,5 +1,6 @@
 import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
-import { testConnection, emitDocument, cancelDocument, certificateInfo, consultaCnpj, validateXml, importXmlBatch, consultarDistribuicao, previewCupom, downloadCupomPdf, openCupomPdf, printCupomPdf, verifyQrCode, downloadXml } from './api/fiscal';
+import { testConnection, emitDocument, cancelDocument, certificateInfo, consultaCnpj, validateXml, importXmlBatch, consultarDistribuicao, previewCupom, downloadCupomPdf, openCupomPdf, printCupomPdf, verifyQrCode, downloadXml, consultarNfe } from './api/fiscal';
+import type { ConsultaResult } from './api/fiscal';
 import type { ConnectionResult, EmitResult, CancelResult, CertificateInfo } from './types';
 import type { XmlValidationResult, BatchImportResult, DfeItemResult, ConsultarDistribuicaoResult, VerifyQrCodeResult } from './api/fiscal';
 import {
@@ -12,7 +13,7 @@ import {
   getSatUf,
 } from './utils/fakeData';
 
-type Tab = 'connection' | 'emit' | 'cancel' | 'certificate' | 'xml' | 'batch' | 'search';
+type Tab = 'connection' | 'emit' | 'cancel' | 'consultar' | 'certificate' | 'xml' | 'batch' | 'search';
 
 const TAB_TIPS: Record<Tab, string[]> = {
   connection: [
@@ -32,6 +33,11 @@ const TAB_TIPS: Record<Tab, string[]> = {
     'Precisa da chave de acesso (44 dígitos) e protocolo de autorização',
     'Justificativa deve ter no mínimo 15 caracteres',
     'O certificado usado deve ser o mesmo da emissão (mesmo CNPJ)',
+  ],
+  consultar: [
+    'Informe a chave de acesso (44 dígitos) para consultar a situação na SEFAZ',
+    'Retorna se está autorizada ou cancelada, com o protocolo — sem precisar guardar o protocolo da emissão',
+    'Requer o certificado A1 do mesmo CNPJ',
   ],
   certificate: [
     'Faça upload do arquivo .pfx na barra superior primeiro',
@@ -161,6 +167,7 @@ function App() {
         {([
           ['connection', 'Testar Conexão'],
           ['emit', 'Emitir Documento'],
+          ['consultar', 'Consultar NF-e'],
           ['cancel', 'Cancelar Documento'],
           ['certificate', 'Certificado'],
           ['xml', 'Validar XML'],
@@ -227,11 +234,80 @@ function App() {
         {tab === 'connection' && <ConnectionTest certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'emit' && <DocumentEmit certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'cancel' && <DocumentCancel certBase64={cert.base64} certSenha={cert.senha} />}
+        {tab === 'consultar' && <DocumentQuery certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'certificate' && <CertificateInfo certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'xml' && <XmlValidator />}
         {tab === 'batch' && <BatchImport />}
         {tab === 'search' && <NfeSearch certBase64={cert.base64} certSenha={cert.senha} />}
       </main>
+    </div>
+  );
+}
+
+function DocumentQuery({ certBase64, certSenha }: { certBase64: string; certSenha: string }) {
+  const [form, setForm] = useState({ model: 'nfce', environment: 'producao', uf: 'SP', cnpj: '', chaveAcesso: '' });
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ConsultaResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const update = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true); setError(null); setResult(null);
+    try {
+      const chave = form.chaveAcesso.replace(/\D/g, '');
+      if (chave.length !== 44) { setError('Chave de acesso deve ter 44 dígitos'); return; }
+      const res = await consultarNfe(chave, {
+        model: form.model, environment: form.environment, uf: form.uf, cnpj: form.cnpj,
+        certificadoBase64: certBase64 || undefined, certificadoSenha: certSenha || undefined,
+      });
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha na consulta');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2>Consultar NF-e / NFC-e por chave</h2>
+      <p className="desc">Consulta a situação na SEFAZ (autorizada/cancelada) e recupera o protocolo.</p>
+      <form onSubmit={submit} className="form">
+        <div className="form-row">
+          <label>Modelo
+            <select name="model" value={form.model} onChange={update}>
+              <option value="nfce">NFC-e (65)</option>
+              <option value="nfe">NF-e (55)</option>
+            </select>
+          </label>
+          <label>Ambiente
+            <select name="environment" value={form.environment} onChange={update}>
+              <option value="homologacao">Homologação</option>
+              <option value="producao">Produção</option>
+            </select>
+          </label>
+          <label>UF<input name="uf" value={form.uf} onChange={update} maxLength={2} /></label>
+          <label>CNPJ<input name="cnpj" value={form.cnpj} onChange={update} placeholder="só dígitos" /></label>
+        </div>
+        <label>Chave de Acesso (44 dígitos)
+          <input name="chaveAcesso" value={form.chaveAcesso} onChange={update} placeholder="3526..." maxLength={44} />
+        </label>
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Consultando...' : 'Consultar'}</button>
+        </div>
+      </form>
+      {error && <div className="error-box">{error}</div>}
+      {result && (
+        <div className="result-box">
+          <div style={{ fontWeight: 600, color: result.cancelada ? '#dc2626' : result.autorizada ? '#16a34a' : '#92400e' }}>
+            {result.autorizada ? '✓ Autorizada' : result.cancelada ? '✗ Cancelada' : `Situação ${result.situacao}`} — {result.descricao}
+          </div>
+          <pre>{JSON.stringify(result, null, 2)}</pre>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { XMLParser } from 'fast-xml-parser'
 import { FiscalError } from '../errors/FiscalError'
 import type { FiscalResult } from '../types'
 import { SEFAZ_RETRYABLE_CODES } from './SefazConstants'
-import { signNfeEventoXml } from './SefazXmlSigner'
+import { signNfeEventoXml, signInutNFeXml } from './SefazXmlSigner'
 import type { CertificateData } from './SefazXmlSigner'
 import { sefazFetch } from './SefazHttpClient'
 
@@ -430,6 +430,151 @@ export async function sendNfeStatusServico(params: {
     return parseStatusResponse(responseText)
   } catch {
     return { ok: false, message: 'SEFAZ NF-e não respondeu ao status' }
+  }
+}
+
+// ─── Consulta de situação por chave (consSitNFe) ────────────────────────────
+export type ConsultaResult = {
+  situacao: string
+  descricao: string
+  autorizada: boolean
+  cancelada: boolean
+  protocolo?: string
+  chaveAcesso: string
+  rawResponse: unknown
+}
+
+export async function sendConsultaProtocolo(params: {
+  endpoint: string
+  cUF: string
+  chaveAcesso: string
+  tpAmb: string
+  certData: CertificateData
+}): Promise<ConsultaResult> {
+  const isSp = params.endpoint.includes('fazenda.sp.gov.br')
+  const ns = isSp
+    ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4'
+    : 'http://www.portalfiscal.inf.br/nfe/wsdl/NfceConsulta'
+  const soapAction = `"${ns}/nfeConsultaNF"`
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><nfeCabecMsg xmlns="${ns}"><cUF>${params.cUF}</cUF><versaoDados>4.00</versaoDados></nfeCabecMsg></soap12:Header><soap12:Body><nfeDadosMsg xmlns="${ns}"><consSitNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><tpAmb>${params.tpAmb}</tpAmb><xServ>CONSULTAR</xServ><chNFe>${params.chaveAcesso}</chNFe></consSitNFe></nfeDadosMsg></soap12:Body></soap12:Envelope>`
+
+  const response = await fetchWithTimeout(
+    params.endpoint,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/soap+xml; charset=utf-8', SOAPAction: soapAction },
+      body: soapBody,
+    },
+    params.certData,
+  )
+  const soapXml = await response.text()
+  const parsed = XML_PARSER.parse(soapXml)
+  const ret =
+    parsed?.Envelope?.Body?.nfceResultMsg?.retConsSitNFe ?? parsed?.Envelope?.Body?.nfeResultMsg?.retConsSitNFe
+  const situacao = String(ret?.cStat ?? '')
+  const descricao = String(ret?.xMotivo ?? '')
+  const protocolo = ret?.protNFe?.infProt?.nProt ? String(ret.protNFe.infProt.nProt) : undefined
+  // 101/151/155 = cancelamento homologado; 135 em procEventoNFe também indica cancelamento
+  const eventos = JSON.stringify(ret?.procEventoNFe ?? '')
+  const cancelada = ['101', '151', '155'].includes(situacao) || eventos.includes('110111')
+  const autorizada = ['100', '150'].includes(situacao) && !cancelada
+  return {
+    situacao,
+    descricao,
+    autorizada,
+    cancelada,
+    protocolo,
+    chaveAcesso: params.chaveAcesso,
+    rawResponse: ret ?? soapXml,
+  }
+}
+
+// ─── Carta de Correção Eletrônica (evento 110110) ───────────────────────────
+export async function sendCartaCorrecao(params: {
+  endpoint: string
+  cUF: string
+  chaveAcesso: string
+  correcao: string
+  cnpj: string
+  dhEvento: string
+  nSeqEvento: string
+  tpAmb: string
+  certData: CertificateData
+}): Promise<FiscalResult> {
+  const id = `ID110110${params.chaveAcesso}${params.nSeqEvento.padStart(2, '0')}`
+  const xCondUso =
+    'A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.'
+  const unsignedXml = `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110110</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Carta de Correcao</descEvento><xCorrecao>${params.correcao}</xCorrecao><xCondUso>${xCondUso}</xCondUso></detEvento></infEvento></evento></envEvento>`
+  const { signedXml } = signNfeEventoXml(unsignedXml, params.certData)
+  const eventoXml = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
+  const soapBody = buildEventoSoapEnvelope({ cUF: params.cUF, eventoXml })
+
+  const response = await fetchWithTimeout(
+    params.endpoint,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/soap+xml; charset=utf-8',
+        SOAPAction: '"http://www.portalfiscal.inf.br/nfe/wsdl/NfceRecepcaoEvento4/nfceRecepcaoEvento"',
+      },
+      body: soapBody,
+    },
+    params.certData,
+  )
+  return parseSefazEventoResponse(await response.text())
+}
+
+// ─── Inutilização de numeração (inutNFe) ─────────────────────────────────────
+export async function sendInutilizacao(params: {
+  endpoint: string
+  cUF: string
+  ano: string
+  cnpj: string
+  mod: string
+  serie: string
+  numeroInicial: string
+  numeroFinal: string
+  justificativa: string
+  tpAmb: string
+  certData: CertificateData
+}): Promise<FiscalResult> {
+  const cnpj = params.cnpj.replace(/\D/g, '')
+  const serie3 = params.serie.padStart(3, '0')
+  const ini9 = params.numeroInicial.padStart(9, '0')
+  const fin9 = params.numeroFinal.padStart(9, '0')
+  const id = `ID${params.cUF}${params.ano}${cnpj}${params.mod}${serie3}${ini9}${fin9}`
+  const unsignedXml = `<inutNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><infInut Id="${id}"><tpAmb>${params.tpAmb}</tpAmb><xServ>INUTILIZAR</xServ><cUF>${params.cUF}</cUF><ano>${params.ano}</ano><CNPJ>${cnpj}</CNPJ><mod>${params.mod}</mod><serie>${params.serie}</serie><nNFIni>${params.numeroInicial}</nNFIni><nNFFin>${params.numeroFinal}</nNFFin><xJust>${params.justificativa}</xJust></infInut></inutNFe>`
+  const { signedXml } = signInutNFeXml(unsignedXml, params.certData)
+  const inutFragment = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
+  const isSp = params.endpoint.includes('fazenda.sp.gov.br')
+  const ns = isSp
+    ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4'
+    : 'http://www.portalfiscal.inf.br/nfe/wsdl/NfceInutilizacao4'
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Header><nfeCabecMsg xmlns="${ns}"><cUF>${params.cUF}</cUF><versaoDados>4.00</versaoDados></nfeCabecMsg></soap12:Header><soap12:Body><nfeDadosMsg xmlns="${ns}">${inutFragment}</nfeDadosMsg></soap12:Body></soap12:Envelope>`
+
+  const response = await fetchWithTimeout(
+    params.endpoint,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/soap+xml; charset=utf-8', SOAPAction: `"${ns}/nfeInutilizacaoNF"` },
+      body: soapBody,
+    },
+    params.certData,
+  )
+  const soapXml = await response.text()
+  const parsed = XML_PARSER.parse(soapXml)
+  const ret = parsed?.Envelope?.Body?.nfceResultMsg?.retInutNFe ?? parsed?.Envelope?.Body?.nfeResultMsg?.retInutNFe
+  const infInut = ret?.infInut
+  const cStat = String(infInut?.cStat ?? ret?.cStat ?? '')
+  const xMotivo = String(infInut?.xMotivo ?? ret?.xMotivo ?? '')
+  if (cStat === '102') {
+    return { success: true, protocolo: String(infInut?.nProt ?? ''), rawResponse: ret ?? soapXml }
+  }
+  return {
+    success: false,
+    errorCode: cStat || 'INUT_PARSE_ERROR',
+    errorMessage: xMotivo || 'Inutilização rejeitada',
+    rawResponse: ret ?? soapXml,
   }
 }
 
