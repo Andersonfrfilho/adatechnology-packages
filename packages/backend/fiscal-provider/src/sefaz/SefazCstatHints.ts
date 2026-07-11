@@ -25,6 +25,22 @@ export const SEFAZ_CSTAT_HINT: Record<string, string> = {
     'Duplicidade de NF-e com diferença na chave: o número já foi usado com outra chave de acesso. Ajuste o número da nota.',
   '1115':
     'Grupo IBS/CBS (Reforma Tributária, NT 2025.002) não informado. Atualize a biblioteca — o grupo IBS/CBS por item passou a ser obrigatório a partir de 05/01/2026.',
+
+  // ─── Cancelamento (evento 110111) ──────────────────────────────────────────
+  '501':
+    'Prazo de cancelamento expirado — a janela legal para cancelar já passou (NFC-e em SP: ~30 minutos após a autorização; NF-e: 24 horas). A nota permanece VÁLIDA e não pode mais ser cancelada por evento. Como proceder: NFC-e — não há cancelamento extemporâneo (registre a devolução/estorno pela operação comercial); NF-e — verifique no portal da SEFAZ do estado se há cancelamento extemporâneo, senão emita uma NF-e de devolução/ajuste.',
+  '573':
+    'Duplicidade de evento: o cancelamento JÁ foi registrado para esta nota. Nenhuma ação necessária — a nota já está cancelada. Consulte o evento anterior para obter o protocolo de cancelamento.',
+  '577':
+    'Data do evento anterior à emissão da NF-e (dhEvento < dhEmi). Normalmente é diferença de relógio logo após a emissão — a biblioteca reagenda e re-tenta automaticamente. Se persistir, sincronize o relógio do servidor (NTP).',
+  '578':
+    'Data do evento no futuro em relação à SEFAZ (dhEvento > processamento) — relógio local adiantado. A biblioteca já usa a hora da SEFAZ e re-tenta. Se persistir, sincronize o relógio do servidor (NTP).',
+  '155':
+    'Cancelamento homologado FORA do prazo normal — o cancelamento foi aceito, mas registrado como extemporâneo. A nota está cancelada; guarde o protocolo.',
+  '215':
+    'Falha no schema do evento de cancelamento (formato da justificativa, protocolo ou chave). A justificativa deve ter entre 15 e 255 caracteres.',
+  '420':
+    'NF-e com evento de cancelamento já homologado — a nota já foi cancelada anteriormente. Nenhuma ação necessária.',
 }
 
 /** Devolve a orientação acionável para um cStat, ou undefined se não houver mapeamento. */
