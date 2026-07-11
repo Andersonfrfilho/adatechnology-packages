@@ -13,12 +13,14 @@ import { loadCertificate, isCertificateCached, signNfceXml, type CertificateData
 import { getNfeUrls } from '../sefaz/NfeConstants'
 import { UF_IBGE_CODES } from '../sefaz/SefazConstants'
 import { resolveErrorHint } from '../sefaz/SefazCstatHints'
+import { formatSefazDateTime } from '../sefaz/SefazDateTime'
 import {
   CANCEL_TIMING_REJECT_CODES,
   CANCEL_MAX_ATTEMPTS,
   CANCEL_RETRY_DELAY_MS,
   cancelEventoDate,
   cancelSleep,
+  computeSefazOffsetMs,
 } from '../sefaz/SefazCancelTiming'
 import { sendNfeAutorizacao, sendNfeCancelamento, sendNfeStatusServico } from '../sefaz/SefazSoapClient'
 import { withRetry } from '../sefaz/SefazRetry'
@@ -212,10 +214,14 @@ export class SefazNfeProvider implements FiscalProvider {
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
     const tpAmb = config.environment === 'producao' ? '1' : '2'
 
+    // Base o dhEvento na hora da SEFAZ (status.dhRecbto) — imune a drift do relógio local.
+    const status = await sendNfeStatusServico({ endpoint: urls.statusServico, cUF, certData })
+    const sefazOffsetMs = computeSefazOffsetMs(status.dhRecbto)
+
     let result!: FiscalResult
     for (let tentativa = 1; tentativa <= CANCEL_MAX_ATTEMPTS; tentativa++) {
-      // dhEvento com buffer no passado (contra clock skew), recalculado a cada tentativa
-      const dhEvento = formatSefazDateTime(cancelEventoDate())
+      // dhEvento na base de tempo da SEFAZ (agora + offset − recuo), recalculado a cada tentativa
+      const dhEvento = formatSefazDateTime(cancelEventoDate(sefazOffsetMs))
       result = await withRetry(
         (attempt) => {
           if (attempt > 1) log('warn', `Retentativa ${attempt} de cancelamento NF-e`, { traceId, attempt })
@@ -314,9 +320,4 @@ function signXmlOrThrow(xml: string, certData: CertificateData, traceId: string)
     })
     throw error
   }
-}
-
-function formatSefazDateTime(date: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}-03:00`
 }

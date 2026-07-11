@@ -21,12 +21,14 @@ import { CERT_LOG, NFCE_LOG } from '../sefaz/SefazLogMessages.constant'
 import { obfuscateMeta } from '../sefaz/LogObfuscator'
 import { resolveErrorHint } from '../sefaz/SefazCstatHints'
 import { assertValidFiscalItems } from '../validation/FiscalItemValidator'
+import { formatSefazDateTime } from '../sefaz/SefazDateTime'
 import {
   CANCEL_TIMING_REJECT_CODES,
   CANCEL_MAX_ATTEMPTS,
   CANCEL_RETRY_DELAY_MS,
   cancelEventoDate,
   cancelSleep,
+  computeSefazOffsetMs,
 } from '../sefaz/SefazCancelTiming'
 
 const APP_NAME = 'fiscal-provider:sefaz-nfce'
@@ -261,10 +263,23 @@ export class SefazNfceProvider implements FiscalProvider {
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
     const tpAmb = config.environment === 'producao' ? '1' : '2'
 
+    // Base o dhEvento na hora da SEFAZ (status.dhRecbto), não no relógio local — imune a
+    // drift de clock (Docker/VM), que causa cStat 578/577.
+    const status = await sendStatusServico({
+      endpoint: urls.statusServico,
+      cUF,
+      certData,
+      tpAmb,
+      wsdlNamespace: urls.wsdlNamespace.includes('NFeAutorizacao4')
+        ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4'
+        : undefined,
+    })
+    const sefazOffsetMs = computeSefazOffsetMs(status.dhRecbto)
+
     let result!: FiscalResult
     for (let tentativa = 1; tentativa <= CANCEL_MAX_ATTEMPTS; tentativa++) {
-      // dhEvento com buffer no passado (contra clock skew), recalculado a cada tentativa
-      const dhEvento = formatSefazDateTime(cancelEventoDate())
+      // dhEvento na base de tempo da SEFAZ (agora + offset − recuo), recalculado a cada tentativa
+      const dhEvento = formatSefazDateTime(cancelEventoDate(sefazOffsetMs))
       result = await withRetry(
         (attempt) => {
           if (attempt > 1) {
@@ -373,11 +388,6 @@ function signXmlOrThrow(xml: string, certData: CertificateData, traceId: string)
     })
     throw error
   }
-}
-
-function formatSefazDateTime(date: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}-03:00`
 }
 
 /** Remove whitespace entre tags — exigido pela SEFAZ-SP (cStat 225). */

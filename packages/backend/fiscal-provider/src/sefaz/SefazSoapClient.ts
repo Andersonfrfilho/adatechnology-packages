@@ -99,7 +99,7 @@ export async function sendStatusServico(params: {
   tpAmb?: string
   /** Namespace WSDL — SP usa NFeStatusServico4; demais NfceStatusServico4 */
   wsdlNamespace?: string
-}): Promise<{ ok: boolean; message: string }> {
+}): Promise<{ ok: boolean; message: string; dhRecbto?: string }> {
   const ns =
     params.wsdlNamespace ??
     (params.endpoint.includes('nfce.fazenda.sp.gov.br')
@@ -285,7 +285,7 @@ function parseSefazEventoResponse(soapXml: string): FiscalResult {
   }
 }
 
-function parseStatusResponse(soapXml: string): { ok: boolean; message: string } {
+function parseStatusResponse(soapXml: string): { ok: boolean; message: string; dhRecbto?: string } {
   try {
     if (soapXml.trimStart().startsWith('<') && soapXml.includes('<html')) {
       const isNotFound = soapXml.includes('resource cannot be found') || soapXml.includes('404')
@@ -315,6 +315,9 @@ function parseStatusResponse(soapXml: string): { ok: boolean; message: string } 
     const retStatus = body?.nfceResultMsg?.retConsStatServ ?? body?.nfeResultMsg?.retConsStatServ
     const cStat = String(retStatus?.cStat ?? '')
     const xMotivo = String(retStatus?.xMotivo ?? '')
+    // dhRecbto = hora do servidor SEFAZ; vem mesmo em respostas não-107 (ex.: 252) — usada
+    // pelo cancelamento como base de tempo imune a drift do relógio local.
+    const dhRecbto = retStatus?.dhRecbto ? String(retStatus.dhRecbto) : undefined
 
     if (!cStat) {
       return {
@@ -324,10 +327,10 @@ function parseStatusResponse(soapXml: string): { ok: boolean; message: string } 
     }
 
     if (cStat !== '107') {
-      return { ok: false, message: `SEFAZ fora do ar [${cStat}]: ${xMotivo || 'sem descrição'}` }
+      return { ok: false, message: `SEFAZ fora do ar [${cStat}]: ${xMotivo || 'sem descrição'}`, dhRecbto }
     }
 
-    return { ok: true, message: xMotivo || 'Serviço em operação' }
+    return { ok: true, message: xMotivo || 'Serviço em operação', dhRecbto }
   } catch (error) {
     return {
       ok: false,
@@ -405,7 +408,7 @@ export async function sendNfeStatusServico(params: {
   endpoint: string
   cUF: string
   certData: CertificateData
-}): Promise<{ ok: boolean; message: string }> {
+}): Promise<{ ok: boolean; message: string; dhRecbto?: string }> {
   // Namespace confirma do WSDL real SP: NFeStatusServico4 (NF maiúsculo)
   const soapAction = '"http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF"'
   const soapBody = buildNfeStatusServicoSoap(params.cUF)

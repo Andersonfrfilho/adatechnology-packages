@@ -1,12 +1,40 @@
 {
   "name": "@adatechnology/fiscal-provider",
   "version": "0.0.1",
+  "description": "Emissão de documentos fiscais brasileiros direto na SEFAZ, sem intermediários: NFC-e (65), NF-e (55), NFS-e (ABRASF), CT-e (57) e SAT. Assinatura A1, IBS/CBS da Reforma Tributária (NT 2025.002), QR Code, DANFE/DANFCE em PDF, cancelamento e verificação — TypeScript, Node/Bun.",
+  "keywords": [
+    "nfce",
+    "nfe",
+    "nfse",
+    "cte",
+    "sat",
+    "sefaz",
+    "nota-fiscal",
+    "nota-fiscal-eletronica",
+    "danfe",
+    "danfce",
+    "qrcode",
+    "reforma-tributaria",
+    "ibs",
+    "cbs",
+    "ibs-cbs",
+    "certificado-a1",
+    "fiscal",
+    "brasil",
+    "documento-fiscal",
+    "abrasf"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsup && tsc -p tsconfig.json --emitDeclarationOnly",

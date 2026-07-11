@@ -19,3 +19,11 @@ export function formatDhEmi(date: Date): string {
   const seconds = pad(wallClock.getUTCSeconds())
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}-03:00`
 }
+
+/**
+ * Timestamp -03:00 para eventos (dhEvento de cancelamento). Mesma base de fuso do dhEmi —
+ * usar getHours() da máquina quebra em containers UTC (gera data 3h no futuro → cStat 578).
+ */
+export function formatSefazDateTime(date: Date): string {
+  return formatDhEmi(date)
+}
