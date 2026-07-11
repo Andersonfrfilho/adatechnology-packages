@@ -10,7 +10,7 @@
     "build": "pnpm run build:all",
     "build:all": "pnpm run build:libs && pnpm run build:frontend",
     "build:backend": "pnpm run build:libs",
-    "build:libs": "pnpm --filter='./packages/backend/nestjs/*' --filter='./packages/backend/!(example|nestjs)' --parallel run build",
+    "build:libs": "pnpm --filter='./packages/backend/nestjs/*' --filter='./packages/backend/!(example|nestjs)' run build",
     "build:frontend": "pnpm --filter='./packages/frontend/*' --parallel run build",
     "build:example": "pnpm --filter=example run build",
     "build:fiscal-example": "pnpm --filter=fiscal-example run build",
