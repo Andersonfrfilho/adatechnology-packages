@@ -19,6 +19,17 @@ import { withRetry } from '../sefaz/SefazRetry'
 import { FiscalError } from '../errors/FiscalError'
 import { CERT_LOG, NFCE_LOG } from '../sefaz/SefazLogMessages.constant'
 import { obfuscateMeta } from '../sefaz/LogObfuscator'
+import { resolveErrorHint } from '../sefaz/SefazCstatHints'
+import { assertValidFiscalItems } from '../validation/FiscalItemValidator'
+import { formatSefazDateTime } from '../sefaz/SefazDateTime'
+import {
+  CANCEL_TIMING_REJECT_CODES,
+  CANCEL_MAX_ATTEMPTS,
+  CANCEL_RETRY_DELAY_MS,
+  cancelEventoDate,
+  cancelSleep,
+  computeSefazOffsetMs,
+} from '../sefaz/SefazCancelTiming'
 
 const APP_NAME = 'fiscal-provider:sefaz-nfce'
 
@@ -70,6 +81,7 @@ export class SefazNfceProvider implements FiscalProvider {
   async emit(params: EmitFiscalParams): Promise<FiscalResult> {
     const { config } = params
     assertNfceConfig(config)
+    assertValidFiscalItems({ items: params.items, crt: config.crt })
 
     const traceId = params.referenceId
     const dataEmissao = new Date()
@@ -111,9 +123,7 @@ export class SefazNfceProvider implements FiscalProvider {
 
     const infNFeSupl = buildInfNFeSupl(qrCodeUrl, qrCodeUrls.urlFe)
     // Compactar: SP rejeita whitespace entre tags (cStat 225)
-    const finalXml = compactXml(
-      signedResult.signedXml.replace('<Signature', `${infNFeSupl}<Signature`),
-    )
+    const finalXml = compactXml(signedResult.signedXml.replace('<Signature', `${infNFeSupl}<Signature`))
 
     const urls = getSefazUrls(config.uf, env)
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
@@ -145,12 +155,19 @@ export class SefazNfceProvider implements FiscalProvider {
       },
     )
 
+    const xmlAutorizado =
+      result.success && result.xmlProtocolo
+        ? `<?xml version="1.0" encoding="UTF-8"?><nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">${finalXml.replace(/^<\?xml[^?]*\?>\s*/i, '')}${result.xmlProtocolo}</nfeProc>`
+        : undefined
+
     const finalResult: FiscalResult = {
       ...result,
       chaveAcesso: result.chaveAcesso ?? chave.chave,
       serie: config.serie,
       numeroDocumento: config.numeroNf,
       qrCodeUrl,
+      xmlAutorizado,
+      errorHint: resolveErrorHint(result.errorCode, config.environment),
     }
 
     if (finalResult.success) {
@@ -244,32 +261,58 @@ export class SefazNfceProvider implements FiscalProvider {
     const certData = loadCertificateOrThrow(config, traceId)
     const urls = getSefazUrls(config.uf, config.environment)
     const cUF = UF_IBGE_CODES[config.uf] ?? '00'
-    const dhEvento = formatSefazDateTime(new Date())
     const tpAmb = config.environment === 'producao' ? '1' : '2'
 
-    const result = await withRetry(
-      (attempt) => {
-        if (attempt > 1) {
-          log('warn', `Retentativa ${attempt} de cancelamento no SEFAZ`, { traceId, attempt })
-        }
-        return sendNfceCancelamento({
-          endpoint: urls.recepcaoEvento,
-          cUF,
-          chaveAcesso: params.chaveAcesso,
-          protocolo,
-          justificativa: params.justificativa,
-          cnpj: config.cnpj,
-          dhEvento,
-          nSeqEvento: '1',
-          tpAmb,
-          certData,
+    // Base o dhEvento na hora da SEFAZ (status.dhRecbto), não no relógio local — imune a
+    // drift de clock (Docker/VM), que causa cStat 578/577.
+    const status = await sendStatusServico({
+      endpoint: urls.statusServico,
+      cUF,
+      certData,
+      tpAmb,
+      wsdlNamespace: urls.wsdlNamespace.includes('NFeAutorizacao4')
+        ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4'
+        : undefined,
+    })
+    const sefazOffsetMs = computeSefazOffsetMs(status.dhRecbto)
+
+    let result!: FiscalResult
+    for (let tentativa = 1; tentativa <= CANCEL_MAX_ATTEMPTS; tentativa++) {
+      // dhEvento na base de tempo da SEFAZ (agora + offset − recuo), recalculado a cada tentativa
+      const dhEvento = formatSefazDateTime(cancelEventoDate(sefazOffsetMs))
+      result = await withRetry(
+        (attempt) => {
+          if (attempt > 1) {
+            log('warn', `Retentativa ${attempt} de cancelamento no SEFAZ`, { traceId, attempt })
+          }
+          return sendNfceCancelamento({
+            endpoint: urls.recepcaoEvento,
+            cUF,
+            chaveAcesso: params.chaveAcesso,
+            protocolo,
+            justificativa: params.justificativa,
+            cnpj: config.cnpj,
+            dhEvento,
+            nSeqEvento: '1',
+            tpAmb,
+            certData,
+          })
+        },
+        {
+          operationName: 'SEFAZ cancelamento NFC-e',
+          logger: { warn: (message, meta) => log('warn', message, meta ?? {}) },
+        },
+      )
+
+      if (result.success || !CANCEL_TIMING_REJECT_CODES.has(result.errorCode ?? '')) break
+      if (tentativa < CANCEL_MAX_ATTEMPTS) {
+        log('warn', `Cancelamento rejeitado por data (cStat ${result.errorCode}) — reagendando dhEvento`, {
+          traceId,
+          tentativa,
         })
-      },
-      {
-        operationName: 'SEFAZ cancelamento NFC-e',
-        logger: { warn: (message, meta) => log('warn', message, meta ?? {}) },
-      },
-    )
+        await cancelSleep(CANCEL_RETRY_DELAY_MS)
+      }
+    }
 
     if (result.success) {
       log('info', NFCE_LOG.CANCEL_SUCCESS, { traceId, protocolo: result.protocolo })
@@ -282,7 +325,7 @@ export class SefazNfceProvider implements FiscalProvider {
       })
     }
 
-    return result
+    return { ...result, errorHint: resolveErrorHint(result.errorCode, config.environment) }
   }
 
   async testConnection(params: TestConnectionParams): Promise<TestConnectionResult> {
@@ -299,6 +342,7 @@ export class SefazNfceProvider implements FiscalProvider {
       endpoint: urls.statusServico,
       cUF,
       certData,
+      tpAmb: config.environment === 'producao' ? '1' : '2',
       wsdlNamespace: urls.wsdlNamespace.includes('NFeAutorizacao4')
         ? 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4'
         : undefined,
@@ -344,11 +388,6 @@ function signXmlOrThrow(xml: string, certData: CertificateData, traceId: string)
     })
     throw error
   }
-}
-
-function formatSefazDateTime(date: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}-03:00`
 }
 
 /** Remove whitespace entre tags — exigido pela SEFAZ-SP (cStat 225). */

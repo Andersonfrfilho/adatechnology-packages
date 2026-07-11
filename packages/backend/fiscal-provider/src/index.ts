@@ -55,6 +55,18 @@ export { buildDanfce } from './danfce/DanfceBuilder'
 export { buildCupomPdf } from './danfce/CupomPdfBuilder'
 export type { BuildCupomPdfParams, CupomPdfResult } from './danfce/CupomPdfBuilder'
 export { buildQrCodeUrl } from './sefaz/SefazQrCode'
+export { verifyQrCode, parseQrCodeUrl, computeQrCodeHash } from './sefaz/SefazQrCodeVerifier'
+export type {
+  VerifyQrCodeParams,
+  VerifyQrCodeResult,
+  QrCodeParts,
+  QrCodeCheck,
+  ComputeQrCodeHashParams,
+} from './sefaz/SefazQrCodeVerifier'
+export { isChaveDvValid } from './sefaz/SefazChave'
+export { resolveErrorHint, SEFAZ_CSTAT_HINT } from './sefaz/SefazCstatHints'
+export { consultarNfe, cartaCorrecao, inutilizar } from './sefaz/SefazDocumentOps'
+export type { ConsultaResult } from './sefaz/SefazSoapClient'
 export { validateCertificate } from './sefaz/CertificateValidator'
 export type { CertificateValidation } from './sefaz/CertificateValidator'
 export { evictCertificate } from './sefaz/SefazXmlSigner'

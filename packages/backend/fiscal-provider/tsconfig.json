@@ -4,16 +4,14 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "dist",
-    "rootDir": ".",
-    "declarationDir": "dist",
+    "rootDir": "src",
     "declaration": true,
     "resolveJsonModule": true,
     "strict": true,
     "baseUrl": "."
   },
   "include": [
-    "./src/**/*.ts",
-    "./package.json"
+    "./src/**/*.ts"
   ],
   "exclude": ["node_modules", "dist", "src/middleware/satid-middleware.ts"]
 }

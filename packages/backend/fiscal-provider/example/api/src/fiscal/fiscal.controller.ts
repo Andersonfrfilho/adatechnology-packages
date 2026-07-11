@@ -117,6 +117,57 @@ export class FiscalController {
     return this.fiscalService.uploadCertificate(file, senha)
   }
 
+  @Post('verify-qrcode')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verificar QR Code da NFC-e (estrutura + dígito verificador + hash/CSC)' })
+  @ApiResponse({ status: 200, description: 'Resultado da verificação do QR Code' })
+  async verifyQrCode(@Body() body: { qrCodeUrl: string; cscToken?: string }) {
+    if (!body.qrCodeUrl) {
+      throw new BadRequestException('qrCodeUrl é obrigatório')
+    }
+    return this.fiscalService.verifyQrCode({ qrCodeUrl: body.qrCodeUrl, cscToken: body.cscToken ?? '' })
+  }
+
+  @Post('consultar-nfe')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Consultar situação da NF-e/NFC-e por chave de acesso' })
+  @ApiResponse({ status: 200, description: 'Situação (autorizada/cancelada) + protocolo' })
+  async consultarNfe(@Body() body: { chaveAcesso: string; config: Record<string, any> }) {
+    if (!body.chaveAcesso) throw new BadRequestException('chaveAcesso é obrigatório')
+    return this.fiscalService.consultarNfe(body)
+  }
+
+  @Post('carta-correcao')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Carta de Correção Eletrônica (CC-e, evento 110110)' })
+  @ApiResponse({ status: 200, description: 'Resultado do registro da CC-e' })
+  async cartaCorrecao(
+    @Body() body: { chaveAcesso: string; correcao: string; sequenciaEvento?: number; config: Record<string, any> },
+  ) {
+    if (!body.chaveAcesso || !body.correcao) {
+      throw new BadRequestException('chaveAcesso e correcao são obrigatórios')
+    }
+    return this.fiscalService.cartaCorrecao(body)
+  }
+
+  @Post('inutilizar')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Inutilizar faixa de numeração (nunca emitida)' })
+  @ApiResponse({ status: 200, description: 'Resultado da inutilização' })
+  async inutilizar(
+    @Body()
+    body: {
+      serie: string
+      numeroInicial: number
+      numeroFinal: number
+      justificativa: string
+      ano?: number
+      config: Record<string, any>
+    },
+  ) {
+    return this.fiscalService.inutilizar(body)
+  }
+
   @Get('consulta-cnpj/:cnpj')
   @ApiOperation({ summary: 'Consultar CNPJ na BrasilAPI e retornar dados da empresa' })
   @ApiResponse({ status: 200, description: 'Dados da empresa' })

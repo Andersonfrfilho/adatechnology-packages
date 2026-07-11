@@ -11,6 +11,10 @@ import {
   NfeDistribuicaoProvider,
   FiscalError,
   buildCupomPdf,
+  verifyQrCode,
+  consultarNfe,
+  cartaCorrecao,
+  inutilizar,
 } from '@adatechnology/fiscal-provider'
 
 @Injectable()
@@ -250,6 +254,7 @@ export class FiscalService {
         success: false,
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
+        errorHint: result.errorHint,
       }
     } catch (error) {
       if (error instanceof FiscalError) {
@@ -280,6 +285,9 @@ export class FiscalService {
         success: result.success,
         protocoloCancelamento: result.protocolo,
         xmlEvento: result.xmlAutorizado,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        errorHint: result.errorHint,
       }
     } catch (error) {
       if (error instanceof FiscalError) {
@@ -391,6 +399,49 @@ export class FiscalService {
       qrCodeUrl: qrCodePayload,
       cupomPdf,
     }
+  }
+
+  async verifyQrCode(payload: { qrCodeUrl: string; cscToken: string }) {
+    return verifyQrCode({ qrCodeUrl: payload.qrCodeUrl, cscToken: payload.cscToken })
+  }
+
+  async consultarNfe(payload: { chaveAcesso: string; config: Record<string, any> }) {
+    const config = this.buildConfig(payload.config) as any
+    return consultarNfe({ chaveAcesso: payload.chaveAcesso, config })
+  }
+
+  async cartaCorrecao(payload: {
+    chaveAcesso: string
+    correcao: string
+    sequenciaEvento?: number
+    config: Record<string, any>
+  }) {
+    const config = this.buildConfig(payload.config) as any
+    return cartaCorrecao({
+      chaveAcesso: payload.chaveAcesso,
+      correcao: payload.correcao,
+      sequenciaEvento: payload.sequenciaEvento,
+      config,
+    })
+  }
+
+  async inutilizar(payload: {
+    serie: string
+    numeroInicial: number
+    numeroFinal: number
+    justificativa: string
+    ano?: number
+    config: Record<string, any>
+  }) {
+    const config = this.buildConfig(payload.config) as any
+    return inutilizar({
+      serie: payload.serie,
+      numeroInicial: payload.numeroInicial,
+      numeroFinal: payload.numeroFinal,
+      justificativa: payload.justificativa,
+      ano: payload.ano,
+      config,
+    })
   }
 
   async consultaCnpj(cnpj: string) {

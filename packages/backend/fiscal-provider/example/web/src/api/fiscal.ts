@@ -65,6 +65,90 @@ export function openCupomPdf(cupomPdf: { base64: string; mimeType: string }): vo
   window.open(url, '_blank')
 }
 
+/** Abre o cupom (DANFCE com QR) e dispara a impressão — versão de impressão do documento. */
+export function printCupomPdf(cupomPdf: { base64: string; mimeType: string }): void {
+  const binary = atob(cupomPdf.base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: cupomPdf.mimeType })
+  const url = URL.createObjectURL(blob)
+  const win = window.open(url, '_blank')
+  if (win) {
+    win.addEventListener('load', () => {
+      win.focus()
+      win.print()
+    })
+  }
+}
+
+export interface QrCodeCheck {
+  name: string
+  passed: boolean
+  detail?: string
+}
+
+export interface VerifyQrCodeResult {
+  valid: boolean
+  expectedHash?: string
+  parts?: {
+    baseUrl: string
+    chave: string
+    versao: string
+    tpAmb: string
+    cIdToken: string
+    hash: string
+  }
+  checks: QrCodeCheck[]
+}
+
+export async function verifyQrCode(qrCodeUrl: string, cscToken: string): Promise<VerifyQrCodeResult> {
+  return request<VerifyQrCodeResult>('/fiscal/verify-qrcode', { qrCodeUrl, cscToken })
+}
+
+export interface ConsultaResult {
+  situacao: string
+  descricao: string
+  autorizada: boolean
+  cancelada: boolean
+  protocolo?: string
+  chaveAcesso: string
+}
+
+export async function consultarNfe(chaveAcesso: string, config: Record<string, unknown>): Promise<ConsultaResult> {
+  return request<ConsultaResult>('/fiscal/consultar-nfe', { chaveAcesso, config })
+}
+
+export async function cartaCorrecao(data: {
+  chaveAcesso: string
+  correcao: string
+  sequenciaEvento?: number
+  config: Record<string, unknown>
+}): Promise<{ success: boolean; protocolo?: string; errorCode?: string; errorMessage?: string; errorHint?: string }> {
+  return request('/fiscal/carta-correcao', data)
+}
+
+export async function inutilizar(data: {
+  serie: string
+  numeroInicial: number
+  numeroFinal: number
+  justificativa: string
+  ano?: number
+  config: Record<string, unknown>
+}): Promise<{ success: boolean; protocolo?: string; errorCode?: string; errorMessage?: string; errorHint?: string }> {
+  return request('/fiscal/inutilizar', data)
+}
+
+/** Baixa o XML autorizado como arquivo .xml */
+export function downloadXml(xml: string, fileName: string): void {
+  const blob = new Blob([xml], { type: 'application/xml' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function cancelDocument(data: {
   chaveAcesso: string
   protocolo: string

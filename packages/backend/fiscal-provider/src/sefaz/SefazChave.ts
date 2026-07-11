@@ -1,4 +1,5 @@
 import { UF_IBGE_CODES } from './SefazConstants'
+import { toBrasiliaWallClock } from './SefazDateTime'
 
 type BuildChaveParams = {
   readonly uf: string
@@ -19,8 +20,9 @@ export function buildChaveAcesso(params: BuildChaveParams): ChaveAcesso {
   const cUF = UF_IBGE_CODES[params.uf]
   if (!cUF) throw new Error(`UF desconhecida: ${params.uf}`)
 
-  const year = params.dataEmissao.getFullYear().toString().slice(-2)
-  const month = (params.dataEmissao.getMonth() + 1).toString().padStart(2, '0')
+  const wallClock = toBrasiliaWallClock(params.dataEmissao)
+  const year = wallClock.getUTCFullYear().toString().slice(-2)
+  const month = (wallClock.getUTCMonth() + 1).toString().padStart(2, '0')
   const AAMM = `${year}${month}`
 
   const cnpj = params.cnpj.replace(/\D/g, '').padStart(14, '0')
@@ -37,8 +39,17 @@ export function buildChaveAcesso(params: BuildChaveParams): ChaveAcesso {
   return { chave, cNF, id: `NFe${chave}` }
 }
 
+/** Valida o dígito verificador (mód. 11) de uma chave de acesso de 44 dígitos. */
+export function isChaveDvValid(chave: string): boolean {
+  const clean = chave.replace(/\D/g, '')
+  if (clean.length !== 44) return false
+  return calculateModulo11(clean.slice(0, 43)) === clean[43]
+}
+
 function generateRandomCode(): string {
-  return Math.floor(Math.random() * 99_999_999).toString().padStart(8, '0')
+  return Math.floor(Math.random() * 99_999_999)
+    .toString()
+    .padStart(8, '0')
 }
 
 // Módulo 11 conforme manual da NF-e (pesos 2–9 ciclando da direita para a esquerda)

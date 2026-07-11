@@ -106,6 +106,27 @@ const CODIGOS_MUNICIPIO: Record<string, string> = {
   MT: '5103403',
 }
 
+// Nome do município correspondente ao código IBGE (capital), para xMun bater com cMun
+const MUNICIPIO_NOME: Record<string, string> = {
+  SP: 'Sao Paulo',
+  MG: 'Belo Horizonte',
+  RJ: 'Rio de Janeiro',
+  RS: 'Porto Alegre',
+  PR: 'Curitiba',
+  SC: 'Florianopolis',
+  BA: 'Salvador',
+  PE: 'Recife',
+  CE: 'Fortaleza',
+  GO: 'Goiania',
+  DF: 'Brasilia',
+  ES: 'Vitoria',
+  AM: 'Manaus',
+  PA: 'Belem',
+  MT: 'Cuiaba',
+}
+
+const UFS_COM_CODIGO = Object.keys(CODIGOS_MUNICIPIO)
+
 const NFCE_UF = ['SP', 'MG', 'RS', 'PR', 'SC', 'RJ', 'BA', 'PE', 'GO', 'DF', 'ES', 'AM', 'PA', 'MT']
 const SAT_UF = ['SP', 'CE'] // SAT ainda existe como legado/contingência; CE usa MFE
 
@@ -147,7 +168,7 @@ export function gerarEmitente(uf?: string): FakeEmitente {
     logradouro: faker.location.street(),
     numero: String(rand(1, 9999)),
     bairro: faker.location.county(),
-    municipio: faker.location.city(),
+    municipio: MUNICIPIO_NOME[ufVal] ?? faker.location.city(),
     codigoMunicipio: codigoMun,
   }
 }
@@ -160,16 +181,18 @@ export function gerarNfceExtra(): FakeNfceExtra {
 }
 
 export function gerarNfeExtra(): FakeNfeExtra {
+  // UF do destinatário sorteada entre as que têm código IBGE conhecido — evita cStat 274
+  const destUf = UFS_COM_CODIGO[rand(0, UFS_COM_CODIGO.length - 1)]!
   return {
     destCnpj: gerarCnpj(),
     destNome: faker.company.name(),
-    destUf: gerarUf(),
+    destUf,
     destCep: faker.location.zipCode().replace(/\D/g, '').slice(0, 8),
     destLogradouro: faker.location.street(),
     destNumero: String(rand(1, 9999)),
     destBairro: faker.location.county(),
-    destMunicipio: faker.location.city(),
-    destCodMun: faker.string.numeric({ length: 7 }),
+    destMunicipio: MUNICIPIO_NOME[destUf] ?? faker.location.city(),
+    destCodMun: CODIGOS_MUNICIPIO[destUf]!,
     destIndicadorIe: ['1', '2', '9'][rand(0, 2)] as '1' | '2' | '9',
     naturezaOperacao: [
       'Venda de mercadoria',
@@ -198,15 +221,31 @@ export function gerarNfseExtra(): FakeNfseExtra {
   }
 }
 
-export function gerarProduto(index = 1): FakeProduto {
+// NCMs reais e válidos (existem na tabela oficial) — evita rejeição de NCM inexistente
+const NCMS_VALIDOS = ['21069090', '22021000', '19059090', '09012100', '22030000', '33049910']
+
+export interface GerarProdutoOpts {
+  /** CRT do emitente: define CSOSN (Simples 1/2) ou CST (Normal 3) coerente */
+  crt?: '1' | '2' | '3'
+  /** true = operação interestadual (CFOP 6xxx); false = interna (CFOP 5xxx) */
+  interestadual?: boolean
+}
+
+/** CST/CSOSN sem tributação de ICMS (não exige base/alíquota) — seguro para emitir em teste. */
+function cstOuCsosnValido(crt: '1' | '2' | '3'): string {
+  return crt === '3' ? '40' : '102' // Normal: CST 40 (isento); Simples: CSOSN 102
+}
+
+export function gerarProduto(index = 1, opts: GerarProdutoOpts = {}): FakeProduto {
+  const crt = opts.crt ?? '1'
   const valor = parseFloat((Math.random() * 200 + 5).toFixed(2))
   return {
     codigo: `00${String(index)}`,
     descricao: faker.commerce.productName(),
-    ncm: faker.string.numeric({ length: 8 }),
-    cfop: ['5101', '5102', '5405', '5929', '6101', '6102'][rand(0, 5)],
-    cst: ['00', '40', '60', '102'][rand(0, 3)],
-    unidade: ['UN', 'KG', 'L', 'CX', 'PC'][rand(0, 4)],
+    ncm: NCMS_VALIDOS[rand(0, NCMS_VALIDOS.length - 1)]!,
+    cfop: opts.interestadual ? '6102' : '5102',
+    cst: cstOuCsosnValido(crt),
+    unidade: ['UN', 'CX', 'PC'][rand(0, 2)]!,
     quantidade: rand(1, 10),
     valorUnitario: valor,
   }

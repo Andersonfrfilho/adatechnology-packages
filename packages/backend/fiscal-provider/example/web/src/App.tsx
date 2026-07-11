@@ -1,10 +1,10 @@
 import { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
-import { testConnection, emitDocument, cancelDocument, certificateInfo, consultaCnpj, validateXml, importXmlBatch, consultarDistribuicao, previewCupom, downloadCupomPdf, openCupomPdf } from './api/fiscal';
+import { testConnection, emitDocument, cancelDocument, certificateInfo, consultaCnpj, validateXml, importXmlBatch, consultarDistribuicao, previewCupom, downloadCupomPdf, openCupomPdf, printCupomPdf, verifyQrCode, downloadXml, consultarNfe } from './api/fiscal';
+import type { ConsultaResult } from './api/fiscal';
 import type { ConnectionResult, EmitResult, CancelResult, CertificateInfo } from './types';
-import type { XmlValidationResult, BatchImportResult, DfeItemResult, ConsultarDistribuicaoResult } from './api/fiscal';
+import type { XmlValidationResult, BatchImportResult, DfeItemResult, ConsultarDistribuicaoResult, VerifyQrCodeResult } from './api/fiscal';
 import {
   gerarEmitente,
-  gerarNfceExtra,
   gerarNfeExtra,
   gerarSatExtra,
   gerarNfseExtra,
@@ -13,7 +13,7 @@ import {
   getSatUf,
 } from './utils/fakeData';
 
-type Tab = 'connection' | 'emit' | 'cancel' | 'certificate' | 'xml' | 'batch' | 'search';
+type Tab = 'connection' | 'emit' | 'cancel' | 'consultar' | 'certificate' | 'xml' | 'batch' | 'search';
 
 const TAB_TIPS: Record<Tab, string[]> = {
   connection: [
@@ -23,7 +23,7 @@ const TAB_TIPS: Record<Tab, string[]> = {
     'NFS-e ABRASF precisa da URL do webservice municipal',
   ],
   emit: [
-    'Clique em "Regenerar Dados" para preencher tudo com dados fake realistas',
+    '"Regenerar Dados" troca só os dados de transação (item, destinatário) — preserva o emitente (CNPJ/IE/endereço) e o CSC já preenchidos',
     'NFC-e: precisa de CSC/CSC ID + certificado A1 + UF compatível (MG, RS, PR...)',
     'NF-e: preencha destinatário + natureza da operação',
     'SAT: aponte para o middleware local (http://localhost:9090) com código de ativação',
@@ -33,6 +33,11 @@ const TAB_TIPS: Record<Tab, string[]> = {
     'Precisa da chave de acesso (44 dígitos) e protocolo de autorização',
     'Justificativa deve ter no mínimo 15 caracteres',
     'O certificado usado deve ser o mesmo da emissão (mesmo CNPJ)',
+  ],
+  consultar: [
+    'Informe a chave de acesso (44 dígitos) para consultar a situação na SEFAZ',
+    'Retorna se está autorizada ou cancelada, com o protocolo — sem precisar guardar o protocolo da emissão',
+    'Requer o certificado A1 do mesmo CNPJ',
   ],
   certificate: [
     'Faça upload do arquivo .pfx na barra superior primeiro',
@@ -162,6 +167,7 @@ function App() {
         {([
           ['connection', 'Testar Conexão'],
           ['emit', 'Emitir Documento'],
+          ['consultar', 'Consultar NF-e'],
           ['cancel', 'Cancelar Documento'],
           ['certificate', 'Certificado'],
           ['xml', 'Validar XML'],
@@ -228,6 +234,7 @@ function App() {
         {tab === 'connection' && <ConnectionTest certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'emit' && <DocumentEmit certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'cancel' && <DocumentCancel certBase64={cert.base64} certSenha={cert.senha} />}
+        {tab === 'consultar' && <DocumentQuery certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'certificate' && <CertificateInfo certBase64={cert.base64} certSenha={cert.senha} />}
         {tab === 'xml' && <XmlValidator />}
         {tab === 'batch' && <BatchImport />}
@@ -237,7 +244,77 @@ function App() {
   );
 }
 
-function ResultBox({ result }: { result: unknown }) {
+function DocumentQuery({ certBase64, certSenha }: { certBase64: string; certSenha: string }) {
+  const [form, setForm] = useState({ model: 'nfce', environment: 'producao', uf: 'SP', cnpj: '', chaveAcesso: '' });
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<ConsultaResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const update = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true); setError(null); setResult(null);
+    try {
+      const chave = form.chaveAcesso.replace(/\D/g, '');
+      if (chave.length !== 44) { setError('Chave de acesso deve ter 44 dígitos'); return; }
+      const res = await consultarNfe(chave, {
+        model: form.model, environment: form.environment, uf: form.uf, cnpj: form.cnpj,
+        certificadoBase64: certBase64 || undefined, certificadoSenha: certSenha || undefined,
+      });
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha na consulta');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <h2>Consultar NF-e / NFC-e por chave</h2>
+      <p className="desc">Consulta a situação na SEFAZ (autorizada/cancelada) e recupera o protocolo.</p>
+      <form onSubmit={submit} className="form">
+        <div className="form-row">
+          <label>Modelo
+            <select name="model" value={form.model} onChange={update}>
+              <option value="nfce">NFC-e (65)</option>
+              <option value="nfe">NF-e (55)</option>
+            </select>
+          </label>
+          <label>Ambiente
+            <select name="environment" value={form.environment} onChange={update}>
+              <option value="homologacao">Homologação</option>
+              <option value="producao">Produção</option>
+            </select>
+          </label>
+          <label>UF<input name="uf" value={form.uf} onChange={update} maxLength={2} /></label>
+          <label>CNPJ<input name="cnpj" value={form.cnpj} onChange={update} placeholder="só dígitos" /></label>
+        </div>
+        <label>Chave de Acesso (44 dígitos)
+          <input name="chaveAcesso" value={form.chaveAcesso} onChange={update} placeholder="3526..." maxLength={44} />
+        </label>
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Consultando...' : 'Consultar'}</button>
+        </div>
+      </form>
+      {error && <div className="error-box">{error}</div>}
+      {result && (
+        <div className="result-box">
+          <div style={{ fontWeight: 600, color: result.cancelada ? '#dc2626' : result.autorizada ? '#16a34a' : '#92400e' }}>
+            {result.autorizada ? '✓ Autorizada' : result.cancelada ? '✗ Cancelada' : `Situação ${result.situacao}`} — {result.descricao}
+          </div>
+          <pre>{JSON.stringify(result, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type EmitContext = { config: Record<string, unknown>; certBase64?: string; certSenha?: string }
+
+function ResultBox({ result, emitContext }: { result: unknown; emitContext?: EmitContext }) {
   if (!result) return null;
 
   const emit = result as EmitResult & { cupomPdf?: EmitResult['cupomPdf'] }
@@ -253,20 +330,155 @@ function ResultBox({ result }: { result: unknown }) {
       }
     : result
 
+  const xmlFileName = `${emit?.chaveAcesso ?? 'documento'}.xml`
+  const qrUrl = emit?.qrCodeUrl ?? emit?.danfce?.qrCodeUrl
+  const podeCancelar = Boolean(emit?.success && emit?.chaveAcesso && emit?.protocolo && emitContext)
+  const temAcoes = hasCupom || emit?.xmlAutorizado
+
   return (
     <div className="result-box">
       <h3>Resultado{emit?.preview ? ' (Preview)' : ''}</h3>
-      {hasCupom && (
-        <div className="form-actions" style={{ marginBottom: 12 }}>
-          <button type="button" className="btn btn-primary" onClick={() => openCupomPdf(emit.cupomPdf!)}>
-            Abrir Cupom PDF
-          </button>
-          <button type="button" className="btn btn-outline" onClick={() => downloadCupomPdf(emit.cupomPdf!)}>
-            Baixar PDF ({emit.cupomPdf!.fileName})
-          </button>
+      {emit?.errorHint && (
+        <div style={{ border: '1px solid #f59e0b', background: '#fffbeb', color: '#92400e', borderRadius: 8, padding: 12, marginBottom: 12, fontSize: '0.88rem' }}>
+          <strong>Como resolver{emit.errorCode ? ` (cStat ${emit.errorCode})` : ''}:</strong>
+          <div style={{ marginTop: 4 }}>{emit.errorHint}</div>
         </div>
       )}
+      {temAcoes && (
+        <div className="form-actions" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          {hasCupom && (
+            <>
+              <button type="button" className="btn btn-primary" onClick={() => openCupomPdf(emit.cupomPdf!)}>
+                Abrir PDF
+              </button>
+              <button type="button" className="btn btn-outline" onClick={() => printCupomPdf(emit.cupomPdf!)}>
+                Imprimir (QR)
+              </button>
+              <button type="button" className="btn btn-outline" onClick={() => downloadCupomPdf(emit.cupomPdf!)}>
+                Baixar PDF
+              </button>
+            </>
+          )}
+          {emit?.xmlAutorizado && (
+            <button type="button" className="btn btn-outline" onClick={() => downloadXml(emit.xmlAutorizado!, xmlFileName)}>
+              Baixar XML
+            </button>
+          )}
+        </div>
+      )}
+      {podeCancelar && <CancelPanel emit={emit} emitContext={emitContext!} />}
+      {qrUrl && <QrVerifyPanel qrCodeUrl={qrUrl} />}
       <pre>{JSON.stringify(display, null, 2)}</pre>
+    </div>
+  );
+}
+
+function CancelPanel({ emit, emitContext }: { emit: EmitResult; emitContext: EmitContext }) {
+  const [justificativa, setJustificativa] = useState('Cancelamento de documento emitido em ambiente de teste');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<CancelResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCancel = async () => {
+    setLoading(true); setError(null); setResult(null);
+    try {
+      const c = emitContext.config;
+      const res = await cancelDocument({
+        chaveAcesso: emit.chaveAcesso!,
+        protocolo: emit.protocolo!,
+        justificativa,
+        model: String(c.model),
+        environment: String(c.environment),
+        uf: String(c.uf),
+        cnpj: String(c.cnpj),
+        certificadoBase64: emitContext.certBase64,
+        certificadoSenha: emitContext.certSenha,
+        csc: c.csc as string | undefined,
+        cscId: c.cscId as string | undefined,
+        serie: String(c.serie),
+      });
+      setResult(res);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Falha ao cancelar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ border: '1px solid #fca5a5', background: '#fef2f2', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+      <strong style={{ display: 'block', marginBottom: 8, color: '#991b1b' }}>Cancelar documento</strong>
+      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 8 }}>
+        Justificativa (mín. 15 caracteres)
+        <input value={justificativa} onChange={(e) => setJustificativa(e.target.value)} style={{ width: '100%', marginTop: 4 }} />
+      </label>
+      <button
+        type="button"
+        className="btn btn-outline"
+        onClick={handleCancel}
+        disabled={loading || justificativa.trim().length < 15}
+      >
+        {loading ? 'Cancelando...' : 'Cancelar Nota'}
+      </button>
+      {error && <div className="error-box" style={{ marginTop: 8 }}>{error}</div>}
+      {result && (
+        <div style={{ marginTop: 8, fontWeight: 600, color: result.success ? '#16a34a' : '#dc2626' }}>
+          {result.success
+            ? `✓ Cancelada — protocolo ${result.protocoloCancelamento ?? ''}`
+            : `✗ ${result.errorMessage ?? 'falha'}${result.errorHint ? ' — ' + result.errorHint : ''}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QrVerifyPanel({ qrCodeUrl }: { qrCodeUrl: string }) {
+  const [csc, setCsc] = useState('');
+  const [result, setResult] = useState<VerifyQrCodeResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleVerify = async () => {
+    setLoading(true); setError(null); setResult(null);
+    try {
+      setResult(await verifyQrCode(qrCodeUrl, csc));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Falha ao verificar QR Code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+      <strong style={{ display: 'block', marginBottom: 8 }}>Verificar QR Code</strong>
+      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: 8 }}>
+        CSC (Token) — informe o CSC de produção para conferir o hash
+        <input
+          value={csc}
+          onChange={(e) => setCsc(e.target.value)}
+          placeholder="Token CSC..."
+          style={{ width: '100%', marginTop: 4 }}
+        />
+      </label>
+      <button type="button" className="btn btn-outline" onClick={handleVerify} disabled={loading || !csc}>
+        {loading ? 'Verificando...' : 'Verificar QR Code'}
+      </button>
+      {error && <div className="error-box" style={{ marginTop: 8 }}>{error}</div>}
+      {result && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontWeight: 600, color: result.valid ? '#16a34a' : '#dc2626' }}>
+            {result.valid ? '✓ QR Code válido' : '✗ QR Code inválido'}
+          </div>
+          <ul style={{ fontSize: '0.82rem', marginTop: 6, paddingLeft: 18 }}>
+            {result.checks.map((c) => (
+              <li key={c.name} style={{ color: c.passed ? '#16a34a' : '#dc2626' }}>
+                {c.passed ? '✓' : '✗'} {c.name}{c.detail ? ` — ${c.detail}` : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -462,36 +674,60 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
 
   const [form, setForm] = useState(() => genEmit('nfe'));
 
+  // "Regenerar Dados" mexe SOMENTE em dados fora da empresa (transação + destinatário).
+  // Preserva a identidade do emitente (CNPJ, IE, razão social, endereço, CRT, UF) e as
+  // credenciais já preenchidas (CSC, certificado, SAT, NFS-e) — se o usuário buscou o CNPJ
+  // ou digitou o CSC real, a regeneração não sobrescreve.
   const gerarDados = (model: ModelType) => {
-    const novoForm = genEmit(model);
-    if (model === 'nfce') {
-      const nfcExtra = gerarNfceExtra();
-      novoForm.csc = nfcExtra.csc;
-      novoForm.cscId = nfcExtra.cscId;
-    }
-    if (model === 'nfe') {
-      const nfeExtra = gerarNfeExtra();
-      Object.assign(novoForm, {
-        destCnpj: nfeExtra.destCnpj, destNome: nfeExtra.destNome, destUf: nfeExtra.destUf,
-        destCep: nfeExtra.destCep, destLogradouro: nfeExtra.destLogradouro, destNumero: nfeExtra.destNumero,
-        destBairro: nfeExtra.destBairro, destMunicipio: nfeExtra.destMunicipio, destCodMun: nfeExtra.destCodMun,
-        destIndicadorIe: nfeExtra.destIndicadorIe, naturezaOperacao: nfeExtra.naturezaOperacao,
+    setForm((prev) => {
+      const crt = (prev.crt || '1') as '1' | '2' | '3';
+      const novo = { ...prev, model } as typeof prev;
+
+      // Destinatário (NF-e) primeiro — define se a operação é interestadual (CFOP/idDest)
+      let interestadual = false;
+      if (model === 'nfe') {
+        const d = gerarNfeExtra();
+        interestadual = d.destUf !== prev.uf;
+        Object.assign(novo, {
+          destCnpj: d.destCnpj, destNome: d.destNome, destUf: d.destUf, destCep: d.destCep,
+          destLogradouro: d.destLogradouro, destNumero: d.destNumero, destBairro: d.destBairro,
+          destMunicipio: d.destMunicipio, destCodMun: d.destCodMun,
+          destIndicadorIe: d.destIndicadorIe, naturezaOperacao: d.naturezaOperacao,
+        });
+      }
+
+      // Produto coerente com o emitente (CRT → CSOSN/CST) e a operação (CFOP 5xxx/6xxx)
+      const produto = gerarProduto(1, { crt, interestadual });
+      Object.assign(novo, {
+        referenceId: `order-${Date.now().toString(36)}`,
+        totalAmount: produto.quantidade * produto.valorUnitario,
+        discountAmount: 0,
+        itemCodigo: produto.codigo,
+        itemDescricao: produto.descricao,
+        itemNcm: produto.ncm,
+        itemCfop: produto.cfop,
+        itemCst: produto.cst,
+        itemUnidade: produto.unidade,
+        itemQuantidade: produto.quantidade,
+        itemValorUnitario: produto.valorUnitario,
       });
-    }
-    if (model === 'sat') {
-      const satExtra = gerarSatExtra();
-      novoForm.satUrl = satExtra.satUrl;
-      novoForm.activationCode = satExtra.activationCode;
-      novoForm.signatureAC = satExtra.signatureAC;
-    }
-    if (model === 'nfse') {
-      const nfseExtra = gerarNfseExtra();
-      novoForm.webserviceUrl = nfseExtra.webserviceUrl;
-      novoForm.inscricaoMunicipal = nfseExtra.inscricaoMunicipal;
-      novoForm.codigoServico = nfseExtra.codigoServico;
-      novoForm.aliquotaIss = nfseExtra.aliquotaIss;
-    }
-    setForm(novoForm);
+      // NFC-e: NÃO gerar CSC/CSC ID fake — CSC é credencial real da SEFAZ. Um valor fake
+      // aqui causa cStat 462/464 e confunde. Deixa o usuário colar o CSC real (ID + token).
+      if (model === 'sat' && !prev.signatureAC) {
+        const x = gerarSatExtra();
+        novo.satUrl = x.satUrl;
+        novo.activationCode = x.activationCode;
+        novo.signatureAC = x.signatureAC;
+      }
+      if (model === 'nfse' && !prev.webserviceUrl) {
+        const x = gerarNfseExtra();
+        novo.webserviceUrl = x.webserviceUrl;
+        novo.inscricaoMunicipal = x.inscricaoMunicipal;
+        novo.codigoServico = x.codigoServico;
+        novo.aliquotaIss = x.aliquotaIss;
+      }
+      return novo;
+    });
     setResult(null);
     setError(null);
   };
@@ -512,6 +748,7 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
       setForm((prev) => ({
         ...prev,
         razaoSocial: data.razaoSocial || prev.razaoSocial,
+        inscricaoEstadual: data.inscricaoEstadual || prev.inscricaoEstadual,
         uf: data.uf || prev.uf,
         cep: data.cep || prev.cep,
         logradouro: data.logradouro || prev.logradouro,
@@ -519,6 +756,8 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
         bairro: data.bairro || prev.bairro,
         municipio: data.municipio || prev.municipio,
         codigoMunicipio: data.codigoMunicipio || prev.codigoMunicipio,
+        // CRT derivado do enquadramento: Simples → 1, caso contrário → Normal (3)
+        crt: data.optanteSimplesNacional === true ? '1' : data.optanteSimplesNacional === false ? '3' : prev.crt,
       }));
     } catch (err: any) { setError(err.message); }
     finally { setLookupLoading(false); }
@@ -737,7 +976,7 @@ function DocumentEmit({ certBase64, certSenha }: { certBase64: string; certSenha
         </div>
       </form>
 
-      <ResultBox result={result} />
+      <ResultBox result={result} emitContext={{ config: form as unknown as Record<string, unknown>, certBase64, certSenha }} />
       <ErrorBox error={error} />
     </div>
   );
