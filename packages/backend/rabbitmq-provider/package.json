@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/rabbitmq-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Typed RabbitMQ provider for Bun workers and APIs",
   "type": "module",
   "main": "dist/index.js",

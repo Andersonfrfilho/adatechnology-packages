@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/drizzle-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Typed Drizzle ORM provider for Bun SQL and PostgreSQL",
   "type": "module",
   "main": "dist/index.js",
