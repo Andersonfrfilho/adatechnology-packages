@@ -1,0 +1,38 @@
+{
+  "name": "@adatechnology/rabbitmq-provider",
+  "version": "0.1.0",
+  "description": "Typed RabbitMQ provider for Bun workers and APIs",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit",
+    "test": "bun test",
+    "test:integration": "bun test --preload ./src/require-test-rabbitmq.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "keywords": [
+    "amqp",
+    "bun",
+    "rabbitmq",
+    "worker"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "amqplib": "2.0.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}
