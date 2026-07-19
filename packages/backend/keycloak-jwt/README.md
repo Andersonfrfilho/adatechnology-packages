@@ -45,17 +45,33 @@ fail application startup rather than become an authentication response.
 
 ## JWKS readiness
 
-`getJwksStatus()` returns only four booleans and never exposes the JWKS URL or
-key material:
+Creating the verifier is synchronous and does not contact the identity
+provider. Call `probeJwks()` explicitly from the application's readiness
+check:
 
 ```ts
+const probe = await verifier.probeJwks()
+if (!probe.ready) {
+  // Keep this instance out of service.
+}
+
 const status = verifier.getJwksStatus()
 const ready = status.hasUsableCachedKey && status.fresh
 ```
 
-The status also reports `reloading` and `coolingDown`. Cooldown cannot be
-disabled and `cacheMaxAgeMilliseconds` must be greater than or equal to it, so
-configuration cannot turn unknown-key traffic into a fetch storm.
+The probe returns only a frozen `{ ready: boolean }` result. It reloads the
+remote JWKS without requiring a JWT and reports ready only after resolving a
+public key with a non-empty `kid` under one of the configured algorithms. It
+never returns the JWKS URL, key material, or remote error details.
+
+Concurrent probes share the same request. A fresh usable cache returns ready
+without another request, while failed probes are throttled by
+`cooldownMilliseconds` before recovery is attempted.
+
+`getJwksStatus()` returns only four booleans and never exposes the JWKS URL or
+key material. The status also reports `reloading` and `coolingDown`. Cooldown
+cannot be disabled and `cacheMaxAgeMilliseconds` must be greater than or equal
+to it, so configuration cannot turn unknown-key traffic into a fetch storm.
 
 ## Runtime contract
 

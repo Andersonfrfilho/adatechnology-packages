@@ -59,7 +59,12 @@ export type KeycloakJwtRemoteJwksStatus = {
   readonly coolingDown: boolean
 }
 
+export type KeycloakJwtJwksProbeResult = {
+  readonly ready: boolean
+}
+
 export type KeycloakJwtVerifier = {
   readonly verify: (token: string) => Promise<VerifiedAccessToken>
+  readonly probeJwks: () => Promise<KeycloakJwtJwksProbeResult>
   readonly getJwksStatus: () => KeycloakJwtRemoteJwksStatus
 }

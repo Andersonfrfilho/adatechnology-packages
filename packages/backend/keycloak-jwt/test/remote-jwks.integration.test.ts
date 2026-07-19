@@ -21,11 +21,12 @@ type SigningKey = {
 
 let firstKey: SigningKey
 let secondKey: SigningKey
-let activeKeys: readonly SigningKey[]
+let activePublicKeys: readonly JsonWebKey[]
 let fetchCount = 0
 let responseDelayMilliseconds = 0
 let responseBodyDelayMilliseconds = 0
 let responsePaddingBytes = 0
+let jwksResponseMode: 'valid' | 'unavailable' = 'valid'
 let jwksServer: ReturnType<typeof Bun.serve>
 
 beforeAll(async () => {
@@ -40,12 +41,16 @@ beforeAll(async () => {
 
       fetchCount += 1
 
+      if (jwksResponseMode === 'unavailable') {
+        return new Response(null, { status: 503 })
+      }
+
       if (responseDelayMilliseconds > 0) {
         await Bun.sleep(responseDelayMilliseconds)
       }
 
       const body = JSON.stringify({
-        keys: activeKeys.map((key) => key.publicJwk),
+        keys: activePublicKeys,
         padding: 'x'.repeat(responsePaddingBytes),
       })
 
@@ -57,11 +62,12 @@ beforeAll(async () => {
 })
 
 beforeEach(() => {
-  activeKeys = [firstKey]
+  activePublicKeys = [firstKey.publicJwk]
   fetchCount = 0
   responseDelayMilliseconds = 0
   responseBodyDelayMilliseconds = 0
   responsePaddingBytes = 0
+  jwksResponseMode = 'valid'
 })
 
 afterAll(() => {
@@ -69,6 +75,101 @@ afterAll(() => {
 })
 
 describe('remote JWKS integration', () => {
+  test('keeps factory creation synchronous and defers the readiness fetch to an explicit probe', async () => {
+    const verifier = createVerifier()
+
+    expect(fetchCount).toBe(0)
+
+    const result = await verifier.probeJwks()
+
+    expect(result).toEqual({ ready: true })
+    expect(Object.isFrozen(result)).toBe(true)
+    expect(fetchCount).toBe(1)
+  })
+
+  test('deduplicates concurrent probes and returns no JWKS details', async () => {
+    responseDelayMilliseconds = 50
+    const verifier = createVerifier()
+
+    const results = await Promise.all(Array.from({ length: 10 }, () => verifier.probeJwks()))
+
+    expect(results.every((result) => result.ready)).toBe(true)
+    expect(results[0]).toEqual({ ready: true })
+    expect(results[0]).not.toHaveProperty('jwks')
+    expect(results[0]).not.toHaveProperty('url')
+    expect(results[0]).not.toHaveProperty('key')
+    expect(fetchCount).toBe(1)
+  })
+
+  test('returns ready from a fresh usable cache without another fetch', async () => {
+    const verifier = createVerifier()
+
+    await verifier.probeJwks()
+    const result = await verifier.probeJwks()
+
+    expect(result).toEqual({ ready: true })
+    expect(fetchCount).toBe(1)
+  })
+
+  test('does not reuse readiness after verification reloads a different JWKS', async () => {
+    const verifier = createVerifier({
+      cooldownMilliseconds: 1_000,
+      cacheMaxAgeMilliseconds: 1_000,
+    })
+    const token = await signToken(firstKey)
+
+    await verifier.probeJwks()
+    await Bun.sleep(1_005)
+    activePublicKeys = []
+    await expect(verifier.verify(token)).rejects.toMatchObject({ code: 'TOKEN_KEY_REJECTED' })
+
+    expect(verifier.getJwksStatus()).toMatchObject({
+      hasUsableCachedKey: false,
+      fresh: true,
+    })
+    await expect(verifier.probeJwks()).resolves.toEqual({ ready: false })
+    expect(fetchCount).toBe(3)
+  })
+
+  test('requires a configured-algorithm key with a non-empty kid to become ready', async () => {
+    activePublicKeys = [
+      { ...firstKey.publicJwk, alg: 'PS256' },
+      { ...secondKey.publicJwk, kid: '' },
+    ]
+    const verifier = createVerifier()
+
+    const result = await verifier.probeJwks()
+
+    expect(result).toEqual({ ready: false })
+    expect(Object.isFrozen(result)).toBe(true)
+    expect(fetchCount).toBe(1)
+  })
+
+  test('throttles failed probes and recovers after the configured cooldown', async () => {
+    jwksResponseMode = 'unavailable'
+    const verifier = createVerifier({
+      cooldownMilliseconds: 1_000,
+      cacheMaxAgeMilliseconds: 1_000,
+    })
+
+    const failedResults = await Promise.all(Array.from({ length: 10 }, () => verifier.probeJwks()))
+
+    expect(failedResults.every((result) => !result.ready)).toBe(true)
+    expect(failedResults[0]).toEqual({ ready: false })
+    expect(failedResults[0]).not.toHaveProperty('error')
+    expect(failedResults[0]).not.toHaveProperty('cause')
+    expect(fetchCount).toBe(1)
+
+    await expect(verifier.probeJwks()).resolves.toEqual({ ready: false })
+    expect(fetchCount).toBe(1)
+
+    jwksResponseMode = 'valid'
+    await Bun.sleep(1_005)
+
+    await expect(verifier.probeJwks()).resolves.toEqual({ ready: true })
+    expect(fetchCount).toBe(2)
+  })
+
   test('exposes readiness state without returning JWKS contents', async () => {
     responseDelayMilliseconds = 50
     const verifier = createVerifier()
@@ -140,7 +241,7 @@ describe('remote JWKS integration', () => {
 
     await verifier.verify(await signToken(firstKey))
     await Bun.sleep(1_005)
-    activeKeys = [secondKey]
+    activePublicKeys = [secondKey.publicJwk]
     const rotatedToken = await signToken(secondKey)
 
     const results = await Promise.all(Array.from({ length: 10 }, () => verifier.verify(rotatedToken)))
@@ -156,7 +257,7 @@ describe('remote JWKS integration', () => {
     })
 
     await verifier.verify(await signToken(firstKey))
-    activeKeys = [secondKey]
+    activePublicKeys = [secondKey.publicJwk]
     const rotatedToken = await signToken(secondKey)
 
     const results = await Promise.allSettled(Array.from({ length: 10 }, () => verifier.verify(rotatedToken)))
