@@ -7,6 +7,8 @@ export { KEYCLOAK_JWT_ALGORITHMS, KEYCLOAK_JWT_ERROR_CODES } from './keycloak-jw
 export type {
   KeycloakJwtAlgorithm,
   KeycloakJwtErrorCode,
+  KeycloakJwtRemoteJwksConfig,
+  KeycloakJwtRemoteJwksStatus,
   KeycloakJwtVerifier,
   KeycloakJwtVerifierConfig,
   VerifiedAccessToken,

@@ -1,9 +1,16 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
-import { createRemoteJWKSet, decodeProtectedHeader, errors, jwtVerify } from 'jose'
+import {
+  createRemoteJWKSet,
+  customFetch,
+  decodeProtectedHeader,
+  errors,
+  jwtVerify,
+  type FetchImplementation,
+} from 'jose'
 import { validateKeycloakJwtVerifierConfig } from './keycloak-jwt-config'
-import { KeycloakJwtVerificationError } from './keycloak-jwt.error'
+import { KeycloakJwtResponseLimitError, KeycloakJwtVerificationError } from './keycloak-jwt.error'
 import type {
   KeycloakJwtErrorCode,
   KeycloakJwtVerifier,
@@ -13,10 +20,24 @@ import type {
 
 export function createKeycloakJwtVerifier(config: KeycloakJwtVerifierConfig): KeycloakJwtVerifier {
   const validatedConfig = validateKeycloakJwtVerifierConfig(config)
-  const remoteJwks = createRemoteJWKSet(validatedConfig.jwksUri)
+  const remoteJwks = createRemoteJWKSet(validatedConfig.jwksUri, {
+    timeoutDuration: validatedConfig.jwks.timeoutMilliseconds,
+    cooldownDuration: validatedConfig.jwks.cooldownMilliseconds,
+    cacheMaxAge: validatedConfig.jwks.cacheMaxAgeMilliseconds,
+    [customFetch]: createLimitedFetch(validatedConfig.jwks.responseSizeLimitBytes),
+  })
   const allowedAlgorithms = new Set<string>(validatedConfig.algorithms)
+  let hasUsableCachedKey = false
 
   return {
+    getJwksStatus() {
+      return {
+        hasUsableCachedKey,
+        fresh: remoteJwks.fresh,
+        reloading: remoteJwks.reloading,
+        coolingDown: remoteJwks.coolingDown,
+      }
+    },
     async verify(token) {
       try {
         validateProtectedHeader(token, allowedAlgorithms)
@@ -29,7 +50,9 @@ export function createKeycloakJwtVerifier(config: KeycloakJwtVerifierConfig): Ke
           clockTolerance: validatedConfig.clockToleranceSeconds,
         })
 
-        return normalizeVerifiedToken(payload)
+        const verifiedToken = normalizeVerifiedToken(payload)
+        hasUsableCachedKey = true
+        return verifiedToken
       } catch (error) {
         if (error instanceof KeycloakJwtVerificationError) {
           throw error
@@ -111,6 +134,7 @@ function classifyJoseError(error: unknown): KeycloakJwtErrorCode {
   if (
     error instanceof errors.JWKSTimeout ||
     error instanceof errors.JWKSInvalid ||
+    error instanceof KeycloakJwtResponseLimitError ||
     (error instanceof errors.JOSEError && error.code === 'ERR_JOSE_GENERIC') ||
     error instanceof TypeError
   ) {
@@ -118,4 +142,53 @@ function classifyJoseError(error: unknown): KeycloakJwtErrorCode {
   }
 
   return 'TOKEN_INVALID'
+}
+
+function createLimitedFetch(responseSizeLimitBytes: number): FetchImplementation {
+  return async (url, options) => {
+    const response = await fetch(url, options)
+    const declaredLength = Number(response.headers.get('content-length') ?? Number.NaN)
+
+    if (Number.isFinite(declaredLength) && declaredLength > responseSizeLimitBytes) {
+      await response.body?.cancel()
+      throw new KeycloakJwtResponseLimitError()
+    }
+
+    if (response.body === null) {
+      return response
+    }
+
+    const reader = response.body.getReader()
+    const chunks: Uint8Array[] = []
+    let receivedBytes = 0
+
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done) {
+        break
+      }
+
+      receivedBytes += value.byteLength
+      if (receivedBytes > responseSizeLimitBytes) {
+        await reader.cancel()
+        throw new KeycloakJwtResponseLimitError()
+      }
+
+      chunks.push(value)
+    }
+
+    const body = new Uint8Array(receivedBytes)
+    let offset = 0
+    for (const chunk of chunks) {
+      body.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+  }
 }

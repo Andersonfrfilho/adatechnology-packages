@@ -19,3 +19,10 @@ export class KeycloakJwtConfigurationError extends Error {
     this.name = 'KeycloakJwtConfigurationError'
   }
 }
+
+export class KeycloakJwtResponseLimitError extends Error {
+  constructor() {
+    super('Remote JWKS response exceeded configured limit')
+    this.name = 'KeycloakJwtResponseLimitError'
+  }
+}

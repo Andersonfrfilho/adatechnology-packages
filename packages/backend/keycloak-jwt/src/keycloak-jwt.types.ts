@@ -27,6 +27,13 @@ export const KEYCLOAK_JWT_ALGORITHMS = [
 
 export type KeycloakJwtAlgorithm = (typeof KEYCLOAK_JWT_ALGORITHMS)[number]
 
+export type KeycloakJwtRemoteJwksConfig = {
+  readonly timeoutMilliseconds?: number
+  readonly cooldownMilliseconds?: number
+  readonly cacheMaxAgeMilliseconds?: number
+  readonly responseSizeLimitBytes?: number
+}
+
 export type KeycloakJwtVerifierConfig = {
   readonly issuer: string
   readonly audience: string | readonly string[]
@@ -34,6 +41,7 @@ export type KeycloakJwtVerifierConfig = {
   readonly algorithms: readonly KeycloakJwtAlgorithm[]
   readonly requiredClaims?: readonly string[]
   readonly clockToleranceSeconds?: number
+  readonly jwks?: KeycloakJwtRemoteJwksConfig
 }
 
 export type VerifiedAccessToken = {
@@ -44,6 +52,14 @@ export type VerifiedAccessToken = {
   readonly claims: Readonly<Record<string, unknown>>
 }
 
+export type KeycloakJwtRemoteJwksStatus = {
+  readonly hasUsableCachedKey: boolean
+  readonly fresh: boolean
+  readonly reloading: boolean
+  readonly coolingDown: boolean
+}
+
 export type KeycloakJwtVerifier = {
   readonly verify: (token: string) => Promise<VerifiedAccessToken>
+  readonly getJwksStatus: () => KeycloakJwtRemoteJwksStatus
 }
