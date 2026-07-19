@@ -22,7 +22,8 @@
   "scripts": {
     "build": "tsup",
     "check": "tsc --noEmit",
-    "test": "bun test test/secret-envelope.contract.test.ts",
+    "prepack": "bun run build",
+    "test": "bun test test/secret-envelope.contract.test.ts ./test/package.integration.ts",
     "format": "prettier --write package.json README.md src test tsconfig.json tsup.config.ts",
     "format:check": "prettier --check package.json README.md src test tsconfig.json tsup.config.ts"
   },
