@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/keycloak-jwt",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Strict Keycloak access-token verification for Bun applications",
   "type": "module",
   "main": "dist/index.js",
