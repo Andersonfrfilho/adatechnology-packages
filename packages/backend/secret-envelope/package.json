@@ -1,0 +1,46 @@
+{
+  "name": "@adatechnology/secret-envelope",
+  "version": "0.0.0",
+  "description": "Versioned authenticated secret envelopes for Bun applications",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit",
+    "test": "bun test test/secret-envelope.contract.test.ts",
+    "format": "prettier --write package.json README.md src test tsconfig.json tsup.config.ts",
+    "format:check": "prettier --check package.json README.md src test tsconfig.json tsup.config.ts"
+  },
+  "keywords": [
+    "aes-gcm",
+    "bun",
+    "cryptography",
+    "encryption",
+    "secrets"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}
