@@ -1,14 +1,15 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
-export const SECRET_ENVELOPE_ERROR_CODES = [
+export const SECRET_ENVELOPE_ERROR_CODES = Object.freeze([
   'INVALID_CONFIGURATION',
   'INVALID_INPUT',
   'INVALID_ENVELOPE',
   'UNKNOWN_KEY',
   'PLAINTEXT_TOO_LARGE',
+  'ENCRYPTION_FAILED',
   'DECRYPTION_FAILED',
-] as const
+] as const)
 
 export type SecretEnvelopeErrorCode = (typeof SECRET_ENVELOPE_ERROR_CODES)[number]
 

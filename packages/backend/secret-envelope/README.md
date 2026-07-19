@@ -7,6 +7,8 @@ Versioned authenticated secret envelopes for Bun applications.
 - AES-256-GCM through Web Crypto;
 - 32-byte keys and a 12-byte random nonce;
 - mandatory additional authenticated data;
+- authenticated framing uses the domain `adatechnology:secret-envelope` followed
+  by length-prefixed version, algorithm, key ID, and caller AAD fields;
 - canonical base64url envelope with an explicit version, algorithm, and key ID;
 - ciphertext stores the Web Crypto result as `ciphertext || 16-byte tag`;
 - plaintext is limited to 1 MiB and malformed/oversized envelopes fail closed;

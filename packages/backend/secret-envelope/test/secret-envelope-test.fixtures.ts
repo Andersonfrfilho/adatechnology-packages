@@ -34,6 +34,10 @@ export function toBase64Url(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString('base64url')
 }
 
+export function toBytes(value: string): Uint8Array {
+  return new Uint8Array(Buffer.from(value, 'base64url'))
+}
+
 export function alterBase64Url(value: string): string {
   const firstCharacter = value.at(0) === 'A' ? 'B' : 'A'
   return `${firstCharacter}${value.slice(1)}`

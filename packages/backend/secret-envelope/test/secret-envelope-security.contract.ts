@@ -82,4 +82,39 @@ describe('secret envelope security contract', () => {
       mock.restore()
     }
   })
+
+  test('normalizes hostile input accessors without leaking their errors', async () => {
+    const provider = createSecretEnvelopeProvider(createKeyRing())
+    const hostileProperty = (property: string, input: object = {}): object =>
+      Object.defineProperty(input, property, {
+        get: () => {
+          throw new Error(PLAINTEXT_SENTINEL)
+        },
+      })
+    const errors = await Promise.all([
+      captureFailure(() =>
+        provider.encrypt(
+          hostileProperty('plaintext', {
+            additionalAuthenticatedData: encode(AAD_SENTINEL),
+          }) as Parameters<typeof provider.encrypt>[0],
+        ),
+      ),
+      captureFailure(() =>
+        provider.encrypt(hostileProperty('additionalAuthenticatedData') as Parameters<typeof provider.encrypt>[0]),
+      ),
+      captureFailure(() =>
+        provider.decrypt(
+          hostileProperty('envelope', {
+            additionalAuthenticatedData: encode(AAD_SENTINEL),
+          }) as Parameters<typeof provider.decrypt>[0],
+        ),
+      ),
+    ])
+
+    for (const error of errors) {
+      expect(error).toBeInstanceOf(SecretEnvelopeError)
+      expect((error as SecretEnvelopeError).code).toBe('INVALID_INPUT')
+      expect(`${String(error)}${JSON.stringify(error)}`).not.toContain(PLAINTEXT_SENTINEL)
+    }
+  })
 })

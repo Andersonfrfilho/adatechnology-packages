@@ -118,6 +118,36 @@ describe('secret envelope integrity contract', () => {
     expect((error as SecretEnvelopeError).code).toBe('UNKNOWN_KEY')
   })
 
+  test('authenticates the key ID even when two IDs share the same key material', async () => {
+    const sharedKey = createKey(53)
+    const writer = createSecretEnvelopeProvider(
+      createKeyRing({
+        activeKeyId: 'key-retired',
+        keys: { 'key-retired': sharedKey },
+      }),
+    )
+    const additionalAuthenticatedData = encode(AAD_SENTINEL)
+    const envelope = await writer.encrypt({
+      plaintext: encode(PLAINTEXT_SENTINEL),
+      additionalAuthenticatedData,
+    })
+    const reader = createSecretEnvelopeProvider(
+      createKeyRing({
+        activeKeyId: 'key-active',
+        keys: { 'key-active': createKey(53) },
+      }),
+    )
+    const error = await captureFailure(() =>
+      reader.decrypt({
+        envelope: { ...envelope, keyId: 'key-active' },
+        additionalAuthenticatedData,
+      }),
+    )
+
+    expect(error).toBeInstanceOf(SecretEnvelopeError)
+    expect((error as SecretEnvelopeError).code).toBe('DECRYPTION_FAILED')
+  })
+
   test('reports decryption failure for the wrong key under the expected key ID', async () => {
     const writer = createSecretEnvelopeProvider(
       createKeyRing({

@@ -1,10 +1,17 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, mock, spyOn, test } from 'bun:test'
 
-import { createSecretEnvelopeProvider } from '../src'
-import { AAD_SENTINEL, createKey, createKeyRing, encode, PLAINTEXT_SENTINEL } from './secret-envelope-test.fixtures'
+import { createSecretEnvelopeProvider, SECRET_ENVELOPE_ERROR_CODES } from '../src'
+import {
+  AAD_SENTINEL,
+  createKey,
+  createKeyRing,
+  encode,
+  PLAINTEXT_SENTINEL,
+  toBytes,
+} from './secret-envelope-test.fixtures'
 
 describe('secret envelope core contract', () => {
   test('round-trips arbitrary binary plaintext with mandatory AAD', async () => {
@@ -21,6 +28,8 @@ describe('secret envelope core contract', () => {
       algorithm: 'A256GCM',
       keyId: 'key-v1',
     })
+    expect(toBytes(envelope.nonce)).toHaveLength(12)
+    expect(toBytes(envelope.ciphertext)).toHaveLength(plaintext.byteLength + 16)
   })
 
   test('uses a fresh 12-byte nonce for equal plaintext and AAD', async () => {
@@ -62,6 +71,26 @@ describe('secret envelope core contract', () => {
     ).resolves.toEqual(input.plaintext)
   })
 
+  test('imports AES-GCM key material as a non-extractable CryptoKey', async () => {
+    const importKeySpy = spyOn(crypto.subtle, 'importKey')
+
+    try {
+      const provider = createSecretEnvelopeProvider(createKeyRing())
+      await provider.encrypt({
+        plaintext: encode(PLAINTEXT_SENTINEL),
+        additionalAuthenticatedData: encode(AAD_SENTINEL),
+      })
+
+      expect(importKeySpy).toHaveBeenCalledTimes(1)
+      expect(importKeySpy.mock.calls[0]?.[0]).toBe('raw')
+      expect(importKeySpy.mock.calls[0]?.[2]).toEqual({ name: 'AES-GCM' })
+      expect(importKeySpy.mock.calls[0]?.[3]).toBe(false)
+      expect(importKeySpy.mock.calls[0]?.[4]).toEqual(['encrypt', 'decrypt'])
+    } finally {
+      mock.restore()
+    }
+  })
+
   test('returns immutable provider and envelope objects without exposed key bytes', async () => {
     const provider = createSecretEnvelopeProvider(createKeyRing())
     const envelope = await provider.encrypt({
@@ -73,5 +102,9 @@ describe('secret envelope core contract', () => {
     expect(Object.isFrozen(envelope)).toBe(true)
     expect(Reflect.ownKeys(provider).sort()).toEqual(['decrypt', 'encrypt'])
     expect(JSON.stringify(envelope)).not.toContain(PLAINTEXT_SENTINEL)
+  })
+
+  test('keeps the public error-code registry immutable at runtime', () => {
+    expect(Object.isFrozen(SECRET_ENVELOPE_ERROR_CODES)).toBe(true)
   })
 })
