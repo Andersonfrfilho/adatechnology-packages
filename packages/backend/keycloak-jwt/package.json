@@ -23,8 +23,8 @@
     "build": "tsup",
     "check": "tsc --noEmit",
     "test": "bun test",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format": "prettier --write package.json src test tsconfig.json tsup.config.ts",
+    "format:check": "prettier --check package.json src test tsconfig.json tsup.config.ts"
   },
   "keywords": [
     "bun",
@@ -41,5 +41,8 @@
   "devDependencies": {
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "jose": "6.2.3"
   }
 }

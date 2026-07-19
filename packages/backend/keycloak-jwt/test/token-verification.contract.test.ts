@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
 import {
   createKeycloakJwtVerifier,
   KeycloakJwtConfigurationError,
@@ -35,6 +35,7 @@ type JwtPayload = {
 let privateKey: CryptoKey
 let jwksServer: ReturnType<typeof Bun.serve>
 let verifier: KeycloakJwtVerifier
+let jwksResponseMode: 'valid' | 'unavailable' | 'invalid-json' = 'valid'
 
 beforeAll(async () => {
   const keyPair = await crypto.subtle.generateKey(
@@ -61,6 +62,16 @@ beforeAll(async () => {
         return new Response(null, { status: 404 })
       }
 
+      if (jwksResponseMode === 'unavailable') {
+        return new Response(null, { status: 503 })
+      }
+
+      if (jwksResponseMode === 'invalid-json') {
+        return new Response('{', {
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+
       return Response.json(jwks)
     },
   })
@@ -73,6 +84,10 @@ beforeAll(async () => {
     requiredClaims: ['company_id'],
     clockToleranceSeconds: 0,
   })
+})
+
+beforeEach(() => {
+  jwksResponseMode = 'valid'
 })
 
 afterAll(() => {
@@ -234,6 +249,18 @@ describe('Keycloak access-token verification contract', () => {
     await expectVerificationError('not-a-jwt.sensitive-company-claim', 'TOKEN_INVALID')
   })
 
+  test('classifies an unavailable JWKS endpoint separately from an invalid token', async () => {
+    jwksResponseMode = 'unavailable'
+
+    await expectVerificationErrorWith(createIsolatedVerifier(), await signToken(), 'JWKS_UNAVAILABLE')
+  })
+
+  test('classifies an invalid JWKS response separately from an invalid token', async () => {
+    jwksResponseMode = 'invalid-json'
+
+    await expectVerificationErrorWith(createIsolatedVerifier(), await signToken(), 'JWKS_UNAVAILABLE')
+  })
+
   test('rejects an empty or unsafe algorithm allowlist as configuration', () => {
     const validConfig = {
       issuer: ISSUER,
@@ -257,6 +284,26 @@ describe('Keycloak access-token verification contract', () => {
         audience: AUDIENCE,
         jwksUri: 'http://identity.test/jwks',
         algorithms: ['RS256'],
+      }),
+    ).toThrow(KeycloakJwtConfigurationError)
+  })
+
+  test('returns the typed configuration error for invalid JavaScript input', () => {
+    expect(() => createKeycloakJwtVerifier(null as never)).toThrow(KeycloakJwtConfigurationError)
+    expect(() =>
+      createKeycloakJwtVerifier({
+        issuer: ISSUER,
+        audience: null as never,
+        jwksUri: new URL('/jwks', jwksServer.url),
+        algorithms: ['RS256'],
+      }),
+    ).toThrow(KeycloakJwtConfigurationError)
+    expect(() =>
+      createKeycloakJwtVerifier({
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        jwksUri: new URL('/jwks', jwksServer.url),
+        algorithms: null as never,
       }),
     ).toThrow(KeycloakJwtConfigurationError)
   })
@@ -292,6 +339,17 @@ async function signToken(
 
 function encodeJson(value: unknown): string {
   return Buffer.from(JSON.stringify(value)).toString('base64url')
+}
+
+function createIsolatedVerifier(): KeycloakJwtVerifier {
+  return createKeycloakJwtVerifier({
+    issuer: ISSUER,
+    audience: AUDIENCE,
+    jwksUri: new URL('/jwks', jwksServer.url),
+    algorithms: ['RS256'],
+    requiredClaims: ['company_id'],
+    clockToleranceSeconds: 0,
+  })
 }
 
 async function expectVerificationError(token: string, code: KeycloakJwtErrorCode): Promise<void> {
