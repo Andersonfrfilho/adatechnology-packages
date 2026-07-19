@@ -74,7 +74,9 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Ensure Keycloak JWT is public
-        run: npm access set status=public @adatechnology/keycloak-jwt
+      - name: Ensure Bun packages are public
+        run: |
+          npm access set status=public @adatechnology/keycloak-jwt
+          npm access set status=public @adatechnology/secret-envelope
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
