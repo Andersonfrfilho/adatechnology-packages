@@ -74,7 +74,7 @@ export function startSyntheticS3Server(bucket: string): SyntheticS3Server {
       if (request.method === 'GET' && url.pathname === '/') {
         return createListBucketsResponse(bucket)
       }
-      if (request.method === 'HEAD' && url.pathname === `/${bucket}`) {
+      if (request.method === 'HEAD' && (url.pathname === `/${bucket}` || url.pathname === `/${bucket}/`)) {
         return new Response(null, { status: 200 })
       }
 

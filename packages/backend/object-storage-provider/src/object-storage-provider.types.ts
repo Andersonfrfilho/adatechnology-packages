@@ -7,6 +7,8 @@ export type ObjectStorageProviderConfig = {
   readonly accessKeyId: string
   readonly secretAccessKey: string
   readonly forcePathStyle: boolean
+  readonly healthCheckBucket: string
+  readonly maxObjectSizeBytes: number
 }
 
 export type ObjectBody = Uint8Array | ReadableStream<Uint8Array>

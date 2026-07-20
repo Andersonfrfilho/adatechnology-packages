@@ -38,6 +38,8 @@ function createProvider(): ObjectStorageProvider {
     accessKeyId: 'synthetic-access-key',
     secretAccessKey: SYNTHETIC_SECRET_ACCESS_KEY,
     forcePathStyle: true,
+    healthCheckBucket: BUCKET,
+    maxObjectSizeBytes: 1024,
   })
 }
 
@@ -123,12 +125,26 @@ describe('ObjectStorageProvider public contract', () => {
     await expect(provider.put({ ...createPutInput(), sha256: calculateSha256(DIFFERENT_BYTES) })).rejects.toMatchObject(
       { code: OBJECT_STORAGE_ERROR_CODES.sha256Mismatch },
     )
-    await expect(provider.put({ ...createPutInput(new Blob([DIFFERENT_BYTES]).stream()) })).rejects.toMatchObject({
+    const longerStream = new Blob([DIFFERENT_BYTES, Uint8Array.of(0)]).stream()
+    await expect(provider.put({ ...createPutInput(longerStream) })).rejects.toMatchObject({
       code: OBJECT_STORAGE_ERROR_CODES.contentLengthMismatch,
     })
     await expect(
       provider.put({ ...createPutInput(), contentType: 'application/xml\r\nx-unsafe: value' }),
     ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.invalidContentType })
+    await expect(provider.put({ ...createPutInput(), contentLength: 1025 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.objectTooLarge,
+    })
+  })
+
+  test('copies mutable byte input before yielding to the storage client', async () => {
+    const provider = createProvider()
+    const mutableBytes = new Uint8Array(ORIGINAL_BYTES)
+    const pendingPut = provider.put(createPutInput(mutableBytes))
+    mutableBytes.fill(0)
+
+    await pendingPut
+    expect(await readBytes(await provider.get({ bucket: BUCKET, key: KEY }))).toEqual(ORIGINAL_BYTES)
   })
 
   test('rejects invalid buckets, absolute keys, backslashes, and traversal segments', async () => {
@@ -171,6 +187,25 @@ describe('ObjectStorageProvider public contract', () => {
       expect((error as ObjectStorageError).code).toBe(OBJECT_STORAGE_ERROR_CODES.unavailable)
       expect((error as Error).message).not.toContain(SYNTHETIC_SECRET_ACCESS_KEY)
       expect((error as Error).message).not.toContain(getSyntheticS3Server().endpoint.toString())
+      expect((error as Error).message).not.toContain(BUCKET)
+      expect((error as Error).message).not.toContain(KEY)
+    }
+  })
+
+  test('redacts failures raised while consuming an upload stream', async () => {
+    const provider = createProvider()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new Error(`${SYNTHETIC_SECRET_ACCESS_KEY}:${BUCKET}:${KEY}`))
+      },
+    })
+
+    try {
+      await provider.put(createPutInput(body))
+      throw new Error('Expected stream consumption to fail')
+    } catch (error) {
+      expect(error).toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.unavailable })
+      expect((error as Error).message).not.toContain(SYNTHETIC_SECRET_ACCESS_KEY)
       expect((error as Error).message).not.toContain(BUCKET)
       expect((error as Error).message).not.toContain(KEY)
     }
