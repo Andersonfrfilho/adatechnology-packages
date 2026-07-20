@@ -22,6 +22,7 @@
   "scripts": {
     "build": "tsup",
     "check": "tsc --noEmit",
+    "prepack": "bun run build",
     "test": "bun test test/object-storage.contract.test.ts",
     "test:integration": "bun test --preload ./test/require-test-object-storage.ts ./test/object-storage.minio.integration.ts",
     "format": "prettier --write package.json src test tsconfig.json tsup.config.ts",
