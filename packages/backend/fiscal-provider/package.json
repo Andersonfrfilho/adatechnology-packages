@@ -38,11 +38,13 @@
   "scripts": {
     "prebuild": "rm -rf dist",
     "build": "tsup && tsc -p tsconfig.json --emitDeclarationOnly",
+    "prepack": "bun run build",
     "build:watch": "tsup --watch",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "bun run test:local && bun run test:contract",
     "test:local": "bun run scripts/test-fiscal.ts",
     "test:contract": "bun test test/contract",
+    "test:package": "bun test ./test/package.integration.ts",
     "test:sat": "bun run scripts/test-fiscal.ts --sat",
     "test:nfce": "bun run scripts/test-fiscal.ts --nfce",
     "test:nfe": "bun run scripts/test-fiscal.ts --nfe",
