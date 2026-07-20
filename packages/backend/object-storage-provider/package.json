@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/object-storage-provider",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Immutable S3-compatible object storage provider for Bun applications",
   "type": "module",
   "main": "dist/index.js",

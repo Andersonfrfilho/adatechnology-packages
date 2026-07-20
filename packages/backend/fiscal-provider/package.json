@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/fiscal-provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Emissão de documentos fiscais brasileiros direto na SEFAZ, sem intermediários: NFC-e (65), NF-e (55), NFS-e (ABRASF), CT-e (57) e SAT. Assinatura A1, IBS/CBS da Reforma Tributária (NT 2025.002), QR Code, DANFE/DANFCE em PDF, cancelamento e verificação — TypeScript, Node/Bun.",
   "keywords": [
     "nfce",
