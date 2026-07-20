@@ -218,6 +218,16 @@ describe('@adatechnology/fiscal-provider public NF-e XML import contract', () =>
     )
   })
 
+  test('rejects a procEvento whose response identity differs from its request', () => {
+    for (const xml of [
+      buildNfeEventXml({ returnAccessKey: SECOND_NFE_ACCESS_KEY }),
+      buildNfeEventXml({ returnType: '110110' }),
+      buildNfeEventXml({ returnSequence: '2' }),
+    ]) {
+      expectImportError(xml, 'NFE_XML_EVENT_MISMATCH')
+    }
+  })
+
   test('rejects XML above the public import limit before parsing', () => {
     const oversizedXml = `${buildBareNfeXml()}${' '.repeat(MAX_XML_BYTES)}`
 

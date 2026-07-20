@@ -17,6 +17,12 @@ type BuildAuthorizedNfeXmlParams = BuildNfeXmlParams & {
   readonly protocolAccessKey?: string
 }
 
+type BuildNfeEventXmlParams = {
+  readonly returnAccessKey?: string
+  readonly returnSequence?: string
+  readonly returnType?: string
+}
+
 export function buildAuthorizedNfeXml(params: BuildAuthorizedNfeXmlParams = {}): string {
   const accessKey = params.accessKey ?? NFE_ACCESS_KEY
   const protocolAccessKey = params.protocolAccessKey ?? accessKey
@@ -43,7 +49,11 @@ export function buildBareNfeXml(params: BuildNfeXmlParams = {}): string {
   ].join('')
 }
 
-export function buildNfeEventXml(): string {
+export function buildNfeEventXml(params: BuildNfeEventXmlParams = {}): string {
+  const returnAccessKey = params.returnAccessKey ?? NFE_ACCESS_KEY
+  const returnSequence = params.returnSequence ?? '1'
+  const returnType = params.returnType ?? '110111'
+
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">',
@@ -62,8 +72,8 @@ export function buildNfeEventXml(): string {
     '<retEvento versao="1.00"><infEvento>',
     '<tpAmb>2</tpAmb><verAplic>TEST-1.0</verAplic><cOrgao>35</cOrgao>',
     '<cStat>135</cStat><xMotivo>Evento registrado e vinculado a NF-e</xMotivo>',
-    `<chNFe>${NFE_ACCESS_KEY}</chNFe><tpEvento>110111</tpEvento>`,
-    '<xEvento>Cancelamento registrado</xEvento><nSeqEvento>1</nSeqEvento>',
+    `<chNFe>${returnAccessKey}</chNFe><tpEvento>${returnType}</tpEvento>`,
+    `<xEvento>Cancelamento registrado</xEvento><nSeqEvento>${returnSequence}</nSeqEvento>`,
     '<dhRegEvento>2026-07-20T13:00:01-03:00</dhRegEvento>',
     '<nProt>135260000000002</nProt>',
     '</infEvento></retEvento>',

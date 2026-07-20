@@ -523,6 +523,124 @@ export type DfeItem = {
   readonly dataEvento?: string
 }
 
+export type NfeXmlAddress = {
+  readonly street?: string
+  readonly number?: string
+  readonly complement?: string
+  readonly district?: string
+  readonly cityCode?: string
+  readonly city?: string
+  readonly state?: string
+  readonly postalCode?: string
+  readonly countryCode?: string
+  readonly country?: string
+  readonly phone?: string
+}
+
+export type NfeXmlParty = {
+  readonly taxId?: string
+  readonly name?: string
+  readonly tradeName?: string
+  readonly stateRegistration?: string
+  readonly address?: NfeXmlAddress
+}
+
+export type NfeXmlProduct = {
+  readonly lineNumber: string
+  readonly code: string
+  readonly description: string
+  readonly ncm: string
+  readonly cfop: string
+  readonly commercialUnit: string
+  readonly commercialQuantity: string
+  readonly unitValue: string
+  readonly totalValue: string
+}
+
+export type NfeXmlVolume = {
+  readonly quantity?: string
+  readonly species?: string
+  readonly brand?: string
+  readonly numbering?: string
+  readonly netWeight?: string
+  readonly grossWeight?: string
+}
+
+export type NfeXmlTotals = {
+  readonly invoice: string
+  readonly products: string
+  readonly freight?: string
+  readonly insurance?: string
+  readonly discount?: string
+  readonly otherExpenses?: string
+}
+
+export type NfeXmlProtocol = {
+  readonly number: string
+  readonly authorizedAt: string
+  readonly statusCode: string
+  readonly reason: string
+}
+
+export type NfeXmlDocument = {
+  readonly accessKey: string
+  readonly model: '55'
+  readonly number: string
+  readonly series: string
+  readonly issuedAt: string
+  readonly operationNature: string
+  readonly operationType: string
+  readonly status: 'authorized' | 'unsigned'
+  readonly totals: NfeXmlTotals
+  readonly issuer: NfeXmlParty
+  readonly recipient?: NfeXmlParty
+  readonly carrier?: NfeXmlParty
+  readonly pickup?: NfeXmlParty
+  readonly delivery?: NfeXmlParty
+  readonly products: readonly NfeXmlProduct[]
+  readonly volumes: readonly NfeXmlVolume[]
+  readonly protocol?: NfeXmlProtocol
+  readonly additionalInformation?: string
+  readonly relatedCnpjs: readonly string[]
+}
+
+export type NfeXmlEvent = {
+  readonly accessKey: string
+  readonly type: string
+  readonly sequence: string
+  readonly occurredAt: string
+  readonly description?: string
+  readonly protocol?: string
+  readonly statusCode?: string
+  readonly reason?: string
+}
+
+export type ImportedAuthorizedNfeXml = DfeItem & {
+  readonly kind: 'authorized-nfe'
+  readonly document: NfeXmlDocument & {
+    readonly status: 'authorized'
+    readonly protocol: NfeXmlProtocol
+  }
+  readonly event?: never
+}
+
+export type ImportedUnsignedNfeXml = DfeItem & {
+  readonly kind: 'unsigned-nfe'
+  readonly document: NfeXmlDocument & {
+    readonly status: 'unsigned'
+    readonly protocol?: never
+  }
+  readonly event?: never
+}
+
+export type ImportedNfeEventXml = DfeItem & {
+  readonly kind: 'nfe-event'
+  readonly document?: never
+  readonly event: NfeXmlEvent
+}
+
+export type ImportedNfeXml = ImportedAuthorizedNfeXml | ImportedUnsignedNfeXml | ImportedNfeEventXml
+
 /**
  * Filtros opcionais aplicados client-side após o retorno do SEFAZ.
  * O SEFAZ não suporta filtragem server-side — todos os filtros são aplicados sobre o resultado.

@@ -9,9 +9,13 @@ import type {
   ConsultarDFeParams,
   ConsultarPorNsuParams,
   ConsultarPorChaveParams,
+  ImportedNfeXml,
 } from '../types'
 import { loadCertificate } from '../sefaz/SefazXmlSigner'
 import { NFE_DISTRIBUICAO_ENDPOINT, UF_IBGE_CODES_CTE } from '../sefaz/CteConstants'
+import { importarNfeXml } from './NfeXmlImporter.service'
+
+export { importarNfeXml } from './NfeXmlImporter.service'
 
 const REQUEST_TIMEOUT_MS = 30_000
 
@@ -21,6 +25,22 @@ const XML_PARSER = new XMLParser({
   attributeNamePrefix: '',
   parseTagValue: false,
 })
+
+function resolveDescricaoEvento(tipoEvento: string | undefined): string | undefined {
+  if (!tipoEvento) return undefined
+  const descricoes: Readonly<Record<string, string>> = {
+    '110111': 'Cancelamento',
+    '110110': 'Carta de Correção',
+    '110140': 'EPEC',
+    '110120': 'Ficou sem Efeito',
+    '110130': 'Autorização do Fisco',
+    '210200': 'Ciência da Operação',
+    '210210': 'Confirmação da Operação',
+    '210220': 'Desconhecimento da Operação',
+    '210240': 'Operação não Realizada',
+  }
+  return descricoes[tipoEvento]
+}
 
 // ─── CNPJ Info (BrasilAPI — sem autenticação) ─────────────────────────────────
 
@@ -184,100 +204,6 @@ export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
   return mapBrasilApiCnpj(cnpjClean, data)
 }
 
-// ─── XML Import ───────────────────────────────────────────────────────────────
-
-/**
- * Importa uma NF-e a partir de um XML recebido externamente (e-mail, portal, etc).
- * Suporta os formatos: nfeProc (autorizada), NFe (sem protocolo), procEventoNFe (evento).
- * Retorna um DfeItem com schema='xml-import' e nsu=''.
- */
-export function importarNfeXml(xml: string): DfeItem {
-  const parsed = XML_PARSER.parse(xml)
-
-  // nfeProc ou procNFe — XML completo com protocolo de autorização
-  const nfeProc = parsed?.nfeProc ?? parsed?.procNFe
-  if (nfeProc) {
-    const infNFe = nfeProc?.NFe?.infNFe ?? nfeProc?.infNFe
-    const chaveNfe = String(infNFe?.Id ?? '').replace(/^NFe/, '')
-    return {
-      nsu: '',
-      schema: 'xml-import',
-      xmlComprimido: '',
-      xmlDecoded: xml,
-      chaveNfe: chaveNfe || undefined,
-      mod: String(infNFe?.ide?.mod ?? '55'),
-      emitenteCnpj: String(infNFe?.emit?.CNPJ ?? infNFe?.emit?.CPF ?? '') || undefined,
-      emitenteNome: String(infNFe?.emit?.xNome ?? '') || undefined,
-      valorTotal: infNFe?.total?.ICMSTot?.vNF !== undefined ? Number(infNFe.total.ICMSTot.vNF) : undefined,
-      dataEmissao: String(infNFe?.ide?.dhEmi ?? infNFe?.ide?.dEmi ?? '') || undefined,
-      situacao: '1',
-    }
-  }
-
-  // NFe sem protocolo (rascunho ou contingência)
-  const bareNfe = parsed?.NFe
-  if (bareNfe) {
-    const infNFe = bareNfe?.infNFe
-    const chaveNfe = String(infNFe?.Id ?? '').replace(/^NFe/, '')
-    return {
-      nsu: '',
-      schema: 'xml-import',
-      xmlComprimido: '',
-      xmlDecoded: xml,
-      chaveNfe: chaveNfe || undefined,
-      mod: String(infNFe?.ide?.mod ?? '55'),
-      emitenteCnpj: String(infNFe?.emit?.CNPJ ?? infNFe?.emit?.CPF ?? '') || undefined,
-      emitenteNome: String(infNFe?.emit?.xNome ?? '') || undefined,
-      valorTotal: infNFe?.total?.ICMSTot?.vNF !== undefined ? Number(infNFe.total.ICMSTot.vNF) : undefined,
-      dataEmissao: String(infNFe?.ide?.dhEmi ?? infNFe?.ide?.dEmi ?? '') || undefined,
-      situacao: undefined,
-    }
-  }
-
-  // procEventoNFe — XML de evento (cancelamento, carta de correção, etc.)
-  const procEvento = parsed?.procEventoNFe ?? parsed?.retEnvEvento
-  if (procEvento) {
-    const infEvento = procEvento?.evento?.infEvento ?? procEvento?.infEvento
-    const retInfEvento = procEvento?.retEvento?.infEvento ?? procEvento?.retInfEvento
-    const chaveNfe = String(infEvento?.chNFe ?? retInfEvento?.chNFe ?? '') || undefined
-    const tipoEvento = String(infEvento?.tpEvento ?? retInfEvento?.tpEvento ?? '') || undefined
-    return {
-      nsu: '',
-      schema: 'xml-import',
-      xmlComprimido: '',
-      xmlDecoded: xml,
-      chaveNfe,
-      mod: '55',
-      emitenteCnpj: undefined,
-      emitenteNome: undefined,
-      valorTotal: undefined,
-      dataEmissao: String(infEvento?.dhEvento ?? '') || undefined,
-      situacao: undefined,
-      tipoEvento,
-      descricaoEvento: resolveDescricaoEvento(tipoEvento),
-      dataEvento: String(infEvento?.dhEvento ?? retInfEvento?.dhEvento ?? '') || undefined,
-    }
-  }
-
-  throw new Error('XML não reconhecido — esperado: nfeProc, NFe, ou procEventoNFe')
-}
-
-function resolveDescricaoEvento(tipoEvento: string | undefined): string | undefined {
-  if (!tipoEvento) return undefined
-  const descricoes: Record<string, string> = {
-    '110111': 'Cancelamento',
-    '110110': 'Carta de Correção',
-    '110140': 'EPEC',
-    '110120': 'Ficou sem Efeito',
-    '110130': 'Autorização do Fisco',
-    '210200': 'Ciência da Operação',
-    '210210': 'Confirmação da Operação',
-    '210220': 'Desconhecimento da Operação',
-    '210240': 'Operação não Realizada',
-  }
-  return descricoes[tipoEvento]
-}
-
 // ─── NF-e Distribuição DFe ────────────────────────────────────────────────────
 
 // chave: `${cnpj}:${environment}` → timestamp até quando o cooldown expira
@@ -375,7 +301,7 @@ export class NfeDistribuicaoProvider {
    * Importa uma NF-e a partir de XML recebido externamente.
    * Delega para a função standalone `importarNfeXml`.
    */
-  importarXml(xml: string): DfeItem {
+  importarXml(xml: string): ImportedNfeXml {
     return importarNfeXml(xml)
   }
 

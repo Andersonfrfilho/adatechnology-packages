@@ -44,6 +44,18 @@ export type {
   NfeDistribuicaoConfig,
   NfeDistribuicaoResult,
   DfeItem,
+  ImportedAuthorizedNfeXml,
+  ImportedUnsignedNfeXml,
+  ImportedNfeEventXml,
+  ImportedNfeXml,
+  NfeXmlAddress,
+  NfeXmlParty,
+  NfeXmlProduct,
+  NfeXmlVolume,
+  NfeXmlTotals,
+  NfeXmlProtocol,
+  NfeXmlDocument,
+  NfeXmlEvent,
   FiltrosDfe,
   ConsultarDFeParams,
   ConsultarPorNsuParams,
@@ -82,3 +94,4 @@ export type { CnpjInfo } from './providers/NfeDistribuicaoProvider'
 export { createFiscalProvider } from './FiscalProviderFactory'
 
 export { FiscalError, FiscalConnectionError, FiscalRejectionError, FiscalTimeoutError } from './errors/FiscalError'
+export { NFE_XML_IMPORT_ERROR_CODE, NfeXmlImportError, type NfeXmlImportErrorCode } from './errors/NfeXmlImport.error'
