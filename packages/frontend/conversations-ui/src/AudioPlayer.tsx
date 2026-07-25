@@ -1,157 +1,103 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { Pause, Play } from 'lucide-react'
 
 export interface AudioPlayerProps {
-  audioUrl: string
-  duration?: number
-  direction?: 'inbound' | 'outbound'
+  src: string
+  isMine?: boolean
 }
 
-function hashString(str: string): number {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i)
-    hash |= 0
-  }
-  return Math.abs(hash)
+// Waveform estático com 30 barras de altura pseudoaleatória mas estável — paridade com
+// financiamento-imobiliario-bot/apps/web/src/components/AudioPlayer.tsx. Waveform real
+// (a partir do áudio decodificado), velocidade de reprodução, gravador e transcrição (STT)
+// ficam como enhancement pós-paridade (fora do escopo desta task).
+const BARS = Array.from({ length: 30 }, (_, i) => {
+  const heights = [3, 5, 8, 12, 7, 10, 14, 9, 6, 11, 15, 8, 4, 13, 7, 10, 6, 12, 9, 5, 14, 8, 11, 6, 13, 7, 10, 5, 9, 4]
+  return heights[i % heights.length]
+})
+
+function fmt(sec: number): string {
+  if (!isFinite(sec)) return '0:00'
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function seededRandom(seed: number): () => number {
-  let s = seed
-  return () => {
-    s = (s * 1664525 + 1013904223) % 4294967296
-    return s / 4294967296
-  }
-}
-
-function generateWaveform(seed: number, count: number): number[] {
-  const rng = seededRandom(seed)
-  const bars: number[] = []
-  for (let i = 0; i < count; i++) {
-    bars.push(0.2 + rng() * 0.8)
-  }
-  return bars
-}
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-export const AudioPlayer = ({ audioUrl, duration, direction = 'outbound' }: AudioPlayerProps) => {
-  const [playing, setPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [audioDuration, setAudioDuration] = useState(duration ?? 0)
+export function AudioPlayer({ src, isMine = false }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0) // 0-1
+  const [duration, setDuration] = useState(0)
+  const [current, setCurrent] = useState(0)
 
-  const isSent = direction === 'outbound'
-  const filledColor = isSent ? '#4ade80' : '#9ca3af'
-  const emptyColor = isSent ? '#bbf7d0' : '#e5e7eb'
-
-  const waveform = useMemo(() => {
-    const seed = hashString(audioUrl)
-    return generateWaveform(seed, 30)
-  }, [audioUrl])
-
-  const togglePlay = useCallback(() => {
+  useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-
-    if (playing) {
-      audio.pause()
-    } else {
-      audio.play().catch(() => undefined)
+    const onTime = () => {
+      setCurrent(audio.currentTime)
+      setProgress(audio.duration ? audio.currentTime / audio.duration : 0)
     }
-    setPlaying(!playing)
-  }, [playing])
+    const onMeta = () => setDuration(audio.duration)
+    const onEnd = () => { setPlaying(false); setProgress(0); setCurrent(0) }
+    audio.addEventListener('timeupdate', onTime)
+    audio.addEventListener('loadedmetadata', onMeta)
+    audio.addEventListener('ended', onEnd)
+    return () => {
+      audio.removeEventListener('timeupdate', onTime)
+      audio.removeEventListener('loadedmetadata', onMeta)
+      audio.removeEventListener('ended', onEnd)
+    }
+  }, [])
 
-  const handleTimeUpdate = useCallback(() => {
+  const toggle = () => {
     const audio = audioRef.current
     if (!audio) return
-    setCurrentTime(audio.currentTime)
-  }, [])
+    if (playing) { audio.pause(); setPlaying(false) }
+    else { audio.play(); setPlaying(true) }
+  }
 
-  const handleLoadedMetadata = useCallback(() => {
+  const seek = (e: MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current
-    if (!audio || duration !== undefined) return
-    setAudioDuration(audio.duration)
-  }, [duration])
+    if (!audio || !audio.duration) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const ratio = (e.clientX - rect.left) / rect.width
+    audio.currentTime = ratio * audio.duration
+  }
 
-  const handleEnded = useCallback(() => {
-    setPlaying(false)
-    setCurrentTime(0)
-  }, [])
+  const activeBars = Math.round(progress * BARS.length)
 
-  const handleSeekBar = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current
-    if (!audio || audioDuration <= 0) return
+  const playBtn = isMine
+    ? 'bg-green-600 hover:bg-green-700 text-white'
+    : 'bg-gray-600 hover:bg-gray-700 text-white'
 
-    const rect = event.currentTarget.getBoundingClientRect()
-    const x = event.clientX - rect.left
-    const ratio = Math.max(0, Math.min(1, x / rect.width))
-    const time = ratio * audioDuration
-    audio.currentTime = time
-    setCurrentTime(time)
-  }, [audioDuration])
-
-  const progress = audioDuration > 0 ? currentTime / audioDuration : 0
-  const displayDuration = duration ?? audioDuration
+  const activeBar = isMine ? 'bg-green-700' : 'bg-gray-700'
+  const inactiveBar = isMine ? 'bg-green-300' : 'bg-gray-300'
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 w-full" style={{ minWidth: '200px', maxWidth: '260px' }}>
+      <audio ref={audioRef} src={src} preload="metadata" />
+
       <button
-        onClick={togglePlay}
-        className={`w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0 transition-colors ${
-          isSent ? 'text-green-600 hover:bg-green-50' : 'text-gray-600 hover:bg-gray-100'
-        }`}
-        aria-label={playing ? 'Pause' : 'Play'}
+        onClick={toggle}
+        className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${playBtn}`}
       >
-        {playing ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="6" y="4" width="4" height="16" rx="1" />
-            <rect x="14" y="4" width="4" height="16" rx="1" />
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="7,4 19,12 7,20" />
-          </svg>
-        )}
+        {playing ? <Pause size={16} /> : <Play size={16} className="translate-x-0.5" />}
       </button>
 
-      <div
-        className="flex-1 flex items-center gap-[1.5px] h-10 cursor-pointer py-1"
-        onClick={handleSeekBar}
-      >
-        {waveform.map((height, index) => {
-          const barProgress = index / waveform.length
-          const isFilled = barProgress <= progress
-          return (
+      <div className="flex-1 flex flex-col gap-1">
+        <div className="flex items-end gap-0.5 h-8 cursor-pointer" onClick={seek}>
+          {BARS.map((h, i) => (
             <div
-              key={index}
-              className="flex-1 rounded-full transition-colors duration-150"
-              style={{
-                height: `${height * 100}%`,
-                backgroundColor: isFilled ? filledColor : emptyColor,
-                minWidth: 2,
-              }}
+              key={i}
+              className={`flex-1 rounded-full transition-colors ${i < activeBars ? activeBar : inactiveBar}`}
+              style={{ height: `${h * 2}px` }}
             />
-          )
-        })}
+          ))}
+        </div>
+
+        <span className="text-gray-400 tabular-nums text-xs">
+          {playing || current > 0 ? fmt(current) : fmt(duration)}
+        </span>
       </div>
-
-      <span className="text-[11px] text-gray-500 flex-shrink-0 min-w-[48px] text-right select-none">
-        {formatTime(currentTime)}
-        {displayDuration > 0 && ` / ${formatTime(displayDuration)}`}
-      </span>
-
-      <audio
-        ref={audioRef}
-        src={audioUrl}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleEnded}
-        preload="metadata"
-      />
     </div>
   )
 }

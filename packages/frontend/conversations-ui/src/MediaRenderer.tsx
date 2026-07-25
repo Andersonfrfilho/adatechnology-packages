@@ -51,7 +51,7 @@ export function MediaRenderer({ message, onLightbox }: MediaRendererProps) {
       const src = resolveMediaSource(message)
       return (
         <div className="min-w-[200px]">
-          {src ? <AudioPlayer audioUrl={src} direction={message.direction} /> : (
+          {src ? <AudioPlayer src={src} isMine={message.direction === 'outbound'} /> : (
             <div className="h-12 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">Audio unavailable</div>
           )}
         </div>
