@@ -4,6 +4,8 @@ export { ConversationLocalesProvider, useConversationLocales } from './Conversat
 export { AudioPlayer } from './AudioPlayer'
 export { EmojiPicker } from './EmojiPicker'
 export { MessageComposer } from './MessageComposer'
+export { WhatsAppMessageEditor } from './WhatsAppMessageEditor'
+export { SimpleEmojiPicker } from './SimpleEmojiPicker'
 export { DateDivider } from './DateDivider'
 export { Avatar } from './Avatar'
 export { ConversationListItem } from './ConversationListItem'
@@ -21,7 +23,7 @@ export { useWaitingNotifications } from './useWaitingNotifications'
 
 export { ConversationsProvider, useConversations } from './providers/ConversationsProvider'
 
-export { parseWhatsAppFormatting, waToHTML, htmlToWA } from './lib/whatsapp-formatting'
+export { parseWhatsAppFormatting, waToHTML, htmlToWA, waToHTMLInline } from './lib/whatsapp-formatting'
 export { formatPhone, phoneInitials } from './lib/phone'
 export { formatTimestamp } from './lib/format'
 
@@ -34,6 +36,8 @@ export type { ConversationLocales, ConversationLocalesProviderProps } from './Co
 export type { AudioPlayerProps } from './AudioPlayer'
 export type { EmojiPickerProps } from './EmojiPicker'
 export type { MessageComposerProps } from './MessageComposer'
+export type { WhatsAppMessageEditorProps } from './WhatsAppMessageEditor'
+export type { SimpleEmojiPickerProps } from './SimpleEmojiPicker'
 export type { DateDividerProps } from './DateDivider'
 export type { AvatarProps } from './Avatar'
 export type { ConversationListItemProps } from './ConversationListItem'
