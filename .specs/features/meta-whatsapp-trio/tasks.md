@@ -101,24 +101,31 @@ Feita **agora**, mesmo com catálogo adiado, para não gastar duas majors no
 | T4.1 ✅ | Tabela `flow_graphs` (key, label, start_node_id, nodes, version) + migrations | — |
 | T4.2 ✅ | CRUD de grafo + `GetLiveFlowPositions` | Paridade com `modules/flows/**` do bot |
 | T4.3 ✅ | Interpretador de grafo + **registro de actions do host** (`registerFlowAction`) | `trigger_simulation` do bot funciona registrado de fora, sem estar no pacote |
-| T4.4 | Flag `features.flowEngine` — desligável | Adiada para T5.6 (`createMetaWhatsAppModule()`) — não há factory pra ter flag ainda |
+| T4.4 ✅ | Flag `features.flowEngine` — desligável | Entregue na F5 junto com a factory: `flows` fica `undefined` e o interpretador nem é instanciado |
 
 **Verificação:** `tsc --noEmit && bun test` · lint de fronteira
 
 ---
 
-## Fase 5 — `module/channel/` (Meta/WhatsApp)
+## Fase 5 — `module/channel/` (Meta/WhatsApp) ✅ CONCLUÍDA (exceto T5.3)
 > 🤖 Modelo: `sonnet` · T5.1 e T5.6 são 🧠 `opus` (segurança e API pública)
 > Depende de: F2
 
 | # | Task | Critério de aceite |
 |---|---|---|
-| T5.1 🧠 | Webhook: verify (compare constante), HMAC `sha256=`, nonce anti-replay Redis TTL 300s | Testes: assinatura inválida → rejeita; replay → rejeita; sempre 200 ao Meta |
-| T5.2 | `sender`: wrapper do `meta-whatsapp-provider` — texto, mídia, template, lista interativa; erro de janela 24h → `WINDOW_EXPIRED` | Paridade com `WhatsAppSender.ts:46-105` |
-| T5.3 | `media`: download/upload Meta, idempotente por `sourceMediaId`, via `ObjectStorageInterface` | **Sem reimplementar S3** — delega ao `object-storage-provider` |
-| T5.4 | **Corrigir dívida:** outbound deixa de gravar base64 no banco; grava no storage e referencia `uploadId` | `messages.payload` não contém binário |
-| T5.5 | `settings`: tabela `meta_whatsapp.settings` (só chaves de WhatsApp) + CRUD de templates/welcome/farewell/variáveis | Não usa o `app_config` do host |
-| T5.6 🧠 | `createMetaWhatsAppModule()` + `registerRoutes()` — costura conversa×canal, hooks, portas, `CatalogPort` **opcional** | Sem catálogo injetado, módulo sobe e funciona |
+| T5.1 ✅ | Webhook: verify (compare constante), HMAC `sha256=`, nonce anti-replay Redis TTL 300s | Verificado: assinatura forjada/ausente/corpo adulterado → rejeita; replay → `duplicate:true` sem re-disparar hook |
+| T5.2 ✅ | `sender`: wrapper do `meta-whatsapp-provider` — texto, mídia, template, lista interativa; erro de janela 24h → `WINDOW_EXPIRED` | Janela checada localmente ANTES da Graph API; `sendTemplate` isento (é o que reabre) |
+| T5.3 ⏳ | `media`: download/upload Meta, idempotente por `sourceMediaId`, via `ObjectStorageInterface` | **Pendente** — só o caminho outbound (T5.4) foi feito; falta o download de mídia inbound |
+| T5.4 ✅ | **Corrigir dívida:** outbound deixa de gravar base64 no banco; grava no storage e referencia `uploadId` | `messages.payload` guarda `uploadId`, nunca binário |
+| T5.5 ✅ | `settings`: tabela `meta_whatsapp.settings` (só chaves de WhatsApp) + CRUD de templates/welcome/farewell/variáveis | Tabela do módulo; `resolveTemplateVariables` mapeia `{{n}}` → contexto |
+| T5.6 ✅ | `createMetaWhatsAppModule()` — costura conversa×canal, hooks, portas, `CatalogPort` **opcional** | Sobe sem catálogo; zero `process.env`. `registerRoutes()` **não** feito — ver nota |
+
+> **`registerRoutes()` deliberadamente não implementado.** A factory expõe os use-cases e o host
+> liga nas próprias rotas. Montar rotas exigiria o módulo assumir um framework HTTP (Bun.serve,
+> Hono, Express…) e um formato de auth/erro — justamente o acoplamento que o padrão de módulo
+> plugável evita. O host já precisa resolver `companyId` do contexto autenticado antes de chamar
+> qualquer coisa aqui. Reavaliar na F8/F9 se os dois consumidores acabarem escrevendo o mesmo
+> boilerplate de rota.
 
 **Verificação:** `tsc --noEmit && bun test` · zero `process.env` no pacote
 
