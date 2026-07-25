@@ -1,4 +1,5 @@
 export { MessageBubble } from './MessageBubble'
+export { ConversationWallpaper } from './Wallpaper'
 export { AudioPlayer } from './AudioPlayer'
 export { EmojiPicker } from './EmojiPicker'
 export { MessageComposer } from './MessageComposer'
@@ -27,6 +28,7 @@ export type { MessagePayload, ConversationsUIConfig, ConversationsTheme, Convers
 export type { ConversationsApi, SSEProvider, ConversationSummary, ConversationDocument } from './providers/types'
 
 export type { MessageBubbleProps } from './MessageBubble'
+export type { ConversationWallpaperProps } from './Wallpaper'
 export type { AudioPlayerProps } from './AudioPlayer'
 export type { EmojiPickerProps } from './EmojiPicker'
 export type { MessageComposerProps } from './MessageComposer'
