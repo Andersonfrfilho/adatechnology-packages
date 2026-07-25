@@ -34,6 +34,7 @@ import {
 import { FlowInterpreter } from './flows/FlowInterpreter'
 import { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
+import { IngestInboundMediaUseCase } from './channel/IngestInboundMedia.use-case'
 import { verifyWebhookChallenge, type NonceStoreInterface } from './channel/webhookSecurity'
 
 export interface MetaWhatsAppModuleConfig {
@@ -115,8 +116,16 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   // ainda assim ficou instanciado e exposto na API pública do módulo.
   const flowInterpreter = flowEngineEnabled ? new FlowInterpreter() : undefined
 
+  // Só existe com storage injetado — sem ele não há para onde copiar o binário, e devolver um
+  // use-case que sempre falha seria pior do que a ausência ser visível no tipo.
+  const ingestInboundMedia = providers.objectStorage
+    ? new IngestInboundMediaUseCase(db, channel, providers.objectStorage)
+    : undefined
+
   return {
     channel,
+    // undefined quando providers.objectStorage não foi injetado.
+    ingestInboundMedia,
     conversations: {
       log: logMessage,
       send: sendMessage,

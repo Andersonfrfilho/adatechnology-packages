@@ -32,7 +32,14 @@ export type {
   ListMessagesParams,
 } from './conversation.types'
 
-export { CROSS_FLOW_PREFIX, isCrossFlowTarget, crossFlowKey } from './flow.types'
+export {
+  CROSS_FLOW_PREFIX,
+  isCrossFlowTarget,
+  crossFlowKey,
+  flowNodeNextSchema,
+  flowNodeDataSchema,
+  flowGraphNodesSchema,
+} from './flow.types'
 export type {
   FlowNodeType,
   FlowQuestionType,

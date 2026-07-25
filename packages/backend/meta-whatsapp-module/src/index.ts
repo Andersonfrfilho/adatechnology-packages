@@ -30,6 +30,9 @@ export {
 } from './channel/webhookSecurity'
 export type { NonceStoreInterface } from './channel/webhookSecurity'
 
+export { IngestInboundMediaUseCase, extractMediaDescriptor } from './channel/IngestInboundMedia.use-case'
+export type { IngestInboundMediaParams, IngestInboundMediaResult } from './channel/IngestInboundMedia.use-case'
+
 export { SettingsRepository } from './repositories/SettingsRepository'
 export { SendMessageUseCase } from './use-cases/SendMessage.use-case'
 export type { SendTextParams, SendMediaParams, SendTemplateParams } from './use-cases/SendMessage.use-case'
@@ -47,7 +50,7 @@ export type {
 export { SseHub, issueSseTicket, redeemSseTicket } from './realtime/SseHub'
 export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtime/SseHub'
 
-export { FlowGraphRepository, OptimisticLockError } from './repositories/FlowGraphRepository'
+export { FlowGraphRepository, OptimisticLockError, InvalidFlowGraphError } from './repositories/FlowGraphRepository'
 export { FlowInterpreter } from './flows/FlowInterpreter'
 export type { FlowStepInput, FlowStepResult, FlowRunResult } from './flows/FlowInterpreter'
 

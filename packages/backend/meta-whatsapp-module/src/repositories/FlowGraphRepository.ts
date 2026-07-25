@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
 import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
+import { flowGraphNodesSchema } from '@adatechnology/meta-whatsapp-contracts'
 import type {
   FlowGraphData,
   FlowGraphSummary,
@@ -9,13 +10,29 @@ import type {
 } from '@adatechnology/meta-whatsapp-contracts'
 import { sessions, flowGraphs, type FlowGraphRow } from '../schema/schema'
 
+export class InvalidFlowGraphError extends Error {
+  constructor(
+    key: string,
+    public readonly validationMessage: string,
+  ) {
+    super(`Grafo do fluxo "${key}" está malformado no banco: ${validationMessage}`)
+    this.name = 'InvalidFlowGraphError'
+  }
+}
+
+// O jsonb `nodes` entrou pelo editor (dado de origem cliente) e volta do banco como `unknown`.
+// Validar aqui, na fronteira, faz um grafo corrompido falhar com a causa explícita em vez de
+// virar comportamento estranho lá dentro do interpretador.
 function toContractGraph(row: FlowGraphRow): FlowGraphData {
+  const parsed = flowGraphNodesSchema.safeParse(row.nodes)
+  if (!parsed.success) throw new InvalidFlowGraphError(row.key, parsed.error.message)
+
   return {
     key: row.key,
     label: row.label,
     startNodeId: row.startNodeId,
     version: row.version,
-    nodes: row.nodes as Record<string, FlowNodeData>,
+    nodes: parsed.data as Record<string, FlowNodeData>,
   }
 }
 
@@ -52,10 +69,19 @@ export class FlowGraphRepository {
     }))
   }
 
+  // Valida antes de gravar: aceitar um grafo malformado e só reclamar na leitura empurraria a
+  // falha para o meio de uma conversa real, em vez de barrar quem salvou.
+  private assertValidNodes(key: string, nodes: unknown): void {
+    const parsed = flowGraphNodesSchema.safeParse(nodes)
+    if (!parsed.success) throw new InvalidFlowGraphError(key, parsed.error.message)
+  }
+
   async create(
     companyId: string,
     graph: Omit<FlowGraphData, 'version'> & { showInMenu?: boolean; menuOptionLabel?: string },
   ): Promise<FlowGraphData> {
+    this.assertValidNodes(graph.key, graph.nodes)
+
     const [created] = await this.db
       .insert(flowGraphs)
       .values({
@@ -74,6 +100,8 @@ export class FlowGraphRepository {
   // Lock otimista: a escrita só aplica se `expectedVersion` ainda bater com o que está salvo —
   // senão, alguém mais salvou entretanto e o editor precisa recarregar (ver comentário no schema).
   async save(companyId: string, graph: FlowGraphData, expectedVersion: number): Promise<FlowGraphData> {
+    this.assertValidNodes(graph.key, graph.nodes)
+
     const rows = await this.db
       .update(flowGraphs)
       .set({

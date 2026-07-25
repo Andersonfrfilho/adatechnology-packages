@@ -3,6 +3,8 @@
 // `FlowActionKind` é string aberta (não union fechada): o host registra os próprios actions
 // (ex.: 'trigger_simulation' no bot) via registerFlowAction() no módulo (T4.3) — o pacote nunca
 // assume nenhum caso de negócio específico.
+import { z } from 'zod'
+
 export type FlowNodeType = 'question' | 'entrada_choice' | 'action' | 'menu' | 'condition'
 export type FlowQuestionType = 'text' | 'money' | 'date' | 'int' | 'cpf' | 'choice'
 export type FlowActionKind = string
@@ -57,3 +59,37 @@ export interface LiveFlowPosition {
   nodeId: string
   count: number
 }
+
+// Validação de runtime do grafo. O `nodes` é um jsonb que entrou pelo editor (dado de origem
+// cliente) e sai do banco como `unknown` — sem parse, um grafo malformado só se manifestaria
+// como comportamento estranho lá dentro do interpretador, longe da causa.
+//
+// Permissivo de propósito em dois pontos: `actionKind` é string aberta (o host registra os
+// seus) e `.passthrough()` deixa passar campos extras — um grafo salvo por uma versão mais nova
+// do editor não pode ficar irrecuperável numa versão mais antiga do módulo.
+export const flowNodeNextSchema = z.union([
+  z.string(),
+  z.object({ byAnswer: z.record(z.string(), z.string()), default: z.string() }),
+])
+
+export const flowNodeDataSchema = z
+  .object({
+    id: z.string(),
+    type: z.enum(['question', 'entrada_choice', 'action', 'menu', 'condition']),
+    contextKey: z.string().optional(),
+    questionType: z.enum(['text', 'money', 'date', 'int', 'cpf', 'choice']).optional(),
+    question: z.string().optional(),
+    options: z.array(z.tuple([z.string(), z.string()])).optional(),
+    actionKind: z.string().optional(),
+    simulationTemplate: z.record(z.string(), z.string()).optional(),
+    directMessage: z.string().optional(),
+    fallbackMessage: z.string().optional(),
+    conditionContextKey: z.string().optional(),
+    conditionOperator: z.enum(['>', '>=', '<', '<=', '==', '!=', 'contains']).optional(),
+    conditionValue: z.string().optional(),
+    position: z.object({ x: z.number(), y: z.number() }).optional(),
+    next: flowNodeNextSchema.optional(),
+  })
+  .passthrough()
+
+export const flowGraphNodesSchema = z.record(z.string(), flowNodeDataSchema)
