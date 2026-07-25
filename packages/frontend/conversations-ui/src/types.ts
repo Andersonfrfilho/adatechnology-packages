@@ -22,7 +22,7 @@ export interface ConversationsFeatures {
 
 export interface MessagePayload {
   id: string
-  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'template'
+  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'template'
   content?: string
   caption?: string
   mediaUrl?: string
@@ -35,6 +35,9 @@ export interface MessagePayload {
   sender: 'bot' | 'customer' | 'agent'
   timestamp: string
   status?: 'sent' | 'delivered' | 'read' | 'failed'
+  readAt?: string
+  agentName?: string | null
+  templateName?: string
   isFirstInGroup?: boolean
   isLastInGroup?: boolean
 }

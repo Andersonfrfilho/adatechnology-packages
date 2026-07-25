@@ -1,5 +1,6 @@
 export { MessageBubble } from './MessageBubble'
 export { ConversationWallpaper } from './Wallpaper'
+export { ConversationLocalesProvider, useConversationLocales } from './ConversationLocalesProvider'
 export { AudioPlayer } from './AudioPlayer'
 export { EmojiPicker } from './EmojiPicker'
 export { MessageComposer } from './MessageComposer'
@@ -29,6 +30,7 @@ export type { ConversationsApi, SSEProvider, ConversationSummary, ConversationDo
 
 export type { MessageBubbleProps } from './MessageBubble'
 export type { ConversationWallpaperProps } from './Wallpaper'
+export type { ConversationLocales, ConversationLocalesProviderProps } from './ConversationLocalesProvider'
 export type { AudioPlayerProps } from './AudioPlayer'
 export type { EmojiPickerProps } from './EmojiPicker'
 export type { MessageComposerProps } from './MessageComposer'

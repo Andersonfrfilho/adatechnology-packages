@@ -29,6 +29,9 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "bun test"
   },
+  "dependencies": {
+    "lucide-react": "^1.21.0"
+  },
   "peerDependencies": {
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19",

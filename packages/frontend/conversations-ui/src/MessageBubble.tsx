@@ -1,73 +1,131 @@
+import { useState } from 'react'
+import { Check } from 'lucide-react'
 import type { MessagePayload } from './types'
+import { useConversationLocales } from './ConversationLocalesProvider'
+import { StatusTicks } from './StatusTicks'
+import { MediaRenderer } from './MediaRenderer'
+import { Lightbox } from './Lightbox'
+import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
+import { formatTimestamp, formatDateTime } from './lib/format'
 
 export interface MessageBubbleProps {
   message: MessagePayload
+  isMine: boolean
+  senderName?: string | null
+  isFirstInGroup?: boolean
+  isSelecting?: boolean
+  isSelected?: boolean
+  onToggleSelect?: () => void
 }
 
-export const MessageBubble = ({ message }: MessageBubbleProps) => {
-  const isOutbound = message.direction === 'outbound'
-  const isFirst = message.isFirstInGroup !== false
-  const isLast = message.isLastInGroup !== false
+// Hex arbitrários (não os tokens `whatsapp.*` do Tailwind) — o pacote fica autocontido,
+// sem exigir que o host replique a configuração de tema feita em tailwind.config.ts do bot.
+const BUBBLE_COLOR: Record<string, string> = {
+  agent: 'bg-[#d9fdd3] dark:bg-[#005c4b]',
+  bot: 'bg-[#d7f0ec] dark:bg-[#0a3d3a]',
+  customer: 'bg-white dark:bg-[#202c33]',
+}
+
+const MEDIA_TYPES = new Set(['image', 'audio', 'video', 'document', 'sticker'])
+
+// Paridade com financiamento-imobiliario-bot/apps/web/src/components/MessageBubble.tsx —
+// cor por sender, tail só no isFirstInGroup, agrupamento mt-2/mt-0.5, ring vermelho em
+// falha, tick de status colorido, tooltip de readAt/janela expirada.
+//
+// Requer '@adatechnology/conversations-ui/styles.css' (ConversationWallpaper) ou um
+// tailwind.config do host expondo as cores `whatsapp.*` — ver Wallpaper.tsx e T6.2.
+export function MessageBubble({
+  message, isMine, senderName, isFirstInGroup = true, isSelecting = false, isSelected = false, onToggleSelect,
+}: MessageBubbleProps) {
+  const { bubble, selection } = useConversationLocales()
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+
+  const bubbleColor = BUBBLE_COLOR[message.sender] ?? BUBBLE_COLOR.customer
+  const hasError = message.status === 'failed'
+  const isMedia = MEDIA_TYPES.has(message.type)
+  const isTemplate = message.type === 'template'
+  const displayName = message.sender === 'agent' && senderName ? senderName : bubble[message.sender] ?? message.sender
+
+  const tooltipText = message.status === 'read' && message.readAt
+    ? `${bubble.readAt}${formatDateTime(message.readAt)}`
+    : message.status === 'failed'
+      ? bubble.windowExpired
+      : undefined
+
+  // Cantinho reto no topo (o "rabinho" do balão do WhatsApp) só na primeira mensagem de um grupo
+  // consecutivo do mesmo remetente — o resto do grupo fica com os dois cantos superiores arredondados.
+  const tailCornerClass = isFirstInGroup ? (isMine ? 'rounded-tr-md' : 'rounded-tl-md') : ''
+
+  const checkbox = (
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggleSelect?.() }}
+      title={selection.select}
+      className={`
+        flex-shrink-0 self-end mb-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
+        ${isSelected ? 'bg-teal-600 border-teal-600' : 'bg-white/80 dark:bg-black/40 border-black/20 dark:border-white/30'}
+        ${isSelecting ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
+      `}
+    >
+      {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
+    </button>
+  )
+
+  const imageSrc = message.mediaUrl ?? (message.base64
+    ? `data:${message.mimeType ?? 'image/jpeg'};base64,${message.base64}`
+    : null)
 
   return (
-    <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} px-3 md:px-16 ${isFirst ? 'mt-3' : 'mt-0'} ${isLast ? 'mb-1' : 'mb-0'}`}>
+    <div className={`flex items-end gap-1.5 ${isMine ? 'justify-end' : 'justify-start'} group ${isFirstInGroup ? 'mt-2' : 'mt-0.5'}`}>
+      {isMine && checkbox}
       <div
-        className={`relative max-w-[85%] md:max-w-[65%] px-[9px] py-[6px] rounded-lg ${
-          isOutbound ? 'bg-[#d9fdd3]' : 'bg-white'
-        } text-[#111b21]`}
-        style={{
-          boxShadow: '0 1px 0.5px rgba(11,20,26,0.13)',
-          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        }}
+        onClick={isSelecting ? onToggleSelect : undefined}
+        className={`
+          max-w-[75%] sm:max-w-[65%] rounded-2xl ${tailCornerClass} px-2.5 py-1.5 shadow-sm
+          ${bubbleColor}
+          ${hasError ? 'ring-1 ring-inset ring-red-400' : ''}
+          ${isSelecting ? 'cursor-pointer' : ''}
+          ${isSelected ? 'ring-2 ring-teal-500' : ''}
+          relative
+        `}
       >
-        {message.type === 'text' && (
-          <div className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words">
-            {message.content}
+        {isMine && isFirstInGroup && (message.sender === 'bot' || (message.sender === 'agent' && senderName)) && (
+          <div className="text-xs font-semibold mb-0.5 text-teal-700 dark:text-teal-400">
+            {displayName}
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-[3px] mt-1">
-          <span className="text-[11px] text-[#667781] leading-[15px]">
-            {formatTime(message.timestamp)}
+        {isMedia ? (
+          <MediaRenderer message={message} onLightbox={() => imageSrc && setLightboxSrc(imageSrc)} />
+        ) : (
+          <>
+            {isTemplate && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mb-0.5">
+                <span>📨</span>
+                <span className="font-medium">
+                  {bubble.templateLabel}{message.templateName ? ` — ${message.templateName}` : ''}
+                </span>
+              </p>
+            )}
+            <div className="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words leading-[19px]">
+              {parseWhatsAppFormatting(message.content ?? '')}
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center justify-end gap-1 mt-0.5 select-none">
+          <span className="text-xs text-black/40 dark:text-white/40 font-medium">
+            {formatTimestamp(message.timestamp)}
           </span>
-          {isOutbound && message.status && (
-            <Ticks status={message.status} />
+          {isMine && message.status && (
+            <StatusTicks status={message.status} title={tooltipText} />
           )}
         </div>
       </div>
+      {!isMine && checkbox}
+
+      {lightboxSrc && (
+        <Lightbox imageUrl={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
     </div>
   )
-}
-
-function Ticks({ status }: { status: string }) {
-  if (status === 'read')
-    return (
-      <svg width="17" height="13" viewBox="0 0 17 13" fill="none" className="block">
-        <path d="M1 6L4.5 9.5L9 5" stroke="#53bdeb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M7 6L10.5 9.5L16 4" stroke="#53bdeb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-
-  if (status === 'delivered')
-    return (
-      <svg width="17" height="13" viewBox="0 0 17 13" fill="none" className="block">
-        <path d="M1 6L4.5 9.5L9 5" stroke="#8696a0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M7 6L10.5 9.5L16 4" stroke="#8696a0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-
-  return (
-    <svg width="12" height="13" viewBox="0 0 12 13" fill="none" className="block mt-px">
-      <path d="M1.5 6.5L4.5 9.5L10.5 3" stroke="#8696a0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function formatTime(ts: string): string {
-  try {
-    const d = new Date(ts)
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  } catch {
-    return ts
-  }
 }
