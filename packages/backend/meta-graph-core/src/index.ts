@@ -1,5 +1,18 @@
-export { MetaGraphError } from './errors/MetaGraphError'
+export {
+  MetaGraphError,
+  WhatsAppConfigError,
+  WhatsAppConnectionError,
+  WhatsAppRejectionError,
+  WhatsAppTimeoutError,
+  WhatsAppWindowExpiredError,
+  WhatsAppTemplateDuplicateError,
+  WhatsAppUnexpectedResponseError,
+} from './errors/MetaGraphError'
 export { graphFetch, buildGraphUrl } from './graphFetch'
 export { assertConfigField } from './assertConfigField'
-export type { GraphResponseSchemas } from './graphResponseSchemas'
-export { graphResponseSchemas } from './graphResponseSchemas'
+export {
+  idResponseSchema,
+  catalogListResponseSchema,
+  productDetailResponseSchema,
+  parseGraphResponse,
+} from './graphResponseSchemas'

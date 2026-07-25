@@ -1,11 +1,15 @@
 export { MetaCatalogProvider } from './MetaCatalogProvider'
 export type {
+  MetaCatalogProviderConfig,
+  CatalogProductInput,
+  UpdateCatalogProductParams,
+  CatalogProductResult,
+  CatalogProductDetail,
+  CatalogProductSetInput,
+  UpdateCatalogProductSetParams,
+  CatalogProductSetResult,
+  CatalogSummary,
   CreateCatalogParams,
+  CreateCatalogResult,
   UpdateCatalogParams,
-  ListCatalogsResult,
-  CreateProductParams,
-  UpdateProductParams,
-  ListProductsResult,
-  CreateProductSetParams,
-  UpdateProductSetParams,
-} from './MetaCatalogProvider'
+} from './types'

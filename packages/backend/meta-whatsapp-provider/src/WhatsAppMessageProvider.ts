@@ -1,6 +1,11 @@
-import { assertConfigField } from '../shared/assertConfigField'
-import { buildGraphUrl, graphFetch } from '../shared/graphFetch'
-import { WhatsAppConnectionError, WhatsAppRejectionError, WhatsAppWindowExpiredError } from '../errors/WhatsAppError'
+import {
+  assertConfigField,
+  buildGraphUrl,
+  graphFetch,
+  WhatsAppConnectionError,
+  WhatsAppRejectionError,
+  WhatsAppWindowExpiredError,
+} from '@adatechnology/meta-graph-core'
 import type {
   WhatsAppProviderConfig,
   SendMessageResult,
@@ -12,7 +17,7 @@ import type {
   SendCatalogMessageParams,
   SendProductMessageParams,
   SendProductListMessageParams,
-} from '../types'
+} from './types'
 
 const WINDOW_EXPIRED_CODES = new Set(['131047', '131026', '131000'])
 const MAX_INTERACTIVE_BUTTONS = 3

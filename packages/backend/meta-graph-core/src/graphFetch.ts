@@ -1,4 +1,4 @@
-import { WhatsAppConnectionError, WhatsAppRejectionError, WhatsAppTimeoutError } from '../errors/WhatsAppError'
+import { WhatsAppConnectionError, WhatsAppRejectionError, WhatsAppTimeoutError } from './errors/MetaGraphError'
 
 const GRAPH_BASE_URL = 'https://graph.facebook.com'
 const DEFAULT_API_VERSION = 'v21.0'

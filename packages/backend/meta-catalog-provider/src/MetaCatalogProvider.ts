@@ -1,13 +1,14 @@
-import { assertConfigField } from '/meta-graph-coreshared/assertConfigField'
-import { buildGraphUrl, graphFetch } from '/meta-graph-coreshared/graphFetch'
 import {
+  assertConfigField,
+  buildGraphUrl,
+  graphFetch,
   parseGraphResponse,
   idResponseSchema,
   catalogListResponseSchema,
   productDetailResponseSchema,
-} from '/meta-graph-coreshared/graphResponseSchemas'
+} from '@adatechnology/meta-graph-core'
 import type {
-  WhatsAppProviderConfig,
+  MetaCatalogProviderConfig,
   CatalogProductInput,
   UpdateCatalogProductParams,
   CatalogProductResult,
@@ -15,18 +16,18 @@ import type {
   CatalogProductSetInput,
   UpdateCatalogProductSetParams,
   CatalogProductSetResult,
-  WhatsAppCatalogSummary,
+  CatalogSummary,
   CreateCatalogParams,
   CreateCatalogResult,
   UpdateCatalogParams,
-} from '/meta-graph-coretypes'
+} from './types'
 
 const DEFAULT_AVAILABILITY = 'in stock'
 const DEFAULT_CONDITION = 'new'
 const DEFAULT_CATALOG_VERTICAL = 'commerce'
 
 export class MetaCatalogProvider {
-  constructor(private readonly config: WhatsAppProviderConfig) {}
+  constructor(private readonly config: MetaCatalogProviderConfig) {}
 
   private resolveCatalogId(override?: string): string {
     return assertConfigField(override ?? this.config.catalogId, 'catalogId')
@@ -162,7 +163,7 @@ export class MetaCatalogProvider {
     })
   }
 
-  async listCatalogs(): Promise<readonly WhatsAppCatalogSummary[]> {
+  async listCatalogs(): Promise<readonly CatalogSummary[]> {
     const url = `${buildGraphUrl(this.config.apiVersion, `${this.wabaId}/product_catalogs`, this.config.baseUrl)}?fields=id,name`
     const response = parseGraphResponse(
       catalogListResponseSchema,

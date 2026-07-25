@@ -1,6 +1,10 @@
-import { assertConfigField } from '../shared/assertConfigField'
-import { buildGraphUrl, graphFetch } from '../shared/graphFetch'
-import { WhatsAppRejectionError, WhatsAppTemplateDuplicateError } from '../errors/WhatsAppError'
+import {
+  assertConfigField,
+  buildGraphUrl,
+  graphFetch,
+  WhatsAppRejectionError,
+  WhatsAppTemplateDuplicateError,
+} from '@adatechnology/meta-graph-core'
 import type {
   WhatsAppProviderConfig,
   CreateTemplateParams,
@@ -9,7 +13,7 @@ import type {
   WhatsAppTemplateDetail,
   TemplateComponent,
   DeleteTemplateParams,
-} from '../types'
+} from './types'
 
 const VARIABLE_PATTERN = /\{\{(\d+)\}\}/g
 

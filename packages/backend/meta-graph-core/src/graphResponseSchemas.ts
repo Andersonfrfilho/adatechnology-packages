@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { WhatsAppUnexpectedResponseError } from '../errors/WhatsAppError'
+import { WhatsAppUnexpectedResponseError } from './errors/MetaGraphError'
 
 export const idResponseSchema = z.object({ id: z.string() })
 

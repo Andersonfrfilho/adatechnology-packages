@@ -4,7 +4,6 @@ export type WhatsAppProviderConfig = {
   readonly phoneNumberId?: string
   readonly catalogId?: string
   readonly wabaId?: string
-  readonly businessId?: string
   // Sobrescreve https://graph.facebook.com — usado para apontar para um mock local (ex.: WireMock)
   // em dev/teste. Em produção, deixe undefined para usar a Graph API real.
   readonly baseUrl?: string
@@ -136,71 +135,5 @@ export type WhatsAppTemplateDetail = WhatsAppTemplateSummary & {
 
 export type DeleteTemplateParams = {
   readonly id: string
-  readonly name: string
-}
-
-// ---- Catalog ----
-
-export type ProductAvailability = 'in stock' | 'out of stock' | 'preorder' | 'available for order' | 'discontinued'
-export type ProductCondition = 'new' | 'refurbished' | 'used'
-
-export type CatalogProductInput = {
-  readonly retailerId: string
-  readonly name: string
-  readonly description: string
-  readonly priceInCents: number
-  readonly currency: string
-  readonly imageUrl: string
-  readonly categoryLabel: string
-  readonly availability?: ProductAvailability
-  readonly condition?: ProductCondition
-  readonly url?: string
-  readonly catalogId?: string
-}
-
-export type UpdateCatalogProductParams = {
-  readonly productId: string
-  readonly input: Partial<CatalogProductInput>
-}
-
-export type CatalogProductResult = {
-  readonly id: string
-}
-
-export type CatalogProductSetInput = {
-  readonly name: string
-  readonly categoryLabel: string
-  readonly catalogId?: string
-}
-
-export type UpdateCatalogProductSetParams = {
-  readonly productSetId: string
-  readonly name: string
-}
-
-export type CatalogProductSetResult = {
-  readonly id: string
-}
-
-export type CatalogProductDetail = CatalogProductInput & {
-  readonly id: string
-}
-
-export type WhatsAppCatalogSummary = {
-  readonly id: string
-  readonly name: string
-}
-
-export type CreateCatalogParams = {
-  readonly name: string
-  readonly vertical?: string
-}
-
-export type CreateCatalogResult = {
-  readonly id: string
-}
-
-export type UpdateCatalogParams = {
-  readonly catalogId: string
   readonly name: string
 }
