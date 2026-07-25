@@ -24,6 +24,14 @@ export { useWaitingNotifications } from './useWaitingNotifications'
 
 export { ConversationsProvider, useConversations } from './providers/ConversationsProvider'
 
+// Camada headless (T6.9) — hooks de dados/ações independentes de qualquer tela, para o
+// produto montar sua própria UI sobre eles. Requerem <ConversationsProvider> como ancestral.
+export { useConversationMessages } from './hooks/useConversationMessages'
+export { useConversationList } from './hooks/useConversationList'
+export { useConversationContext } from './hooks/useConversationContext'
+export { useConversationDocuments } from './hooks/useConversationDocuments'
+export { useConversationRealtime, useGlobalRealtime } from './hooks/useConversationRealtime'
+
 export { parseWhatsAppFormatting, waToHTML, htmlToWA, waToHTMLInline } from './lib/whatsapp-formatting'
 export { formatPhone, phoneInitials } from './lib/phone'
 export { formatTimestamp, formatFileSize } from './lib/format'
@@ -47,3 +55,10 @@ export type { LightboxProps } from './Lightbox'
 export type { MediaRendererProps, ResolveMediaUrl } from './MediaRenderer'
 export type { FileIconProps } from './FileIcon'
 export type { MessageTextProps } from './MessageText'
+
+export type { UseConversationMessagesResult } from './hooks/useConversationMessages'
+export type { UseConversationListParams, UseConversationListResult } from './hooks/useConversationList'
+export type { UseConversationContextResult } from './hooks/useConversationContext'
+export type { UseConversationDocumentsParams, UseConversationDocumentsResult } from './hooks/useConversationDocuments'
+export type { ConversationRealtimeHandler } from './hooks/useConversationRealtime'
+export type { AsyncResourceState } from './hooks/useAsyncResource'
