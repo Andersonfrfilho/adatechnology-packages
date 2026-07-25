@@ -1,0 +1,21 @@
+{
+  "name": "@adatechnology/meta-graph-core",
+  "version": "0.1.0",
+  "description": "Meta Graph API foundation — shared HTTP client and utilities for Meta APIs",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  }
+}

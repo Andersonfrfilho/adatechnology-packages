@@ -1,0 +1,47 @@
+{
+  "name": "@adatechnology/conversations-ui",
+  "version": "0.0.0",
+  "description": "WhatsApp conversation UI components — parametrizável por endpoint, tema e feature flags",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./flows": {
+      "import": "./dist/flows/index.js",
+      "types": "./dist/flows/index.d.ts"
+    },
+    "./whatsapp": {
+      "import": "./dist/channel/index.js",
+      "types": "./dist/channel/index.d.ts"
+    }
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts src/flows/index.ts src/channel/index.ts --dts --format esm --external react --external react-dom --external @xyflow/react",
+    "build:watch": "tsup src/index.ts src/flows/index.ts src/channel/index.ts --watch --dts --format esm --external react --external react-dom --external @xyflow/react",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19",
+    "@xyflow/react": "^12"
+  },
+  "peerDependenciesMeta": {
+    "@xyflow/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "@types/react": "^18 || ^19",
+    "@types/react-dom": "^18 || ^19"
+  }
+}

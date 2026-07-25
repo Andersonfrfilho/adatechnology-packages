@@ -1,0 +1,82 @@
+export class MetaGraphError extends Error {
+  readonly code: string
+  readonly providerMessage: string
+  readonly rawResponse: unknown
+
+  constructor(message: string, code: string, providerMessage: string, rawResponse: unknown) {
+    super(message)
+    this.name = 'MetaGraphError'
+    this.code = code
+    this.providerMessage = providerMessage
+    this.rawResponse = rawResponse
+  }
+}
+
+export class WhatsAppConfigError extends MetaGraphError {
+  constructor(missingField: string) {
+    super(
+      `Configuração do WhatsApp incompleta: ${missingField} não informado.`,
+      'WHATSAPP_CONFIG_MISSING',
+      missingField,
+      null,
+    )
+    this.name = 'WhatsAppConfigError'
+  }
+}
+
+export class WhatsAppConnectionError extends MetaGraphError {
+  constructor(cause: string) {
+    super(`Falha de rede ao comunicar com o WhatsApp: ${cause}`, 'WHATSAPP_NETWORK_ERROR', cause, null)
+    this.name = 'WhatsAppConnectionError'
+  }
+}
+
+export class WhatsAppRejectionError extends MetaGraphError {
+  constructor(code: string, providerMessage: string, rawResponse: unknown) {
+    super(`WhatsApp recusou a requisição: ${providerMessage}`, code, providerMessage, rawResponse)
+    this.name = 'WhatsAppRejectionError'
+  }
+}
+
+export class WhatsAppTimeoutError extends MetaGraphError {
+  constructor(operation: string) {
+    super(`Timeout ao comunicar com o WhatsApp (${operation}) — tente novamente.`, 'WHATSAPP_TIMEOUT', 'timeout', null)
+    this.name = 'WhatsAppTimeoutError'
+  }
+}
+
+export class WhatsAppWindowExpiredError extends MetaGraphError {
+  constructor(rawResponse: unknown) {
+    super(
+      'O cliente está fora da janela de 24h do WhatsApp. Envie uma mensagem de template (HSM) pré-aprovada para reabrir a conversa.',
+      'WHATSAPP_WINDOW_EXPIRED',
+      'window expired',
+      rawResponse,
+    )
+    this.name = 'WhatsAppWindowExpiredError'
+  }
+}
+
+export class WhatsAppTemplateDuplicateError extends MetaGraphError {
+  constructor(rawResponse: unknown) {
+    super(
+      'Já existe um template com este nome no WhatsApp.',
+      'WHATSAPP_TEMPLATE_DUPLICATE',
+      'duplicate template name',
+      rawResponse,
+    )
+    this.name = 'WhatsAppTemplateDuplicateError'
+  }
+}
+
+export class WhatsAppUnexpectedResponseError extends MetaGraphError {
+  constructor(validationMessage: string, rawResponse: unknown) {
+    super(
+      `Resposta inesperada da API do WhatsApp: ${validationMessage}`,
+      'WHATSAPP_UNEXPECTED_RESPONSE',
+      validationMessage,
+      rawResponse,
+    )
+    this.name = 'WhatsAppUnexpectedResponseError'
+  }
+}

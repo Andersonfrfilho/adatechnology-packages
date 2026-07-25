@@ -1,0 +1,22 @@
+{
+  "name": "@adatechnology/meta-whatsapp-provider",
+  "version": "0.1.0",
+  "description": "Meta WhatsApp Cloud API client — messages, templates, and webhooks",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@adatechnology/meta-graph-core": "*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  }
+}
