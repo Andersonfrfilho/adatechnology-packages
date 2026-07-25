@@ -1,0 +1,399 @@
+export type FlowNodeType = 'question' | 'entrada_choice' | 'action' | 'menu' | 'condition'
+export type FlowQuestionType = 'text' | 'money' | 'date' | 'int' | 'cpf' | 'choice'
+// String aberta (não union fechada) — o host registra seus próprios `actionKind`s (ex.:
+// 'trigger_simulation' no bot) em vez do pacote assumir algum caso de negócio específico.
+export type FlowActionKind = string
+export type FlowConditionOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'contains'
+export type FlowNodeNext = string | { byAnswer: Record<string, string>; default: string }
+
+export const CONDITION_OPERATORS: FlowConditionOperator[] = ['>', '>=', '<', '<=', '==', '!=', 'contains']
+
+// Kinds de ação genéricos que o pacote conhece de fábrica — o host pode registrar quaisquer
+// outros via `actionKindLabels`/`actionKinds` nos componentes (ver FlowPalette, labels.ts).
+export const BUILT_IN_ACTION_KINDS = {
+  HANDOFF: 'handoff',
+  RATE_LIMITED_HANDOFF: 'rate_limited_handoff',
+  SEND_PRODUCT_LIST: 'send_product_list',
+} as const
+
+export type FlowNodeData = {
+  id: string
+  type: FlowNodeType
+  contextKey?: string
+  questionType?: FlowQuestionType
+  question?: string
+  options?: [string, string][]
+  actionKind?: FlowActionKind
+  simulationTemplate?: Record<string, string>
+  directMessage?: string
+  // Mensagem de fallback quando send_product_list não consegue enviar a lista nativa do catálogo.
+  fallbackMessage?: string
+  // Nó 'condition': compara a variável já coletada em conditionContextKey (o contextKey de uma
+  // pergunta anterior) contra conditionValue usando conditionOperator — não pergunta nada ao
+  // cliente, só decide automaticamente entre next.byAnswer.true / next.byAnswer.false.
+  conditionContextKey?: string
+  conditionOperator?: FlowConditionOperator
+  conditionValue?: string
+  position?: { x: number; y: number }
+  next?: FlowNodeNext
+}
+
+export type FlowGraphData = {
+  key: string
+  label: string
+  startNodeId: string
+  nodes: Record<string, FlowNodeData>
+}
+
+// Destinos "flow:<key>" são saltos para outro fluxo, resolvidos pelo motor do host.
+export const CROSS_FLOW_PREFIX = 'flow:'
+export const isCrossFlowTarget = (target: string): boolean => target.startsWith(CROSS_FLOW_PREFIX)
+export const crossFlowKey = (target: string): string => target.slice(CROSS_FLOW_PREFIX.length)
+
+// Card tem largura fixa (w-60 do Tailwind = 240px); a altura varia com o número de linhas de
+// saída (uma por opção/condição), então o layout precisa saber isso pra não deixar a camada de
+// baixo grudada/sobreposta num card mais alto (ex.: um menu com 7 opções é bem mais alto que
+// uma pergunta linear de "Próximo" só).
+export const NODE_CARD_WIDTH = 240
+export function estimateNodeHeight(node: FlowNodeData): number {
+  const HEADER_HEIGHT = 28
+  const BODY_HEIGHT = 56
+  const PADDING = 16
+  const ROW_HEIGHT = 34
+  const rowCount =
+    node.type === 'action'
+      ? 0
+      : node.type === 'condition'
+        ? 2
+        : node.type === 'menu' || node.questionType === 'choice'
+          ? (node.options?.length ?? 0) + 1
+          : 1
+  return HEADER_HEIGHT + BODY_HEIGHT + PADDING + rowCount * ROW_HEIGHT
+}
+
+// Limites reais da API do WhatsApp para mensagens interativas: até 3 opções o bot envia
+// BOTÕES (título ≤ 20 chars); com 4+ envia LISTA (até 10 itens, título ≤ 24 chars).
+export const WHATSAPP_LIMITS = {
+  MAX_BUTTONS: 3,
+  MAX_LIST_ROWS: 10,
+  BUTTON_TITLE_MAX: 20,
+  LIST_ROW_TITLE_MAX: 24,
+  BODY_MAX: 1024,
+} as const
+
+export function rendersAsButtons(options: [string, string][] | undefined): boolean {
+  return (options?.length ?? 0) <= WHATSAPP_LIMITS.MAX_BUTTONS
+}
+
+export function targetsOf(node: FlowNodeData): { target: string; optionId?: string; isDefault?: boolean }[] {
+  if (!node.next) return []
+  if (typeof node.next === 'string') return [{ target: node.next }]
+  return [
+    ...Object.entries(node.next.byAnswer).map(([optionId, target]) => ({ target, optionId })),
+    { target: node.next.default, isDefault: true },
+  ]
+}
+
+export type GraphIssue = {
+  severity: 'error' | 'warning'
+  nodeId?: string
+  message: string
+}
+
+// Validação de publicação: salvar já é publicar (o host lê o grafo em tempo real), então
+// erros bloqueiam o salvamento; avisos só orientam.
+export function validateGraph(
+  graph: FlowGraphData,
+  issueText: {
+    noStart: string
+    brokenRef: (from: string, to: string) => string
+    choiceWithoutOptions: (id: string) => string
+    duplicatedOptionId: (id: string, optionId: string) => string
+    optionWithoutTarget: (id: string, optionLabel: string) => string
+    tooManyOptions: (id: string, count: number) => string
+    buttonTitleTooLong: (id: string, label: string) => string
+    listTitleTooLong: (id: string, label: string) => string
+    bodyTooLong: (id: string) => string
+    unreachable: (id: string) => string
+    deadEndQuestion: (id: string) => string
+    conditionIncomplete: (id: string) => string
+    conditionBranchMissing: (id: string, branch: string) => string
+  },
+): GraphIssue[] {
+  const issues: GraphIssue[] = []
+  const nodeIds = new Set(Object.keys(graph.nodes))
+  const isValidTarget = (target: string) => nodeIds.has(target) || isCrossFlowTarget(target)
+
+  if (!nodeIds.has(graph.startNodeId)) {
+    issues.push({ severity: 'error', message: issueText.noStart })
+  }
+
+  for (const node of Object.values(graph.nodes)) {
+    for (const { target } of targetsOf(node)) {
+      if (!isValidTarget(target)) {
+        issues.push({ severity: 'error', nodeId: node.id, message: issueText.brokenRef(node.id, target) })
+      }
+    }
+
+    const isChoice = node.questionType === 'choice' || node.type === 'menu'
+    if (isChoice) {
+      const options = node.options ?? []
+      if (options.length === 0) {
+        issues.push({ severity: 'error', nodeId: node.id, message: issueText.choiceWithoutOptions(node.id) })
+      }
+      const seen = new Set<string>()
+      for (const [optionId, label] of options) {
+        if (seen.has(optionId)) {
+          issues.push({ severity: 'error', nodeId: node.id, message: issueText.duplicatedOptionId(node.id, optionId) })
+        }
+        seen.add(optionId)
+        const byAnswer = typeof node.next === 'object' && node.next ? node.next.byAnswer : {}
+        if (!byAnswer[optionId]) {
+          issues.push({ severity: 'warning', nodeId: node.id, message: issueText.optionWithoutTarget(node.id, label) })
+        }
+        const usesButtons = rendersAsButtons(options)
+        if (usesButtons && label.length > WHATSAPP_LIMITS.BUTTON_TITLE_MAX) {
+          issues.push({ severity: 'error', nodeId: node.id, message: issueText.buttonTitleTooLong(node.id, label) })
+        }
+        if (!usesButtons && label.length > WHATSAPP_LIMITS.LIST_ROW_TITLE_MAX) {
+          issues.push({ severity: 'error', nodeId: node.id, message: issueText.listTitleTooLong(node.id, label) })
+        }
+      }
+      if (options.length > WHATSAPP_LIMITS.MAX_LIST_ROWS) {
+        issues.push({ severity: 'error', nodeId: node.id, message: issueText.tooManyOptions(node.id, options.length) })
+      }
+    }
+
+    const bodyText = node.question ?? node.directMessage ?? ''
+    if (bodyText.length > WHATSAPP_LIMITS.BODY_MAX) {
+      issues.push({ severity: 'error', nodeId: node.id, message: issueText.bodyTooLong(node.id) })
+    }
+
+    if (node.type === 'question' && !node.next) {
+      issues.push({ severity: 'warning', nodeId: node.id, message: issueText.deadEndQuestion(node.id) })
+    }
+
+    if (node.type === 'condition') {
+      if (!node.conditionContextKey || !node.conditionOperator || !node.conditionValue) {
+        issues.push({ severity: 'error', nodeId: node.id, message: issueText.conditionIncomplete(node.id) })
+      }
+      const byAnswer = typeof node.next === 'object' && node.next ? node.next.byAnswer : {}
+      if (!byAnswer.true)
+        issues.push({
+          severity: 'warning',
+          nodeId: node.id,
+          message: issueText.conditionBranchMissing(node.id, 'true'),
+        })
+      if (!byAnswer.false)
+        issues.push({
+          severity: 'warning',
+          nodeId: node.id,
+          message: issueText.conditionBranchMissing(node.id, 'false'),
+        })
+    }
+  }
+
+  for (const id of findUnreachable(graph)) {
+    issues.push({ severity: 'warning', nodeId: id, message: issueText.unreachable(id) })
+  }
+
+  return issues
+}
+
+function findUnreachable(graph: FlowGraphData): string[] {
+  const reachable = new Set<string>()
+  const queue = [graph.startNodeId]
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    if (reachable.has(id) || !graph.nodes[id]) continue
+    reachable.add(id)
+    for (const { target } of targetsOf(graph.nodes[id])) {
+      if (!isCrossFlowTarget(target)) queue.push(target)
+    }
+  }
+  return Object.keys(graph.nodes).filter((id) => !reachable.has(id))
+}
+
+// Auto-layout hierárquico (sem dependência externa): ranqueia por BFS a partir do início,
+// distribui cada camada horizontalmente e centraliza. Suficiente para fluxos de conversa
+// (grafos rasos, quase-árvores) sem puxar uma lib de layout inteira.
+export function computeAutoLayout(graph: FlowGraphData): Record<string, { x: number; y: number }> {
+  const H_GAP = 300
+  // Espaço extra entre a camada mais alta de uma linha e a próxima linha, além da altura real
+  // do card mais alto dela — sem isso, um menu com várias opções (card bem mais alto) encostaria
+  // na camada de baixo mesmo com um gap fixo pensado pra cards curtos.
+  const V_GAP = 90
+  const rank: Record<string, number> = {}
+  const queue: string[] = [graph.startNodeId]
+  rank[graph.startNodeId] = 0
+
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    const node = graph.nodes[id]
+    if (!node) continue
+    for (const { target } of targetsOf(node)) {
+      if (isCrossFlowTarget(target) || !graph.nodes[target]) continue
+      if (rank[target] === undefined) {
+        rank[target] = rank[id]! + 1
+        queue.push(target)
+      }
+    }
+  }
+
+  // Nós não alcançáveis vão para uma camada abaixo da última, na ordem em que aparecem.
+  const maxRank = Math.max(0, ...Object.values(rank))
+  let strayRank = maxRank + 1
+  for (const id of Object.keys(graph.nodes)) {
+    if (rank[id] === undefined) rank[id] = strayRank++
+  }
+
+  const layers: Record<number, string[]> = {}
+  for (const [id, r] of Object.entries(rank)) {
+    layers[r] = [...(layers[r] ?? []), id]
+  }
+
+  const positions: Record<string, { x: number; y: number }> = {}
+  const sortedRanks = Object.keys(layers)
+    .map(Number)
+    .sort((a, b) => a - b)
+  let cumulativeY = 0
+  for (const r of sortedRanks) {
+    const ids = layers[r]!
+    const width = (ids.length - 1) * H_GAP
+    let maxHeight = 0
+    ids.forEach((id, index) => {
+      maxHeight = Math.max(maxHeight, estimateNodeHeight(graph.nodes[id]!))
+      positions[id] = { x: index * H_GAP - width / 2, y: cumulativeY }
+    })
+    cumulativeY += maxHeight + V_GAP
+  }
+  return positions
+}
+
+// Chaves de fluxo (sem duplicatas) que este fluxo referencia via "flow:<key>" — usado tanto pro
+// mapa de fluxos (visão hierárquica) quanto pra decidir, na fusão editável, se um salto já
+// mesclado no canvas deve virar ligação real ou continuar como portal.
+export function crossFlowTargetsOf(graph: FlowGraphData): string[] {
+  const keys = new Set<string>()
+  for (const node of Object.values(graph.nodes)) {
+    for (const { target } of targetsOf(node)) {
+      if (isCrossFlowTarget(target)) keys.add(crossFlowKey(target))
+    }
+  }
+  return [...keys]
+}
+
+// Auto-layout do MAPA de fluxos: mesma ideia do computeAutoLayout, mas em granularidade de
+// fluxo inteiro (cada fluxo é "um nó"), ranqueado por BFS a partir do fluxo raiz (normalmente
+// o menu principal) usando crossFlowTargetsOf como as arestas.
+export function computeFlowMapLayout(
+  graphs: Record<string, FlowGraphData>,
+  rootKey: string,
+): Record<string, { x: number; y: number }> {
+  const H_GAP = 280
+  const V_GAP = 170
+  const rank: Record<string, number> = {}
+  const queue: string[] = graphs[rootKey] ? [rootKey] : Object.keys(graphs)
+  if (graphs[rootKey]) rank[rootKey] = 0
+
+  while (queue.length > 0) {
+    const key = queue.shift()!
+    const g = graphs[key]
+    if (!g) continue
+    for (const target of crossFlowTargetsOf(g)) {
+      if (!graphs[target]) continue
+      if (rank[target] === undefined) {
+        rank[target] = rank[key]! + 1
+        queue.push(target)
+      }
+    }
+  }
+
+  const maxRank = Math.max(0, ...Object.values(rank))
+  let strayRank = maxRank + 1
+  for (const key of Object.keys(graphs)) {
+    if (rank[key] === undefined) rank[key] = strayRank++
+  }
+
+  const layers: Record<number, string[]> = {}
+  for (const [key, r] of Object.entries(rank)) {
+    layers[r] = [...(layers[r] ?? []), key]
+  }
+
+  const positions: Record<string, { x: number; y: number }> = {}
+  for (const [r, keys] of Object.entries(layers)) {
+    const width = (keys.length - 1) * H_GAP
+    keys.forEach((key, index) => {
+      positions[key] = { x: index * H_GAP - width / 2, y: Number(r) * V_GAP }
+    })
+  }
+  return positions
+}
+
+export type CollectionChain = { nodeIds: string[]; actionNodeId: string }
+
+// Detecta o conjunto de perguntas que alimentam EXCLUSIVAMENTE um nó de ação — inclui
+// perguntas de escolha (ex.: "Possui mais de 3 anos de FGTS? Sim/Não") desde que TODOS os
+// ramos dela convirjam pra essa mesma ação, não só perguntas lineares numa fila reta. Puramente
+// derivado da topologia do grafo (não é um dado novo persistido) — usado só pra desenhar uma
+// moldura visual ("essas N perguntas alimentam essa ação").
+export function findCollectionChains(graph: FlowGraphData): CollectionChain[] {
+  const actionIds = new Set(
+    Object.values(graph.nodes)
+      .filter((n) => n.type === 'action')
+      .map((n) => n.id),
+  )
+  const memo = new Map<string, Set<string>>()
+
+  // Quais ações (nenhuma, uma ou várias) são alcançáveis a partir deste nó, seguindo só
+  // ligações dentro do próprio fluxo (saltos flow:<key> não contam — pertencem a outro fluxo).
+  function reachableActions(id: string, stack: Set<string>): Set<string> {
+    if (memo.has(id)) return memo.get(id)!
+    if (stack.has(id)) return new Set()
+    if (actionIds.has(id)) return new Set([id])
+    const node = graph.nodes[id]
+    if (!node) return new Set()
+
+    const nextStack = new Set(stack)
+    nextStack.add(id)
+    const result = new Set<string>()
+    for (const { target } of targetsOf(node)) {
+      if (isCrossFlowTarget(target) || !graph.nodes[target]) continue
+      for (const actionId of reachableActions(target, nextStack)) result.add(actionId)
+    }
+    memo.set(id, result)
+    return result
+  }
+
+  const nodeIdsByAction = new Map<string, string[]>()
+  for (const node of Object.values(graph.nodes)) {
+    if (node.type !== 'question') continue
+    const reached = reachableActions(node.id, new Set())
+    if (reached.size !== 1) continue
+    const [actionNodeId] = [...reached]
+    nodeIdsByAction.set(actionNodeId!, [...(nodeIdsByAction.get(actionNodeId!) ?? []), node.id])
+  }
+
+  return [...nodeIdsByAction.entries()]
+    .filter(([, nodeIds]) => nodeIds.length >= 2)
+    .map(([actionNodeId, nodeIds]) => ({ actionNodeId, nodeIds }))
+}
+
+// Gera um id de nó único e legível a partir do rótulo (ex.: "Qual sua renda?" → "qual_sua_renda").
+export function slugifyNodeId(label: string, existing: Set<string>): string {
+  const base =
+    label
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 30) || 'no'
+  let candidate = base
+  let counter = 2
+  while (existing.has(candidate)) {
+    candidate = `${base}_${counter}`
+    counter++
+  }
+  return candidate
+}
