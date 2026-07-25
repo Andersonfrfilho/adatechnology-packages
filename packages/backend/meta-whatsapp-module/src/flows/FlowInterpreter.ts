@@ -3,6 +3,7 @@ import type {
   ConversationSession,
   FlowActionHandler,
   FlowActionKind,
+  FlowActionResult,
   FlowGraphData,
   FlowNodeData,
 } from '@adatechnology/meta-whatsapp-contracts'
@@ -22,6 +23,22 @@ export type FlowStepResult =
   | { kind: 'advanced'; nodeId: string; context: Record<string, unknown> }
   | { kind: 'cross-flow'; flowKey: string; context: Record<string, unknown> }
   | { kind: 'terminal'; context: Record<string, unknown> }
+
+// Resultado de run(): nunca 'advanced' (o laço já consumiu esses), mas pode ser
+// 'max-steps-exceeded' quando o grafo tem um ciclo de nós automáticos.
+export type FlowRunResult = (
+  | { kind: 'awaiting-answer'; nodeId: string; context: Record<string, unknown> }
+  | { kind: 'cross-flow'; flowKey: string; context: Record<string, unknown> }
+  | { kind: 'terminal'; context: Record<string, unknown> }
+  | { kind: 'max-steps-exceeded'; context: Record<string, unknown> }
+) & {
+  // Caminho percorrido, do nó inicial ao final — serve para depurar um ciclo (os nós repetidos
+  // aparecem aqui) e para o host registrar a trilha da conversa.
+  visited: string[]
+  steps: number
+}
+
+const DEFAULT_MAX_STEPS = 50
 
 function evaluateCondition(node: FlowNodeData, context: Record<string, unknown>): boolean {
   if (!node.conditionContextKey || !node.conditionOperator || !node.conditionValue) return false
@@ -85,11 +102,16 @@ export class FlowInterpreter {
 
       // Runtime de uma função `void` é sempre `undefined` — cast seguro para poder encadear
       // `?.` (TS não deixa acessar propriedade num tipo `void | {...}` mesmo com optional chaining).
-      const result = (await handler({ node, session: input.session, channel: input.channel })) as
-        | { next?: string }
-        | undefined
+      const result = (await handler({
+        node,
+        session: input.session,
+        channel: input.channel,
+        context: input.context,
+      })) as FlowActionResult | undefined
+
+      const contextAfterAction = result?.context ? { ...input.context, ...result.context } : input.context
       const nextNodeId = result?.next ?? resolveNext(node, undefined)
-      return this.moveTo(input, nextNodeId)
+      return this.moveTo({ ...input, context: contextAfterAction }, nextNodeId)
     }
 
     const isChoice = node.type === 'menu' || node.questionType === 'choice'
@@ -112,5 +134,37 @@ export class FlowInterpreter {
       return { kind: 'cross-flow', flowKey: crossFlowKey(nextNodeId), context: input.context }
     if (!input.graph.nodes[nextNodeId]) return { kind: 'terminal', context: input.context }
     return { kind: 'advanced', nodeId: nextNodeId, context: input.context }
+  }
+
+  // Avança pelo grafo até parar num ponto que exige algo de fora: uma pergunta esperando resposta
+  // do cliente, o fim do fluxo, ou um salto para outro fluxo. Nós de condição e ação não pedem
+  // input nenhum, então parar neles obrigaria o chamador a reimplementar este laço — e sem
+  // proteção, um grafo com ciclo de condições (A→B→A) o prenderia para sempre.
+  //
+  // O corte por `maxSteps` é uma rede de segurança de runtime, não a defesa principal: um ciclo é
+  // erro de autoria e deveria ser barrado na publicação. Como validateGraph (no editor) hoje
+  // detecta nó inalcançável mas NÃO detecta ciclo, um grafo cíclico é publicável — então o
+  // runtime precisa sobreviver a ele em vez de travar o processo que atende o webhook.
+  async run(input: FlowStepInput, options?: { maxSteps?: number }): Promise<FlowRunResult> {
+    const maxSteps = options?.maxSteps ?? DEFAULT_MAX_STEPS
+    const visited: string[] = [input.currentNodeId]
+
+    let current: FlowStepInput = input
+    let steps = 0
+
+    while (steps < maxSteps) {
+      const result = await this.step(current)
+      steps++
+
+      if (result.kind !== 'advanced') return { ...result, visited, steps }
+
+      visited.push(result.nodeId)
+      // Só a primeira iteração consome a resposta do cliente; daí em diante o laço percorre
+      // nós automáticos (condição/ação). Manter userAnswer faria a mesma resposta ser
+      // reaplicada em cada pergunta seguinte, pulando-as sem o cliente ter respondido.
+      current = { ...current, currentNodeId: result.nodeId, context: result.context, userAnswer: undefined }
+    }
+
+    return { kind: 'max-steps-exceeded', context: current.context, visited, steps }
   }
 }

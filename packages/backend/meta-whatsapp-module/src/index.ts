@@ -1,4 +1,13 @@
-export { metaWhatsAppSchema, sessions, messages, flowGraphs } from './schema/schema'
+export { createMetaWhatsAppModule } from './createMetaWhatsAppModule'
+export type {
+  MetaWhatsAppModule,
+  CreateMetaWhatsAppModuleParams,
+  MetaWhatsAppModuleConfig,
+  MetaWhatsAppModuleFeatures,
+  MetaWhatsAppModuleProviders,
+} from './createMetaWhatsAppModule'
+
+export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings } from './schema/schema'
 export type {
   SessionRow,
   NewSessionRow,
@@ -6,7 +15,24 @@ export type {
   NewMessageRow,
   FlowGraphRow,
   NewFlowGraphRow,
+  SettingsRow,
+  NewSettingsRow,
 } from './schema/schema'
+
+export { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
+export { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
+export type { ReceiveWebhookParams, ReceiveWebhookResult } from './channel/ReceiveWebhook.use-case'
+export {
+  verifyWebhookChallenge,
+  verifyWebhookSignature,
+  claimWebhookDelivery,
+  WEBHOOK_NONCE_TTL_SECONDS,
+} from './channel/webhookSecurity'
+export type { NonceStoreInterface } from './channel/webhookSecurity'
+
+export { SettingsRepository } from './repositories/SettingsRepository'
+export { SendMessageUseCase } from './use-cases/SendMessage.use-case'
+export type { SendTextParams, SendMediaParams, SendTemplateParams } from './use-cases/SendMessage.use-case'
 
 export { runMetaWhatsAppMigrations } from './runMigrations'
 
@@ -23,7 +49,7 @@ export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtim
 
 export { FlowGraphRepository, OptimisticLockError } from './repositories/FlowGraphRepository'
 export { FlowInterpreter } from './flows/FlowInterpreter'
-export type { FlowStepInput, FlowStepResult } from './flows/FlowInterpreter'
+export type { FlowStepInput, FlowStepResult, FlowRunResult } from './flows/FlowInterpreter'
 
 export { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.use-case'
 export type { TakeoverConversationParams } from './use-cases/TakeoverConversation.use-case'

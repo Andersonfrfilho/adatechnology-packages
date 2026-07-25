@@ -110,6 +110,24 @@ export const flowGraphs = metaWhatsAppSchema.table(
   (table) => [uniqueIndex('idx_flow_graphs_company_key').on(table.companyId, table.key)],
 )
 
+// T5.5 — configuração de WhatsApp POR EMPRESA, em tabela do módulo. Deliberadamente separada do
+// app_config genérico do host: são chaves que só o módulo entende, e mantê-las aqui é o que
+// permite instalar/remover a capacidade sem migrar a tabela de configuração do produto.
+export const settings = metaWhatsAppSchema.table('settings', {
+  companyId: uuid('company_id').primaryKey(),
+  templateName: varchar('template_name', { length: 128 }),
+  templateLanguage: varchar('template_language', { length: 16 }).notNull().default('pt_BR'),
+  // Mapa posicional {{1}}, {{2}}... → token resolvido no envio (ex.: '{clientName}').
+  templateVariables: jsonb('template_variables').$type<string[]>().notNull().default([]),
+  welcomeMessage: text('welcome_message'),
+  farewellMessage: text('farewell_message'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export type SettingsRow = typeof settings.$inferSelect
+export type NewSettingsRow = typeof settings.$inferInsert
+
 export type SessionRow = typeof sessions.$inferSelect
 export type NewSessionRow = typeof sessions.$inferInsert
 export type MessageRow = typeof messages.$inferSelect

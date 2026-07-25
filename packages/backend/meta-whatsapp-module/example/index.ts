@@ -2,7 +2,8 @@
  * Example de uso do @adatechnology/meta-whatsapp-module — schema, migrations e use-cases de
  * conversa/sessão (Fase 3: schema Postgres, repositórios, takeover/release, listagem, export,
  * isolamento multiempresa) + grafo de fluxo (Fase 4: CRUD com lock otimista, interpretador com
- * actions registráveis pelo host, posições ao vivo).
+ * actions registráveis pelo host, posições ao vivo) + canal (Fase 5: webhook assinado com
+ * anti-replay, envio com janela de 24h, settings por empresa, factory do módulo).
  *
  * Rodar: bun run packages/backend/meta-whatsapp-module/example/index.ts
  * Requer DATABASE_URL apontando para um Postgres real (o exemplo roda as migrations do módulo
@@ -12,9 +13,12 @@
  *   docker run -d -e POSTGRES_PASSWORD=test -e POSTGRES_DB=test -p 15432:5432 postgres:16-alpine
  *   DATABASE_URL=postgres://postgres:test@localhost:15432/test bun run example/index.ts
  */
+import { createHmac } from 'node:crypto'
 import { SQL } from 'bun'
 import { drizzle } from 'drizzle-orm/bun-sql'
 import {
+  createMetaWhatsAppModule,
+  type NonceStoreInterface,
   runMetaWhatsAppMigrations,
   SessionRepository,
   MessageRepository,
@@ -170,6 +174,102 @@ async function main() {
   await sessionRepository.setFlowPosition(companyId, whatsappNumber, graph.key, 'ask_name')
   const positions = await getLivePositions.execute({ companyId })
   console.log('  ', positions)
+
+  console.log('\n--- Fase 5: canal (webhook, envio, settings) via createMetaWhatsAppModule ---')
+
+  // Tudo que é ambiente entra por parâmetro — o módulo não lê process.env nem abre conexão.
+  const whatsapp = createMetaWhatsAppModule({
+    db,
+    config: {
+      phoneNumberId: process.env['WHATSAPP_PHONE_NUMBER_ID'] ?? 'phone-number-id',
+      accessToken: process.env['WHATSAPP_ACCESS_TOKEN'] ?? 'access-token',
+      webhookVerifyToken: 'verify-token-de-exemplo',
+      appSecret: 'app-secret-de-exemplo',
+    },
+    // Em produção use um cache compartilhado (Redis) — o anti-replay precisa valer entre
+    // todas as instâncias, senão a mesma entrega passa uma vez em cada uma.
+    nonceStore: createInMemoryNonceStore(),
+    hooks: {
+      // Único ponto onde a regra de negócio do produto entra.
+      async onMessageReceived(message) {
+        console.log(`   [host] recebeu "${message.text?.body ?? message.type}" de ${message.from}`)
+        return { outcome: 'continue' }
+      },
+    },
+  })
+
+  console.log('\n9. Verificação do webhook (GET que a Meta faz ao cadastrar a URL):')
+  const challenge = whatsapp.webhook.verifyChallenge({
+    mode: 'subscribe',
+    token: 'verify-token-de-exemplo',
+    challenge: 'desafio-123',
+  })
+  console.log('   Devolve o challenge:', challenge)
+
+  console.log('\n10. Entrega assinada do webhook (POST) — e o replay dela:')
+  const inboundBody = JSON.stringify({
+    object: 'whatsapp_business_account',
+    entry: [
+      {
+        id: 'entry-1',
+        changes: [
+          {
+            value: {
+              messaging_product: 'whatsapp',
+              messages: [
+                {
+                  id: 'wamid.EXEMPLO',
+                  from: whatsappNumber,
+                  type: 'text',
+                  text: { body: 'Mensagem vinda do webhook' },
+                  timestamp: '1700000000',
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  })
+  const signature = 'sha256=' + createHmac('sha256', 'app-secret-de-exemplo').update(inboundBody).digest('hex')
+
+  const first = await whatsapp.webhook.receive.execute({ companyId, rawBody: inboundBody, signatureHeader: signature })
+  console.log('   1ª entrega:', first)
+  const replay = await whatsapp.webhook.receive.execute({ companyId, rawBody: inboundBody, signatureHeader: signature })
+  console.log('   Replay:', replay, '← ignorado, sem reprocessar a regra de negócio')
+
+  console.log('\n11. Configuração de WhatsApp da empresa (tabela do módulo, não do host):')
+  await whatsapp.settings.save(companyId, {
+    templateName: 'reengajamento_cliente',
+    templateVariables: ['{clientName}', '{city}'],
+  })
+  const resolvedVariables = await whatsapp.settings.resolveTemplateVariables(companyId, {
+    clientName: 'Ana',
+    city: 'Recife',
+  })
+  console.log('   Variáveis do template resolvidas na ordem {{1}},{{2}}:', resolvedVariables)
+
+  console.log('\n12. Motor de fluxo desligável (features.flowEngine):')
+  const semFluxo = createMetaWhatsAppModule({
+    db,
+    config: { phoneNumberId: 'p', accessToken: 't', webhookVerifyToken: 'v', appSecret: 's' },
+    nonceStore: createInMemoryNonceStore(),
+    features: { flowEngine: false },
+  })
+  console.log('   flows:', semFluxo.flows, '← ausente; conversas e webhook seguem funcionando')
+}
+
+// Só para o exemplo rodar sozinho: em produção isto é Redis (SET NX + TTL), compartilhado
+// entre instâncias.
+function createInMemoryNonceStore(): NonceStoreInterface {
+  const seen = new Set<string>()
+  return {
+    async setIfAbsent(key: string) {
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    },
+  }
 }
 
 main()

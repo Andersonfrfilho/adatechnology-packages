@@ -489,6 +489,9 @@ importers:
 
   packages/backend/meta-whatsapp-module:
     dependencies:
+      '@adatechnology/meta-graph-core':
+        specifier: workspace:*
+        version: link:../meta-graph-core
       '@adatechnology/meta-whatsapp-contracts':
         specifier: workspace:*
         version: link:../meta-whatsapp-contracts

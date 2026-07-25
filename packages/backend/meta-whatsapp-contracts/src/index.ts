@@ -63,6 +63,7 @@ export type {
   ObjectStorageInterface,
   RealtimeNotifierInterface,
   FlowActionHandler,
+  FlowActionResult,
   FlowActionRegistry,
 } from './providers'
 

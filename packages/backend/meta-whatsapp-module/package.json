@@ -13,6 +13,7 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts"
   },
   "dependencies": {
+    "@adatechnology/meta-graph-core": "workspace:*",
     "@adatechnology/meta-whatsapp-contracts": "workspace:*",
     "@adatechnology/meta-whatsapp-provider": "workspace:*",
     "drizzle-orm": "1.0.0-rc.4"

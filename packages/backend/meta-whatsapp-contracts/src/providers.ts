@@ -62,13 +62,23 @@ export interface RealtimeNotifierInterface {
   emit(channel: string, event: string, payload: Record<string, unknown>): void
 }
 
+export type FlowActionResult = {
+  // Desvia o fluxo para um nó específico, ignorando o `next` declarado no grafo.
+  next?: string
+  // Chaves a mesclar no contexto da conversa. Sem isto, uma action que produz dado
+  // (ex.: 'trigger_simulation' devolvendo o id da simulação) não teria como devolvê-lo ao
+  // fluxo — nós seguintes não conseguiriam referenciar o resultado numa condição ou mensagem.
+  context?: Record<string, unknown>
+}
+
 // Registro de actions de nó 'action' do fluxo — quem define o comportamento de um `actionKind`
 // (ex.: 'trigger_simulation' no bot) é o host, via este registro, não o pacote (T4.3).
 export type FlowActionHandler = (params: {
   node: FlowNodeData
   session: ConversationSession
   channel: ChannelAdapterInterface
-}) => Promise<{ next?: string } | void>
+  context: Record<string, unknown>
+}) => Promise<FlowActionResult | void>
 
 export interface FlowActionRegistry {
   registerFlowAction(kind: FlowActionKind, handler: FlowActionHandler): void
