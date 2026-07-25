@@ -1,7 +1,12 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
 import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
-import type { FlowGraphData, FlowGraphSummary, FlowNodeData } from '@adatechnology/meta-whatsapp-contracts'
+import type {
+  FlowGraphData,
+  FlowGraphSummary,
+  FlowNodeData,
+  LiveFlowPosition,
+} from '@adatechnology/meta-whatsapp-contracts'
 import { sessions, flowGraphs, type FlowGraphRow } from '../schema/schema'
 
 function toContractGraph(row: FlowGraphRow): FlowGraphData {
@@ -95,25 +100,28 @@ export class FlowGraphRepository {
     await this.db.delete(flowGraphs).where(and(eq(flowGraphs.companyId, companyId), eq(flowGraphs.key, key)))
   }
 
-  // T4.2 — GetLiveFlowPositions: agrega sessões ativas por (flowKey, nodeId). O flowKey vem do
-  // prefixo de currentState convencionado como "<flowKey>:<nodeId>" — o host que grava o estado
-  // nesse formato quando o interpretador (T4.3) transiciona entre nós.
-  async getLiveFlowPositions(companyId: string): Promise<{ flowKey: string; nodeId: string; count: number }[]> {
+  // T4.2 — GetLiveFlowPositions: agrega sessões ativas por (flowKey, currentNodeId), lendo as
+  // colunas dedicadas gravadas por SessionRepository.setFlowPosition. Agrega no banco (GROUP BY,
+  // coberto por idx_sessions_company_flow_node) em vez de trazer toda sessão da empresa para
+  // contar em memória.
+  async getLiveFlowPositions(companyId: string): Promise<LiveFlowPosition[]> {
     const rows = await this.db
-      .select({ currentState: sessions.currentState })
+      .select({
+        flowKey: sessions.flowKey,
+        nodeId: sessions.currentNodeId,
+        count: sql<number>`count(*)::int`,
+      })
       .from(sessions)
-      .where(and(eq(sessions.companyId, companyId), eq(sessions.mode, 'bot')))
+      .where(
+        and(
+          eq(sessions.companyId, companyId),
+          eq(sessions.mode, 'bot'),
+          isNotNull(sessions.flowKey),
+          isNotNull(sessions.currentNodeId),
+        ),
+      )
+      .groupBy(sessions.flowKey, sessions.currentNodeId)
 
-    const counts = new Map<string, number>()
-    for (const row of rows) {
-      const separatorIndex = row.currentState.indexOf(':')
-      if (separatorIndex === -1) continue
-      counts.set(row.currentState, (counts.get(row.currentState) ?? 0) + 1)
-    }
-
-    return [...counts.entries()].map(([key, count]) => {
-      const separatorIndex = key.indexOf(':')
-      return { flowKey: key.slice(0, separatorIndex), nodeId: key.slice(separatorIndex + 1), count }
-    })
+    return rows.map((row) => ({ flowKey: row.flowKey!, nodeId: row.nodeId!, count: row.count }))
   }
 }

@@ -21,10 +21,11 @@ export class LogMessageUseCase {
     const session = await this.sessionRepository.getOrCreate(params.companyId, params.whatsappNumber, params.startState)
 
     const saved = await this.messageRepository.insertMessage({ ...params, sessionId: session.id })
+    // Entrega duplicada (mesmo waMessageId) — não emite evento nem re-carimba a janela.
     if (!saved) return undefined
 
     if (params.direction === 'inbound') {
-      await this.sessionRepository.setState(params.companyId, params.whatsappNumber, session.currentState)
+      await this.sessionRepository.touchInbound(params.companyId, params.whatsappNumber)
     }
 
     this.realtime?.emit(`conv:${params.whatsappNumber}`, 'message', {

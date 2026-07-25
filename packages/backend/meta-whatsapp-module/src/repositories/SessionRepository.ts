@@ -59,6 +59,38 @@ export class SessionRepository {
       .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
   }
 
+  // Posição no grafo de fluxo — chamado pelo host a cada transição do FlowInterpreter.
+  // Passar null em ambos desliga o rastreio (ex.: conversa saiu do motor de fluxo).
+  async setFlowPosition(
+    companyId: string,
+    whatsappNumber: string,
+    flowKey: string | null,
+    currentNodeId: string | null,
+  ): Promise<void> {
+    await this.db
+      .update(sessions)
+      .set({ flowKey, currentNodeId, lastActivity: sql`now()`, updatedAt: sql`now()` })
+      .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
+  }
+
+  // Marca a chegada de uma mensagem DO CLIENTE. É este carimbo — e não lastActivity, que também
+  // se move em ações do atendente/bot — que define a janela de 24h do WhatsApp: fora dela, só
+  // template aprovado reabre a conversa (ver WindowExpiredError nos contracts).
+  async touchInbound(companyId: string, whatsappNumber: string): Promise<void> {
+    await this.db
+      .update(sessions)
+      .set({ lastInboundAt: sql`now()`, lastActivity: sql`now()`, updatedAt: sql`now()` })
+      .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
+  }
+
+  // Horas desde a última mensagem do cliente — undefined se ele nunca escreveu. O canal (Fase 5)
+  // usa isto para decidir entre mensagem livre e template antes de chamar a Graph API.
+  async hoursSinceLastInbound(companyId: string, whatsappNumber: string): Promise<number | undefined> {
+    const session = await this.getContext(companyId, whatsappNumber)
+    if (!session?.lastInboundAt) return undefined
+    return (Date.now() - session.lastInboundAt.getTime()) / (1000 * 60 * 60)
+  }
+
   async setMode(
     companyId: string,
     whatsappNumber: string,

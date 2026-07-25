@@ -84,6 +84,13 @@ async function main() {
   const exported = await exportConversation.execute({ companyId, whatsappNumber })
   console.log(`   ${exported.messages.length} mensagem(ns) na sessão ${exported.session.id}`)
 
+  console.log('\n5b. Janela de 24h — carimbada pela mensagem do cliente (não por ação do atendente):')
+  const hoursSinceInbound = await sessionRepository.hoursSinceLastInbound(companyId, whatsappNumber)
+  console.log(`   ${hoursSinceInbound?.toFixed(2)}h desde a última mensagem do cliente`)
+  console.log(
+    `   ${hoursSinceInbound !== undefined && hoursSinceInbound < 24 ? 'Dentro' : 'Fora'} da janela — ${hoursSinceInbound !== undefined && hoursSinceInbound < 24 ? 'pode enviar mensagem livre' : 'só template aprovado reabre'}`,
+  )
+
   console.log('\n--- Fase 4: grafo de fluxo ---')
 
   const flowGraphRepository = new FlowGraphRepository(db)
@@ -159,12 +166,10 @@ async function main() {
     console.log('   Após a ação:', final.kind)
   }
 
-  console.log('\n8. Posições ao vivo (quantas sessões estão em cada nó agora):')
+  console.log('\n8. Posições ao vivo — o host grava a posição a cada transição do interpretador:')
+  await sessionRepository.setFlowPosition(companyId, whatsappNumber, graph.key, 'ask_name')
   const positions = await getLivePositions.execute({ companyId })
-  console.log(
-    '  ',
-    positions.length > 0 ? positions : '(nenhuma sessão com currentState no formato "flowKey:nodeId" ainda)',
-  )
+  console.log('  ', positions)
 }
 
 main()

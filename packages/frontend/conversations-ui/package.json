@@ -30,6 +30,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@adatechnology/meta-whatsapp-contracts": "workspace:*",
     "lucide-react": "^1.21.0"
   },
   "peerDependencies": {

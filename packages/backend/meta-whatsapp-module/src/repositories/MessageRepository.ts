@@ -30,18 +30,12 @@ const DEFAULT_LIMIT = 50
 export class MessageRepository {
   constructor(private readonly db: BunSQLDatabase<AnyRelations | EmptyRelations>) {}
 
-  // Idempotente por waMessageId dentro da empresa — o mesmo webhook pode chegar mais de uma vez
-  // (Meta reenvia em cenários de instabilidade); insere só se ainda não existir.
+  // Idempotente por (companyId, waMessageId) — o mesmo webhook chega mais de uma vez (a Meta
+  // reenvia em instabilidade) e várias instâncias do host processam em paralelo. A garantia é o
+  // índice único parcial no banco + onConflictDoNothing, NÃO um SELECT prévio: duas entregas
+  // concorrentes passariam as duas pela checagem e inseririam duplicado.
+  // Devolve undefined quando a mensagem já existia (nada foi inserido).
   async insertMessage(params: InsertMessageParams): Promise<MessageRow | undefined> {
-    if (params.waMessageId) {
-      const [existing] = await this.db
-        .select({ id: messages.id })
-        .from(messages)
-        .where(and(eq(messages.companyId, params.companyId), eq(messages.waMessageId, params.waMessageId)))
-        .limit(1)
-      if (existing) return undefined
-    }
-
     const values: NewMessageRow = {
       companyId: params.companyId,
       sessionId: params.sessionId,
@@ -56,7 +50,7 @@ export class MessageRepository {
       status: params.status ?? null,
     }
 
-    const [created] = await this.db.insert(messages).values(values).returning()
+    const [created] = await this.db.insert(messages).values(values).onConflictDoNothing().returning()
     return created
   }
 

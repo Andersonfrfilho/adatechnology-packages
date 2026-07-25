@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   pgSchema,
   uuid,
@@ -26,6 +27,11 @@ export const sessions = metaWhatsAppSchema.table(
     whatsappNumber: varchar('whatsapp_number', { length: 20 }).notNull(),
     // varchar (não enum): a máquina de estados de cada produto evolui de forma independente do módulo.
     currentState: varchar('current_state', { length: 64 }).notNull().default('start'),
+    // Posição no grafo, quando o motor de fluxo está em uso — colunas separadas em vez de
+    // convencionar "flowKey:nodeId" dentro de currentState: além de ser um contrato implícito que
+    // nada garantia, a concatenação estourava o varchar(64) (flow key já é varchar(64) sozinha).
+    flowKey: varchar('flow_key', { length: 64 }),
+    currentNodeId: varchar('current_node_id', { length: 64 }),
     context: jsonb('context').$type<Record<string, unknown>>().notNull().default({}),
     mode: varchar('mode', { length: 12 }).notNull().default('bot'), // bot | human
     assignedUserId: uuid('assigned_user_id'),
@@ -40,6 +46,8 @@ export const sessions = metaWhatsAppSchema.table(
     // Único por empresa (não globalmente) — dois hosts diferentes podem atender o mesmo número.
     uniqueIndex('idx_sessions_company_number').on(table.companyId, table.whatsappNumber),
     index('idx_sessions_company_mode').on(table.companyId, table.mode),
+    // Alimenta getLiveFlowPositions (agregação por nó do grafo).
+    index('idx_sessions_company_flow_node').on(table.companyId, table.flowKey, table.currentNodeId),
   ],
 )
 
@@ -68,7 +76,14 @@ export const messages = metaWhatsAppSchema.table(
   (table) => [
     index('idx_messages_session_created').on(table.sessionId, table.createdAt),
     index('idx_messages_company_number_created').on(table.companyId, table.whatsappNumber, table.createdAt),
-    index('idx_messages_wa_message_id').on(table.waMessageId),
+    // Parcial e ÚNICO: é o que de fato garante idempotência de entrega. Um SELECT-antes-de-INSERT
+    // não basta — a Meta reenvia a mesma entrega e várias instâncias do host processam em
+    // paralelo, então as duas passariam pela checagem e inseririam duplicado. Parcial porque
+    // mensagens outbound ainda sem waMessageId (envio em curso) são legitimamente NULL, e NULLs
+    // não podem competir entre si por unicidade.
+    uniqueIndex('idx_messages_company_wa_message_id')
+      .on(table.companyId, table.waMessageId)
+      .where(sql`${table.waMessageId} is not null`),
   ],
 )
 

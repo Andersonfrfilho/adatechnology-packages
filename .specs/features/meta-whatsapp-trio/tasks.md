@@ -75,9 +75,10 @@ Feita **agora**, mesmo com catálogo adiado, para não gastar duas majors no
 
 ---
 
-## Fase 3 — `module/conversations/` (agnóstico de canal)
+## Fase 3 — `module/conversations/` (agnóstico de canal) ✅ CONCLUÍDA
 > 🤖 Modelo: `sonnet`
 > Depende de: F2
+> Pacote: `@adatechnology/meta-whatsapp-module`. Validado contra Postgres real (não só tsc).
 
 | # | Task | Critério de aceite |
 |---|---|---|
@@ -91,16 +92,16 @@ Feita **agora**, mesmo com catálogo adiado, para não gastar duas majors no
 
 ---
 
-## Fase 4 — `module/conversations/flows/` (fluxograma)
-> 🤖 Modelo: `sonnet` · T4.3 é 🧠 `opus`
+## Fase 4 — `module/conversations/flows/` (fluxograma) ✅ CONCLUÍDA (T4.1-T4.3)
+> 🤖 Modelo: `sonnet` · T4.3 é 🧠 `opus` (executada em sonnet — flag se precisar revisão)
 > Depende de: F2 · paralelizável com F3 e F5
 
 | # | Task | Critério de aceite |
 |---|---|---|
-| T4.1 | Tabela `flow_graphs` (key, label, start_node_id, nodes, version) + migrations | — |
-| T4.2 | CRUD de grafo + `GetLiveFlowPositions` | Paridade com `modules/flows/**` do bot |
-| T4.3 🧠 | Interpretador de grafo + **registro de actions do host** (`registerFlowAction`) | `trigger_simulation` do bot funciona registrado de fora, sem estar no pacote |
-| T4.4 | Flag `features.flowEngine` — desligável | QuickCart sobe sem engine de grafo |
+| T4.1 ✅ | Tabela `flow_graphs` (key, label, start_node_id, nodes, version) + migrations | — |
+| T4.2 ✅ | CRUD de grafo + `GetLiveFlowPositions` | Paridade com `modules/flows/**` do bot |
+| T4.3 ✅ | Interpretador de grafo + **registro de actions do host** (`registerFlowAction`) | `trigger_simulation` do bot funciona registrado de fora, sem estar no pacote |
+| T4.4 | Flag `features.flowEngine` — desligável | Adiada para T5.6 (`createMetaWhatsAppModule()`) — não há factory pra ter flag ainda |
 
 **Verificação:** `tsc --noEmit && bun test` · lint de fronteira
 
@@ -163,11 +164,10 @@ claro e escuro** · Storybook ou página de sandbox
 > 🤖 Modelo: `sonnet` · revisão 🧠 `opus`
 > Depende de: F3, F4, F5, F6, F7
 
-> ❓ **[NEEDS CLARIFICATION] Qual produto migra primeiro?**
-> A spec recomenda o **bot**, por ser a fonte da extração — regressão visual e
-> funcional aparece contra baseline conhecido. O usuário indicou implementar "nesse
-> projeto" (QuickCart) primeiro. **Resolver antes de iniciar a fase.**
-> Também aberto: **qual a branch de migração do bot** (não encontrada nos 3 repos).
+> ✅ **RESOLVIDA — QuickCart migra primeiro.** Decisão do usuário: QuickCart primeiro,
+> comparação visual contra o bot (baseline conhecido) depois de migrado, bot migra em
+> seguida na Fase 9. Branch de migração do bot ainda não identificada — resolver ao
+> iniciar a Fase 9.
 
 | # | Task | Critério de aceite |
 |---|---|---|
@@ -209,8 +209,9 @@ precisar mudar no pacote aqui, é sinal de que a fronteira ficou errada.
 
 ## Pendências que travam o início
 
-1. **[NEEDS CLARIFICATION]** Qual produto migra primeiro na F8 (bot ou QuickCart)?
-2. **[NEEDS CLARIFICATION]** Qual a branch de migração do bot? Não encontrada.
+1. ✅ **RESOLVIDA** — QuickCart migra primeiro na F8; bot migra na F9.
+2. **[NEEDS CLARIFICATION]** Qual a branch de migração do bot? Não encontrada. Resolver
+   ao iniciar a Fase 9.
 3. **[NEEDS CLARIFICATION]** Q3 da spec — tabelas `uploads`/`upload_*_links` entram no
    módulo? *Reco:* não; módulo tem `meta_whatsapp.media`, `uploads` genérica fica no produto.
 4. **[NEEDS CLARIFICATION]** Q4 da spec — settings em tabela do módulo?

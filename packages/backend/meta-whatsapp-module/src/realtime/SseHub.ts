@@ -22,15 +22,28 @@ const TICKET_TTL_SECONDS = 60
 
 // T3.4 — hub de tempo real atrás da porta RealtimeNotifierInterface (contracts). O host pode
 // trocar por WebSocket ou desligar sem o resto do módulo saber — ver providers.ts.
+type RelayEnvelope = {
+  originId: string
+  event: string
+  payload: Record<string, unknown>
+}
+
 export class SseHub implements RealtimeNotifierInterface {
   private readonly localListeners = new Map<string, Set<SseListener>>()
+  // Uma assinatura de relay por CANAL, compartilhada por todos os listeners locais dele — uma
+  // por listener faria o relay entregar N cópias num canal com N conexões abertas.
+  private readonly relaySubscriptions = new Map<string, Promise<() => void>>()
+  // Identifica esta instância do processo para descartar o próprio eco (pub/sub entrega a
+  // mensagem a todos os inscritos, inclusive quem publicou).
+  private readonly instanceId = randomUUID()
 
   constructor(private readonly relay?: RealtimeRelay) {}
 
   emit(channel: string, event: string, payload: Record<string, unknown>): void {
     this.dispatchLocal(channel, event, payload)
     if (this.relay) {
-      this.relay.publish(channel, JSON.stringify({ event, payload })).catch(() => undefined)
+      const envelope: RelayEnvelope = { originId: this.instanceId, event, payload }
+      this.relay.publish(channel, JSON.stringify(envelope)).catch(() => undefined)
     }
   }
 
@@ -44,21 +57,33 @@ export class SseHub implements RealtimeNotifierInterface {
     if (!this.localListeners.has(channel)) this.localListeners.set(channel, new Set())
     this.localListeners.get(channel)!.add(listener)
 
-    let unsubscribeRelay: (() => void) | undefined
-    if (this.relay) {
-      unsubscribeRelay = await this.relay.subscribe(channel, (message) => {
-        try {
-          const { event, payload } = JSON.parse(message) as { event: string; payload: Record<string, unknown> }
-          listener(event, payload)
-        } catch {
-          // mensagem de relay malformada — ignora, não derruba a conexão
-        }
-      })
+    if (this.relay && !this.relaySubscriptions.has(channel)) {
+      this.relaySubscriptions.set(
+        channel,
+        this.relay.subscribe(channel, (message) => {
+          try {
+            const envelope = JSON.parse(message) as RelayEnvelope
+            // Eco do que nós mesmos publicamos: dispatchLocal já entregou em emit().
+            if (envelope.originId === this.instanceId) return
+            this.dispatchLocal(channel, envelope.event, envelope.payload)
+          } catch {
+            // mensagem de relay malformada — ignora, não derruba a conexão
+          }
+        }),
+      )
     }
 
     return () => {
-      this.localListeners.get(channel)?.delete(listener)
-      unsubscribeRelay?.()
+      const listeners = this.localListeners.get(channel)
+      listeners?.delete(listener)
+      // Último listener do canal saiu: solta a assinatura do relay e a chave do Map, senão
+      // canais efêmeros (conv:<numero>) se acumulam pelo uptime inteiro do processo.
+      if (listeners && listeners.size === 0) {
+        this.localListeners.delete(channel)
+        const pendingUnsubscribe = this.relaySubscriptions.get(channel)
+        this.relaySubscriptions.delete(channel)
+        pendingUnsubscribe?.then((unsubscribe) => unsubscribe()).catch(() => undefined)
+      }
     }
   }
 }

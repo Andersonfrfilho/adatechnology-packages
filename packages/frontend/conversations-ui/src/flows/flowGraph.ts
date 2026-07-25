@@ -1,10 +1,28 @@
-export type FlowNodeType = 'question' | 'entrada_choice' | 'action' | 'menu' | 'condition'
-export type FlowQuestionType = 'text' | 'money' | 'date' | 'int' | 'cpf' | 'choice'
-// String aberta (não union fechada) — o host registra seus próprios `actionKind`s (ex.:
-// 'trigger_simulation' no bot) em vez do pacote assumir algum caso de negócio específico.
-export type FlowActionKind = string
-export type FlowConditionOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'contains'
-export type FlowNodeNext = string | { byAnswer: Record<string, string>; default: string }
+// Os TIPOS do grafo vêm de meta-whatsapp-contracts — é a fonte única da verdade do trio
+// (ver rules/packages/pluggable-module.md §2). Mantê-los duplicados aqui já tinha causado drift
+// real: o backend ganhou `FlowGraphData.version` e este pacote não, sem nada quebrar em
+// compile-time. `import type` puro: nenhum runtime do contracts entra no bundle do frontend.
+// O que fica local neste arquivo é só o que é de UI/layout (posicionamento, validação de
+// publicação, limites de renderização do WhatsApp) — isso não pertence ao contrato.
+import type {
+  FlowNodeType,
+  FlowQuestionType,
+  FlowActionKind,
+  FlowConditionOperator,
+  FlowNodeNext,
+  FlowNodeData,
+  FlowGraphData,
+} from '@adatechnology/meta-whatsapp-contracts'
+
+export type {
+  FlowNodeType,
+  FlowQuestionType,
+  FlowActionKind,
+  FlowConditionOperator,
+  FlowNodeNext,
+  FlowNodeData,
+  FlowGraphData,
+}
 
 export const CONDITION_OPERATORS: FlowConditionOperator[] = ['>', '>=', '<', '<=', '==', '!=', 'contains']
 
@@ -16,36 +34,10 @@ export const BUILT_IN_ACTION_KINDS = {
   SEND_PRODUCT_LIST: 'send_product_list',
 } as const
 
-export type FlowNodeData = {
-  id: string
-  type: FlowNodeType
-  contextKey?: string
-  questionType?: FlowQuestionType
-  question?: string
-  options?: [string, string][]
-  actionKind?: FlowActionKind
-  simulationTemplate?: Record<string, string>
-  directMessage?: string
-  // Mensagem de fallback quando send_product_list não consegue enviar a lista nativa do catálogo.
-  fallbackMessage?: string
-  // Nó 'condition': compara a variável já coletada em conditionContextKey (o contextKey de uma
-  // pergunta anterior) contra conditionValue usando conditionOperator — não pergunta nada ao
-  // cliente, só decide automaticamente entre next.byAnswer.true / next.byAnswer.false.
-  conditionContextKey?: string
-  conditionOperator?: FlowConditionOperator
-  conditionValue?: string
-  position?: { x: number; y: number }
-  next?: FlowNodeNext
-}
-
-export type FlowGraphData = {
-  key: string
-  label: string
-  startNodeId: string
-  nodes: Record<string, FlowNodeData>
-}
-
-// Destinos "flow:<key>" são saltos para outro fluxo, resolvidos pelo motor do host.
+// Destinos "flow:<key>" são saltos para outro fluxo, resolvidos pelo motor do host. Duplicado
+// (em vez de importado do contracts) de propósito: são três linhas triviais e importá-las como
+// valor puxaria o runtime do contracts para o bundle do frontend só por causa disso. O contracts
+// exporta as mesmas funções para o backend; a convenção "flow:" é o contrato de fato.
 export const CROSS_FLOW_PREFIX = 'flow:'
 export const isCrossFlowTarget = (target: string): boolean => target.startsWith(CROSS_FLOW_PREFIX)
 export const crossFlowKey = (target: string): string => target.slice(CROSS_FLOW_PREFIX.length)
