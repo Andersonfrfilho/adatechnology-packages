@@ -12,7 +12,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@adatechnology/meta-graph-core": "*",
+    "@adatechnology/meta-graph-core": "workspace:*",
     "zod": "^3.24.1"
   },
   "devDependencies": {
