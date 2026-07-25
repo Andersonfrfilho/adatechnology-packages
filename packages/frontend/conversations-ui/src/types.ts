@@ -31,6 +31,7 @@ export interface MessagePayload {
   mediaId?: string
   mimeType?: string
   filename?: string
+  sizeBytes?: number
   direction: 'inbound' | 'outbound'
   sender: 'bot' | 'customer' | 'agent'
   timestamp: string
