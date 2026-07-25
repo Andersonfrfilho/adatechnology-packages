@@ -11,7 +11,11 @@ export interface MessageComposerProps {
   placeholder?: string
   maxLength?: number
   disabled?: boolean
+  acceptedFileTypes?: string
 }
+
+// Paridade com financiamento-imobiliario-bot/apps/web/src/pages/ConversationsPage.tsx:1490
+const DEFAULT_ACCEPTED_FILE_TYPES = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip'
 
 interface FilePreview {
   file: File
@@ -27,6 +31,7 @@ export const MessageComposer = ({
   placeholder = 'Digite uma mensagem...',
   maxLength,
   disabled = false,
+  acceptedFileTypes = DEFAULT_ACCEPTED_FILE_TYPES,
 }: MessageComposerProps) => {
   const [internalText, setInternalText] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
@@ -175,7 +180,7 @@ export const MessageComposer = ({
 
         {showAttachButton && (
           <>
-            <input ref={fileInputRef} type="file" multiple onChange={handleFileChange} className="hidden" />
+            <input ref={fileInputRef} type="file" multiple accept={acceptedFileTypes} onChange={handleFileChange} className="hidden" />
             <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors" aria-label="Anexar">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>

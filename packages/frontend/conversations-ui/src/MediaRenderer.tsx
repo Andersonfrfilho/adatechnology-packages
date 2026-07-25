@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { AudioPlayer } from './AudioPlayer'
+import { useConversationLocales } from './ConversationLocalesProvider'
 import type { MessagePayload } from './types'
 
 function resolveMediaSource(message: MessagePayload): string | null {
@@ -12,19 +14,68 @@ function resolveMediaSource(message: MessagePayload): string | null {
   return null
 }
 
-export interface MediaRendererProps {
-  message: MessagePayload
-  onLightbox: () => void
+function hasLazyRef(message: MessagePayload): boolean {
+  return Boolean(message.uploadId || message.mediaId)
 }
 
-export function MediaRenderer({ message, onLightbox }: MediaRendererProps) {
+export type ResolveMediaUrl = (message: MessagePayload) => Promise<string | null>
+
+export interface MediaRendererProps {
+  message: MessagePayload
+  onLightbox: (src: string) => void
+  // Porta injetada pelo host para resolver `uploadId`/`mediaId` numa URL assinada sob
+  // demanda (lazy) — o pacote nunca chama um endpoint fixo. Paridade com o padrão
+  // loadUrl/loadMedia de financiamento-imobiliario-bot/apps/web/src/components/MessageBubble.tsx,
+  // porém delegando o fetch ao host em vez de hardcodar `/uploads/:id/download-url`.
+  onResolveUrl?: ResolveMediaUrl
+}
+
+function useLazyMediaUrl(message: MessagePayload, onResolveUrl?: ResolveMediaUrl) {
+  const [url, setUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(false)
+
+  const load = async () => {
+    if (url || loading || !onResolveUrl) return
+    setLoading(true)
+    setError(false)
+    try {
+      const resolved = await onResolveUrl(message)
+      if (resolved) setUrl(resolved)
+      else setError(true)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { url, loading, error, load }
+}
+
+export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRendererProps) {
+  const { bubble } = useConversationLocales()
+  const eagerSrc = resolveMediaSource(message)
+  const lazy = useLazyMediaUrl(message, onResolveUrl)
+  const src = eagerSrc ?? lazy.url
+  const canLazyLoad = !eagerSrc && hasLazyRef(message) && Boolean(onResolveUrl)
+
+  const lazyButtonClass = 'text-xs text-blue-600 underline flex items-center gap-1'
+
   switch (message.type) {
-    case 'image': {
-      const src = resolveMediaSource(message)
+    case 'image':
+    case 'sticker': {
+      if (!src && canLazyLoad) {
+        return (
+          <button onClick={lazy.load} className={lazyButtonClass}>
+            {lazy.loading ? 'Carregando...' : lazy.error ? 'Erro — tentar novamente' : bubble.viewImage}
+          </button>
+        )
+      }
       return (
         <div className="min-w-[200px]">
           {src ? (
-            <img src={src} alt={message.caption ?? 'Image'} className="w-full max-h-80 object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={onLightbox} loading="lazy" />
+            <img src={src} alt={message.caption ?? 'Image'} className="w-full max-h-80 object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onLightbox(src)} loading="lazy" />
           ) : (
             <div className="w-full h-40 bg-gray-200 flex items-center justify-center text-gray-400">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
@@ -34,7 +85,13 @@ export function MediaRenderer({ message, onLightbox }: MediaRendererProps) {
       )
     }
     case 'video': {
-      const src = resolveMediaSource(message)
+      if (!src && canLazyLoad) {
+        return (
+          <button onClick={lazy.load} className={lazyButtonClass}>
+            {lazy.loading ? 'Carregando...' : lazy.error ? 'Erro — tentar novamente' : bubble.viewVideo}
+          </button>
+        )
+      }
       return (
         <div className="min-w-[200px]">
           {src ? (
@@ -48,7 +105,13 @@ export function MediaRenderer({ message, onLightbox }: MediaRendererProps) {
       )
     }
     case 'audio': {
-      const src = resolveMediaSource(message)
+      if (!src && canLazyLoad) {
+        return (
+          <button onClick={lazy.load} className={lazyButtonClass}>
+            {lazy.loading ? 'Carregando...' : lazy.error ? 'Erro — tentar novamente' : bubble.listenAudio}
+          </button>
+        )
+      }
       return (
         <div className="min-w-[200px]">
           {src ? <AudioPlayer src={src} isMine={message.direction === 'outbound'} /> : (
@@ -58,7 +121,6 @@ export function MediaRenderer({ message, onLightbox }: MediaRendererProps) {
       )
     }
     case 'document': {
-      const src = resolveMediaSource(message)
       const typeLabel = message.mimeType?.split('/')[1]?.toUpperCase() ?? 'FILE'
       return (
         <div className="flex items-center gap-3 min-w-[200px]">
@@ -69,11 +131,21 @@ export function MediaRenderer({ message, onLightbox }: MediaRendererProps) {
             <p className="text-sm font-medium truncate">{message.filename ?? 'Document'}</p>
             <p className="text-xs text-gray-500">{typeLabel}</p>
           </div>
-          {src && (
+          {src ? (
             <a href={src} download={message.filename} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 flex-shrink-0 transition-colors" aria-label="Download">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-600"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             </a>
-          )}
+          ) : canLazyLoad ? (
+            <button
+              onClick={lazy.load}
+              disabled={lazy.loading}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 flex-shrink-0 transition-colors disabled:opacity-50"
+              aria-label="Download"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-600"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+            </button>
+          ) : null}
+          {lazy.error && <span className="text-xs text-red-500 flex-shrink-0">Erro</span>}
         </div>
       )
     }

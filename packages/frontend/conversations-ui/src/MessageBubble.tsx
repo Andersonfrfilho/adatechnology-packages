@@ -3,7 +3,7 @@ import { Check } from 'lucide-react'
 import type { MessagePayload } from './types'
 import { useConversationLocales } from './ConversationLocalesProvider'
 import { StatusTicks } from './StatusTicks'
-import { MediaRenderer } from './MediaRenderer'
+import { MediaRenderer, type ResolveMediaUrl } from './MediaRenderer'
 import { Lightbox } from './Lightbox'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
 import { formatTimestamp, formatDateTime } from './lib/format'
@@ -16,6 +16,7 @@ export interface MessageBubbleProps {
   isSelecting?: boolean
   isSelected?: boolean
   onToggleSelect?: () => void
+  onResolveMediaUrl?: ResolveMediaUrl
 }
 
 // Hex arbitrários (não os tokens `whatsapp.*` do Tailwind) — o pacote fica autocontido,
@@ -36,6 +37,7 @@ const MEDIA_TYPES = new Set(['image', 'audio', 'video', 'document', 'sticker'])
 // tailwind.config do host expondo as cores `whatsapp.*` — ver Wallpaper.tsx e T6.2.
 export function MessageBubble({
   message, isMine, senderName, isFirstInGroup = true, isSelecting = false, isSelected = false, onToggleSelect,
+  onResolveMediaUrl,
 }: MessageBubbleProps) {
   const { bubble, selection } = useConversationLocales()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
@@ -70,10 +72,6 @@ export function MessageBubble({
     </button>
   )
 
-  const imageSrc = message.mediaUrl ?? (message.base64
-    ? `data:${message.mimeType ?? 'image/jpeg'};base64,${message.base64}`
-    : null)
-
   return (
     <div className={`flex items-end gap-1.5 ${isMine ? 'justify-end' : 'justify-start'} group ${isFirstInGroup ? 'mt-2' : 'mt-0.5'}`}>
       {isMine && checkbox}
@@ -95,7 +93,7 @@ export function MessageBubble({
         )}
 
         {isMedia ? (
-          <MediaRenderer message={message} onLightbox={() => imageSrc && setLightboxSrc(imageSrc)} />
+          <MediaRenderer message={message} onLightbox={setLightboxSrc} onResolveUrl={onResolveMediaUrl} />
         ) : (
           <>
             {isTemplate && (
