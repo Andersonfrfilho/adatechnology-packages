@@ -9,6 +9,12 @@ export type FlowActionKind = string
 export type FlowConditionOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'contains'
 export type FlowNodeNext = string | { byAnswer: Record<string, string>; default: string }
 
+// Destinos "flow:<key>" são saltos para outro fluxo — mesma convenção usada pelo editor visual
+// (conversations-ui/flows/flowGraph.ts); backend e frontend precisam concordar no formato.
+export const CROSS_FLOW_PREFIX = 'flow:'
+export const isCrossFlowTarget = (target: string): boolean => target.startsWith(CROSS_FLOW_PREFIX)
+export const crossFlowKey = (target: string): string => target.slice(CROSS_FLOW_PREFIX.length)
+
 export type FlowNodeData = {
   id: string
   type: FlowNodeType

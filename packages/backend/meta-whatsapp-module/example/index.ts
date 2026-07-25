@@ -1,7 +1,8 @@
 /**
  * Example de uso do @adatechnology/meta-whatsapp-module — schema, migrations e use-cases de
  * conversa/sessão (Fase 3: schema Postgres, repositórios, takeover/release, listagem, export,
- * isolamento multiempresa).
+ * isolamento multiempresa) + grafo de fluxo (Fase 4: CRUD com lock otimista, interpretador com
+ * actions registráveis pelo host, posições ao vivo).
  *
  * Rodar: bun run packages/backend/meta-whatsapp-module/example/index.ts
  * Requer DATABASE_URL apontando para um Postgres real (o exemplo roda as migrations do módulo
@@ -22,7 +23,12 @@ import {
   ReleaseConversationUseCase,
   ListConversationsUseCase,
   ExportConversationUseCase,
+  FlowGraphRepository,
+  FlowInterpreter,
+  CreateFlowGraphUseCase,
+  GetLiveFlowPositionsUseCase,
 } from '../src/index'
+import type { ChannelAdapterInterface, ConversationSession } from '@adatechnology/meta-whatsapp-contracts'
 
 const databaseUrl = process.env['DATABASE_URL']
 if (!databaseUrl) {
@@ -77,6 +83,88 @@ async function main() {
   console.log('\n5. Export do transcript completo (ex.: anexar num chamado):')
   const exported = await exportConversation.execute({ companyId, whatsappNumber })
   console.log(`   ${exported.messages.length} mensagem(ns) na sessão ${exported.session.id}`)
+
+  console.log('\n--- Fase 4: grafo de fluxo ---')
+
+  const flowGraphRepository = new FlowGraphRepository(db)
+  const createFlow = new CreateFlowGraphUseCase(flowGraphRepository)
+  const getLivePositions = new GetLiveFlowPositionsUseCase(flowGraphRepository)
+
+  console.log('\n6. Criando um grafo simples (pergunta → ação):')
+  const graph = await createFlow.execute({
+    companyId,
+    key: 'example-flow',
+    label: 'Fluxo de exemplo',
+    startNodeId: 'ask_name',
+    nodes: {
+      ask_name: { id: 'ask_name', type: 'question', contextKey: 'name', question: 'Qual seu nome?', next: 'handoff' },
+      // 'handoff' é um kind genérico que o pacote já conhece (BUILT_IN_ACTION_KINDS) — um
+      // actionKind como 'trigger_simulation' do bot seria registrado pelo host, não pelo pacote.
+      handoff: { id: 'handoff', type: 'action', actionKind: 'handoff' },
+    },
+  })
+
+  console.log('\n7. Interpretador processa o fluxo — o host registra o que "handoff" faz:')
+  const interpreter = new FlowInterpreter()
+  interpreter.registerFlowAction('handoff', async ({ session }) => {
+    console.log(`   [host] encaminhando ${session.whatsappNumber} para atendimento humano`)
+  })
+
+  const channelStub: ChannelAdapterInterface = {
+    sendText: async () => ({ externalMessageId: null }),
+    sendMedia: async () => ({ externalMessageId: null }),
+    sendTemplate: async () => ({ externalMessageId: null }),
+    sendInteractiveList: async () => ({ externalMessageId: null }),
+    fetchMediaAsBase64: async () => ({ data: '', mimeType: '' }),
+  }
+  const sessionForFlow: ConversationSession = {
+    id: 'example-session',
+    companyId,
+    whatsappNumber,
+    currentState: 'example-flow:ask_name',
+    context: {},
+    mode: 'bot',
+    assignedUserId: null,
+    humanRequestedAt: null,
+    lastInboundAt: null,
+    lastAgentReadAt: null,
+    lastActivity: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  const answered = await interpreter.step({
+    graph,
+    currentNodeId: 'ask_name',
+    userAnswer: 'Maria',
+    context: {},
+    session: sessionForFlow,
+    channel: channelStub,
+  })
+  console.log(
+    '   Após responder "Maria":',
+    answered.kind,
+    '→ próximo nó:',
+    'nodeId' in answered ? answered.nodeId : '-',
+  )
+
+  if (answered.kind === 'advanced') {
+    const final = await interpreter.step({
+      graph,
+      currentNodeId: answered.nodeId,
+      context: answered.context,
+      session: sessionForFlow,
+      channel: channelStub,
+    })
+    console.log('   Após a ação:', final.kind)
+  }
+
+  console.log('\n8. Posições ao vivo (quantas sessões estão em cada nó agora):')
+  const positions = await getLivePositions.execute({ companyId })
+  console.log(
+    '  ',
+    positions.length > 0 ? positions : '(nenhuma sessão com currentState no formato "flowKey:nodeId" ainda)',
+  )
 }
 
 main()

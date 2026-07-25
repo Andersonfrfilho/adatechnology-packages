@@ -1,5 +1,12 @@
-export { metaWhatsAppSchema, sessions, messages } from './schema/schema'
-export type { SessionRow, NewSessionRow, MessageRow, NewMessageRow } from './schema/schema'
+export { metaWhatsAppSchema, sessions, messages, flowGraphs } from './schema/schema'
+export type {
+  SessionRow,
+  NewSessionRow,
+  MessageRow,
+  NewMessageRow,
+  FlowGraphRow,
+  NewFlowGraphRow,
+} from './schema/schema'
 
 export { runMetaWhatsAppMigrations } from './runMigrations'
 
@@ -14,6 +21,10 @@ export type {
 export { SseHub, issueSseTicket, redeemSseTicket } from './realtime/SseHub'
 export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtime/SseHub'
 
+export { FlowGraphRepository, OptimisticLockError } from './repositories/FlowGraphRepository'
+export { FlowInterpreter } from './flows/FlowInterpreter'
+export type { FlowStepInput, FlowStepResult } from './flows/FlowInterpreter'
+
 export { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.use-case'
 export type { TakeoverConversationParams } from './use-cases/TakeoverConversation.use-case'
 export { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-case'
@@ -26,3 +37,13 @@ export { ListMessagesUseCase } from './use-cases/ListMessages.use-case'
 export type { ListMessagesParams } from './use-cases/ListMessages.use-case'
 export { ExportConversationUseCase } from './use-cases/ExportConversation.use-case'
 export type { ExportConversationParams, ExportConversationResult } from './use-cases/ExportConversation.use-case'
+
+export {
+  GetFlowGraphUseCase,
+  ListFlowGraphsUseCase,
+  CreateFlowGraphUseCase,
+  SaveFlowGraphUseCase,
+  DeleteFlowGraphUseCase,
+  GetLiveFlowPositionsUseCase,
+} from './use-cases/FlowGraph.use-cases'
+export type { CreateFlowGraphParams, SaveFlowGraphParams } from './use-cases/FlowGraph.use-cases'
