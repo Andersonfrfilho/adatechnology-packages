@@ -107,7 +107,7 @@ Feita **agora**, mesmo com catálogo adiado, para não gastar duas majors no
 
 ---
 
-## Fase 5 — `module/channel/` (Meta/WhatsApp) ✅ CONCLUÍDA (exceto T5.3)
+## Fase 5 — `module/channel/` (Meta/WhatsApp) ✅ CONCLUÍDA
 > 🤖 Modelo: `sonnet` · T5.1 e T5.6 são 🧠 `opus` (segurança e API pública)
 > Depende de: F2
 
@@ -115,7 +115,7 @@ Feita **agora**, mesmo com catálogo adiado, para não gastar duas majors no
 |---|---|---|
 | T5.1 ✅ | Webhook: verify (compare constante), HMAC `sha256=`, nonce anti-replay Redis TTL 300s | Verificado: assinatura forjada/ausente/corpo adulterado → rejeita; replay → `duplicate:true` sem re-disparar hook |
 | T5.2 ✅ | `sender`: wrapper do `meta-whatsapp-provider` — texto, mídia, template, lista interativa; erro de janela 24h → `WINDOW_EXPIRED` | Janela checada localmente ANTES da Graph API; `sendTemplate` isento (é o que reabre) |
-| T5.3 ⏳ | `media`: download/upload Meta, idempotente por `sourceMediaId`, via `ObjectStorageInterface` | **Pendente** — só o caminho outbound (T5.4) foi feito; falta o download de mídia inbound |
+| T5.3 ✅ | `media`: download/upload Meta, idempotente por `sourceMediaId`, via `ObjectStorageInterface` | Delegado à porta (zero S3 no pacote); job reentregue não re-baixa nem duplica objeto |
 | T5.4 ✅ | **Corrigir dívida:** outbound deixa de gravar base64 no banco; grava no storage e referencia `uploadId` | `messages.payload` guarda `uploadId`, nunca binário |
 | T5.5 ✅ | `settings`: tabela `meta_whatsapp.settings` (só chaves de WhatsApp) + CRUD de templates/welcome/farewell/variáveis | Tabela do módulo; `resolveTemplateVariables` mapeia `{{n}}` → contexto |
 | T5.6 ✅ | `createMetaWhatsAppModule()` — costura conversa×canal, hooks, portas, `CatalogPort` **opcional** | Sobe sem catálogo; zero `process.env`. `registerRoutes()` **não** feito — ver nota |
