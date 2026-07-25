@@ -24,6 +24,13 @@ export { useWaitingNotifications } from './useWaitingNotifications'
 
 export { ConversationsProvider, useConversations } from './providers/ConversationsProvider'
 
+// Telas de Settings (T7.1) — apresentacionais, sem chamada de rede própria; o host busca
+// dados (templates da Meta, mensagens salvas) e injeta via props.
+export { WhatsAppTemplateSettingsForm } from './settings/WhatsAppTemplateSettingsForm'
+export { WhatsAppCreateTemplateForm } from './settings/WhatsAppCreateTemplateForm'
+export { WelcomeFarewellForm } from './settings/WelcomeFarewellForm'
+export { TopicsForm } from './settings/TopicsForm'
+
 // Camada headless (T6.9) — hooks de dados/ações independentes de qualquer tela, para o
 // produto montar sua própria UI sobre eles. Requerem <ConversationsProvider> como ancestral.
 export { useConversationMessages } from './hooks/useConversationMessages'
@@ -55,6 +62,22 @@ export type { LightboxProps } from './Lightbox'
 export type { MediaRendererProps, ResolveMediaUrl } from './MediaRenderer'
 export type { FileIconProps } from './FileIcon'
 export type { MessageTextProps } from './MessageText'
+
+export type {
+  WhatsAppTemplateSettingsFormProps,
+  WhatsAppTemplateSummary,
+  WhatsAppTemplateVariableSuggestion,
+  WhatsAppTemplateSettingsFormLabels,
+} from './settings/WhatsAppTemplateSettingsForm'
+export type {
+  WhatsAppCreateTemplateFormProps,
+  WhatsAppCreateTemplateState,
+  WhatsAppCreateTemplateResult,
+  WhatsAppTemplateHeaderType,
+  WhatsAppCreateTemplateFormLabels,
+} from './settings/WhatsAppCreateTemplateForm'
+export type { WelcomeFarewellFormProps, WelcomeFarewellFormLabels } from './settings/WelcomeFarewellForm'
+export type { TopicsFormProps, TopicItem, TopicsFormLabels } from './settings/TopicsForm'
 
 export type { UseConversationMessagesResult } from './hooks/useConversationMessages'
 export type { UseConversationListParams, UseConversationListResult } from './hooks/useConversationList'
