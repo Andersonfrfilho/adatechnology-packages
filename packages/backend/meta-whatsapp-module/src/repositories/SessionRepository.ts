@@ -1,6 +1,11 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
-import type { ConversationSummary, SessionMode, SessionState } from '@adatechnology/meta-whatsapp-contracts'
+import type {
+  ConversationSummary,
+  MessageDirection,
+  SessionMode,
+  SessionState,
+} from '@adatechnology/meta-whatsapp-contracts'
 import { messages, sessions, type SessionRow } from '../schema/schema'
 
 export interface ListConversationsFilters {
@@ -152,6 +157,29 @@ export class SessionRepository {
         lastActivity: sessions.lastActivity,
         lastInboundAt: sessions.lastInboundAt,
         humanRequestedAt: sessions.humanRequestedAt,
+        // Prévia e contagem saem de subquery correlacionada em vez de N+1 na volta: uma inbox
+        // lista dezenas de conversas por página, e uma query por linha é o gargalo clássico
+        // dessa tela. Ambos os campos são dados do próprio módulo — deixá-los para o host
+        // obrigaria todo consumidor a reescrever o mesmo join contra tabelas que não são dele.
+        lastContent: sql<string | null>`(
+          select m.content from ${messages} m
+          where m.company_id = ${sessions.companyId} and m.session_id = ${sessions.id}
+          order by m.created_at desc limit 1
+        )`,
+        lastDirection: sql<string | null>`(
+          select m.direction from ${messages} m
+          where m.company_id = ${sessions.companyId} and m.session_id = ${sessions.id}
+          order by m.created_at desc limit 1
+        )`,
+        // Entradas do cliente depois da última leitura do atendente. Sessão nunca lida conta
+        // tudo — é o comportamento esperado de uma conversa que ninguém abriu ainda.
+        unread: sql<number>`(
+          select count(*)::int from ${messages} m
+          where m.company_id = ${sessions.companyId}
+            and m.session_id = ${sessions.id}
+            and m.direction = 'inbound'
+            and (${sessions.lastAgentReadAt} is null or m.created_at > ${sessions.lastAgentReadAt})
+        )`,
       })
       .from(sessions)
       .where(and(...conditions))
@@ -162,12 +190,14 @@ export class SessionRepository {
     return rows.map((row) => ({
       id: row.id,
       whatsappNumber: row.whatsappNumber,
+      ...(row.lastContent !== null ? { lastContent: row.lastContent } : {}),
+      ...(row.lastDirection !== null ? { lastDirection: row.lastDirection as MessageDirection } : {}),
       lastAt: row.lastActivity.toISOString(),
       lastInboundAt: row.lastInboundAt?.toISOString() ?? null,
       mode: row.mode as SessionMode,
       assignedUserId: row.assignedUserId,
       waitingHuman: row.humanRequestedAt !== null,
-      unread: 0, // calculado pelo host (agregação com companyId + regra de leitura própria)
+      unread: Number(row.unread),
       currentState: row.currentState,
     }))
   }
