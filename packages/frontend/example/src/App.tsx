@@ -181,7 +181,7 @@ function WhatsAppLayout() {
           <div className="flex-1 overflow-y-auto wa-wallpaper">
             <div className="py-2">
               {messages.map(msg => (
-                <MessageBubble key={msg.id} message={msg} />
+                <MessageBubble key={msg.id} message={msg} isMine={msg.direction === 'outbound'} />
               ))}
             </div>
           </div>
