@@ -34,6 +34,7 @@
   },
   "changesets": [
     "drizzle-decouple",
+    "fix-correlation",
     "meta-whatsapp-trio-rc",
     "restore-provider-factory",
     "strict-declarations",
