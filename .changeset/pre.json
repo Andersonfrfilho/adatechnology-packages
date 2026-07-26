@@ -1,0 +1,38 @@
+{
+  "mode": "pre",
+  "tag": "rc",
+  "initialVersions": {
+    "@adatechnology/auth-keycloak": "0.0.1",
+    "@adatechnology/cache": "0.0.1",
+    "@adatechnology/drizzle-provider": "0.1.1",
+    "example": "0.0.0",
+    "bun-app-example": "0.0.1",
+    "@adatechnology/fiscal-provider": "0.2.0",
+    "fiscal-example": "0.0.1",
+    "fiscal-example-frontend": "0.0.1",
+    "@adatechnology/http-client": "0.0.1",
+    "@adatechnology/keycloak-jwt": "0.1.1",
+    "@adatechnology/logger": "0.0.1",
+    "@adatechnology/meta-catalog-provider": "0.1.0",
+    "@adatechnology/meta-graph-core": "0.1.0",
+    "@adatechnology/meta-whatsapp-contracts": "0.1.0",
+    "@adatechnology/meta-whatsapp-module": "0.1.0",
+    "@adatechnology/meta-whatsapp-provider": "0.1.0",
+    "@adatechnology/nestjs-auth-keycloak": "0.1.24",
+    "@adatechnology/nestjs-cache": "0.0.25",
+    "@adatechnology/nestjs-http-client": "0.0.31",
+    "@adatechnology/nestjs-keycloak-admin": "0.1.22",
+    "@adatechnology/nestjs-logger": "0.2.4",
+    "@adatechnology/nestjs-package": "0.1.0",
+    "@adatechnology/object-storage-provider": "0.1.1",
+    "@adatechnology/rabbitmq-provider": "0.1.1",
+    "@adatechnology/secret-envelope": "0.1.0",
+    "@adatechnology/shared": "0.0.2",
+    "@adatechnology/conversations-ui": "0.0.0",
+    "@adatechnology/logger-client": "0.0.2",
+    "@adatechnology/products-ui": "0.0.0"
+  },
+  "changesets": [
+    "meta-whatsapp-trio-rc"
+  ]
+}
