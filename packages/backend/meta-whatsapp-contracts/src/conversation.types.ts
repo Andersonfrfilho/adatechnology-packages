@@ -14,6 +14,11 @@ export interface ConversationSession {
   companyId: string
   whatsappNumber: string
   currentState: SessionState
+  // Posição no grafo de fluxo, null quando a conversa não está dentro de um. Quem dirige o
+  // motor é o host (o módulo só interpreta), então ele precisa ler daqui onde a conversa parou
+  // — sem isso o host teria de consultar a tabela do módulo por fora do contrato.
+  flowKey: string | null
+  currentNodeId: string | null
   context: Record<string, unknown>
   mode: SessionMode
   assignedUserId: string | null

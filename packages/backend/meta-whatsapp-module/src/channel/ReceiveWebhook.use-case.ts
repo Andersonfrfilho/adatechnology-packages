@@ -33,6 +33,8 @@ function toSessionContract(row: SessionRow): ConversationSession {
     companyId: row.companyId,
     whatsappNumber: row.whatsappNumber,
     currentState: row.currentState,
+    flowKey: row.flowKey,
+    currentNodeId: row.currentNodeId,
     context: row.context,
     mode: row.mode as ConversationSession['mode'],
     assignedUserId: row.assignedUserId,
