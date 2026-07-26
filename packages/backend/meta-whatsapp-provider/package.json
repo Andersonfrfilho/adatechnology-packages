@@ -2,6 +2,9 @@
   "name": "@adatechnology/meta-whatsapp-provider",
   "version": "0.2.0-rc.0",
   "description": "Meta WhatsApp Cloud API client — messages, templates, and webhooks",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -74,9 +74,28 @@ jobs:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Ensure Bun packages are public
+      # Pacotes de escopo saem como restricted quando o package.json não declara
+      # publishConfig.access, e o npm responde 404 para quem não tem acesso — o pacote
+      # parece não existir. Os package.json agora declaram access: public, mas quem já
+      # foi publicado antes disso precisa ser corrigido no registry uma vez.
+      # `|| true`: uma vez públicos, repetir o comando é inofensivo, e um pacote ainda
+      # não publicado não deve derrubar o job.
+      - name: Ensure scoped packages are public
         run: |
-          npm access set status=public @adatechnology/keycloak-jwt
-          npm access set status=public @adatechnology/secret-envelope
+          for pkg in \
+            keycloak-jwt \
+            secret-envelope \
+            meta-graph-core \
+            meta-whatsapp-contracts \
+            meta-whatsapp-provider \
+            meta-catalog-provider \
+            meta-whatsapp-module \
+            conversations-ui \
+            products-ui
+          do
+            echo "--- @adatechnology/$pkg"
+            npm access set status=public "@adatechnology/$pkg" || true
+            npm view "@adatechnology/$pkg" version dist-tags || echo "    (não encontrado no registry)"
+          done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
