@@ -36,6 +36,7 @@
     "drizzle-decouple",
     "meta-whatsapp-trio-rc",
     "restore-provider-factory",
-    "strict-declarations"
+    "strict-declarations",
+    "webhook-security-tests"
   ]
 }
