@@ -2,11 +2,17 @@
 
 echo "Running type checks and tests..."
 
-changed=$(git diff --name-only origin/main...HEAD -- packages/backend/whatsapp-provider/ 2>/dev/null)
-if [ -n "$changed" ]; then
-  echo "WhatsApp Provider changed — running typecheck, build, and tests..."
-  (cd packages/backend/whatsapp-provider && bun run check && bun run build && bun run test) || exit 1
-fi
+# Pacotes do trio meta-whatsapp. O antigo `whatsapp-provider` foi dividido em
+# meta-graph-core (fundação da Graph API), meta-whatsapp-provider (mensagens/templates),
+# meta-catalog-provider (catálogo), mais contracts e module — o hook apontava para o
+# diretório antigo e quebrava o push desde o rename.
+for package_dir in meta-graph-core meta-whatsapp-contracts meta-whatsapp-provider meta-catalog-provider meta-whatsapp-module; do
+  changed=$(git diff --name-only origin/main...HEAD -- "packages/backend/$package_dir/" 2>/dev/null)
+  if [ -n "$changed" ]; then
+    echo "$package_dir changed — running typecheck and build..."
+    (cd "packages/backend/$package_dir" && bun run check && bun run build) || exit 1
+  fi
+done
 
 changed_fiscal=$(git diff --name-only origin/main...HEAD -- packages/backend/fiscal-provider/ 2>/dev/null)
 if [ -n "$changed_fiscal" ]; then
