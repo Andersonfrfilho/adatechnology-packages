@@ -11,5 +11,7 @@ export default defineConfig({
   shims: true,
   // Migrations SQL não são código — tsup não as bundla; copiadas como estão para o dist depois
   // do build, e runMetaWhatsAppMigrations() acha a pasta via __dirname relativo ao pacote publicado.
-  onSuccess: 'mkdir -p dist/migrations && cp -r src/migrations/* dist/migrations/',
+  // rm antes do cp: sem isso a pasta acumula migrations de builds anteriores, e uma renomeada
+  // (ou um layout de journal trocado) fica convivendo com a versão nova no pacote publicado.
+  onSuccess: 'rm -rf dist/migrations && mkdir -p dist/migrations && cp -r src/migrations/* dist/migrations/',
 })

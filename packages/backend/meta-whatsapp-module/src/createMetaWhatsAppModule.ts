@@ -1,6 +1,5 @@
-import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
-import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
 import { WhatsAppMessageProvider } from '@adatechnology/meta-whatsapp-provider'
+import type { MetaWhatsAppDatabase } from './database.types'
 import type {
   CatalogPort,
   ChannelAdapterInterface,
@@ -65,7 +64,7 @@ export interface MetaWhatsAppModuleProviders {
 }
 
 export interface CreateMetaWhatsAppModuleParams {
-  db: BunSQLDatabase<AnyRelations | EmptyRelations>
+  db: MetaWhatsAppDatabase
   config: MetaWhatsAppModuleConfig
   // Cache compartilhado entre instâncias para o anti-replay do webhook.
   nonceStore: NonceStoreInterface

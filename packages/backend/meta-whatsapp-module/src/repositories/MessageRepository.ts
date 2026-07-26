@@ -1,6 +1,5 @@
 import { and, eq, lt } from 'drizzle-orm'
-import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
-import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
+import type { MetaWhatsAppDatabase } from '../database.types'
 import type { MessageDirection, MessageSender, MessageStatus } from '@adatechnology/meta-whatsapp-contracts'
 import { messages, type MessageRow, type NewMessageRow } from '../schema/schema'
 
@@ -28,7 +27,7 @@ export interface ListMessagesParams {
 const DEFAULT_LIMIT = 50
 
 export class MessageRepository {
-  constructor(private readonly db: BunSQLDatabase<AnyRelations | EmptyRelations>) {}
+  constructor(private readonly db: MetaWhatsAppDatabase) {}
 
   // Idempotente por (companyId, waMessageId) — o mesmo webhook chega mais de uma vez (a Meta
   // reenvia em instabilidade) e várias instâncias do host processam em paralelo. A garantia é o

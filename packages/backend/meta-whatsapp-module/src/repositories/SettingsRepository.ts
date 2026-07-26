@@ -1,6 +1,5 @@
 import { eq } from 'drizzle-orm'
-import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
-import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
+import type { MetaWhatsAppDatabase } from '../database.types'
 import type { WhatsAppSettings } from '@adatechnology/meta-whatsapp-contracts'
 import { settings, type SettingsRow } from '../schema/schema'
 
@@ -24,7 +23,7 @@ const EMPTY_SETTINGS: WhatsAppSettings = {
 
 // T5.5 — configuração de WhatsApp por empresa.
 export class SettingsRepository {
-  constructor(private readonly db: BunSQLDatabase<AnyRelations | EmptyRelations>) {}
+  constructor(private readonly db: MetaWhatsAppDatabase) {}
 
   // Empresa sem linha de configuração é o estado normal logo após instalar o módulo — devolve
   // os defaults em vez de undefined, para o chamador não precisar tratar "ainda não configurado"

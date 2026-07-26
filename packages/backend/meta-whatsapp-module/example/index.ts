@@ -16,6 +16,7 @@
 import { createHmac } from 'node:crypto'
 import { SQL } from 'bun'
 import { drizzle } from 'drizzle-orm/bun-sql'
+import { migrate } from 'drizzle-orm/bun-sql/migrator'
 import {
   createMetaWhatsAppModule,
   type NonceStoreInterface,
@@ -45,7 +46,9 @@ const db = drizzle({ client })
 
 async function main() {
   console.log('Aplicando migrations do módulo (schema meta_whatsapp)...')
-  await runMetaWhatsAppMigrations(db)
+  // O migrator é específico de driver, então quem o escolhe é o host: aqui, o do Bun SQL.
+  // Um host em node-postgres passaria 'drizzle-orm/node-postgres/migrator' no mesmo lugar.
+  await runMetaWhatsAppMigrations({ db, migrate })
 
   const sessionRepository = new SessionRepository(db)
   const messageRepository = new MessageRepository(db)

@@ -1,6 +1,5 @@
 import { eq, and } from 'drizzle-orm'
-import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
-import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
+import type { MetaWhatsAppDatabase } from '../database.types'
 import type { ChannelAdapterInterface, ObjectStorageInterface } from '@adatechnology/meta-whatsapp-contracts'
 import { messages, type MessageRow } from '../schema/schema'
 
@@ -31,7 +30,7 @@ export type IngestInboundMediaResult = {
 // órfão no storage para o mesmo binário.
 export class IngestInboundMediaUseCase {
   constructor(
-    private readonly db: BunSQLDatabase<AnyRelations | EmptyRelations>,
+    private readonly db: MetaWhatsAppDatabase,
     private readonly channel: ChannelAdapterInterface,
     private readonly objectStorage: ObjectStorageInterface,
   ) {}

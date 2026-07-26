@@ -37,7 +37,13 @@ export { SettingsRepository } from './repositories/SettingsRepository'
 export { SendMessageUseCase } from './use-cases/SendMessage.use-case'
 export type { SendTextParams, SendMediaParams, SendTemplateParams } from './use-cases/SendMessage.use-case'
 
-export { runMetaWhatsAppMigrations } from './runMigrations'
+export {
+  runMetaWhatsAppMigrations,
+  metaWhatsAppMigrationsFolder,
+  META_WHATSAPP_MIGRATIONS_TABLE,
+} from './runMigrations'
+export type { RunMetaWhatsAppMigrationsParams } from './runMigrations'
+export type { MetaWhatsAppDatabase, DrizzleMigrateFunction } from './database.types'
 
 export { SessionRepository } from './repositories/SessionRepository'
 export type { ListConversationsFilters } from './repositories/SessionRepository'

@@ -1,6 +1,5 @@
 import { and, eq, isNotNull, sql } from 'drizzle-orm'
-import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
-import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
+import type { MetaWhatsAppDatabase } from '../database.types'
 import { flowGraphNodesSchema } from '@adatechnology/meta-whatsapp-contracts'
 import type {
   FlowGraphData,
@@ -46,7 +45,7 @@ export class OptimisticLockError extends Error {
 // T4.2 — CRUD de grafo de fluxo, mais a consulta de posições ao vivo (quantas sessões estão
 // em cada nó agora) que alimenta o liveCount no editor visual (FlowNodeCardData).
 export class FlowGraphRepository {
-  constructor(private readonly db: BunSQLDatabase<AnyRelations | EmptyRelations>) {}
+  constructor(private readonly db: MetaWhatsAppDatabase) {}
 
   async get(companyId: string, key: string): Promise<FlowGraphData | undefined> {
     const [row] = await this.db

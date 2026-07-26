@@ -20,13 +20,16 @@
   "dependencies": {
     "@adatechnology/meta-graph-core": "workspace:*",
     "@adatechnology/meta-whatsapp-contracts": "workspace:*",
-    "@adatechnology/meta-whatsapp-provider": "workspace:*",
-    "drizzle-orm": "1.0.0-rc.4"
+    "@adatechnology/meta-whatsapp-provider": "workspace:*"
   },
   "devDependencies": {
-    "drizzle-kit": "1.0.0-rc.4",
+    "@types/bun": "1.3.14",
+    "drizzle-kit": "0.31.10",
+    "drizzle-orm": "0.45.2",
     "tsup": "^8.5.1",
-    "typescript": "^5.7.3",
-    "@types/bun": "1.3.14"
+    "typescript": "^5.7.3"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.36.0 <1"
   }
 }

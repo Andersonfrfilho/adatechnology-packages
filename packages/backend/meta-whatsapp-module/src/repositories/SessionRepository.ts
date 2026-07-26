@@ -1,6 +1,5 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
-import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres'
-import type { AnyRelations, EmptyRelations } from 'drizzle-orm/relations'
+import type { MetaWhatsAppDatabase } from '../database.types'
 import type { ConversationSummary, SessionMode, SessionState } from '@adatechnology/meta-whatsapp-contracts'
 import { messages, sessions, type SessionRow } from '../schema/schema'
 
@@ -16,7 +15,7 @@ const DEFAULT_LIMIT = 20
 // T3.2 — todo método recebe/filtra por companyId explicitamente (nunca lê de um campo do
 // payload do cliente); ver database.md "Consistência e multiempresa".
 export class SessionRepository {
-  constructor(private readonly db: BunSQLDatabase<AnyRelations | EmptyRelations>) {}
+  constructor(private readonly db: MetaWhatsAppDatabase) {}
 
   async getContext(companyId: string, whatsappNumber: string): Promise<SessionRow | undefined> {
     const [row] = await this.db
