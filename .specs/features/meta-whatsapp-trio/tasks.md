@@ -236,3 +236,61 @@ precisar mudar no pacote aqui, é sinal de que a fronteira ficou errada.
 
 ⚠️ **Ação independente e urgente:** token da Meta aparentemente real em texto plano em
 `packages/backend/meta-business/catalog/readme.md:13` — revogar e rotacionar.
+
+---
+
+## Fase 11 — Preview e mock local (canal simulado)
+> 🤖 Modelo: `sonnet` · desenho 🧠 `opus`
+> Depende de: F5 (canal), F4 (motor de fluxo)
+
+> ✅ **DECIDIDO — local apenas.** O preview e o mock rodam só em desenvolvimento. Consequência
+> aceita conscientemente: o lojista continua publicando fluxo sem poder testá-lo antes, e só
+> descobre um erro quando um cliente real passa. Quando isso incomodar, a base já estará pronta
+> — é o mesmo mecanismo com o portão aberto e o isolamento levado a sério.
+
+### Por que existe
+
+Hoje não há como rodar uma conversa sem credencial da Meta: o canal do módulo não tem modo
+mock (diferente do `WhatsAppSender` do QuickCart, que mocka). Isso trava duas coisas ao mesmo
+tempo — o desenvolvimento local do caminho do grafo, e a existência de qualquer teste de
+conversa no pacote, que hoje é zero.
+
+### As duas cadeiras
+
+É a mesma máquina; muda só em qual cadeira o humano senta.
+
+| | Humano é… | Simulado é… | O que se testa de fato |
+|---|---|---|---|
+| **Preview de fluxo** | o cliente | o bot / o grafo | o fluxo desenhado |
+| **Mock de inbox** | o atendente | o cliente | atendimento humano, takeover, thread, SSE |
+
+O segundo é o único jeito de exercitar `mode === 'human'`. Hoje o takeover silenciar o bot
+depende de uma linha no `ReceiveWebhook` que nenhum teste cobre — e é o tipo de coisa que
+quebra na frente do cliente, com o bot atropelando o atendente no meio do atendimento.
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T11.1 | Canal mock (`ChannelAdapterInterface` que registra em vez de enviar) | Injetável, nunca padrão. Conversa completa roda sem credencial |
+| T11.2 | Entrada sintética pelo caminho real | Percorre assinatura, anti-replay e persistência. Injetar direto no interpretador testaria menos do que aparenta |
+| T11.3 | Sessão descartável isolada | Não aparece na listagem de conversas nem soma não lidas |
+| T11.4 | Preview roda o **rascunho** do editor | Endpoint recebe o grafo no corpo. Ler por chave obrigaria a publicar para testar — e no módulo **salvar já é publicar** |
+| T11.5 | Dois portões independentes | `features: { preview: true }` no módulo (nunca padrão) **e** rotas registradas só fora de produção. Vazar exige errar nos dois |
+| T11.6 | Teste: `mode === 'human'` cala o bot | Entrada sintética em modo humano não dispara o hook |
+| T11.7 | Ligar o `FlowWhatsAppPreview` (já exportado pelo conversations-ui) | A casca visual existe; falta o backend que a torna viva |
+
+### Em aberto
+
+- **Nós de ação com efeito real.** `quickcart_repeat_order` já monta carrinho de verdade, e
+  amanhã alguém liga um nó que fecha pedido ou dispara cobrança. Sendo local, o risco é baixo
+  (carrinho de mentira no Postgres de desenvolvimento). Vira requisito no dia em que o preview
+  for para produção — decidir antes de existir a primeira ação com efeito financeiro.
+- **Respostas automáticas** (roteirizadas para CI, aleatórias como fuzzer de grafo) ficam para
+  depois. O atalho mais barato para o mock de inbox não é um cliente automático: é um "responder
+  como cliente" onde você digita os dois lados. Um cliente aleatório só entrega valor junto de
+  um relatório do que encontrou (nós nunca visitados, ciclos, becos) — sem isso é um teste que
+  passa sempre e não afirma nada.
+- **Ciclo no grafo.** O `validateGraph` do editor detecta nó inalcançável mas **não** detecta
+  ciclo, então um grafo cíclico é publicável e a única defesa é o corte por `maxSteps` em
+  runtime. Cabe nesta fase ou numa própria.
+
+**Verificação:** conversa completa ponta a ponta sem nenhuma credencial da Meta configurada
