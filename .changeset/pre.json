@@ -33,6 +33,7 @@
     "@adatechnology/products-ui": "0.0.0"
   },
   "changesets": [
-    "meta-whatsapp-trio-rc"
+    "meta-whatsapp-trio-rc",
+    "restore-provider-factory"
   ]
 }
