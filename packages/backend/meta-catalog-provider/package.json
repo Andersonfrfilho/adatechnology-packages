@@ -1,11 +1,13 @@
 {
   "name": "@adatechnology/meta-catalog-provider",
-  "version": "0.1.0",
+  "version": "0.2.0-rc.0",
   "description": "Meta Commerce Catalog API client — catalogs and products",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "check": "tsc -p tsconfig.json --noEmit",

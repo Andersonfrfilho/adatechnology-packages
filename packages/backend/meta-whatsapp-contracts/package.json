@@ -1,11 +1,13 @@
 {
   "name": "@adatechnology/meta-whatsapp-contracts",
-  "version": "0.1.0",
+  "version": "0.2.0-rc.0",
   "description": "Shared types, zod schemas, and port interfaces for the meta-whatsapp trio (contracts only — no runtime behavior)",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "check": "tsc -p tsconfig.json --noEmit",

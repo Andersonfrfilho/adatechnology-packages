@@ -32,5 +32,7 @@
     "@adatechnology/logger-client": "0.0.2",
     "@adatechnology/products-ui": "0.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "meta-whatsapp-trio-rc"
+  ]
 }
