@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { TracingProvider } from '../interfaces/tracing-provider.interface';
+import { Injectable } from '@nestjs/common'
+import { TracingProvider } from '../interfaces/tracing-provider.interface'
 
 /**
  * Implementação de tracing usando Datadog APM
@@ -15,49 +15,54 @@ import { TracingProvider } from '../interfaces/tracing-provider.interface';
  */
 @Injectable()
 export class DatadogTracingProvider implements TracingProvider {
-  private tracer: any;
+  private tracer: any
 
   async initialize(): Promise<void> {
     try {
       // Lazy import para não quebrar se dd-trace não está instalado
-      const ddTrace = require('dd-trace');
-      this.tracer = ddTrace.init();
-      console.log('[DatadogTracingProvider] Initialized');
+      // Carregado sob demanda: a dependência de tracing é opcional e pode não estar instalada.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const ddTrace = require('dd-trace')
+      this.tracer = ddTrace.init()
+      console.log('[DatadogTracingProvider] Initialized')
     } catch (error) {
-      console.warn('[DatadogTracingProvider] dd-trace not available:', error.message);
+      console.warn(
+        '[DatadogTracingProvider] dd-trace not available:',
+        error instanceof Error ? error.message : String(error),
+      )
     }
   }
 
   injectRequestId(requestId: string): void {
-    if (!this.tracer) return;
+    if (!this.tracer) return
 
-    const span = this.tracer.scope().active();
+    const span = this.tracer.scope().active()
     if (span) {
-      span.setTag('request.id', requestId);
-      span.setTag('correlation.id', requestId);
+      span.setTag('request.id', requestId)
+      span.setTag('correlation.id', requestId)
     }
   }
 
   injectCallStack(stack: string[]): void {
-    if (!this.tracer) return;
+    if (!this.tracer) return
 
-    const span = this.tracer.scope().active();
+    const span = this.tracer.scope().active()
     if (span) {
-      span.setTag('trace.stack', stack);
-      span.setTag('trace.stack.formatted', stack.map((s) => `[${s}]`).join(''));
-      span.setTag('trace.depth', stack.length);
+      span.setTag('trace.stack', stack)
+      span.setTag('trace.stack.formatted', stack.map((s) => `[${s}]`).join(''))
+      span.setTag('trace.depth', stack.length)
     }
   }
 
   async shutdown(): Promise<void> {
     if (this.tracer && this.tracer.shutdown) {
       return new Promise((resolve) => {
-        this.tracer.shutdown(() => resolve());
-      });
+        this.tracer.shutdown(() => resolve())
+      })
     }
   }
 
   getName(): string {
-    return 'datadog';
+    return 'datadog'
   }
 }

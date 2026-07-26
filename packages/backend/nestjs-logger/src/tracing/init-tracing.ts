@@ -1,4 +1,4 @@
-import type { TracingConfig } from "./tracing.config";
+import type { TracingConfig } from './tracing.config'
 
 /**
  * Inicializa o SDK de tracing distribuído.
@@ -28,51 +28,35 @@ import type { TracingConfig } from "./tracing.config";
  * Nenhuma mudança de código necessária.
  */
 export function initTracing(config?: TracingConfig): void {
-  const provider =
-    config?.provider ??
-    (process.env.TRACING_PROVIDER as TracingConfig["provider"]) ??
-    "opentelemetry";
+  const provider = config?.provider ?? (process.env.TRACING_PROVIDER as TracingConfig['provider']) ?? 'opentelemetry'
 
-  if (provider === "none") {
-    console.log("[tracing] Tracing disabled (TRACING_PROVIDER=none)");
-    return;
+  if (provider === 'none') {
+    console.log('[tracing] Tracing disabled (TRACING_PROVIDER=none)')
+    return
   }
 
   const serviceName =
-    config?.serviceName ??
-    process.env.OTEL_SERVICE_NAME ??
-    process.env.npm_package_name ??
-    "unknown-service";
+    config?.serviceName ?? process.env.OTEL_SERVICE_NAME ?? process.env.npm_package_name ?? 'unknown-service'
 
-  const serviceVersion =
-    config?.serviceVersion ?? process.env.npm_package_version ?? "0.0.0";
+  const serviceVersion = config?.serviceVersion ?? process.env.npm_package_version ?? '0.0.0'
 
-  const otlpEndpoint =
-    config?.otlp?.endpoint ??
-    process.env.OTEL_EXPORTER_OTLP_ENDPOINT ??
-    "http://jaeger:4318";
+  const otlpEndpoint = config?.otlp?.endpoint ?? process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://jaeger:4318'
 
-  const otlpHeadersRaw =
-    config?.otlp?.headers ?? process.env.OTEL_EXPORTER_OTLP_HEADERS ?? "";
+  const otlpHeadersRaw = config?.otlp?.headers ?? process.env.OTEL_EXPORTER_OTLP_HEADERS ?? ''
 
-  const sampler =
-    config?.sampler ??
-    process.env.OTEL_TRACES_SAMPLER ??
-    "parentbased_always_on";
+  const sampler = config?.sampler ?? process.env.OTEL_TRACES_SAMPLER ?? 'parentbased_always_on'
 
-  const samplerArg =
-    config?.samplerArg ?? process.env.OTEL_TRACES_SAMPLER_ARG ?? "1.0";
+  const samplerArg = config?.samplerArg ?? process.env.OTEL_TRACES_SAMPLER_ARG ?? '1.0'
 
-  const idFormat =
-    config?.idFormat ?? process.env.OTEL_ID_FORMAT ?? "short-hash";
+  const idFormat = config?.idFormat ?? process.env.OTEL_ID_FORMAT ?? 'short-hash'
 
   // Carrega headers OTLP: formato 'key=value,key2=value2'
-  const otlpHeaders: Record<string, string> = {};
+  const otlpHeaders: Record<string, string> = {}
   if (otlpHeadersRaw) {
-    for (const pair of otlpHeadersRaw.split(",")) {
-      const eq = pair.indexOf("=");
+    for (const pair of otlpHeadersRaw.split(',')) {
+      const eq = pair.indexOf('=')
       if (eq > 0) {
-        otlpHeaders[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+        otlpHeaders[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim()
       }
     }
   }
@@ -81,21 +65,14 @@ export function initTracing(config?: TracingConfig): void {
     // Carregamento dinâmico — pacotes pesados ficam como peerDeps opcionais.
     // Se não estiverem instalados, tracing falha graciosamente sem derrubar o app.
     /* eslint-disable @typescript-eslint/no-require-imports */
-    const { NodeSDK } = require(
-      "@opentelemetry/sdk-node",
-    ) as typeof import("@opentelemetry/sdk-node");
-    const { OTLPTraceExporter } = require(
-      "@opentelemetry/exporter-trace-otlp-http",
-    ) as typeof import("@opentelemetry/exporter-trace-otlp-http");
-    const { resourceFromAttributes } = require(
-      "@opentelemetry/resources",
-    ) as typeof import("@opentelemetry/resources");
-    const { getNodeAutoInstrumentations } = require(
-      "@opentelemetry/auto-instrumentations-node",
-    ) as typeof import("@opentelemetry/auto-instrumentations-node");
-    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = require(
-      "@opentelemetry/semantic-conventions",
-    ) as typeof import("@opentelemetry/semantic-conventions");
+    const { NodeSDK } = require('@opentelemetry/sdk-node') as typeof import('@opentelemetry/sdk-node')
+    const { OTLPTraceExporter } =
+      require('@opentelemetry/exporter-trace-otlp-http') as typeof import('@opentelemetry/exporter-trace-otlp-http')
+    const { resourceFromAttributes } = require('@opentelemetry/resources') as typeof import('@opentelemetry/resources')
+    const { getNodeAutoInstrumentations } =
+      require('@opentelemetry/auto-instrumentations-node') as typeof import('@opentelemetry/auto-instrumentations-node')
+    const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } =
+      require('@opentelemetry/semantic-conventions') as typeof import('@opentelemetry/semantic-conventions')
     /* eslint-enable @typescript-eslint/no-require-imports */
 
     const sdk = new NodeSDK({
@@ -112,33 +89,28 @@ export function initTracing(config?: TracingConfig): void {
       idGenerator: buildIdGenerator(idFormat),
       instrumentations: [
         getNodeAutoInstrumentations({
-          "@opentelemetry/instrumentation-fs": { enabled: false },
-          "@opentelemetry/instrumentation-dns": { enabled: false },
+          '@opentelemetry/instrumentation-fs': { enabled: false },
+          '@opentelemetry/instrumentation-dns': { enabled: false },
           // amqplib auto-instrumentado → propaga traceparent nos headers AMQP
-          "@opentelemetry/instrumentation-amqplib": { enabled: true },
+          '@opentelemetry/instrumentation-amqplib': { enabled: true },
         }),
       ],
-    });
+    })
 
     console.log(
       `[tracing] OpenTelemetry initialized — service=${serviceName} idFormat=${idFormat} endpoint=${otlpEndpoint} sampler=${sampler}`,
-    );
+    )
 
-    sdk.start();
+    sdk.start()
 
-    process.on("SIGTERM", () => {
+    process.on('SIGTERM', () => {
       sdk
         .shutdown()
-        .catch((err: unknown) =>
-          console.error("[tracing] SDK shutdown error:", err),
-        )
-        .finally(() => process.exit(0));
-    });
+        .catch((err: unknown) => console.error('[tracing] SDK shutdown error:', err))
+        .finally(() => process.exit(0))
+    })
   } catch (err) {
-    console.warn(
-      "[tracing] Failed to initialize — tracing disabled.",
-      err instanceof Error ? err.message : err,
-    );
+    console.warn('[tracing] Failed to initialize — tracing disabled.', err instanceof Error ? err.message : err)
   }
 }
 
@@ -162,61 +134,61 @@ export function initTracing(config?: TracingConfig): void {
 function buildIdGenerator(format: string): any {
   try {
     const generateRandomHex = (length: number): string => {
-      const chars = "0123456789abcdef";
-      let result = "";
+      const chars = '0123456789abcdef'
+      let result = ''
       for (let i = 0; i < length; i++) {
-        result += chars[Math.floor(Math.random() * 16)];
+        result += chars[Math.floor(Math.random() * 16)]
       }
-      return result;
-    };
+      return result
+    }
 
     const generateUUID = (): string => {
       return (
         generateRandomHex(8) +
-        "-" +
+        '-' +
         generateRandomHex(4) +
-        "-4" +
+        '-4' +
         generateRandomHex(3) +
-        "-" +
+        '-' +
         generateRandomHex(4) +
-        "-" +
+        '-' +
         generateRandomHex(12)
-      );
-    };
+      )
+    }
 
     // Objeto que implementa a interface IdGenerator sem estender
     const customGenerator: any = {
       generateSpanId: (): string => {
         switch (format) {
-          case "short-hash":
-            return generateRandomHex(8); // 8 chars
-          case "full-hash":
-          case "uuid-no-hyphens":
-            return generateRandomHex(16); // 16 chars
-          case "uuid-with-hyphens":
-            return generateUUID().substring(0, 8); // first 8 from UUID
+          case 'short-hash':
+            return generateRandomHex(8) // 8 chars
+          case 'full-hash':
+          case 'uuid-no-hyphens':
+            return generateRandomHex(16) // 16 chars
+          case 'uuid-with-hyphens':
+            return generateUUID().substring(0, 8) // first 8 from UUID
           default:
-            return generateRandomHex(8);
+            return generateRandomHex(8)
         }
       },
       generateTraceId: (): string => {
         switch (format) {
-          case "short-hash":
-            return generateRandomHex(12); // 12 chars (like git short hash)
-          case "full-hash":
-          case "uuid-no-hyphens":
-            return generateRandomHex(32); // 32 chars (Jaeger compatible)
-          case "uuid-with-hyphens":
-            return generateUUID(); // 36 chars (standard UUID)
+          case 'short-hash':
+            return generateRandomHex(12) // 12 chars (like git short hash)
+          case 'full-hash':
+          case 'uuid-no-hyphens':
+            return generateRandomHex(32) // 32 chars (Jaeger compatible)
+          case 'uuid-with-hyphens':
+            return generateUUID() // 36 chars (standard UUID)
           default:
-            return generateRandomHex(12);
+            return generateRandomHex(12)
         }
       },
-    };
+    }
 
-    return customGenerator;
+    return customGenerator
   } catch {
-    return undefined; // Fallback para RandomIdGenerator padrão se falhar
+    return undefined // Fallback para RandomIdGenerator padrão se falhar
   }
 }
 
@@ -227,30 +199,28 @@ function buildIdGenerator(format: string): any {
 function buildSampler(
   sampler: string,
   samplerArg: string,
-): import("@opentelemetry/sdk-node").NodeSDKConfiguration["sampler"] {
+): import('@opentelemetry/sdk-node').NodeSDKConfiguration['sampler'] | undefined {
   try {
     const { ParentBasedSampler, TraceIdRatioBasedSampler, AlwaysOnSampler } =
       /* eslint-disable @typescript-eslint/no-require-imports */
-      require(
-        "@opentelemetry/sdk-trace-base",
-      ) as typeof import("@opentelemetry/sdk-trace-base");
+      require('@opentelemetry/sdk-trace-base') as typeof import('@opentelemetry/sdk-trace-base')
     /* eslint-enable @typescript-eslint/no-require-imports */
 
     switch (sampler) {
-      case "parentbased_traceidratio": {
-        const ratio = parseFloat(samplerArg);
+      case 'parentbased_traceidratio': {
+        const ratio = parseFloat(samplerArg)
         return new ParentBasedSampler({
           root: new TraceIdRatioBasedSampler(isNaN(ratio) ? 1.0 : ratio),
-        });
+        })
       }
-      case "always_off":
-        return { shouldSample: () => ({ decision: 0 }) } as any;
-      case "always_on":
-        return new AlwaysOnSampler();
+      case 'always_off':
+        return { shouldSample: () => ({ decision: 0 }) } as any
+      case 'always_on':
+        return new AlwaysOnSampler()
       default:
-        return undefined; // parentbased_always_on é o default do SDK
+        return undefined // parentbased_always_on é o default do SDK
     }
   } catch {
-    return undefined;
+    return undefined
   }
 }

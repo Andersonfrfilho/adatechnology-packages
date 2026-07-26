@@ -10,29 +10,77 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@adatechnology/nestjs-logger": ["packages/backend/nestjs-logger/src"],
-      "@adatechnology/nestjs-logger/*": ["packages/backend/nestjs-logger/src/*"],
-      "@adatechnology/nestjs-cache": ["packages/backend/nestjs-cache/src"],
-      "@adatechnology/nestjs-cache/*": ["packages/backend/nestjs-cache/src/*"],
-      "@adatechnology/nestjs-http-client": ["packages/backend/nestjs-http-client/src"],
-      "@adatechnology/nestjs-http-client/*": ["packages/backend/nestjs-http-client/src/*"],
-      "@adatechnology/shared": ["packages/backend/shared/src"],
-      "@adatechnology/shared/*": ["packages/backend/shared/src/*"],
-      "@adatechnology/nestjs-auth-keycloak": ["packages/backend/nestjs-auth-keycloak/src"],
-      "@adatechnology/nestjs-auth-keycloak/*": ["packages/backend/nestjs-auth-keycloak/src/*"],
-      "@adatechnology/nestjs-keycloak-admin": ["packages/backend/nestjs-keycloak-admin/src"],
-      "@adatechnology/nestjs-keycloak-admin/*": ["packages/backend/nestjs-keycloak-admin/src/*"],
-      "@adatechnology/nestjs-package": ["packages/backend/nestjs-package/src"],
-      "@adatechnology/nestjs-package/*": ["packages/backend/nestjs-package/src/*"],
-      "@adatechnology/fiscal-provider": ["packages/backend/fiscal-provider/src"],
-      "@adatechnology/fiscal-provider/*": ["packages/backend/fiscal-provider/src/*"],
-      "@adatechnology/whatsapp-provider": ["packages/backend/whatsapp-provider/src"],
-      "@adatechnology/whatsapp-provider/*": ["packages/backend/whatsapp-provider/src/*"],
-      "#shared": ["packages/backend/shared/src"],
-      "#shared/*": ["packages/backend/shared/src/*"],
-      "@adatechnology/logger-client": ["packages/frontend/logger-client/src"],
-      "@adatechnology/logger-client/*": ["packages/frontend/logger-client/src/*"]
-    }
+      "@adatechnology/nestjs-logger": [
+        "packages/backend/nestjs-logger/src"
+      ],
+      "@adatechnology/nestjs-logger/*": [
+        "packages/backend/nestjs-logger/src/*"
+      ],
+      "@adatechnology/nestjs-cache": [
+        "packages/backend/nestjs-cache/src"
+      ],
+      "@adatechnology/nestjs-cache/*": [
+        "packages/backend/nestjs-cache/src/*"
+      ],
+      "@adatechnology/nestjs-http-client": [
+        "packages/backend/nestjs-http-client/src"
+      ],
+      "@adatechnology/nestjs-http-client/*": [
+        "packages/backend/nestjs-http-client/src/*"
+      ],
+      "@adatechnology/shared": [
+        "packages/backend/shared/src"
+      ],
+      "@adatechnology/shared/*": [
+        "packages/backend/shared/src/*"
+      ],
+      "@adatechnology/nestjs-auth-keycloak": [
+        "packages/backend/nestjs-auth-keycloak/src"
+      ],
+      "@adatechnology/nestjs-auth-keycloak/*": [
+        "packages/backend/nestjs-auth-keycloak/src/*"
+      ],
+      "@adatechnology/nestjs-keycloak-admin": [
+        "packages/backend/nestjs-keycloak-admin/src"
+      ],
+      "@adatechnology/nestjs-keycloak-admin/*": [
+        "packages/backend/nestjs-keycloak-admin/src/*"
+      ],
+      "@adatechnology/nestjs-package": [
+        "packages/backend/nestjs-package/src"
+      ],
+      "@adatechnology/nestjs-package/*": [
+        "packages/backend/nestjs-package/src/*"
+      ],
+      "@adatechnology/fiscal-provider": [
+        "packages/backend/fiscal-provider/src"
+      ],
+      "@adatechnology/fiscal-provider/*": [
+        "packages/backend/fiscal-provider/src/*"
+      ],
+      "@adatechnology/whatsapp-provider": [
+        "packages/backend/whatsapp-provider/src"
+      ],
+      "@adatechnology/whatsapp-provider/*": [
+        "packages/backend/whatsapp-provider/src/*"
+      ],
+      "#shared": [
+        "packages/backend/shared/src"
+      ],
+      "#shared/*": [
+        "packages/backend/shared/src/*"
+      ],
+      "@adatechnology/logger-client": [
+        "packages/frontend/logger-client/src"
+      ],
+      "@adatechnology/logger-client/*": [
+        "packages/frontend/logger-client/src/*"
+      ]
+    },
+    "strict": true
   },
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
