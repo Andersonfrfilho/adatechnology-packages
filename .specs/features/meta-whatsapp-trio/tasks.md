@@ -178,11 +178,21 @@ claro e escuro** · Storybook ou página de sandbox
 
 | # | Task | Critério de aceite |
 |---|---|---|
-| T8.1 | Instalar o trio; remover código duplicado do produto | Produto não tem mais webhook/sender/schema próprios |
-| T8.2 | Plugar regra de negócio nos hooks (`onMessageReceived`) | Bot: forward n8n + actions de simulação. QuickCart: engine em TS |
-| T8.3 | Migrar dados existentes para o schema `meta_whatsapp` | Migration reversível, testada em cópia de produção |
-| T8.4 | Injetar portas do produto (`SubjectResolver`, storage, cache, realtime) | — |
-| T8.5 🧠 | Revisão de regressão: funcional + **visual por screenshot** | Zero regressão |
+| T8.1 | ✅ Instalar o trio; remover código duplicado do produto | Feito. QuickCart perdeu webhook/sender/schema próprios; interfaces de domínio preservadas e adaptadas por trás, então os ~2.000 handlers ficaram intactos |
+| T8.2 | ✅ Plugar regra de negócio nos hooks (`onMessageReceived`) | Feito. Engine TS do QuickCart no hook, `flowEngine: false`. O upsert de cliente voltou junto (o smoke test pegou a ausência) |
+| T8.3 | ✅ Migrar dados existentes para o schema `meta_whatsapp` | Feito. `0005`, não destrutiva (tabelas antigas de pé = rollback sem down-migration), idempotente, ids preservados. Ensaiada em banco semeado: 18 asserções |
+| T8.4 | ✅ Injetar portas do produto | `nonceStore` sobre o Redis do QuickCart. `objectStorage`, `realtime`, `subjectResolver` e `catalog` ausentes por ausência real de recurso (sem SSE, sem storage de mídia, sem atendimento humano), não por pendência |
+| T8.5 🧠 | ✅ Revisão de regressão | Funcional feita: conversa de 2 turnos ponta a ponta contra Postgres+Redis reais, verificação/assinatura/replay/forjada. Testes 61/2 contra baseline 70/3 — delta é exatamente os 2 arquivos deletados, 2 falhas pré-existentes. **Visual por screenshot não feita: o QuickCart não tem UI de conversa** |
+
+### O que o primeiro consumidor revelou nos pacotes
+
+A Fase 8 existe para isto, e rendeu 5 defeitos que nenhum teste do próprio monorepo pegaria:
+
+1. `tsconfig.base.json` sem `strict` → todo `.d.ts` publicado saía com campo obrigatório do zod marcado como opcional. Nenhum consumidor strict compilava. (Ligar strict revelou 4 bugs latentes, 2 deles caminhos de crash.)
+2. `drizzle-orm` como dependência normal → segunda cópia instalada, incompatível em tipos e em runtime. Virou peer.
+3. `db` tipado `BunSQLDatabase` → excluía hosts em node-postgres.
+4. Pin em `1.0.0-rc.4` → arrastava consumidores para um release candidate com o estável em 0.45.
+5. `messages.type` em `varchar(16)` → `interactive_buttons` (19) estourava o insert, silenciosamente, porque o envio é fire-and-forget.
 
 **Verificação:** `make validate` do produto · smoke test de conversa ponta a ponta
 
