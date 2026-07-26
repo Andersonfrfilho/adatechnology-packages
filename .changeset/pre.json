@@ -37,6 +37,7 @@
     "meta-whatsapp-trio-rc",
     "restore-provider-factory",
     "strict-declarations",
-    "webhook-security-tests"
+    "webhook-security-tests",
+    "widen-message-type"
   ]
 }
