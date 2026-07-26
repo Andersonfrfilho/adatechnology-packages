@@ -17,6 +17,36 @@ export interface ListConversationsFilters {
 
 const DEFAULT_LIMIT = 20
 
+// Expressões correlacionadas da lista de conversas, extraídas para poderem ser renderizadas e
+// verificadas sem banco (ver SessionRepository.test.ts).
+//
+// A correlação usa `${sessions}.company_id` e NÃO `${sessions.companyId}`: dentro da lista de
+// seleção o drizzle renderiza a referência de coluna sem qualificar a tabela, e um
+// `"company_id"` solto dentro do subselect resolve para a coluna de `m`. O resultado seria
+// `m.company_id = m.company_id` (sempre verdadeiro) e `m.session_id = m.id` (nunca) — zero
+// linhas, NULL, e nenhum erro.
+export const conversationSummaryProjection = {
+  lastContent: sql<string | null>`(
+    select m.content from ${messages} m
+    where m.company_id = ${sessions}.company_id and m.session_id = ${sessions}.id
+    order by m.created_at desc limit 1
+  )`,
+  lastDirection: sql<string | null>`(
+    select m.direction from ${messages} m
+    where m.company_id = ${sessions}.company_id and m.session_id = ${sessions}.id
+    order by m.created_at desc limit 1
+  )`,
+  // Entradas do cliente depois da última leitura do atendente. Sessão nunca lida conta
+  // tudo — é o comportamento esperado de uma conversa que ninguém abriu ainda.
+  unread: sql<number>`(
+    select count(*)::int from ${messages} m
+    where m.company_id = ${sessions}.company_id
+      and m.session_id = ${sessions}.id
+      and m.direction = 'inbound'
+      and (${sessions}.last_agent_read_at is null or m.created_at > ${sessions}.last_agent_read_at)
+  )`,
+} as const
+
 // T3.2 — todo método recebe/filtra por companyId explicitamente (nunca lê de um campo do
 // payload do cliente); ver database.md "Consistência e multiempresa".
 export class SessionRepository {
@@ -161,25 +191,7 @@ export class SessionRepository {
         // lista dezenas de conversas por página, e uma query por linha é o gargalo clássico
         // dessa tela. Ambos os campos são dados do próprio módulo — deixá-los para o host
         // obrigaria todo consumidor a reescrever o mesmo join contra tabelas que não são dele.
-        lastContent: sql<string | null>`(
-          select m.content from ${messages} m
-          where m.company_id = ${sessions.companyId} and m.session_id = ${sessions.id}
-          order by m.created_at desc limit 1
-        )`,
-        lastDirection: sql<string | null>`(
-          select m.direction from ${messages} m
-          where m.company_id = ${sessions.companyId} and m.session_id = ${sessions.id}
-          order by m.created_at desc limit 1
-        )`,
-        // Entradas do cliente depois da última leitura do atendente. Sessão nunca lida conta
-        // tudo — é o comportamento esperado de uma conversa que ninguém abriu ainda.
-        unread: sql<number>`(
-          select count(*)::int from ${messages} m
-          where m.company_id = ${sessions.companyId}
-            and m.session_id = ${sessions.id}
-            and m.direction = 'inbound'
-            and (${sessions.lastAgentReadAt} is null or m.created_at > ${sessions.lastAgentReadAt})
-        )`,
+        ...conversationSummaryProjection,
       })
       .from(sessions)
       .where(and(...conditions))
