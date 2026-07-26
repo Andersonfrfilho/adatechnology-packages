@@ -806,10 +806,10 @@ importers:
   packages/frontend/example:
     dependencies:
       '@adatechnology/conversations-ui':
-        specifier: file:../conversations-ui
-        version: file:packages/frontend/conversations-ui(@xyflow/react@12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: workspace:*
+        version: link:../conversations-ui
       '@adatechnology/products-ui':
-        specifier: file:../products-ui
+        specifier: workspace:*
         version: link:../products-ui
       '@base-ui/react':
         specifier: ^1.6.0
@@ -905,16 +905,6 @@ importers:
         version: 5.9.3
 
 packages:
-
-  '@adatechnology/conversations-ui@file:packages/frontend/conversations-ui':
-    resolution: {directory: packages/frontend/conversations-ui, type: directory}
-    peerDependencies:
-      '@xyflow/react': ^12
-      react: ^18 || ^19
-      react-dom: ^18 || ^19
-    peerDependenciesMeta:
-      '@xyflow/react':
-        optional: true
 
   '@algolia/abtesting@1.18.1':
     resolution: {integrity: sha512-aehCadlWOGvrT91KUIZpC0MbB8KBW9yUuvTJFd2xesR7le/IsT4nJUnjCCZ4ZqZCeTcPHPV5mo//fZ5oxcSVYw==}
@@ -8544,15 +8534,6 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
-
-  '@adatechnology/conversations-ui@file:packages/frontend/conversations-ui(@xyflow/react@12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
-    dependencies:
-      '@adatechnology/meta-whatsapp-contracts': link:packages/backend/meta-whatsapp-contracts
-      lucide-react: 1.26.0(react@19.2.7)
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-    optionalDependencies:
-      '@xyflow/react': 12.11.2(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
 
   '@algolia/abtesting@1.18.1':
     dependencies:
