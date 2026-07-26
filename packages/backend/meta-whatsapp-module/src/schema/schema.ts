@@ -63,7 +63,11 @@ export const messages = metaWhatsAppSchema.table(
     direction: varchar('direction', { length: 12 }).notNull(), // inbound | outbound
     sender: varchar('sender', { length: 12 }).notNull(), // customer | bot | agent
     agentUserId: uuid('agent_user_id'),
-    type: varchar('type', { length: 16 }).notNull().default('text'),
+    // 32, não 16: os tipos da própria Meta são curtos ('text', 'interactive'), mas o host rotula
+    type:
+      // a saída com o subtipo que enviou ('interactive_buttons' já tem 19). Apertar aqui só
+      // transfere para o consumidor a escolha entre truncar o rótulo e estourar o insert.
+      varchar('type', { length: 32 }).notNull().default('text'),
     content: text('content'),
     // T5.4 — nunca base64 aqui; mídia vive no ObjectStorageInterface do host, referenciada por
     // uploadId dentro deste jsonb.

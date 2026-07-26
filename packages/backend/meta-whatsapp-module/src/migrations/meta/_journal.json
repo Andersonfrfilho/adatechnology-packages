@@ -29,6 +29,13 @@
       "when": 1785023107000,
       "tag": "0003_normal_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785023108000,
+      "tag": "0004_widen_message_type",
+      "breakpoints": true
     }
   ]
 }
