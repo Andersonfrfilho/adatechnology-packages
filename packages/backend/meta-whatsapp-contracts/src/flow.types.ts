@@ -25,7 +25,10 @@ export type FlowNodeData = {
   question?: string
   options?: [string, string][]
   actionKind?: FlowActionKind
-  simulationTemplate?: Record<string, string>
+  // Parâmetros arbitrários que o nó carrega para o handler registrado em `actionKind`. O pacote
+  // nunca os interpreta — é o que permite um nó de ação ser configurado pelo editor sem que o
+  // vocabulário do produto (o antigo `simulationTemplate`) vaze para dentro do contrato.
+  actionParams?: Record<string, unknown>
   directMessage?: string
   fallbackMessage?: string
   conditionContextKey?: string
@@ -81,7 +84,7 @@ export const flowNodeDataSchema = z
     question: z.string().optional(),
     options: z.array(z.tuple([z.string(), z.string()])).optional(),
     actionKind: z.string().optional(),
-    simulationTemplate: z.record(z.string(), z.string()).optional(),
+    actionParams: z.record(z.string(), z.unknown()).optional(),
     directMessage: z.string().optional(),
     fallbackMessage: z.string().optional(),
     conditionContextKey: z.string().optional(),

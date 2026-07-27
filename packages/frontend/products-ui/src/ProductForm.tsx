@@ -1,21 +1,29 @@
 import { useState, useCallback, type FormEvent } from 'react'
 import type { Product, Catalog, Section, CreateProductInput } from './providers/types'
-import { formatBRL } from './lib/format'
+import { DEFAULT_UNIT_OPTIONS, PRODUCT_OPTIONAL_FIELD } from './providers/types'
+import { useIsProductFieldEnabled, useProductsConfig } from './providers/ProductsProvider'
+import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
 
-const UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx', 'dz'] as const
-
-export interface ProductFormProps {
-  onSubmit: (data: CreateProductInput & { active?: boolean; sortOrder?: number }) => Promise<void>
-  initialValues?: Partial<Product>
-  catalogs: Catalog[]
-  sections: Section[]
+export type ProductFormProps = {
+  readonly onSubmit: (data: CreateProductInput & { active?: boolean; sortOrder?: number }) => Promise<void>
+  readonly initialValues?: Partial<Product>
+  readonly catalogs: readonly Catalog[]
+  readonly sections: readonly Section[]
 }
 
-interface FormState {
+// Texto exibido e centavos andam juntos no estado: o texto é o que o usuário vê e os centavos são
+// o que vai para a API. Derivar um do outro na hora de submeter obrigaria a reinterpretar a
+// string já formatada, que é onde o separador decimal por locale quebra.
+type MoneyField = {
+  readonly text: string
+  readonly amountInCents: number
+}
+
+type FormState = {
   name: string
   description: string
-  price: string
-  costPrice: string
+  price: MoneyField
+  costPrice: MoneyField
   unit: string
   barcode: string
   catalogId: string
@@ -26,31 +34,26 @@ interface FormState {
   active: boolean
 }
 
-function toBRLMask(value: string): string {
-  const digits = value.replace(/\D/g, '')
-  if (digits.length === 0) return ''
-  const number = parseInt(digits, 10) / 100
-  return number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function fromBRL(value: string): number {
-  const cleaned = value.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')
-  return parseFloat(cleaned) || 0
-}
-
-function applyMargin(cost: number, marginPercent: number): string {
-  if (cost <= 0) return ''
-  const price = cost / (1 - marginPercent / 100)
-  return price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
+const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
+const LABEL_CLASS = 'block text-sm font-medium text-gray-700 mb-1'
 
 export function ProductForm({ onSubmit, initialValues, catalogs, sections }: ProductFormProps) {
+  const config = useProductsConfig()
+  const isFieldEnabled = useIsProductFieldEnabled()
+  const moneyFormat = { currency: config.currency, locale: config.locale }
+
+  const toMoneyField = useCallback(
+    (amountInCents: number | null | undefined): MoneyField =>
+      amountInCents ? { text: formatMoney(amountInCents, moneyFormat), amountInCents } : { text: '', amountInCents: 0 },
+    [config.currency, config.locale],
+  )
+
   const [form, setForm] = useState<FormState>({
     name: initialValues?.name ?? '',
     description: initialValues?.description ?? '',
-    price: initialValues?.price ? formatBRL(initialValues.price) : '',
-    costPrice: initialValues?.costPrice ? formatBRL(initialValues.costPrice) : '',
-    unit: initialValues?.unit ?? 'un',
+    price: toMoneyField(initialValues?.priceInCents),
+    costPrice: toMoneyField(initialValues?.costPriceInCents),
+    unit: initialValues?.unit ?? (config.unitOptions ?? DEFAULT_UNIT_OPTIONS)[0] ?? '',
     barcode: initialValues?.barcode ?? '',
     catalogId: initialValues?.catalogId ?? '',
     sectionId: initialValues?.sectionId ?? '',
@@ -63,7 +66,7 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
 
-  const updateField = useCallback((field: keyof FormState, value: string | boolean) => {
+  const updateField = useCallback((field: keyof FormState, value: string | boolean | MoneyField) => {
     setForm(prev => ({ ...prev, [field]: value }))
     setErrors(prev => {
       const next = { ...prev }
@@ -72,19 +75,20 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
     })
   }, [])
 
-  const handlePriceChange = useCallback((value: string) => {
-    updateField('price', toBRLMask(value))
-  }, [updateField])
+  const handleMoneyChange = useCallback(
+    (field: 'price' | 'costPrice', value: string) => {
+      updateField(field, maskMoneyInput(value, moneyFormat))
+    },
+    [updateField, config.currency, config.locale],
+  )
 
-  const handleCostPriceChange = useCallback((value: string) => {
-    updateField('costPrice', toBRLMask(value))
-  }, [updateField])
-
-  const handleMarginShortcut = useCallback((percent: number) => {
-    const cost = fromBRL(form.costPrice)
-    const price = applyMargin(cost, percent)
-    updateField('price', price)
-  }, [form.costPrice, updateField])
+  const handleMarginShortcut = useCallback(
+    (percent: number) => {
+      const amountInCents = applyMarginToCost(form.costPrice.amountInCents, percent)
+      updateField('price', { text: formatMoney(amountInCents, moneyFormat), amountInCents })
+    },
+    [form.costPrice.amountInCents, updateField, config.currency, config.locale],
+  )
 
   const validate = useCallback((): boolean => {
     const newErrors: Partial<Record<keyof FormState, string>> = {}
@@ -93,8 +97,7 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
       newErrors.name = 'Nome é obrigatório'
     }
 
-    const priceValue = fromBRL(form.price)
-    if (!form.price || priceValue <= 0) {
+    if (form.price.amountInCents <= 0) {
       newErrors.price = 'Preço deve ser maior que zero'
     }
 
@@ -108,251 +111,237 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
 
     setSubmitting(true)
     try {
+      // Campo de vertical desligado não é enviado como vazio: ele simplesmente não faz parte do
+      // produto deste consumidor, e mandar `undefined` explícito apagaria o valor no update.
       await onSubmit({
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        price: fromBRL(form.price),
-        costPrice: form.costPrice ? fromBRL(form.costPrice) : undefined,
-        unit: form.unit || undefined,
-        barcode: form.barcode.trim() || undefined,
-        catalogId: form.catalogId || undefined,
-        sectionId: form.sectionId || undefined,
-        imageUrl: form.imageUrl || undefined,
-        inventory: parseInt(form.inventory, 10) || 0,
-        preparationTimeMinutes: form.preparationTimeMinutes
-          ? parseInt(form.preparationTimeMinutes, 10)
-          : undefined,
+        priceInCents: form.price.amountInCents,
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.COST_PRICE) && form.costPrice.amountInCents > 0
+          ? { costPriceInCents: form.costPrice.amountInCents }
+          : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT) && form.unit ? { unit: form.unit } : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BARCODE) && form.barcode.trim()
+          ? { barcode: form.barcode.trim() }
+          : {}),
+        ...(form.catalogId ? { catalogId: form.catalogId } : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SECTION) && form.sectionId
+          ? { sectionId: form.sectionId }
+          : {}),
+        ...(form.imageUrl ? { imageUrl: form.imageUrl } : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.INVENTORY)
+          ? { inventory: Number.parseInt(form.inventory, 10) || 0 }
+          : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME) && form.preparationTimeMinutes
+          ? { preparationTimeMinutes: Number.parseInt(form.preparationTimeMinutes, 10) }
+          : {}),
         active: form.active,
       })
     } finally {
       setSubmitting(false)
     }
-  }, [form, onSubmit, validate])
+  }, [form, isFieldEnabled, onSubmit, validate])
 
   const isEditing = !!initialValues?.id
+  const showCostPrice = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.COST_PRICE)
+  const showUnit = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT)
+  const showBarcode = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BARCODE)
+  const showSection = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SECTION)
+  const showInventory = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.INVENTORY)
+  const showPreparationTime = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME)
+  const moneyPlaceholder = formatMoney(0, moneyFormat)
+  const unitOptions = config.unitOptions ?? DEFAULT_UNIT_OPTIONS
+  const marginShortcuts = config.marginShortcutPercents ?? []
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Nome do produto *
-        </label>
+        <label className={LABEL_CLASS}>Nome do produto *</label>
         <input
           type="text"
           value={form.name}
           onChange={(e) => updateField('name', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
-            errors.name ? 'border-red-300 bg-red-50' : 'border-gray-300'
-          }`}
+          className={`${INPUT_CLASS} ${errors.name ? 'border-red-300 bg-red-50' : ''}`}
           placeholder="Ex: Pizza Margherita"
         />
         {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
       </div>
 
-      {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Descrição
-        </label>
+        <label className={LABEL_CLASS}>Descrição</label>
         <textarea
           value={form.description}
           onChange={(e) => updateField('description', e.target.value)}
           rows={3}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className={INPUT_CLASS}
           placeholder="Descrição do produto..."
         />
       </div>
 
-      {/* Price + Cost Price + Margin shortcuts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Preço de venda *
-          </label>
+          <label className={LABEL_CLASS}>Preço de venda *</label>
           <input
             type="text"
-            value={form.price}
-            onChange={(e) => handlePriceChange(e.target.value)}
-            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${
-              errors.price ? 'border-red-300 bg-red-50' : 'border-gray-300'
-            }`}
-            placeholder="R$ 0,00"
+            value={form.price.text}
+            onChange={(e) => handleMoneyChange('price', e.target.value)}
+            className={`${INPUT_CLASS} ${errors.price ? 'border-red-300 bg-red-50' : ''}`}
+            placeholder={moneyPlaceholder}
           />
           {errors.price && <p className="mt-1 text-xs text-red-500">{errors.price}</p>}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Preço de custo
-          </label>
-          <input
-            type="text"
-            value={form.costPrice}
-            onChange={(e) => handleCostPriceChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            placeholder="R$ 0,00"
-          />
-          {form.costPrice && fromBRL(form.costPrice) > 0 && (
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => handleMarginShortcut(30)}
-                className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-700 transition-colors"
+        {showCostPrice && (
+          <div>
+            <label className={LABEL_CLASS}>Preço de custo</label>
+            <input
+              type="text"
+              value={form.costPrice.text}
+              onChange={(e) => handleMoneyChange('costPrice', e.target.value)}
+              className={INPUT_CLASS}
+              placeholder={moneyPlaceholder}
+            />
+            {form.costPrice.amountInCents > 0 && marginShortcuts.length > 0 && (
+              <div className="flex gap-2 mt-2">
+                {marginShortcuts.map((percent) => (
+                  <button
+                    key={percent}
+                    type="button"
+                    onClick={() => handleMarginShortcut(percent)}
+                    className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-700 transition-colors"
+                  >
+                    +{percent}%
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {(showUnit || showBarcode) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {showUnit && (
+            <div>
+              <label className={LABEL_CLASS}>Unidade</label>
+              <select
+                value={form.unit}
+                onChange={(e) => updateField('unit', e.target.value)}
+                className={INPUT_CLASS}
               >
-                +30%
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMarginShortcut(50)}
-                className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-700 transition-colors"
-              >
-                +50%
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMarginShortcut(100)}
-                className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-700 transition-colors"
-              >
-                +100%
-              </button>
+                {unitOptions.map((unit) => (
+                  <option key={unit} value={unit}>{unit}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {showBarcode && (
+            <div>
+              <label className={LABEL_CLASS}>Código de barras</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.barcode}
+                  onChange={(e) => updateField('barcode', e.target.value.replace(/\D/g, ''))}
+                  className={`flex-1 ${INPUT_CLASS}`}
+                  placeholder="7891234567890"
+                  maxLength={13}
+                />
+                <button
+                  type="button"
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
+                  title="Escanear código de barras"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                    <line x1="7" y1="12" x2="17" y2="12" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Unit + Barcode */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Unidade
-          </label>
-          <select
-            value={form.unit}
-            onChange={(e) => updateField('unit', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            {UNIT_OPTIONS.map((u) => (
-              <option key={u} value={u}>{u}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Código de barras
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={form.barcode}
-              onChange={(e) => updateField('barcode', e.target.value.replace(/\D/g, ''))}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-              placeholder="7891234567890"
-              maxLength={13}
-            />
-            <button
-              type="button"
-              className="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
-              title="Escanear código de barras"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                <line x1="7" y1="12" x2="17" y2="12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Catalog + Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Catálogo
-          </label>
+          <label className={LABEL_CLASS}>Catálogo</label>
           <select
             value={form.catalogId}
             onChange={(e) => updateField('catalogId', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className={INPUT_CLASS}
           >
             <option value="">Nenhum</option>
-            {catalogs.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+            {catalogs.map((catalog) => (
+              <option key={catalog.id} value={catalog.id}>{catalog.name}</option>
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Seção
-          </label>
-          <select
-            value={form.sectionId}
-            onChange={(e) => updateField('sectionId', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          >
-            <option value="">Nenhuma</option>
-            {sections
-              .filter((s) => !form.catalogId || s.catalogId === form.catalogId)
-              .map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-          </select>
-        </div>
+        {showSection && (
+          <div>
+            <label className={LABEL_CLASS}>Seção</label>
+            <select
+              value={form.sectionId}
+              onChange={(e) => updateField('sectionId', e.target.value)}
+              className={INPUT_CLASS}
+            >
+              <option value="">Nenhuma</option>
+              {sections
+                .filter((section) => !form.catalogId || section.catalogId === form.catalogId)
+                .map((section) => (
+                  <option key={section.id} value={section.id}>{section.name}</option>
+                ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Image URL */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          URL da imagem
-        </label>
+        <label className={LABEL_CLASS}>URL da imagem</label>
         <input
           type="text"
           value={form.imageUrl}
           onChange={(e) => updateField('imageUrl', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className={INPUT_CLASS}
           placeholder="https://..."
         />
         {form.imageUrl && (
-          <img
-            src={form.imageUrl}
-            alt="Preview"
-            className="mt-2 w-20 h-20 rounded-lg object-cover bg-gray-100"
-          />
+          <img src={form.imageUrl} alt="Preview" className="mt-2 w-20 h-20 rounded-lg object-cover bg-gray-100" />
         )}
       </div>
 
-      {/* Inventory + Preparation Time */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Estoque
-          </label>
-          <input
-            type="number"
-            value={form.inventory}
-            onChange={(e) => updateField('inventory', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            min={0}
-          />
+      {(showInventory || showPreparationTime) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {showInventory && (
+            <div>
+              <label className={LABEL_CLASS}>Estoque</label>
+              <input
+                type="number"
+                value={form.inventory}
+                onChange={(e) => updateField('inventory', e.target.value)}
+                className={INPUT_CLASS}
+                min={0}
+              />
+            </div>
+          )}
+          {showPreparationTime && (
+            <div>
+              <label className={LABEL_CLASS}>Tempo de preparo (min)</label>
+              <input
+                type="number"
+                value={form.preparationTimeMinutes}
+                onChange={(e) => updateField('preparationTimeMinutes', e.target.value)}
+                className={INPUT_CLASS}
+                min={0}
+                placeholder="Ex: 15"
+              />
+            </div>
+          )}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tempo de preparo (min)
-          </label>
-          <input
-            type="number"
-            value={form.preparationTimeMinutes}
-            onChange={(e) => updateField('preparationTimeMinutes', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-            min={0}
-            placeholder="Ex: 15"
-          />
-        </div>
-      </div>
+      )}
 
-      {/* Active toggle */}
       <div className="flex items-center gap-3">
         <label className="relative inline-flex items-center cursor-pointer">
           <input
@@ -363,12 +352,9 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
           />
           <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600" />
         </label>
-        <span className="text-sm font-medium text-gray-700">
-          Produto ativo
-        </span>
+        <span className="text-sm font-medium text-gray-700">Produto ativo</span>
       </div>
 
-      {/* Submit */}
       <div className="flex justify-end pt-4 border-t border-gray-200">
         <button
           type="submit"

@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import type { Catalog, ProductsApi } from './providers/types'
 import { useProducts } from './providers/ProductsProvider'
 
-export interface CatalogListProps {
-  api?: ProductsApi
+export type CatalogListProps = {
+  readonly api?: ProductsApi
 }
 
-interface EditingCatalog {
+type EditingCatalog = {
   id: string
   name: string
   description: string
@@ -17,7 +17,7 @@ export function CatalogList({ api }: CatalogListProps) {
   const contextApi = useProducts()
   const resolvedApi = api ?? contextApi
 
-  const [catalogs, setCatalogs] = useState<Catalog[]>([])
+  const [catalogs, setCatalogs] = useState<readonly Catalog[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<EditingCatalog | null>(null)
   const [creating, setCreating] = useState(false)

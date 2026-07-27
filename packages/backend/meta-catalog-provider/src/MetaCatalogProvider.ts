@@ -53,6 +53,7 @@ export class MetaCatalogProvider {
     if (input.availability !== undefined) payload['availability'] = input.availability
     if (input.condition !== undefined) payload['condition'] = input.condition
     if (input.url !== undefined) payload['url'] = input.url
+    if (input.inventory !== undefined) payload['inventory'] = input.inventory
     return payload
   }
 
@@ -94,7 +95,7 @@ export class MetaCatalogProvider {
   }
 
   async getProduct(productId: string): Promise<CatalogProductDetail> {
-    const url = `${buildGraphUrl(this.config.apiVersion, productId, this.config.baseUrl)}?fields=id,retailer_id,name,description,price,currency,image_url,availability,condition,url,custom_label_0`
+    const url = `${buildGraphUrl(this.config.apiVersion, productId, this.config.baseUrl)}?fields=id,retailer_id,name,description,price,currency,image_url,availability,condition,url,custom_label_0,inventory`
     const response = parseGraphResponse(
       productDetailResponseSchema,
       await graphFetch({ url, accessToken: this.config.accessToken }),
@@ -112,6 +113,7 @@ export class MetaCatalogProvider {
       availability: response.availability,
       condition: response.condition,
       url: response.url,
+      ...(response.inventory !== undefined ? { inventory: response.inventory } : {}),
     }
   }
 

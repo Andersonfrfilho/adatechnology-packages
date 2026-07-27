@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef, type ChangeEvent } from 'react'
 import type { BulkImportResult } from './providers/types'
 
-export interface BulkImportProps {
-  onImport: (file: File) => Promise<BulkImportResult>
+export type BulkImportProps = {
+  readonly onImport: (file: File) => Promise<BulkImportResult>
 }
 
-interface PreviewRow {
+type PreviewRow = {
   row: number
   cells: string[]
 }

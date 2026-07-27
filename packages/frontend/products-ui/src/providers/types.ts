@@ -1,4 +1,4 @@
-export interface ProductsApi {
+export type ProductsApi = {
   listProducts(params?: {
     page?: number
     search?: string
@@ -16,82 +16,143 @@ export interface ProductsApi {
   updateCatalog(id: string, data: UpdateCatalogInput): Promise<Catalog>
   deleteCatalog(id: string): Promise<void>
 
-  uploadImage(file: File): Promise<{ url: string; key: string }>
+  uploadImage(file: File): Promise<{ readonly url: string; readonly key: string }>
   bulkImportProducts(file: File): Promise<BulkImportResult>
 }
 
-export interface Product {
-  id: string
-  name: string
-  description: string | null
-  price: string
-  costPrice: string | null
-  unit: string
-  barcode: string | null
-  imageUrl: string | null
-  catalogId: string | null
-  catalogName?: string
-  sectionId: string | null
-  sectionName?: string
-  active: boolean
-  sortOrder: number
-  inventory: number
-  availability: string
-  preparationTimeMinutes: number | null
+// Campos que só existem em algumas verticais. Nenhum deles é obrigatório no produto, e a UI só
+// os desenha quando o consumidor os declara em `ProductsConfig.fields` — um catálogo de serviços
+// não tem código de barras nem tempo de preparo, e não deve exibir campos vazios por isso.
+export const PRODUCT_OPTIONAL_FIELD = {
+  COST_PRICE: 'costPrice',
+  UNIT: 'unit',
+  BARCODE: 'barcode',
+  SECTION: 'section',
+  PREPARATION_TIME: 'preparationTime',
+  INVENTORY: 'inventory',
+  SYNC_STATUS: 'syncStatus',
+} as const
+export type ProductOptionalField = (typeof PRODUCT_OPTIONAL_FIELD)[keyof typeof PRODUCT_OPTIONAL_FIELD]
+
+// Estado da sincronização do item com o catálogo da Meta. Faz parte do núcleo, e não das
+// extensões, porque é inerente a catálogo Meta: qualquer consumidor que publique produtos lá
+// precisa mostrar o que ainda não subiu e o porquê. `syncStatus: null` diz que o host não
+// sincroniza — diferente de `pending`, que é "vai subir e ainda não subiu".
+export const PRODUCT_SYNC_STATUS = {
+  PENDING: 'pending',
+  SYNCED: 'synced',
+  FAILED: 'failed',
+} as const
+export type ProductSyncStatus = (typeof PRODUCT_SYNC_STATUS)[keyof typeof PRODUCT_SYNC_STATUS]
+
+export type Product = {
+  readonly id: string
+  readonly name: string
+  readonly description: string | null
+  // Dinheiro trafega em centavos inteiros, nunca em decimal ou string formatada: o componente não
+  // pode arredondar valor de venda, e a moeda vem da configuração do consumidor (ProductsConfig).
+  readonly priceInCents: number
+  readonly imageUrl: string | null
+  readonly catalogId: string | null
+  readonly catalogName?: string
+  readonly active: boolean
+  readonly sortOrder: number
+  readonly availability: string
+
+  // `null` = estoque não controlado, disponibilidade definida manualmente.
+  readonly inventory?: number | null
+  readonly costPriceInCents?: number | null
+  readonly unit?: string | null
+  readonly barcode?: string | null
+  readonly sectionId?: string | null
+  readonly sectionName?: string
+  readonly preparationTimeMinutes?: number | null
+
+  readonly externalId?: string | null
+  readonly syncStatus?: ProductSyncStatus | null
+  readonly syncError?: string | null
 }
 
-export interface Catalog {
-  id: string
-  name: string
-  description: string | null
-  active: boolean
-  productCount?: number
+export type Catalog = {
+  readonly id: string
+  readonly name: string
+  readonly description: string | null
+  readonly active: boolean
+  readonly productCount?: number
 }
 
-export interface Section {
-  id: string
-  name: string
-  catalogId: string
+export type Section = {
+  readonly id: string
+  readonly name: string
+  readonly catalogId: string
 }
 
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
+export type PaginatedResponse<TItem> = {
+  readonly data: readonly TItem[]
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly totalPages: number
 }
 
-export interface CreateProductInput {
-  name: string
-  description?: string
-  price: number
-  costPrice?: number
-  unit?: string
-  barcode?: string
-  catalogId?: string
-  sectionId?: string
-  imageUrl?: string
-  inventory?: number
-  preparationTimeMinutes?: number
+export type CreateProductInput = {
+  readonly name: string
+  readonly description?: string
+  readonly priceInCents: number
+  readonly costPriceInCents?: number
+  readonly unit?: string
+  readonly barcode?: string
+  readonly catalogId?: string
+  readonly sectionId?: string
+  readonly imageUrl?: string
+  readonly inventory?: number
+  readonly preparationTimeMinutes?: number
 }
 
-export interface UpdateProductInput extends Partial<CreateProductInput> {
-  active?: boolean
-  sortOrder?: number
+export type UpdateProductInput = Partial<CreateProductInput> & {
+  readonly active?: boolean
+  readonly sortOrder?: number
 }
 
-export interface CreateCatalogInput {
-  name: string
-  description?: string
+export type CreateCatalogInput = {
+  readonly name: string
+  readonly description?: string
 }
 
-export interface UpdateCatalogInput extends Partial<CreateCatalogInput> {
-  active?: boolean
+export type UpdateCatalogInput = Partial<CreateCatalogInput> & {
+  readonly active?: boolean
 }
 
-export interface BulkImportResult {
-  succeeded: number
-  failed: number
-  errors: Array<{ row: number; message: string }>
+export type BulkImportResult = {
+  readonly succeeded: number
+  readonly failed: number
+  readonly errors: ReadonlyArray<{ readonly row: number; readonly message: string }>
+}
+
+export type ProductsConfig = {
+  // Código ISO 4217 e locale usados para formatar e para ler o que o usuário digita. Sem isto o
+  // pacote assumiria BRL/pt-BR, o que só serve a um consumidor.
+  readonly currency: string
+  readonly locale: string
+  readonly fields: readonly ProductOptionalField[]
+  readonly unitOptions?: readonly string[]
+  // Atalhos de margem sobre o preço de custo. Vazio esconde os botões.
+  readonly marginShortcutPercents?: readonly number[]
+}
+
+export const DEFAULT_UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx', 'dz'] as const
+
+export const DEFAULT_PRODUCTS_CONFIG: ProductsConfig = {
+  currency: 'BRL',
+  locale: 'pt-BR',
+  fields: [
+    PRODUCT_OPTIONAL_FIELD.COST_PRICE,
+    PRODUCT_OPTIONAL_FIELD.UNIT,
+    PRODUCT_OPTIONAL_FIELD.BARCODE,
+    PRODUCT_OPTIONAL_FIELD.SECTION,
+    PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME,
+    PRODUCT_OPTIONAL_FIELD.INVENTORY,
+  ],
+  unitOptions: DEFAULT_UNIT_OPTIONS,
+  marginShortcutPercents: [30, 50, 100],
 }

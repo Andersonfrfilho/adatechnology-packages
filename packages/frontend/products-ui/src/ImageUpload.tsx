@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react'
 
-export interface ImageUploadProps {
-  onUpload: (file: File) => Promise<string>
-  currentUrl?: string
+export type ImageUploadProps = {
+  readonly onUpload: (file: File) => Promise<string>
+  readonly currentUrl?: string
 }
 
 export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
