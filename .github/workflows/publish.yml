@@ -90,6 +90,7 @@ jobs:
             meta-whatsapp-provider \
             meta-catalog-provider \
             meta-whatsapp-module \
+            text-moderation \
             conversations-ui \
             products-ui
           do
