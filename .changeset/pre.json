@@ -34,6 +34,8 @@
     "@adatechnology/text-moderation": "0.1.0"
   },
   "changesets": [
+    "catalog-inventory",
+    "configurable-product-model",
     "cte-authorized-xml-and-ide-parameters",
     "drizzle-decouple",
     "expose-flow-position",
@@ -42,6 +44,7 @@
     "message-moderation",
     "meta-whatsapp-trio-rc",
     "preview-and-testing-subpaths",
+    "product-agnostic-flow-and-session-context",
     "restore-provider-factory",
     "strict-declarations",
     "summary-preview",

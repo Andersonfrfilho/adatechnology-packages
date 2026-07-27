@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/meta-whatsapp-module",
-  "version": "0.2.0-rc.9",
+  "version": "0.2.0-rc.10",
   "description": "Stateful conversation/flow module for WhatsApp — schema, migrations, repositories, and use-cases behind pluggable ports (Fase 3-5 of the meta-whatsapp trio)",
   "publishConfig": {
     "access": "public"
