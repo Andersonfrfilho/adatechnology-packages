@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import { PgDialect } from 'drizzle-orm/pg-core'
-import { conversationSummaryProjection } from './SessionRepository'
+import { conversationSummaryProjection, sessionContextPatch } from './SessionRepository'
 
 const dialect = new PgDialect()
 
@@ -59,5 +59,26 @@ describe('correlação das subqueries da lista de conversas', () => {
   it('conta como não lida a conversa que nunca foi aberta', () => {
     expect(rendered.unread).toContain('last_agent_read_at is null')
     expect(rendered.unread).toContain(`m.direction = 'inbound'`)
+  })
+})
+
+// O context é o ponto de extensão oficial de estado de sessão por produto (S-05). A mescla precisa
+// acontecer no banco: read-modify-write no host perde escrita quando duas mensagens do mesmo
+// cliente são processadas em paralelo.
+describe('mescla parcial do context da sessão', () => {
+  const query = dialect.sqlToQuery(sessionContextPatch({ step: 2 }) as never)
+
+  it('mescla em vez de substituir', () => {
+    expect(query.sql).toContain('"meta_whatsapp"."sessions"."context" ||')
+  })
+
+  // Sem o cast o parâmetro chega como text e o `||` vira concatenação de string: o context deixa
+  // de ser objeto e nenhuma leitura posterior acusa erro.
+  it('faz cast do patch para jsonb', () => {
+    expect(query.sql).toContain('::jsonb')
+  })
+
+  it('manda o patch como parâmetro, não interpolado', () => {
+    expect(query.params).toEqual(['{"step":2}'])
   })
 })

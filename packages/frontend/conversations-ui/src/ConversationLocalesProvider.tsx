@@ -14,6 +14,13 @@ export interface ConversationLocales {
     listenAudio: string
     viewVideo: string
     moderationFlagged: string
+    mediaLoading: string
+    mediaRetry: string
+    mediaError: string
+    mediaUnavailable: string
+    imageAlt: string
+    untitledDocument: string
+    downloadFile: string
   }
   selection: {
     select: string
@@ -38,6 +45,13 @@ const DEFAULT_LOCALES: ConversationLocales = {
     listenAudio: 'Ouvir áudio',
     viewVideo: 'Ver vídeo',
     moderationFlagged: 'Linguagem ofensiva',
+    mediaLoading: 'Carregando...',
+    mediaRetry: 'Erro — tentar novamente',
+    mediaError: 'Erro',
+    mediaUnavailable: 'Mídia indisponível',
+    imageAlt: 'Imagem',
+    untitledDocument: 'Documento',
+    downloadFile: 'Baixar',
   },
   selection: {
     select: 'Selecionar',

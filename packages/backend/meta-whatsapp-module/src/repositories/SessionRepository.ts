@@ -47,6 +47,13 @@ export const conversationSummaryProjection = {
   )`,
 } as const
 
+// Mescla do context feita pelo Postgres. Extraída para ser verificável sem banco (ver
+// SessionRepository.test.ts): o `::jsonb` é obrigatório — sem ele o parâmetro chega como text e
+// o `||` concatena strings em vez de mesclar objetos, corrompendo o context em silêncio.
+export function sessionContextPatch(patch: Record<string, unknown>) {
+  return sql`${sessions.context} || ${JSON.stringify(patch)}::jsonb`
+}
+
 // T3.2 — todo método recebe/filtra por companyId explicitamente (nunca lê de um campo do
 // payload do cliente); ver database.md "Consistência e multiempresa".
 export class SessionRepository {
@@ -76,11 +83,14 @@ export class SessionRepository {
     return created!
   }
 
-  async setState(
+  // O `context` jsonb é o ponto de extensão oficial para estado de sessão por produto: o módulo
+  // não conhece a forma, o consumidor a declara em TSessionContext. Este setter SUBSTITUI o
+  // objeto inteiro — para acumular respostas ao longo da conversa use patchContext.
+  async setState<TSessionContext extends Record<string, unknown> = Record<string, unknown>>(
     companyId: string,
     whatsappNumber: string,
     state: SessionState,
-    context?: Record<string, unknown>,
+    context?: TSessionContext,
   ): Promise<void> {
     await this.db
       .update(sessions)
@@ -91,6 +101,39 @@ export class SessionRepository {
         updatedAt: sql`now()`,
       })
       .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
+  }
+
+  // Mescla parcial do context, feita no banco (`||`) e não por read-modify-write no host: duas
+  // mensagens do mesmo cliente processadas em paralelo sobrescreveriam uma à outra, e o campo
+  // acumula justamente as respostas coletadas ao longo da conversa. Chave presente no patch
+  // vence a existente; as demais permanecem.
+  async patchContext<TSessionContext extends Record<string, unknown> = Record<string, unknown>>(
+    companyId: string,
+    whatsappNumber: string,
+    patch: Partial<TSessionContext>,
+  ): Promise<void> {
+    await this.db
+      .update(sessions)
+      .set({
+        context: sessionContextPatch(patch),
+        lastActivity: sql`now()`,
+        updatedAt: sql`now()`,
+      })
+      .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
+  }
+
+  // Leitura tipada do estado de sessão do produto. Devolve undefined quando a sessão não existe —
+  // distinto de existir com context vazio, que devolve o objeto vazio.
+  async readContext<TSessionContext extends Record<string, unknown> = Record<string, unknown>>(
+    companyId: string,
+    whatsappNumber: string,
+  ): Promise<TSessionContext | undefined> {
+    const [row] = await this.db
+      .select({ context: sessions.context })
+      .from(sessions)
+      .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
+      .limit(1)
+    return row?.context as TSessionContext | undefined
   }
 
   // Posição no grafo de fluxo — chamado pelo host a cada transição do FlowInterpreter.

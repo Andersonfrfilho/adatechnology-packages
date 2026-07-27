@@ -70,14 +70,14 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRender
       if (!src && canLazyLoad) {
         return (
           <button onClick={lazy.load} className={lazyButtonClass}>
-            {lazy.loading ? 'Carregando...' : lazy.error ? 'Erro — tentar novamente' : bubble.viewImage}
+            {lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.viewImage}
           </button>
         )
       }
       return (
         <div className="min-w-[200px]">
           {src ? (
-            <img src={src} alt={message.caption ?? 'Image'} className="w-full max-h-80 object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onLightbox(src)} loading="lazy" />
+            <img src={src} alt={message.caption ?? bubble.imageAlt} className="w-full max-h-80 object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onLightbox(src)} loading="lazy" />
           ) : (
             <div className="w-full h-40 bg-gray-200 flex items-center justify-center text-gray-400">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
@@ -90,7 +90,7 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRender
       if (!src && canLazyLoad) {
         return (
           <button onClick={lazy.load} className={lazyButtonClass}>
-            {lazy.loading ? 'Carregando...' : lazy.error ? 'Erro — tentar novamente' : bubble.viewVideo}
+            {lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.viewVideo}
           </button>
         )
       }
@@ -110,14 +110,14 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRender
       if (!src && canLazyLoad) {
         return (
           <button onClick={lazy.load} className={lazyButtonClass}>
-            {lazy.loading ? 'Carregando...' : lazy.error ? 'Erro — tentar novamente' : bubble.listenAudio}
+            {lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.listenAudio}
           </button>
         )
       }
       return (
         <div className="min-w-[200px]">
           {src ? <AudioPlayer src={src} isMine={message.direction === 'outbound'} /> : (
-            <div className="h-12 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">Audio unavailable</div>
+            <div className="h-12 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">{bubble.mediaUnavailable}</div>
           )}
         </div>
       )
@@ -131,11 +131,11 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRender
             <FileIcon filename={message.filename} mimeType={message.mimeType} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{message.filename ?? 'Document'}</p>
+            <p className="text-sm font-medium truncate">{message.filename ?? bubble.untitledDocument}</p>
             <p className="text-xs text-gray-500">{sizeLabel ? `${typeLabel} · ${sizeLabel}` : typeLabel}</p>
           </div>
           {src ? (
-            <a href={src} download={message.filename} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 flex-shrink-0 transition-colors" aria-label="Download">
+            <a href={src} download={message.filename} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 flex-shrink-0 transition-colors" aria-label={bubble.downloadFile}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-600"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             </a>
           ) : canLazyLoad ? (
@@ -143,12 +143,12 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRender
               onClick={lazy.load}
               disabled={lazy.loading}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 flex-shrink-0 transition-colors disabled:opacity-50"
-              aria-label="Download"
+              aria-label={bubble.downloadFile}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-600"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
             </button>
           ) : null}
-          {lazy.error && <span className="text-xs text-red-500 flex-shrink-0">Erro</span>}
+          {lazy.error && <span className="text-xs text-red-500 flex-shrink-0">{bubble.mediaError}</span>}
         </div>
       )
     }
