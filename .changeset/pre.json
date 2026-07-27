@@ -30,13 +30,17 @@
     "@adatechnology/shared": "0.0.2",
     "@adatechnology/conversations-ui": "0.0.0",
     "@adatechnology/logger-client": "0.0.2",
-    "@adatechnology/products-ui": "0.0.0"
+    "@adatechnology/products-ui": "0.0.0",
+    "@adatechnology/text-moderation": "0.1.0"
   },
   "changesets": [
     "drizzle-decouple",
     "expose-flow-position",
     "fix-correlation",
+    "inbox-components",
+    "message-moderation",
     "meta-whatsapp-trio-rc",
+    "preview-and-testing-subpaths",
     "restore-provider-factory",
     "strict-declarations",
     "summary-preview",
