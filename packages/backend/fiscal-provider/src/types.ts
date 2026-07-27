@@ -325,6 +325,8 @@ export type CteDocumentoNfe = {
   readonly tipo: 'nfe'
   readonly chave: string
   readonly pin?: string
+  /** Data prevista de entrega da NF-e referenciada — AAAA-MM-DD */
+  readonly dPrev?: string
   /** Informações de produto perigoso */
   readonly peri?: ReadonlyArray<{
     readonly nONU: string
@@ -460,9 +462,17 @@ export type CteData = {
     readonly proPred: string
     readonly xOutCat?: string
     readonly quantidades: readonly CteQuantidadeCarga[]
+    /** Valor da carga para efeito de averbação — normalmente o valor das NF-e referenciadas */
+    readonly vCargaAverb?: number
   }
   readonly documentos: readonly CteDocumento[]
   readonly modal: CteModalData
+  /** Recebedor retira no aeroporto/filial/porto/estação de destino? '0'=sim, '1'=não (padrão) */
+  readonly retira?: '0' | '1'
+  /** Detalhe do local de retirada — só faz sentido com retira='0' */
+  readonly xDetRetira?: string
+  /** Indicador de inscrição estadual do tomador: '1'=contribuinte, '2'=isento, '9'=não contribuinte (padrão) */
+  readonly indIEToma?: '1' | '2' | '9'
   readonly informacoesAdicionais?: string
   readonly observacoes?: string
 }
@@ -805,7 +815,7 @@ export type FiscalResult = {
   readonly numeroDocumento?: number
   readonly serie?: string
   readonly xmlAutorizado?: string
-  /** XML cru do <protNFe> devolvido pela SEFAZ — usado internamente para montar o nfeProc (xmlAutorizado). */
+  /** XML cru do <protNFe>/<protCTe> devolvido pela SEFAZ — usado internamente para montar o nfeProc/cteProc (xmlAutorizado). */
   readonly xmlProtocolo?: string
   readonly qrCodeUrl?: string
   readonly danfce?: DanfceData

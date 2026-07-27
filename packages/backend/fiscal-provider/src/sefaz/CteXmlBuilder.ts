@@ -93,7 +93,8 @@ function buildDocumentos(docs: readonly CteDocumento[]): string {
                 `<peri><nONU>${p.nONU}</nONU><xNomeAE>${p.xNomeAE}</xNomeAE><xClaRisco>${p.xClaRisco}</xClaRisco><grEmb>${p.grEmb}</grEmb><qTotProd>${p.qTotProd}</qTotProd><qVolTipo>${p.qVolTipo}</qVolTipo></peri>`,
             )
             .join('') ?? ''
-        return `<infNFe><chave>${doc.chave}</chave>${doc.pin ? `<PIN>${doc.pin}</PIN>` : ''}${peri}</infNFe>`
+        const dPrev = doc.dPrev ? `<dPrev>${doc.dPrev}</dPrev>` : ''
+        return `<infNFe><chave>${doc.chave}</chave>${doc.pin ? `<PIN>${doc.pin}</PIN>` : ''}${dPrev}${peri}</infNFe>`
       }
       const num = doc.numero ? `<nDoc>${doc.numero}</nDoc>` : ''
       const val = doc.valor !== undefined ? `<vDoc>${doc.valor.toFixed(2)}</vDoc>` : ''
@@ -221,6 +222,11 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   // toma3 quando o tomador é rem/exped/receb/dest (sem dados de endereço extra)
   const toma = `<toma3><toma>${data.tomador}</toma></toma3>`
 
+  // retira='0' significa que o recebedor retira no porto/aeroporto/filial — entrega no endereço é '1'
+  const retira = data.retira ?? '1'
+  const xDetRetira = data.xDetRetira ? `<xDetRetira>${data.xDetRetira}</xDetRetira>` : ''
+  const indIEToma = data.indIEToma ?? '9'
+
   // Emitente
   const emit = `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${tpAmb === '2' ? 'CT-E EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : config.razaoSocial}</xNome><enderEmit><xLgr>${config.logradouro}</xLgr><nro>${config.numero}</nro>${config.complemento ? `<xCpl>${config.complemento}</xCpl>` : ''}<xBairro>${config.bairro}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${config.municipio}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''}</enderEmit><CRT>${config.crt}</CRT></emit>`
 
@@ -245,7 +251,9 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
       (q) => `<infQ><cUnid>${q.cUnid}</cUnid><tpMed>${q.tpMed}</tpMed><qCarga>${q.qCarga.toFixed(3)}</qCarga></infQ>`,
     )
     .join('')
-  const infCarga = `<infCarga><vCarga>${data.carga.vCarga.toFixed(2)}</vCarga><proPred>${data.carga.proPred}</proPred>${data.carga.xOutCat ? `<xOutCat>${data.carga.xOutCat}</xOutCat>` : ''}${qtds}</infCarga>`
+  const vCargaAverb =
+    data.carga.vCargaAverb !== undefined ? `<vCargaAverb>${data.carga.vCargaAverb.toFixed(2)}</vCargaAverb>` : ''
+  const infCarga = `<infCarga><vCarga>${data.carga.vCarga.toFixed(2)}</vCarga><proPred>${data.carga.proPred}</proPred>${data.carga.xOutCat ? `<xOutCat>${data.carga.xOutCat}</xOutCat>` : ''}${qtds}${vCargaAverb}</infCarga>`
   const infDoc = `<infDoc>${buildDocumentos(data.documentos)}</infDoc>`
   const infModal = `<infModal versao="4.00">${buildModal(data.modal)}</infModal>`
   const infCTeNorm = `<infCTeNorm>${infCarga}${infDoc}${infModal}</infCTeNorm>`
@@ -254,7 +262,7 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   const infAdic = data.observacoes ? `<infAdic><infCpl>${data.observacoes}</infCpl></infAdic>` : ''
 
   const infCteId = `CTe${chave}`
-  const xml = `<?xml version="1.0" encoding="UTF-8"?><CTe versao="4.00" xmlns="${CTE_NS}"><infCTe Id="${infCteId}"><ide><cUF>${cUF}</cUF><cCT>${cCT}</cCT><CFOP>${data.cfop}</CFOP><natOp>${data.naturezaOperacao}</natOp><mod>57</mod><serie>${serie}</serie><nCT>${nCT}</nCT><dhEmi>${dhEmi}</dhEmi><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${cDV}</cDV><tpAmb>${tpAmb}</tpAmb><tpCTe>0</tpCTe><procEmi>0</procEmi><verProc>fiscal-provider@1.0</verProc><cMunEnv>${config.codigoMunicipio}</cMunEnv><xMunEnv>${config.municipio}</xMunEnv><UFEnv>${config.uf}</UFEnv><modal>${data.modal.modal}</modal><tpServ>${tpServ}</tpServ><cMunIni>${data.municipioOrigem.codigo}</cMunIni><xMunIni>${data.municipioOrigem.nome}</xMunIni><UFIni>${data.municipioOrigem.uf}</UFIni><cMunFim>${data.municipioDestino.codigo}</cMunFim><xMunFim>${data.municipioDestino.nome}</xMunFim><UFFim>${data.municipioDestino.uf}</UFFim><retira>0</retira><indIEToma>9</indIEToma>${toma}</ide>${obsGer}${emit}${rem}${exped}${receb}${dest}${vPrest}${imp}${infCTeNorm}${infAdic}</infCTe></CTe>`
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><CTe versao="4.00" xmlns="${CTE_NS}"><infCTe Id="${infCteId}"><ide><cUF>${cUF}</cUF><cCT>${cCT}</cCT><CFOP>${data.cfop}</CFOP><natOp>${data.naturezaOperacao}</natOp><mod>57</mod><serie>${serie}</serie><nCT>${nCT}</nCT><dhEmi>${dhEmi}</dhEmi><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${cDV}</cDV><tpAmb>${tpAmb}</tpAmb><tpCTe>0</tpCTe><procEmi>0</procEmi><verProc>fiscal-provider@1.0</verProc><cMunEnv>${config.codigoMunicipio}</cMunEnv><xMunEnv>${config.municipio}</xMunEnv><UFEnv>${config.uf}</UFEnv><modal>${data.modal.modal}</modal><tpServ>${tpServ}</tpServ><cMunIni>${data.municipioOrigem.codigo}</cMunIni><xMunIni>${data.municipioOrigem.nome}</xMunIni><UFIni>${data.municipioOrigem.uf}</UFIni><cMunFim>${data.municipioDestino.codigo}</cMunFim><xMunFim>${data.municipioDestino.nome}</xMunFim><UFFim>${data.municipioDestino.uf}</UFFim><retira>${retira}</retira>${xDetRetira}<indIEToma>${indIEToma}</indIEToma>${toma}</ide>${obsGer}${emit}${rem}${exped}${receb}${dest}${vPrest}${imp}${infCTeNorm}${infAdic}</infCTe></CTe>`
 
   return { xml, chaveAcesso: chave, cCT }
 }

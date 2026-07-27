@@ -151,6 +151,7 @@ function parseCteAutorizacaoResponse(soapXml: string): FiscalResult {
         success: true,
         chaveAcesso: String(prot?.chCTe ?? ''),
         protocolo: String(prot?.nProt ?? ''),
+        xmlProtocolo: soapXml.match(/<protCTe[\s>][\s\S]*?<\/protCTe>/)?.[0],
         rawResponse: retEnvi,
       }
     }

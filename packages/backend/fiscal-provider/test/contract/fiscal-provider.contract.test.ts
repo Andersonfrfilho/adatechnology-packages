@@ -16,7 +16,9 @@ import {
   validateCertificate,
   type CteConfig,
   type CteData,
+  type EmitFiscalParams,
 } from '../../src/index'
+import { buildCteXml } from '../../src/sefaz/CteXmlBuilder'
 
 const CERTIFICATE_CNPJ = '11222333000181'
 const CERTIFICATE_PASSWORD = 'fixture-password'
@@ -94,6 +96,119 @@ describe('@adatechnology/fiscal-provider public CT-e contract', () => {
     expect(requestBody.includes('<Signature')).toBe(true)
     expect(requestBody.includes(CERTIFICATE_PASSWORD)).toBe(false)
     expect(requestBody.includes(certificateFixture.pfxBase64)).toBe(false)
+  })
+})
+
+describe('@adatechnology/fiscal-provider CT-e authorized XML', () => {
+  test('assembles the cteProc from the signed CT-e and the SEFAZ protocol', async () => {
+    const certificateFixture = createCertificateFixture()
+
+    globalThis.fetch = async (): Promise<Response> =>
+      new Response(buildAuthorizedCteResponse(), {
+        status: 200,
+        headers: { 'Content-Type': 'application/soap+xml' },
+      })
+
+    const config = buildCteConfig(certificateFixture.pfxBase64)
+    const provider = createFiscalProvider(config)
+    const result = await provider.emit(buildEmitParams(config))
+
+    expect(result.success).toBe(true)
+    expect(result.xmlAutorizado).toBeDefined()
+
+    const authorizedXml = result.xmlAutorizado ?? ''
+    expect(authorizedXml.startsWith('<?xml version="1.0" encoding="UTF-8"?><cteProc versao="4.00"')).toBe(true)
+    expect(authorizedXml.includes('xmlns="http://www.portalfiscal.inf.br/cte"')).toBe(true)
+    expect(authorizedXml.includes('<Signature')).toBe(true)
+    expect(authorizedXml.includes(`<chCTe>${MOCK_ACCESS_KEY}</chCTe>`)).toBe(true)
+    expect(authorizedXml.includes('<nProt>135260000000001</nProt>')).toBe(true)
+    expect(authorizedXml.endsWith('</cteProc>')).toBe(true)
+    expect(authorizedXml.indexOf('<protCTe')).toBeGreaterThan(authorizedXml.indexOf('<CTe'))
+  })
+
+  test('never leaks certificate material into the authorized XML', async () => {
+    const certificateFixture = createCertificateFixture()
+
+    globalThis.fetch = async (): Promise<Response> => new Response(buildAuthorizedCteResponse(), { status: 200 })
+
+    const config = buildCteConfig(certificateFixture.pfxBase64)
+    const provider = createFiscalProvider(config)
+    const result = await provider.emit(buildEmitParams(config))
+
+    const authorizedXml = result.xmlAutorizado ?? ''
+    expect(authorizedXml.includes(CERTIFICATE_PASSWORD)).toBe(false)
+    expect(authorizedXml.includes(certificateFixture.pfxBase64)).toBe(false)
+  })
+
+  test('omits the authorized XML when SEFAZ rejects the CT-e', async () => {
+    const certificateFixture = createCertificateFixture()
+
+    globalThis.fetch = async (): Promise<Response> => new Response(buildRejectedCteResponse(), { status: 200 })
+
+    const config = buildCteConfig(certificateFixture.pfxBase64)
+    const provider = createFiscalProvider(config)
+    const result = await provider.emit(buildEmitParams(config))
+
+    expect(result.success).toBe(false)
+    expect(result.errorCode).toBe('539')
+    expect(result.xmlAutorizado).toBeUndefined()
+  })
+})
+
+describe('@adatechnology/fiscal-provider CT-e XML parameters', () => {
+  const config = buildCteConfig('unused-for-xml-only-assertions')
+
+  test('takes retira, xDetRetira and indIEToma from the caller', () => {
+    const { xml } = buildCteXml(config, {
+      ...buildCteData(),
+      retira: '0',
+      xDetRetira: 'Retirar no terminal 3 mediante apresentacao do documento',
+      indIEToma: '1',
+    })
+
+    expect(xml.includes('<retira>0</retira>')).toBe(true)
+    expect(xml.includes('<xDetRetira>Retirar no terminal 3 mediante apresentacao do documento</xDetRetira>')).toBe(true)
+    expect(xml.includes('<indIEToma>1</indIEToma>')).toBe(true)
+    expect(xml.indexOf('<xDetRetira>')).toBeGreaterThan(xml.indexOf('<retira>'))
+  })
+
+  test('falls back to door delivery and non-taxpayer tomador when omitted', () => {
+    const { xml } = buildCteXml(config, buildCteData())
+
+    expect(xml.includes('<retira>1</retira>')).toBe(true)
+    expect(xml.includes('<indIEToma>9</indIEToma>')).toBe(true)
+    expect(xml.includes('<xDetRetira>')).toBe(false)
+  })
+
+  test('emits vCargaAverb after the infQ list, with two decimals', () => {
+    const { xml } = buildCteXml(config, {
+      ...buildCteData(),
+      carga: { ...buildCteData().carga, vCargaAverb: 958.4 },
+    })
+
+    expect(xml.includes('<vCargaAverb>958.40</vCargaAverb>')).toBe(true)
+    expect(xml.indexOf('<vCargaAverb>')).toBeGreaterThan(xml.indexOf('<infQ>'))
+    expect(xml.indexOf('<vCargaAverb>')).toBeLessThan(xml.indexOf('</infCarga>'))
+  })
+
+  test('emits dPrev inside infNFe right after the access key', () => {
+    const referencedKey = '35260705868574001090550020008526741408978623'
+    const { xml } = buildCteXml(config, {
+      ...buildCteData(),
+      documentos: [{ tipo: 'nfe', chave: referencedKey, dPrev: '2026-07-14' }],
+    })
+
+    expect(xml.includes(`<infNFe><chave>${referencedKey}</chave><dPrev>2026-07-14</dPrev></infNFe>`)).toBe(true)
+  })
+
+  test('omits vCargaAverb and dPrev when the caller does not provide them', () => {
+    const { xml } = buildCteXml(config, {
+      ...buildCteData(),
+      documentos: [{ tipo: 'nfe', chave: '35260705868574001090550020008526741408978623' }],
+    })
+
+    expect(xml.includes('<vCargaAverb>')).toBe(false)
+    expect(xml.includes('<dPrev>')).toBe(false)
   })
 })
 
@@ -223,6 +338,28 @@ function buildCteData(): CteData {
       rntrc: '00000000',
     },
   }
+}
+
+function buildEmitParams(config: CteConfig): EmitFiscalParams {
+  return {
+    referenceId: 'contract-test-cte',
+    config,
+    cteData: buildCteData(),
+    items: [],
+    payments: [],
+    totalAmount: 500,
+    discountAmount: 0,
+  }
+}
+
+function buildRejectedCteResponse(): string {
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">',
+    '<soap12:Body><cteRecepcaoResult><retCTeSinc>',
+    '<cStat>539</cStat><xMotivo>Duplicidade de CT-e com diferenca na chave de acesso</xMotivo>',
+    '</retCTeSinc></cteRecepcaoResult></soap12:Body></soap12:Envelope>',
+  ].join('')
 }
 
 function buildAuthorizedCteResponse(): string {

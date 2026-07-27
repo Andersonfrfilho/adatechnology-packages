@@ -29,6 +29,15 @@ function log(level: 'info' | 'warn' | 'error', message: string, meta: Record<str
   }
 }
 
+const CTE_NAMESPACE = 'http://www.portalfiscal.inf.br/cte'
+const CTE_VERSAO = '4.00'
+
+/** cteProc = CT-e assinado + protCTe cru da SEFAZ — é este XML que a lei manda guardar. */
+function buildCteProc(signedXml: string, xmlProtocolo: string): string {
+  const cteFragment = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
+  return `<?xml version="1.0" encoding="UTF-8"?><cteProc versao="${CTE_VERSAO}" xmlns="${CTE_NAMESPACE}">${cteFragment}${xmlProtocolo}</cteProc>`
+}
+
 function formatDhEvento(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}-03:00`
@@ -80,21 +89,33 @@ export class SefazCteProvider implements FiscalProvider {
       certData,
     })
 
-    if (result.success) {
+    const xmlAutorizado =
+      result.success && result.xmlProtocolo ? buildCteProc(signedXml, result.xmlProtocolo) : undefined
+
+    const finalResult: FiscalResult = {
+      ...result,
+      chaveAcesso: result.chaveAcesso || chaveAcesso,
+      serie: config.serie,
+      numeroDocumento: config.numeroCte,
+      xmlAutorizado,
+    }
+
+    if (finalResult.success) {
       log('info', 'CT-e autorizado com sucesso', {
         traceId,
-        chaveAcesso: result.chaveAcesso,
-        protocolo: result.protocolo,
+        chaveAcesso: finalResult.chaveAcesso,
+        protocolo: finalResult.protocolo,
+        hasXmlAutorizado: xmlAutorizado !== undefined,
       })
     } else {
       log('error', 'CT-e rejeitado pela SEFAZ', {
         traceId,
-        errorCode: result.errorCode,
-        errorMessage: result.errorMessage,
+        errorCode: finalResult.errorCode,
+        errorMessage: finalResult.errorMessage,
       })
     }
 
-    return result
+    return finalResult
   }
 
   async cancel(params: CancelFiscalParams): Promise<FiscalResult> {
