@@ -18,6 +18,7 @@ export const productDetailResponseSchema = z.object({
   availability: z.enum(['in stock', 'out of stock', 'preorder', 'available for order', 'discontinued']),
   condition: z.enum(['new', 'refurbished', 'used']),
   url: z.string().optional(),
+  inventory: z.number().optional(),
   custom_label_0: z.string().optional().default(''),
 })
 

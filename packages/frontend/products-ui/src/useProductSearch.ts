@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Product, ProductsApi } from './providers/types'
 
-export interface UseProductSearchOptions {
-  api: ProductsApi
-  debounceMs?: number
+export type UseProductSearchOptions = {
+  readonly api: ProductsApi
+  readonly debounceMs?: number
 }
 
-export interface UseProductSearchResult {
-  query: string
-  setQuery: (value: string) => void
-  results: Product[]
-  loading: boolean
+export type UseProductSearchResult = {
+  readonly query: string
+  readonly setQuery: (value: string) => void
+  readonly results: readonly Product[]
+  readonly loading: boolean
 }
 
 export function useProductSearch({ api, debounceMs = 300 }: UseProductSearchOptions): UseProductSearchResult {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<Product[]>([])
+  const [results, setResults] = useState<readonly Product[]>([])
   const [loading, setLoading] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 

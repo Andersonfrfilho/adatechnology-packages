@@ -22,6 +22,9 @@ export type CatalogProductInput = {
   readonly categoryLabel: string
   readonly availability?: ProductAvailability
   readonly condition?: ProductCondition
+  // Quantidade em estoque publicada no item do catálogo. Omitir mantém o comportamento anterior:
+  // a Meta trata a disponibilidade só por `availability`, definida manualmente pelo consumidor.
+  readonly inventory?: number
   readonly url?: string
   readonly catalogId?: string
 }
