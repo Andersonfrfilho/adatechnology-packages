@@ -34,6 +34,7 @@
     "@adatechnology/text-moderation": "0.1.0"
   },
   "changesets": [
+    "cte-authorized-xml-and-ide-parameters",
     "drizzle-decouple",
     "expose-flow-position",
     "fix-correlation",
