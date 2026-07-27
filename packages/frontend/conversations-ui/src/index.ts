@@ -19,7 +19,60 @@ export { MessageText } from './MessageText'
 export { MessageTimestamp } from './MessageTimestamp'
 export { MessageTail } from './MessageTail'
 
-export { useDarkMode } from './useDarkMode'
+// Operação da inbox: janela de 24h da Meta, linha com ações e painéis do atendimento. Regras da
+// plataforma e do ofício de atender, não de um produto — por isso moram aqui.
+export { CONVERSATION_WINDOW, WINDOW_FILTERS, windowOf, formatStalledFor } from './conversationWindow'
+export type { WindowOfParams } from './conversationWindow'
+// Canal de origem: capacidades por plataforma (janela de sessão, reabertura, tipo de identificador).
+export {
+  CONVERSATION_CHANNEL,
+  DEFAULT_CONVERSATION_CHANNEL,
+  CHANNEL_CAPABILITIES,
+  channelFiltersFor,
+  CHANNEL_FILTER_ALL,
+  REOPEN_MECHANISM,
+  HANDLE_KIND,
+  capabilitiesOf,
+  formatContactHandle,
+  contactFlag,
+} from './conversationChannel'
+export type {
+  ConversationChannel,
+  ChannelCapabilities,
+  ChannelFilter,
+  ChannelFilterOption,
+  ReopenMechanism,
+  HandleKind,
+  FormatContactHandleParams,
+} from './conversationChannel'
+export type { ConversationWindow } from './conversationWindow'
+export { ConversationRow } from './ConversationRow'
+export { ChannelIcon, CHANNEL_BRAND_COLOR } from './ChannelIcon'
+export type { ChannelIconProps } from './ChannelIcon'
+export type { ConversationRowProps, ConversationRowClassNames } from './ConversationRow'
+export { ConversationHeader, DEFAULT_CONVERSATION_HEADER_LABELS } from './ConversationHeader'
+export type {
+  ConversationHeaderProps,
+  ConversationHeaderLabels,
+  ConversationHeaderClassNames,
+} from './ConversationHeader'
+export { ConversationContextPanel, DEFAULT_CONVERSATION_CONTEXT_LABELS } from './ConversationContextPanel'
+export type {
+  ConversationContextPanelProps,
+  ConversationContextEntry,
+  ConversationContextPanelLabels,
+  ConversationContextPanelClassNames,
+} from './ConversationContextPanel'
+export { WindowExpiredNotice, isWindowBlocking, DEFAULT_WINDOW_EXPIRED_LABELS } from './WindowExpiredNotice'
+export type { WindowExpiredNoticeProps, WindowExpiredNoticeLabels } from './WindowExpiredNotice'
+export type { ConversationDocumentsPanelClassNames } from './ConversationDocumentsPanel'
+export { ConversationDocumentsPanel, DEFAULT_CONVERSATION_DOCUMENTS_LABELS } from './ConversationDocumentsPanel'
+export type { ConversationDocumentsPanelProps, ConversationDocumentsPanelLabels } from './ConversationDocumentsPanel'
+export { buildTranscriptText, buildTranscriptFilename, downloadTextFile } from './conversationTranscript'
+export type { BuildTranscriptTextParams } from './conversationTranscript'
+
+export { useDarkMode, useIsDarkTheme } from './useDarkMode'
+export { useIsNarrow, NARROW_MAX_WIDTH_PX } from './useIsNarrow'
 export { useWaitingNotifications } from './useWaitingNotifications'
 
 export { ConversationsProvider, useConversations } from './providers/ConversationsProvider'
@@ -29,6 +82,11 @@ export { ConversationsProvider, useConversations } from './providers/Conversatio
 export { WhatsAppTemplateSettingsForm } from './settings/WhatsAppTemplateSettingsForm'
 export { WhatsAppCreateTemplateForm } from './settings/WhatsAppCreateTemplateForm'
 export { WelcomeFarewellForm } from './settings/WelcomeFarewellForm'
+export {
+  WhatsAppTemplatesSettings,
+  TEMPLATE_SETTINGS_TAB,
+  DEFAULT_TEMPLATES_SETTINGS_LABELS,
+} from './settings/WhatsAppTemplatesSettings'
 export { TopicsForm } from './settings/TopicsForm'
 
 // Camada headless (T6.9) — hooks de dados/ações independentes de qualquer tela, para o
@@ -44,17 +102,23 @@ export { formatPhone, phoneInitials } from './lib/phone'
 export { formatTimestamp, formatFileSize } from './lib/format'
 
 export type { MessagePayload, ConversationsUIConfig, ConversationsTheme, ConversationsFeatures } from './types'
-export type { ConversationsApi, SSEProvider, ConversationSummary, ConversationDocument } from './providers/types'
+export type {
+  ConversationsApi,
+  SSEProvider,
+  ConversationEventSource,
+  ConversationSummary,
+  ConversationDocument,
+} from './providers/types'
 
 export type { MessageBubbleProps } from './MessageBubble'
 export type { ConversationWallpaperProps } from './Wallpaper'
 export type { ConversationLocales, ConversationLocalesProviderProps } from './ConversationLocalesProvider'
 export type { AudioPlayerProps } from './AudioPlayer'
 export type { EmojiPickerProps } from './EmojiPicker'
-export type { MessageComposerProps } from './MessageComposer'
+export type { MessageComposerProps, MessageComposerClassNames } from './MessageComposer'
 export type { WhatsAppMessageEditorProps } from './WhatsAppMessageEditor'
 export type { SimpleEmojiPickerProps } from './SimpleEmojiPicker'
-export type { DateDividerProps } from './DateDivider'
+export type { DateDividerProps, DateDividerClassNames } from './DateDivider'
 export type { AvatarProps } from './Avatar'
 export type { ConversationListItemProps } from './ConversationListItem'
 export type { StatusTicksProps } from './StatusTicks'
@@ -77,6 +141,11 @@ export type {
   WhatsAppCreateTemplateFormLabels,
 } from './settings/WhatsAppCreateTemplateForm'
 export type { WelcomeFarewellFormProps, WelcomeFarewellFormLabels } from './settings/WelcomeFarewellForm'
+export type {
+  WhatsAppTemplatesSettingsProps,
+  WhatsAppTemplatesSettingsLabels,
+  TemplateSettingsTab,
+} from './settings/WhatsAppTemplatesSettings'
 export type { TopicsFormProps, TopicItem, TopicsFormLabels } from './settings/TopicsForm'
 
 export type { UseConversationMessagesResult } from './hooks/useConversationMessages'

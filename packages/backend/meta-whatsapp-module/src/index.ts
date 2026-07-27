@@ -65,7 +65,7 @@ export type { TakeoverConversationParams } from './use-cases/TakeoverConversatio
 export { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-case'
 export type { ReleaseConversationParams } from './use-cases/ReleaseConversation.use-case'
 export { LogMessageUseCase } from './use-cases/LogMessage.use-case'
-export type { LogMessageParams } from './use-cases/LogMessage.use-case'
+export type { LogMessageParams, MessageModerator } from './use-cases/LogMessage.use-case'
 export { ListConversationsUseCase } from './use-cases/ListConversations.use-case'
 export type { ListConversationsParams } from './use-cases/ListConversations.use-case'
 export { ListMessagesUseCase } from './use-cases/ListMessages.use-case'

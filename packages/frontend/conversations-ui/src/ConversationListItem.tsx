@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Avatar } from './Avatar'
-import { formatPhone } from './lib/phone'
+import { contactFlag, formatContactHandle } from './conversationChannel'
 import type { ConversationSummary } from './providers/types'
 
 export interface ConversationListItemProps {
@@ -9,6 +9,17 @@ export interface ConversationListItemProps {
   selected?: boolean
   onClick?: () => void
   onSelect?: (id: string) => void
+  /**
+   * Desliga a borda inferior quando o item é composto dentro de outra linha (ver `ConversationRow`):
+   * com ela ligada, a borda corta a própria linha ao meio, separando o item do rodapé de status.
+   */
+  showDivider?: boolean
+  /**
+   * Desliga o fundo de selecionado. Par do `showDivider`: quando o item é composto dentro de uma
+   * linha maior, quem pinta o realce é a linha — senão só o bloco do item fica cinza e o resto
+   * (checkbox, pills, barra lateral) continua branco, como se metade da linha estivesse selecionada.
+   */
+  highlightActive?: boolean
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -79,12 +90,19 @@ export const ConversationListItem = ({
   selected = false,
   onClick,
   onSelect,
+  showDivider = true,
+  highlightActive = true,
 }: ConversationListItemProps) => {
   const isActive = active || selected
   const windowStatus = useMemo(() => getWindowStatus(conversation.lastInboundAt), [conversation.lastInboundAt])
   const preview = useMemo(() => lastMessagePreview(conversation), [conversation.lastContent])
-  const name = conversation.clientName || formatPhone(conversation.whatsappNumber) || conversation.whatsappNumber
+  // `contactId` é o identificador neutro; `whatsappNumber` fica como fallback enquanto o backend
+  // não informa canal.
+  const handle = conversation.contactId ?? conversation.whatsappNumber
+  const displayHandle = formatContactHandle({ handle, channel: conversation.channel })
+  const name = conversation.clientName || displayHandle || handle
   const timestamp = formatRelativeTime(conversation.lastAt)
+  const flag = contactFlag({ handle, channel: conversation.channel })
   const isInbound = conversation.lastDirection === 'inbound'
 
   const handleClick = () => {
@@ -95,13 +113,15 @@ export const ConversationListItem = ({
   return (
     <button
       onClick={handleClick}
-      className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#f0f2f5] border-b border-[#e9edef]"
+      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${highlightActive ? "hover:bg-[#f0f2f5]" : ""} ${showDivider ? "border-b border-[#e9edef]" : ""}`}
       style={{
-        backgroundColor: isActive ? '#f0f2f5' : 'transparent',
+        backgroundColor: isActive && highlightActive ? '#f0f2f5' : 'transparent',
       }}
     >
       <div className="relative flex-shrink-0">
-        <Avatar name={name} size="lg" />
+        {/* Só o nome do cliente: passar o telefone faria o avatar exibir dígitos soltos em vez da
+            silhueta de contato sem nome. */}
+        <Avatar name={conversation.clientName} size="lg" />
         {conversation.waitingHuman && (
           <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 border-white" />
         )}
@@ -110,6 +130,8 @@ export const ConversationListItem = ({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
+            {/* Sem nome, o título já é o telefone — a bandeira vai nele. */}
+            {!conversation.clientName && flag ? <span aria-hidden>{flag}</span> : null}
             <span className="text-[16px] text-[#111b21] truncate">{name}</span>
             {windowStatus && windowStatus.label === 'expired' && (
               <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Janela expirada" />
@@ -122,6 +144,15 @@ export const ConversationListItem = ({
             <span className="text-xs text-[#667781] flex-shrink-0">{timestamp}</span>
           )}
         </div>
+        {/* Telefone só como subtítulo quando o título é o nome — repetir o número embaixo dele
+            mesmo gastaria uma linha para dizer duas vezes a mesma coisa. */}
+        {conversation.clientName ? (
+          <div className="flex items-center gap-1 text-xs text-[#667781]">
+            {flag ? <span aria-hidden>{flag}</span> : null}
+            <span className="truncate">{displayHandle}</span>
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between mt-0.5">
           <span className="text-sm text-[#667781] truncate max-w-[180px]">
             {preview.icon && <span className="mr-1">{preview.icon}</span>}

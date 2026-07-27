@@ -2,7 +2,12 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // O `moduleResolution: "Node"` da base é anterior a subpath exports e não enxerga
+    // `@adatechnology/meta-whatsapp-contracts/testing`. Aqui o tsc só roda com --noEmit (quem
+    // empacota é o tsup), então trocar a resolução não muda a saída publicada.
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "include": ["src"],
   "exclude": ["dist", "node_modules"]

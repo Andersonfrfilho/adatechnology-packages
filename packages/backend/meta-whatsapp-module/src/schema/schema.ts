@@ -75,6 +75,12 @@ export const messages = metaWhatsAppSchema.table(
     waMessageId: varchar('wa_message_id', { length: 128 }),
     status: varchar('status', { length: 16 }),
     readAt: timestamp('read_at', { withTimezone: true }),
+    // Moderação de conteúdo. `null` significa NÃO AVALIADO (moderação desligada, ou mensagem
+    // anterior ao recurso) — diferente de `false`, que é avaliado e limpo. Colunas em vez de chave
+    // dentro de `payload` porque "listar o que foi sinalizado" é consulta de operação, e índice
+    // parcial sobre boolean resolve isso sem cavar jsonb.
+    moderationFlagged: boolean('moderation_flagged'),
+    moderationTerms: jsonb('moderation_terms').$type<string[]>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -88,6 +94,11 @@ export const messages = metaWhatsAppSchema.table(
     uniqueIndex('idx_messages_company_wa_message_id')
       .on(table.companyId, table.waMessageId)
       .where(sql`${table.waMessageId} is not null`),
+    // Parcial: só as sinalizadas entram, então o índice fica do tamanho do problema e não do
+    // tamanho do transcript.
+    index('idx_messages_moderation_flagged')
+      .on(table.companyId, table.createdAt)
+      .where(sql`${table.moderationFlagged}`),
   ],
 )
 

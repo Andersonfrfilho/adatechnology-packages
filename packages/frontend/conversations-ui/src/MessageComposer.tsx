@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, type KeyboardEvent, type ChangeEvent } from 'react'
 import type { ConversationsFeatures } from './types'
+import { cn } from './lib/cn'
 import { EmojiPicker } from './EmojiPicker'
 
 export interface MessageComposerProps {
@@ -12,6 +13,13 @@ export interface MessageComposerProps {
   maxLength?: number
   disabled?: boolean
   acceptedFileTypes?: string
+  className?: string
+  classNames?: Partial<MessageComposerClassNames>
+}
+
+export interface MessageComposerClassNames {
+  root: string
+  field: string
 }
 
 // Paridade com financiamento-imobiliario-bot/apps/web/src/pages/ConversationsPage.tsx:1490
@@ -32,6 +40,8 @@ export const MessageComposer = ({
   maxLength,
   disabled = false,
   acceptedFileTypes = DEFAULT_ACCEPTED_FILE_TYPES,
+  className,
+  classNames,
 }: MessageComposerProps) => {
   const [internalText, setInternalText] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
@@ -134,7 +144,10 @@ export const MessageComposer = ({
   const remaining = maxLength ? maxLength - text.length : null
 
   return (
-    <div>
+    /* A barra é a superfície (cinza, largura cheia, sem raio) e o campo dentro é que arredonda —
+       ordem do WhatsApp. Invertido, o pill arredondado ia até a borda da tela e os cantos
+       descobriam o fundo branco da página, que lia como defeito. */
+    <div className={cn('bg-[#f0f2f5] px-2 py-2', className)}>
       {attachments.length > 0 && (
         <div className="flex gap-2 px-1 pb-2 overflow-x-auto">
           {attachments.map((a, i) => (
@@ -152,7 +165,7 @@ export const MessageComposer = ({
         </div>
       )}
 
-      <div className="flex items-end gap-1.5 bg-[#f0f2f5] rounded-xl px-3 py-2">
+      <div className={cn('flex items-end gap-1.5 rounded-xl bg-white px-3 py-2', classNames?.field)}>
         {showEmojiButton && (
           <div className="relative flex-shrink-0">
             <button onClick={() => setShowEmoji(v => !v)} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 transition-colors" aria-label="Emoji">

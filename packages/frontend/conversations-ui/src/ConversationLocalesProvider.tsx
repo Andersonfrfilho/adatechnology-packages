@@ -13,6 +13,7 @@ export interface ConversationLocales {
     viewImage: string
     listenAudio: string
     viewVideo: string
+    moderationFlagged: string
   }
   selection: {
     select: string
@@ -36,6 +37,7 @@ const DEFAULT_LOCALES: ConversationLocales = {
     viewImage: 'Ver imagem',
     listenAudio: 'Ouvir áudio',
     viewVideo: 'Ver vídeo',
+    moderationFlagged: 'Linguagem ofensiva',
   },
   selection: {
     select: 'Selecionar',

@@ -19,3 +19,139 @@
   background-color: #0b141a;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%2319232a' stroke-width='1.2' opacity='0.9'%3E%3Ccircle cx='15' cy='15' r='3'/%3E%3Cpath d='M40 10 q5 8 0 16 q-5 -8 0 -16z'/%3E%3Ccircle cx='70' cy='28' r='2'/%3E%3Cpath d='M18 55 l6 6 m-6 0 l6 -6'/%3E%3Ccircle cx='55' cy='68' r='2.5'/%3E%3Cpath d='M85 58 q6 6 0 12 q-6 -6 0 -12z'/%3E%3Ccircle cx='8' cy='85' r='2'/%3E%3Cpath d='M65 90 l5 5 m-5 0 l5 -5'/%3E%3C/g%3E%3C/svg%3E");
 }
+
+/* Botão de ação do cabeçalho de conversa e do aviso de janela. Vive no stylesheet, como o
+   .cv-wallpaper, para não depender da configuração de Tailwind do consumidor. */
+.cv-header-action {
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  background: transparent;
+  cursor: pointer;
+}
+.cv-header-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.dark .cv-header-action { border-color: rgb(71 85 105); color: rgb(226 232 240); }
+
+.cv-header-icon {
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+.cv-header-icon--active { background: rgb(241 245 249); border-color: rgb(148 163 184); }
+.cv-header-icon:disabled { opacity: 0.5; cursor: not-allowed; }
+.dark .cv-header-icon { border-color: rgb(71 85 105); }
+.dark .cv-header-icon--active { background: rgb(51 65 85); }
+
+.cv-header-action--primary {
+  background: rgb(37 99 235);
+  border-color: rgb(37 99 235);
+  color: white;
+  font-weight: 500;
+}
+.cv-header-action--danger {
+  background: rgb(239 68 68);
+  border-color: rgb(239 68 68);
+  color: white;
+  font-weight: 500;
+}
+
+.cv-subtab {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: rgb(100 116 139);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.cv-subtab--active { color: inherit; font-weight: 500; border-bottom-color: rgb(37 99 235); }
+
+/* Pills de estado da conversa. No stylesheet, como os demais cv-*, para não depender do Tailwind
+   do consumidor. */
+.cv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  background: rgb(241 245 249);
+  color: rgb(71 85 105);
+}
+.cv-pill--success { background: rgb(220 252 231); color: rgb(21 128 61); }
+.cv-pill--warning { background: rgb(254 243 199); color: rgb(146 64 14); }
+.cv-pill--danger { background: rgb(255 237 213); color: rgb(194 65 12); }
+.dark .cv-pill { background: rgb(51 65 85); color: rgb(203 213 225); }
+.dark .cv-pill--success { background: rgb(20 83 45); color: rgb(187 247 208); }
+.dark .cv-pill--warning { background: rgb(120 53 15); color: rgb(253 230 138); }
+.dark .cv-pill--danger { background: rgb(124 45 18); color: rgb(254 215 170); }
+
+/* Linha da inbox: realce e hover cobrem a linha toda, incluindo checkbox, barra de janela e pills. */
+.cv-row:hover { background: #f0f2f5; }
+.cv-row--active, .cv-row--active:hover { background: #f0f2f5; }
+.dark .cv-row:hover { background: rgb(30 41 59); }
+.dark .cv-row--active, .dark .cv-row--active:hover { background: rgb(30 41 59); }
+
+/* Voltar do master/detail: existe só onde lista e conversa não cabem lado a lado. */
+.cv-back {
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+@media (min-width: 1024px) { .cv-back { display: none; } }
+.dark .cv-back { border-color: rgb(71 85 105); color: rgb(226 232 240); }
+
+/* Utilitários de densidade: em tela estreita o texto das ações vira ícone, porque rótulo longo
+   empilha e come a altura útil da conversa. */
+.cv-only-wide { display: none; }
+@media (min-width: 1024px) { .cv-only-wide { display: inline; } }
+.cv-only-narrow { display: inline-flex; }
+@media (min-width: 1024px) { .cv-only-narrow { display: none; } }
+
+.cv-menu { position: relative; }
+.cv-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 20;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+.dark .cv-menu-panel { background: rgb(30 41 59); border-color: rgb(71 85 105); }
+.cv-menu-panel .cv-header-action { text-align: left; }
+
+/* Área de toque mínima do padrão de responsividade (44px). Só em tela estreita: no desktop o
+   cursor é preciso e botões de 44px viram blocos desproporcionais. */
+@media (max-width: 1023px) {
+  .cv-touch { min-width: 44px; min-height: 44px; }
+  .cv-back { min-width: 44px; min-height: 44px; }
+  .cv-menu-panel .cv-touch { min-height: 44px; }
+}
+
+/* Em tela estreita o painel do menu ancora na viewport, não no botão: ancorado ao botão ele
+   escapava pela borda quando o gatilho ficava perto da esquerda, e o texto era cortado. */
+@media (max-width: 1023px) {
+  .cv-menu-panel {
+    position: fixed;
+    right: 0.75rem;
+    left: auto;
+    top: auto;
+    max-width: calc(100vw - 1.5rem);
+  }
+}

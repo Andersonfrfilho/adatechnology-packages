@@ -1,6 +1,8 @@
 import { defineConfig } from 'tsup'
 export default defineConfig({
-  entry: ['src/index.ts'],
+  // testing/ é entrada própria (export ./testing) para que os builders de preview não entrem no
+  // bundle de quem só importa o módulo em produção.
+  entry: ['src/index.ts', 'src/testing/index.ts'],
   format: ['esm', 'cjs'],
   dts: true,
   splitting: false,

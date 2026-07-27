@@ -6,6 +6,7 @@ import { StatusTicks } from './StatusTicks'
 import { MediaRenderer, type ResolveMediaUrl } from './MediaRenderer'
 import { Lightbox } from './Lightbox'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
+import { cn } from './lib/cn'
 import { formatTimestamp, formatDateTime } from './lib/format'
 
 export interface MessageBubbleProps {
@@ -17,6 +18,7 @@ export interface MessageBubbleProps {
   isSelected?: boolean
   onToggleSelect?: () => void
   onResolveMediaUrl?: ResolveMediaUrl
+  className?: string
 }
 
 // Hex arbitrários (não os tokens `whatsapp.*` do Tailwind) — o pacote fica autocontido,
@@ -37,7 +39,7 @@ const MEDIA_TYPES = new Set(['image', 'audio', 'video', 'document', 'sticker'])
 // tailwind.config do host expondo as cores `whatsapp.*` — ver Wallpaper.tsx e T6.2.
 export function MessageBubble({
   message, isMine, senderName, isFirstInGroup = true, isSelecting = false, isSelected = false, onToggleSelect,
-  onResolveMediaUrl,
+  onResolveMediaUrl, className,
 }: MessageBubbleProps) {
   const { bubble, selection } = useConversationLocales()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
@@ -73,7 +75,14 @@ export function MessageBubble({
   )
 
   return (
-    <div className={`flex items-end gap-1.5 ${isMine ? 'justify-end' : 'justify-start'} group ${isFirstInGroup ? 'mt-2' : 'mt-0.5'}`}>
+    <div
+      className={cn(
+        'flex items-end gap-1.5 group',
+        isMine ? 'justify-end' : 'justify-start',
+        isFirstInGroup ? 'mt-2' : 'mt-0.5',
+        className,
+      )}
+    >
       {isMine && checkbox}
       <div
         onClick={isSelecting ? onToggleSelect : undefined}
@@ -89,6 +98,19 @@ export function MessageBubble({
         {isMine && isFirstInGroup && (message.sender === 'bot' || (message.sender === 'agent' && senderName)) && (
           <div className="text-xs font-semibold mb-0.5 text-teal-700 dark:text-teal-400">
             {displayName}
+          </div>
+        )}
+
+        {/* Sinaliza, não censura nem esconde: cliente xingando é cliente irritado, e o atendente
+            precisa ler o que foi dito para responder. A etiqueta serve para achar o caso na thread
+            e para justificar escalar. */}
+        {message.moderation?.isOffensive && (
+          <div
+            className="mb-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+            title={message.moderation.terms.length > 0 ? message.moderation.terms.join(', ') : undefined}
+          >
+            <span aria-hidden>⚠️</span>
+            <span>{bubble.moderationFlagged}</span>
           </div>
         )}
 

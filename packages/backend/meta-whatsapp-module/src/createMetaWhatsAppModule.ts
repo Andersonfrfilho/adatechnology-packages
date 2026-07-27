@@ -15,7 +15,7 @@ import { SessionRepository } from './repositories/SessionRepository'
 import { MessageRepository } from './repositories/MessageRepository'
 import { FlowGraphRepository } from './repositories/FlowGraphRepository'
 import { SettingsRepository } from './repositories/SettingsRepository'
-import { LogMessageUseCase } from './use-cases/LogMessage.use-case'
+import { LogMessageUseCase, type MessageModerator } from './use-cases/LogMessage.use-case'
 import { SendMessageUseCase } from './use-cases/SendMessage.use-case'
 import { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.use-case'
 import { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-case'
@@ -61,6 +61,10 @@ export interface MetaWhatsAppModuleProviders {
   // Opcional por desenho — sem catálogo injetado o módulo sobe e funciona, só os recursos de
   // produto ficam desligados (ver .specs/features/meta-catalog-trio/spec.md §4).
   catalog?: CatalogPort
+  // Marca mensagem ofensiva do cliente no transcript. Injetado, e não construído aqui, pelo mesmo
+  // motivo dos outros providers: a lista de termos e o liga/desliga são de cada produto, e o módulo
+  // não lê process.env. Ausente, as colunas ficam nulas — "não avaliado".
+  moderator?: MessageModerator
 }
 
 export interface CreateMetaWhatsAppModuleParams {
@@ -97,7 +101,12 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   const settingsRepository = new SettingsRepository(db)
   const flowGraphRepository = new FlowGraphRepository(db)
 
-  const logMessage = new LogMessageUseCase(sessionRepository, messageRepository, providers.realtime)
+  const logMessage = new LogMessageUseCase(
+    sessionRepository,
+    messageRepository,
+    providers.realtime,
+    providers.moderator,
+  )
   const sendMessage = new SendMessageUseCase(channel, sessionRepository, logMessage, providers.objectStorage)
 
   const receiveWebhook = new ReceiveWebhookUseCase({

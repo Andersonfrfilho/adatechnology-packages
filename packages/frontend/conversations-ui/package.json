@@ -19,19 +19,25 @@
       "import": "./dist/channel/index.js",
       "types": "./dist/channel/index.d.ts"
     },
+    "./preview": {
+      "import": "./dist/preview/index.js",
+      "types": "./dist/preview/index.d.ts"
+    },
     "./styles.css": "./dist/styles.css"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts src/flows/index.ts src/channel/index.ts src/styles.css --dts --format esm --external react --external react-dom --external @xyflow/react",
+    "build": "tsup src/index.ts src/flows/index.ts src/channel/index.ts src/preview/index.ts src/styles.css --dts --format esm --external react --external react-dom --external @xyflow/react",
     "build:watch": "tsup src/index.ts src/flows/index.ts src/channel/index.ts src/styles.css --watch --dts --format esm --external react --external react-dom --external @xyflow/react",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "bun test"
   },
   "dependencies": {
     "@adatechnology/meta-whatsapp-contracts": "workspace:*",
-    "lucide-react": "^1.21.0"
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.21.0",
+    "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {
     "react": "^18 || ^19",
@@ -44,6 +50,7 @@
     }
   },
   "devDependencies": {
+    "@types/bun": "1.3.14",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "@types/react": "^18 || ^19",

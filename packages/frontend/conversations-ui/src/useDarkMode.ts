@@ -13,6 +13,32 @@ function getInitialDark(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
+/**
+ * Leitura passiva do tema do host: observa a classe `dark` no `<html>` e não escreve nada.
+ *
+ * Existe porque `useDarkMode` é um controlador — ele grava a classe e persiste a preferência. Um
+ * componente que só precisa escolher cor não pode usá-lo: bastava renderizar o mapa de fluxos
+ * para o app inteiro do host trocar de tema, seguindo o `prefers-color-scheme` do sistema em vez
+ * da configuração da aplicação.
+ */
+export function useIsDarkTheme(): boolean {
+  const [isDark, setIsDark] = useState(
+    () => typeof document !== 'undefined' && document.documentElement.classList.contains('dark'),
+  )
+
+  useEffect(() => {
+    const root = document.documentElement
+    const observer = new MutationObserver(() => setIsDark(root.classList.contains('dark')))
+
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] })
+    setIsDark(root.classList.contains('dark'))
+
+    return () => observer.disconnect()
+  }, [])
+
+  return isDark
+}
+
 export function useDarkMode(): { isDark: boolean; toggle: () => void } {
   const [isDark, setIsDark] = useState(getInitialDark)
 

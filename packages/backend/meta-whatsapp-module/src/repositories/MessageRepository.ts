@@ -15,6 +15,9 @@ export interface InsertMessageParams {
   payload?: Record<string, unknown> | null
   waMessageId?: string | null
   status?: MessageStatus | null
+  /** `undefined` deixa a coluna nula: não avaliado, distinto de avaliado e limpo. */
+  moderationFlagged?: boolean | null
+  moderationTerms?: string[] | null
 }
 
 export interface ListMessagesParams {
@@ -47,6 +50,8 @@ export class MessageRepository {
       payload: params.payload ?? null,
       waMessageId: params.waMessageId ?? null,
       status: params.status ?? null,
+      moderationFlagged: params.moderationFlagged ?? null,
+      moderationTerms: params.moderationTerms ?? null,
     }
 
     const [created] = await this.db.insert(messages).values(values).onConflictDoNothing().returning()

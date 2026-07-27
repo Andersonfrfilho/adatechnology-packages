@@ -14,8 +14,10 @@ export interface UseConversationDocumentsResult {
   refetch: () => Promise<void>
 }
 
+// Aceita `undefined` como "ainda não buscar", igual a `useConversationRealtime`: a lista de anexos
+// é consulta extra, e quem só abre o painel sob demanda não deve pagar por ela em toda conversa.
 export function useConversationDocuments(
-  conversationId: string,
+  conversationId: string | undefined,
   params?: UseConversationDocumentsParams,
 ): UseConversationDocumentsResult {
   const context = useConversations()
@@ -25,7 +27,7 @@ export function useConversationDocuments(
   const { api } = context
 
   const { data, loading, error, refetch } = useAsyncResource(
-    () => api.getDocuments(conversationId, params),
+    () => (conversationId ? api.getDocuments(conversationId, params) : Promise.resolve([])),
     [conversationId, params?.search, params?.page],
   )
 

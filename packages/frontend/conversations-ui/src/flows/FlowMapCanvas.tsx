@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ReactFlow, Background, Controls, MarkerType, type Node, type Edge } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useDarkMode } from '../useDarkMode'
+import { useIsDarkTheme } from '../useDarkMode'
 import { flowMapNodeTypes, type FlowMapNodeData } from './FlowMapNode'
 import { computeFlowMapLayout, crossFlowTargetsOf, type FlowGraphData } from './flowGraph'
 import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
@@ -23,7 +23,7 @@ export interface FlowMapCanvasProps {
 // visão hierárquica onde cada fluxo é um único nó, ligado por saltos "flow:<key>".
 export function FlowMapCanvas({ graphs, rootKey, onOpenFlow, labels: labelsOverride }: FlowMapCanvasProps) {
   const labels = { ...DEFAULT_FLOW_EDITOR_LABELS, ...labelsOverride }
-  const { isDark } = useDarkMode()
+  const isDark = useIsDarkTheme()
   const positions = useMemo(() => computeFlowMapLayout(graphs, rootKey), [graphs, rootKey])
 
   const nodes = useMemo<Node[]>(

@@ -39,6 +39,14 @@ export interface MessagePayload {
   readAt?: string
   agentName?: string | null
   templateName?: string
+  /**
+   * Veredito de moderação vindo do backend — a UI só exibe, nunca calcula. Dicionário no browser
+   * seria peso morto e daria veredito diferente por versão de cliente.
+   *
+   * `null`/ausente = não avaliado (moderação desligada, ou mensagem anterior ao recurso), que é
+   * diferente de avaliado e limpo.
+   */
+  moderation?: { isOffensive: boolean; terms: string[] } | null
   isFirstInGroup?: boolean
   isLastInGroup?: boolean
 }

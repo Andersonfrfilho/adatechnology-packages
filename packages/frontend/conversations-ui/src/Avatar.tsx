@@ -49,15 +49,30 @@ export function Avatar({ name, avatarUrl, size = 'md', className = '' }: AvatarP
     )
   }
 
-  const initials = getInitials(name)
   const bgColor = getBgColor(name)
+
+  // Sem nome e sem imagem, a silhueta genérica. Iniciais exigem nome — derivá-las de um telefone
+  // produz rótulo sem significado ("+9"), que é pior que assumir o anonimato.
+  if (!name) {
+    return (
+      <div
+        className={`${sizeClass} ${bgColor} rounded-full flex items-center justify-center text-white flex-shrink-0 ${className}`}
+        role="img"
+        aria-label="Contato sem nome"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" className="h-[60%] w-[60%]" aria-hidden>
+          <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" />
+        </svg>
+      </div>
+    )
+  }
 
   return (
     <div
       className={`${sizeClass} ${bgColor} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
-      title={name || undefined}
+      title={name}
     >
-      {initials}
+      {getInitials(name)}
     </div>
   )
 }

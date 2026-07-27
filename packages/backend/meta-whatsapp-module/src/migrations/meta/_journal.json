@@ -36,6 +36,13 @@
       "when": 1785023108000,
       "tag": "0004_widen_message_type",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785176501657,
+      "tag": "0005_message_moderation",
+      "breakpoints": true
     }
   ]
 }
