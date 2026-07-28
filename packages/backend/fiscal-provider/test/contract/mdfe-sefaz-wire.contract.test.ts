@@ -143,6 +143,117 @@ describe('MDF-e 3.00 schema element names', () => {
     expect(chaveAcesso.slice(25, 34)).toBe('000000002')
   })
 
+  // Rejeição 726 na SVRS: carga lotação exige o infLotacao dentro do prodPred
+  test('declares infLotacao inside prodPred, after the NCM', () => {
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), {
+      ...buildMdfeData(),
+      produtoPredominante: {
+        tipoCarga: '05',
+        descricao: 'CARGA GERAL',
+        ncm: '84713012',
+        lotacao: { cepCarregamento: '01001-000', cepDescarregamento: '22210-030' },
+      },
+    })
+
+    expect(
+      xml.includes(
+        '<prodPred><tpCarga>05</tpCarga><xProd>CARGA GERAL</xProd><NCM>84713012</NCM>' +
+          '<infLotacao><infLocalCarrega><CEP>01001000</CEP></infLocalCarrega>' +
+          '<infLocalDescarrega><CEP>22210030</CEP></infLocalDescarrega></infLotacao></prodPred>',
+      ),
+    ).toBe(true)
+  })
+
+  test('omits infLotacao when the carga is not lotacao', () => {
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), buildMdfeData())
+
+    expect(xml.includes('<infLotacao>')).toBe(false)
+  })
+
+  // Rejeição 578 na SVRS: sem infContratante o manifesto não autoriza quando há tomador
+  test('declares the contratantes inside infANTT, after the RNTRC', () => {
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), {
+      ...buildMdfeData(),
+      contratantes: [{ cnpj: '11.222.333/0001-81' }, { cpf: '111.444.777-35' }],
+    })
+
+    expect(
+      xml.includes(
+        '<infANTT><RNTRC>12345678</RNTRC>' +
+          '<infContratante><CNPJ>11222333000181</CNPJ></infContratante>' +
+          '<infContratante><CPF>11144477735</CPF></infContratante></infANTT>',
+      ),
+    ).toBe(true)
+  })
+
+  test('omits infContratante when no contratante is informed', () => {
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), buildMdfeData())
+
+    expect(xml.includes('<infContratante>')).toBe(false)
+  })
+
+  // Rejeição 302 na SVRS: carga lotação exige o infPag, e ele fecha o infANTT
+  test('declares infPag after the contratantes, with the componentes and vContrato', () => {
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), {
+      ...buildMdfeData(),
+      contratantes: [{ cnpj: '11222333000181' }],
+      pagamentos: [
+        {
+          nome: 'CONTRATANTE TESTE',
+          cnpj: '11.222.333/0001-81',
+          componentes: [{ tipoComponente: '01', valor: 150 }],
+          valorContrato: 1500,
+          indicadorPagamento: '0',
+          dadosBancarios: { codigoBanco: '341', codigoAgencia: '1234' },
+        },
+      ],
+    })
+
+    // infBanc é obrigatório mesmo à vista — sem ele a SVRS rejeita com 580 (conteúdo incompleto)
+    expect(
+      xml.includes(
+        '<infContratante><CNPJ>11222333000181</CNPJ></infContratante>' +
+          '<infPag><xNome>CONTRATANTE TESTE</xNome><CNPJ>11222333000181</CNPJ>' +
+          '<Comp><tpComp>01</tpComp><vComp>150.00</vComp></Comp>' +
+          '<vContrato>1500.00</vContrato><indPag>0</indPag>' +
+          '<infBanc><codBanco>341</codBanco><codAgencia>1234</codAgencia></infBanc></infPag></infANTT>',
+      ),
+    ).toBe(true)
+  })
+
+  // A prazo exige as parcelas e os dados bancários — sem eles a SVRS rejeita com 583
+  test('declares infPrazo and infBanc when the frete is a prazo', () => {
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), {
+      ...buildMdfeData(),
+      pagamentos: [
+        {
+          cpf: '111.444.777-35',
+          componentes: [{ tipoComponente: '99', valor: 80.5, descricao: 'PEDAGIO EXTRA' }],
+          valorContrato: 2000,
+          indicadorPagamento: '1',
+          parcelas: [{ numero: 1, vencimento: '2026-08-15', valor: 2000 }],
+          dadosBancarios: { pix: 'financeiro@transportadora.com.br' },
+        },
+      ],
+    })
+
+    expect(
+      xml.includes(
+        '<infPag><CPF>11144477735</CPF>' +
+          '<Comp><tpComp>99</tpComp><vComp>80.50</vComp><xComp>PEDAGIO EXTRA</xComp></Comp>' +
+          '<vContrato>2000.00</vContrato><indPag>1</indPag>' +
+          '<infPrazo><nParcela>1</nParcela><dVenc>2026-08-15</dVenc><vParcela>2000.00</vParcela></infPrazo>' +
+          '<infBanc><PIX>financeiro@transportadora.com.br</PIX></infBanc></infPag>',
+      ),
+    ).toBe(true)
+  })
+
+  test('omits infPag when no pagamento is informed', () => {
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), buildMdfeData())
+
+    expect(xml.includes('<infPag>')).toBe(false)
+  })
+
   test('declares the RNTRC and the veiculo de tracao inside rodo', () => {
     const { xml } = buildMdfeXml(buildMdfeConfig('unused'), buildMdfeData())
 
@@ -417,11 +528,14 @@ describe('MDFeStatusServico', () => {
     expect(result.ok).toBe(true)
     expect(requestUrl).toBe('https://mdfe-homologacao.svrs.rs.gov.br/ws/MDFeStatusServico/MDFeStatusServico.asmx')
     expect(soapAction).toBe('"http://www.portalfiscal.inf.br/mdfe/wsdl/MDFeStatusServico/mdfeStatusServicoMDF"')
+    // consStatServMDFe aceita só tpAmb e xServ — com cUF a SVRS rejeita com cStat 215.
+    // É onde o MDF-e diverge da NF-e e do CT-e: autorizador nacional único não pede UF.
     expect(
       requestBody.includes(
-        '<consStatServMDFe versao="3.00" xmlns="http://www.portalfiscal.inf.br/mdfe"><tpAmb>2</tpAmb><cUF>35</cUF><xServ>STATUS</xServ></consStatServMDFe>',
+        '<consStatServMDFe versao="3.00" xmlns="http://www.portalfiscal.inf.br/mdfe"><tpAmb>2</tpAmb><xServ>STATUS</xServ></consStatServMDFe>',
       ),
     ).toBe(true)
+    expect(requestBody.includes('<cUF>')).toBe(false)
   })
 })
 

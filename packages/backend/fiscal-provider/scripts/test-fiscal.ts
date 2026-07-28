@@ -796,9 +796,10 @@ if (runCte) {
   try {
     const { xml, chaveAcesso } = buildCteXml(cteConfig, cteData)
     ok('buildCteXml gera XML', xml.length > 0)
-    ok('raiz é <CTe>', xml.includes('<CTe versao="4.00"'))
-    ok('elemento <infCTe> (T maiúsculo)', xml.includes('<infCTe Id='))
-    ok('fecha </infCTe></CTe>', xml.includes('</infCTe></CTe>'))
+    // A versão vive no infCte, não na raiz, e o infCTeSupl entra entre </infCte> e </CTe>
+    ok('raiz é <CTe>', xml.includes('<CTe xmlns="http://www.portalfiscal.inf.br/cte">'))
+    ok('elemento <infCte> com versão', xml.includes(`<infCte versao="4.00" Id="CTe${chaveAcesso}">`))
+    ok('fecha </infCte> … </CTe>', xml.includes('</infCte>') && xml.endsWith('</CTe>'))
     ok('chave 44 dígitos', chaveAcesso.length === 44)
     ok('mod=57 no XML', xml.includes('<mod>57</mod>'))
 
@@ -862,9 +863,10 @@ if (runMdfe) {
   // homologação, senão a SVRS rejeita com cStat 599 (documento não localizado).
   const chaveCteManifestado = env('FISCAL_MDFE_CHAVE_CTE')
 
+  // tipoTransportador só entra quando o veículo de tração tem proprietário declarado, ou seja,
+  // quando ele não é do emitente — a SVRS rejeita com 745 se vier sozinho. Aqui o veículo é próprio.
   const mdfeData: MdfeData = {
     tipoEmitente: '1',
-    tipoTransportador: '1',
     ufInicio: env('FISCAL_UF') ?? 'SP',
     ufFim: 'RJ',
     municipiosCarregamento: [{ codigo: '3550308', nome: 'São Paulo' }],
@@ -875,9 +877,31 @@ if (runMdfe) {
         ...(chaveCteManifestado === undefined ? {} : { chavesCte: [chaveCteManifestado] }),
       },
     ],
-    produtoPredominante: { tipoCarga: '05', descricao: 'CARGA GERAL', ncm: '84713012' },
+    // Rejeição 726: carga lotação exige o CEP (ou lat/long) de carregamento e de descarregamento
+    produtoPredominante: {
+      tipoCarga: '05',
+      descricao: 'CARGA GERAL',
+      ncm: '84713012',
+      lotacao: { cepCarregamento: '01001000', cepDescarregamento: '20031170' },
+    },
     totais: { vCarga: 5000.0, cUnid: '01', qCarga: 1000.0 },
     rntrc: env('FISCAL_RNTRC') ?? '00000000',
+    // Rejeição 578: quem contratou o transporte precisa ser identificado no infANTT
+    contratantes: [{ cnpj: env('FISCAL_MDFE_CONTRATANTE_CNPJ') ?? '11222333000181' }],
+    // Rejeição 302: carga lotação exige o infPag, e o pagador tem que ser um dos contratantes
+    pagamentos: [
+      {
+        nome: 'CONTRATANTE TESTE',
+        cnpj: env('FISCAL_MDFE_CONTRATANTE_CNPJ') ?? '11222333000181',
+        componentes: [{ tipoComponente: '01', valor: 500.0 }],
+        valorContrato: 500.0,
+        indicadorPagamento: '0',
+        dadosBancarios: {
+          codigoBanco: env('FISCAL_MDFE_BANCO') ?? '341',
+          codigoAgencia: env('FISCAL_MDFE_AGENCIA') ?? '1234',
+        },
+      },
+    ],
     veiculoTracao: {
       placa: env('FISCAL_MDFE_PLACA') ?? 'ABC1D23',
       tara: 8000,
@@ -892,7 +916,16 @@ if (runMdfe) {
         },
       ],
     },
-    informacoesAdicionais: 'MDF-e de teste de homologação — sem valor fiscal',
+    // Rejeição 698: o seguro da carga é obrigatório quando o emitente é prestador de
+    // serviço de transporte (tipoEmitente 1) no modal rodoviário
+    seguro: {
+      responsavel: '1',
+      seguradora: { nome: 'SEGURADORA TESTE', cnpj: '11222333000181' },
+      apolice: env('FISCAL_MDFE_APOLICE') ?? '1234567890',
+      averbacoes: [env('FISCAL_MDFE_AVERBACAO') ?? '12345678901234'],
+    },
+    // TString do MDF-e só aceita Latin-1: travessão e aspas tipográficas reprovam no pattern
+    informacoesAdicionais: 'MDF-e de teste de homologacao - sem valor fiscal',
   }
 
   let chaveMdfe = ''

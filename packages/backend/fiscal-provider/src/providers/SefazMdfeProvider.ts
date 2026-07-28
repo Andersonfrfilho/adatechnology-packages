@@ -274,7 +274,6 @@ export class SefazMdfeProvider implements FiscalProvider {
 
       return await sendMdfeStatusServico({
         endpoint: urls.statusServico,
-        cUF: UF_IBGE_CODES_CTE[config.uf] ?? '35',
         tpAmb: config.environment === 'producao' ? '1' : '2',
         certData,
       })

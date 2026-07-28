@@ -11,6 +11,8 @@ export {
   MdfeTipoCarroceria,
   MdfeTipoProprietario,
   MdfeResponsavelSeguro,
+  MdfeTipoComponentePagamento,
+  MdfeIndicadorPagamento,
 } from './types'
 
 export type {
@@ -58,6 +60,12 @@ export type {
   MdfeMunicipioCarregamento,
   MdfeMunicipioDescarga,
   MdfeCondutor,
+  MdfeContratante,
+  MdfeComponentePagamento,
+  MdfeDadosBancarios,
+  MdfeLotacao,
+  MdfePagamento,
+  MdfeParcelaPagamento,
   MdfeProprietarioVeiculo,
   MdfeVeiculoTracao,
   MdfeVeiculoReboque,

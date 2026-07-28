@@ -633,6 +633,82 @@ export type MdfeVeiculoReboque = {
   readonly proprietario?: MdfeProprietarioVeiculo
 }
 
+/**
+ * infLotacao — carregamento e descarregamento localizados por CEP ou por coordenada.
+ * Informe o CEP ou o par latitude/longitude de cada ponta, não os dois.
+ */
+export type MdfeLotacao = {
+  readonly cepCarregamento?: string
+  readonly latitudeCarregamento?: number
+  readonly longitudeCarregamento?: number
+  readonly cepDescarregamento?: string
+  readonly latitudeDescarregamento?: number
+  readonly longitudeDescarregamento?: number
+}
+
+/** infContratante do modal rodoviário — informe CNPJ ou CPF, nunca os dois */
+export type MdfeContratante = {
+  readonly cnpj?: string
+  readonly cpf?: string
+}
+
+/** tpComp — componente do valor da prestação do frete */
+export const MdfeTipoComponentePagamento = {
+  VALE_PEDAGIO: '01',
+  IMPOSTOS_TAXAS_CONTRIBUICOES: '02',
+  DESPESAS_BANCARIAS: '03',
+  OUTROS: '99',
+} as const
+export type MdfeTipoComponentePagamento = (typeof MdfeTipoComponentePagamento)[keyof typeof MdfeTipoComponentePagamento]
+
+/** indPag — 0=pagamento à vista, 1=a prazo */
+export const MdfeIndicadorPagamento = {
+  A_VISTA: '0',
+  A_PRAZO: '1',
+} as const
+export type MdfeIndicadorPagamento = (typeof MdfeIndicadorPagamento)[keyof typeof MdfeIndicadorPagamento]
+
+export type MdfeComponentePagamento = {
+  readonly tipoComponente: MdfeTipoComponentePagamento
+  readonly valor: number
+  /** xComp — exigido quando tipoComponente='99' */
+  readonly descricao?: string
+}
+
+export type MdfeParcelaPagamento = {
+  readonly numero: number
+  /** dVenc no formato AAAA-MM-DD */
+  readonly vencimento: string
+  readonly valor: number
+}
+
+/**
+ * infBanc — informe a conta (banco + agência), o CNPJ da instituição de pagamento
+ * ou a chave PIX, nunca mais de um.
+ */
+export type MdfeDadosBancarios = {
+  readonly codigoBanco?: string
+  readonly codigoAgencia?: string
+  readonly cnpjInstituicaoPagamento?: string
+  readonly pix?: string
+}
+
+/** infPag — pagamento do frete ao transportador; a SVRS rejeita com 302 quando falta em carga lotação */
+export type MdfePagamento = {
+  /** xNome do responsável pelo pagamento */
+  readonly nome?: string
+  /** CNPJ ou CPF do responsável — precisa ser um dos contratantes declarados */
+  readonly cnpj?: string
+  readonly cpf?: string
+  readonly componentes: readonly MdfeComponentePagamento[]
+  readonly valorContrato: number
+  readonly indicadorPagamento: MdfeIndicadorPagamento
+  /** Parcelas — exigidas quando indicadorPagamento='1' */
+  readonly parcelas?: readonly MdfeParcelaPagamento[]
+  /** infBanc é obrigatório no schema do modal, inclusive à vista */
+  readonly dadosBancarios: MdfeDadosBancarios
+}
+
 export type MdfeSeguro = {
   readonly responsavel: MdfeResponsavelSeguro
   /** CNPJ/CPF do responsável — exigido quando responsavel='2' */
@@ -660,6 +736,8 @@ export type MdfeData = {
     readonly tipoCarga: MdfeTipoCarga
     readonly descricao: string
     readonly ncm?: string
+    /** Carga lotação — a SVRS rejeita com 726 quando a operação é lotação e o grupo não vem */
+    readonly lotacao?: MdfeLotacao
   }
   readonly totais: {
     readonly vCarga: number
@@ -668,6 +746,10 @@ export type MdfeData = {
   }
   /** RNTRC do transportador — obrigatório no modal rodoviário para tpEmit='1' */
   readonly rntrc?: string
+  /** Contratantes do serviço de transporte — a SVRS rejeita com 578 quando a operação exige e não vêm */
+  readonly contratantes?: readonly MdfeContratante[]
+  /** Pagamentos do frete — a SVRS rejeita com 302 quando a operação é lotação e não vêm */
+  readonly pagamentos?: readonly MdfePagamento[]
   readonly veiculoTracao: MdfeVeiculoTracao
   /** Até 3 reboques */
   readonly reboques?: readonly MdfeVeiculoReboque[]
