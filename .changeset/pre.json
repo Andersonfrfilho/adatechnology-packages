@@ -38,6 +38,7 @@
     "configurable-product-model",
     "cte-4-00-sefaz-authorization",
     "cte-authorized-xml-and-ide-parameters",
+    "cte-icms45-schema-group",
     "drizzle-decouple",
     "expose-flow-position",
     "fix-correlation",
