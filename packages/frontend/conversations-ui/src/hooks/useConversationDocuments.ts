@@ -1,14 +1,14 @@
 import { useConversations } from '../providers/ConversationsProvider'
 import { useAsyncResource } from './useAsyncResource'
-import type { ConversationDocument } from '../providers/types'
+import { documentsOf, totalOf } from '../lib/paginated'
+import type { ConversationDocument, ListDocumentsParams } from '../providers/types'
 
-export interface UseConversationDocumentsParams {
-  search?: string
-  page?: number
-}
+export type UseConversationDocumentsParams = ListDocumentsParams
 
 export interface UseConversationDocumentsResult {
   documents: ConversationDocument[]
+  /** Total no servidor. Cai para o tamanho da página quando a API devolve só o array. */
+  total: number
   loading: boolean
   error: Error | undefined
   refetch: () => Promise<void>
@@ -28,8 +28,12 @@ export function useConversationDocuments(
 
   const { data, loading, error, refetch } = useAsyncResource(
     () => (conversationId ? api.getDocuments(conversationId, params) : Promise.resolve([])),
-    [conversationId, params?.search, params?.page],
+    [conversationId, params?.search, params?.page, params?.limit, params?.source, params?.sortDirection],
   )
 
-  return { documents: data ?? [], loading, error, refetch }
+  if (data === undefined) {
+    return { documents: [], total: 0, loading, error, refetch }
+  }
+
+  return { documents: documentsOf(data), total: totalOf(data), loading, error, refetch }
 }

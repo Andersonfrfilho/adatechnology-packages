@@ -3,6 +3,7 @@ import { AudioPlayer } from './AudioPlayer'
 import { FileIcon } from './FileIcon'
 import { useConversationLocales } from './ConversationLocalesProvider'
 import { formatFileSize } from './lib/format'
+import { cn } from './lib/cn'
 import type { MessagePayload } from './types'
 
 function resolveMediaSource(message: MessagePayload): string | null {
@@ -30,6 +31,8 @@ export interface MediaRendererProps {
   // loadUrl/loadMedia de financiamento-imobiliario-bot/apps/web/src/components/MessageBubble.tsx,
   // porém delegando o fetch ao host em vez de hardcodar `/uploads/:id/download-url`.
   onResolveUrl?: ResolveMediaUrl
+  /** Aplicado no wrapper de cada tipo de mídia — imagem, vídeo, áudio e documento. */
+  className?: string
 }
 
 function useLazyMediaUrl(message: MessagePayload, onResolveUrl?: ResolveMediaUrl) {
@@ -55,7 +58,7 @@ function useLazyMediaUrl(message: MessagePayload, onResolveUrl?: ResolveMediaUrl
   return { url, loading, error, load }
 }
 
-export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRendererProps) {
+export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: MediaRendererProps) {
   const { bubble } = useConversationLocales()
   const eagerSrc = resolveMediaSource(message)
   const lazy = useLazyMediaUrl(message, onResolveUrl)
@@ -126,7 +129,7 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl }: MediaRender
       const typeLabel = message.mimeType?.split('/')[1]?.toUpperCase() ?? 'FILE'
       const sizeLabel = message.sizeBytes ? formatFileSize(message.sizeBytes) : null
       return (
-        <div className="flex items-center gap-3 min-w-[200px]">
+        <div className={cn('flex items-center gap-3 min-w-[200px]', className)}>
           <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
             <FileIcon filename={message.filename} mimeType={message.mimeType} />
           </div>

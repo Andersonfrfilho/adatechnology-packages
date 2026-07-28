@@ -10,7 +10,7 @@ export interface UseConversationMessagesResult {
   refetch: () => Promise<void>
   sendMessage: (text: string) => Promise<MessagePayload>
   sendMedia: (data: { base64: string; mimeType: string; filename: string; caption?: string }) => Promise<MessagePayload>
-  sendTemplate: (data: { templateName: string; languageCode?: string; bodyParams?: string[] }) => Promise<void>
+  sendTemplate: (data: { templateName?: string; languageCode?: string; bodyParams?: string[] }) => Promise<void>
   markRead: () => Promise<void>
 }
 
@@ -51,7 +51,7 @@ export function useConversationMessages(
   )
 
   const sendTemplate = useCallback(
-    async (templateData: { templateName: string; languageCode?: string; bodyParams?: string[] }) => {
+    async (templateData: { templateName?: string; languageCode?: string; bodyParams?: string[] }) => {
       await api.sendTemplate(conversationId, templateData)
       await refetch()
     },

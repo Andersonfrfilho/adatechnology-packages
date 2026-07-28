@@ -8,7 +8,14 @@
  */
 
 import type { MessagePayload } from '../types'
-import type { ConversationDocument, ConversationsApi, ConversationSummary } from '../providers/types'
+import type {
+  ConversationDocumentPage,
+  ConversationPage,
+  ConversationTemplate,
+  ConversationsApi,
+  ListConversationsParams,
+} from '../providers/types'
+import { PREVIEW_DOCUMENTS } from './previewFixtures'
 import type { PreviewStore } from './previewStore'
 
 // PNG 1x1 transparente: o suficiente para o MediaRenderer ter algo válido para desenhar.
@@ -23,7 +30,24 @@ export type CreateMockConversationsApiParams = {
 
 const DEFAULT_LATENCY_MS = 120
 
-export function createMockConversationsApi(params: CreateMockConversationsApiParams): ConversationsApi {
+const PREVIEW_AGENT_ID = 'preview-agent'
+
+const PREVIEW_TEMPLATES: readonly ConversationTemplate[] = [
+  { name: 'retomada_atendimento', language: 'pt_BR', status: 'APPROVED', category: 'UTILITY' },
+  { name: 'lembrete_documentos', language: 'pt_BR', status: 'APPROVED', category: 'UTILITY' },
+  { name: 'promocao_taxa', language: 'pt_BR', status: 'PENDING', category: 'MARKETING' },
+]
+
+/**
+ * O mock satisfaz `ConversationsApi`, mas com o retorno de `fetchConversations` ESTREITADO para a
+ * forma paginada. Sem isto o contrato — que aceita array ou página — obrigaria todo consumidor do
+ * preview a desempacotar uma união que aqui nunca varia.
+ */
+export type MockConversationsApi = Omit<ConversationsApi, 'fetchConversations'> & {
+  fetchConversations(params?: ListConversationsParams): Promise<ConversationPage>
+}
+
+export function createMockConversationsApi(params: CreateMockConversationsApiParams): MockConversationsApi {
   const latencyMs = params.latencyMs ?? DEFAULT_LATENCY_MS
 
   async function withLatency<TResult>(produce: () => TResult): Promise<TResult> {
@@ -32,7 +56,10 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
   }
 
   return {
-    fetchConversations(fetchParams): Promise<ConversationSummary[]> {
+    // Devolve a forma paginada, não o array puro: é a que o contrato passou a oferecer e a que
+    // permite o preview desenhar controles de página. O total é contado ANTES do corte — depois
+    // dele seria sempre o tamanho da página, e a paginação nunca sairia da primeira.
+    fetchConversations(fetchParams): Promise<ConversationPage> {
       return withLatency(() => {
         const conversations = params.store.listConversations({
           waitingHuman: fetchParams?.waitingHuman,
@@ -41,7 +68,10 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
 
         const limit = fetchParams?.limit ?? conversations.length
         const page = fetchParams?.page ?? 1
-        return conversations.slice((page - 1) * limit, page * limit)
+        return {
+          conversations: conversations.slice((page - 1) * limit, page * limit),
+          total: conversations.length,
+        }
       })
     },
 
@@ -74,7 +104,9 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
       return withLatency(() => {
         params.store.appendMessage({
           conversationId,
-          content: `[template] ${data.templateName}`,
+          // Sem nome, o host está pedindo o template padrão do backend — o mock representa isso
+          // pelo que o atendente veria, não por um nome inventado.
+          content: `[template] ${data.templateName ?? PREVIEW_TEMPLATES[0]?.name ?? 'padrao'}`,
           direction: 'outbound',
           sender: 'agent',
         })
@@ -96,8 +128,54 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
       })
     },
 
-    getDocuments(): Promise<ConversationDocument[]> {
-      return withLatency(() => [])
+    /**
+     * Espelha o backend em busca, filtro de origem, ordenação E paginação. Mock que ignora params
+     * faz o painel parecer quebrado aqui e, pior, esconde o caso em que o backend também os ignora
+     * — foi exatamente assim que o filtro de origem passou a existir só no contrato.
+     */
+    getDocuments(conversationId, documentParams): Promise<ConversationDocumentPage> {
+      return withLatency(() => {
+        let documents = [...(PREVIEW_DOCUMENTS[conversationId] ?? [])]
+
+        const search = documentParams?.search?.trim().toLowerCase()
+        if (search) {
+          documents = documents.filter((document) => document.filename.toLowerCase().includes(search))
+        }
+
+        // 'team' agrupa agent + bot, como o painel apresenta.
+        const source = documentParams?.source
+        if (source === 'team') {
+          documents = documents.filter((document) => document.source === 'agent' || document.source === 'bot')
+        } else if (source) {
+          documents = documents.filter((document) => document.source === source)
+        }
+
+        documents.sort((left, right) =>
+          documentParams?.sortDirection === 'asc'
+            ? left.linkedAt.localeCompare(right.linkedAt)
+            : right.linkedAt.localeCompare(left.linkedAt),
+        )
+
+        // Total contado ANTES do corte — depois seria sempre o tamanho da página, e a paginação
+        // nunca sairia da primeira.
+        const total = documents.length
+        const limit = documentParams?.limit ?? total
+        const page = documentParams?.page ?? 1
+
+        return { documents: documents.slice((page - 1) * limit, page * limit), total }
+      })
+    },
+
+    /**
+     * Zip de mentira: um texto listando o que entraria. Basta para exercitar seleção, botão e o
+     * caminho de download no preview, sem arrastar uma lib de compactação para o pacote.
+     */
+    downloadDocumentsArchive(conversationId, uploadIds): Promise<Blob> {
+      return withLatency(() => {
+        const known = PREVIEW_DOCUMENTS[conversationId] ?? []
+        const names = uploadIds.map((id) => known.find((document) => document.id === id)?.filename ?? id)
+        return new Blob([`preview: ${names.length} arquivo(s)\n${names.join('\n')}`], { type: 'application/zip' })
+      })
     },
 
     getDocumentUrl(): Promise<string> {
@@ -106,6 +184,34 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
 
     getMediaProxyUrl(): Promise<{ mimeType: string; data: string }> {
       return withLatency(() => ({ mimeType: 'image/png', data: PREVIEW_IMAGE_BASE64 }))
+    },
+
+    takeover(conversationId): Promise<void> {
+      return withLatency(() =>
+        params.store.setMode({ conversationId, mode: 'human', assignedUserId: PREVIEW_AGENT_ID }),
+      )
+    },
+
+    release(conversationId): Promise<void> {
+      return withLatency(() => params.store.setMode({ conversationId, mode: 'bot' }))
+    },
+
+    // Encerrar devolve ao bot como o release, e é de propósito: a diferença entre os dois é a
+    // despedida, que o host manda antes de chamar aqui. O mock não a inventa.
+    finalize(conversationId): Promise<void> {
+      return withLatency(() => params.store.setMode({ conversationId, mode: 'bot' }))
+    },
+
+    markAllRead(): Promise<void> {
+      return withLatency(() => {
+        for (const conversation of params.store.listConversations()) {
+          params.store.markRead(conversation.id)
+        }
+      })
+    },
+
+    listTemplates(): Promise<ConversationTemplate[]> {
+      return withLatency(() => [...PREVIEW_TEMPLATES])
     },
   }
 }
