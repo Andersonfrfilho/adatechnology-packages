@@ -80,12 +80,14 @@ export async function sendMdfeEvento(params: {
 
 export async function sendMdfeStatusServico(params: {
   endpoint: string
-  cUF: string
   tpAmb: string
   certData: CertificateData
 }): Promise<{ ok: boolean; message: string }> {
   const ns = MDFE_WS_NS.status
-  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><mdfeDadosMsg xmlns="${ns}"><consStatServMDFe versao="${MDFE_VERSAO}" xmlns="${MDFE_NS}"><tpAmb>${params.tpAmb}</tpAmb><cUF>${params.cUF}</cUF><xServ>STATUS</xServ></consStatServMDFe></mdfeDadosMsg></soap12:Body></soap12:Envelope>`
+
+  // consStatServMDFe leva só tpAmb e xServ. A NF-e e o CT-e pedem cUF aqui; o MDF-e não,
+  // porque a SVRS autoriza para o país inteiro — com cUF a resposta é cStat 215.
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><mdfeDadosMsg xmlns="${ns}"><consStatServMDFe versao="${MDFE_VERSAO}" xmlns="${MDFE_NS}"><tpAmb>${params.tpAmb}</tpAmb><xServ>STATUS</xServ></consStatServMDFe></mdfeDadosMsg></soap12:Body></soap12:Envelope>`
   const soapAction = `"${ns}/${MDFE_SOAP_METHOD.status}"`
 
   try {

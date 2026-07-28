@@ -2,8 +2,12 @@ import { randomInt } from 'crypto'
 
 import type {
   MdfeConfig,
+  MdfeContratante,
+  MdfeDadosBancarios,
   MdfeData,
+  MdfeLotacao,
   MdfeMunicipioDescarga,
+  MdfePagamento,
   MdfeProprietarioVeiculo,
   MdfeSeguro,
   MdfeVeiculoReboque,
@@ -83,8 +87,85 @@ function buildVeiculoReboque(reboque: MdfeVeiculoReboque): string {
   return `<veicReboque>${cInt}<placa>${reboque.placa}</placa>${renavam}<tara>${reboque.tara}</tara><capKG>${reboque.capacidadeKg}</capKG>${capM3}${prop}<tpCar>${reboque.tipoCarroceria}</tpCar>${uf}</veicReboque>`
 }
 
+function buildLocalLotacao(
+  elemento: 'infLocalCarrega' | 'infLocalDescarrega',
+  cep: string | undefined,
+  latitude: number | undefined,
+  longitude: number | undefined,
+): string {
+  const local = cep
+    ? `<CEP>${cep.replace(/\D/g, '')}</CEP>`
+    : latitude !== undefined && longitude !== undefined
+      ? `<latitude>${latitude}</latitude><longitude>${longitude}</longitude>`
+      : ''
+  return local ? `<${elemento}>${local}</${elemento}>` : ''
+}
+
+function buildLotacao(lotacao: MdfeLotacao): string {
+  const carrega = buildLocalLotacao(
+    'infLocalCarrega',
+    lotacao.cepCarregamento,
+    lotacao.latitudeCarregamento,
+    lotacao.longitudeCarregamento,
+  )
+  const descarrega = buildLocalLotacao(
+    'infLocalDescarrega',
+    lotacao.cepDescarregamento,
+    lotacao.latitudeDescarregamento,
+    lotacao.longitudeDescarregamento,
+  )
+  return carrega || descarrega ? `<infLotacao>${carrega}${descarrega}</infLotacao>` : ''
+}
+
+function buildContratante(contratante: MdfeContratante): string {
+  const documento = contratante.cnpj
+    ? `<CNPJ>${contratante.cnpj.replace(/\D/g, '')}</CNPJ>`
+    : contratante.cpf
+      ? `<CPF>${contratante.cpf.replace(/\D/g, '')}</CPF>`
+      : ''
+  return `<infContratante>${documento}</infContratante>`
+}
+
+function buildDadosBancarios(dados: MdfeDadosBancarios): string {
+  if (dados.pix) return `<infBanc><PIX>${dados.pix}</PIX></infBanc>`
+  if (dados.cnpjInstituicaoPagamento)
+    return `<infBanc><CNPJIPEF>${dados.cnpjInstituicaoPagamento.replace(/\D/g, '')}</CNPJIPEF></infBanc>`
+  if (dados.codigoBanco && dados.codigoAgencia)
+    return `<infBanc><codBanco>${dados.codigoBanco}</codBanco><codAgencia>${dados.codigoAgencia}</codAgencia></infBanc>`
+  return ''
+}
+
+function buildPagamento(pagamento: MdfePagamento): string {
+  const nome = pagamento.nome ? `<xNome>${pagamento.nome}</xNome>` : ''
+  const documento = pagamento.cnpj
+    ? `<CNPJ>${pagamento.cnpj.replace(/\D/g, '')}</CNPJ>`
+    : pagamento.cpf
+      ? `<CPF>${pagamento.cpf.replace(/\D/g, '')}</CPF>`
+      : ''
+  const componentes = pagamento.componentes
+    .map((componente) => {
+      const descricao = componente.descricao ? `<xComp>${componente.descricao}</xComp>` : ''
+      return `<Comp><tpComp>${componente.tipoComponente}</tpComp><vComp>${componente.valor.toFixed(2)}</vComp>${descricao}</Comp>`
+    })
+    .join('')
+  const parcelas = (pagamento.parcelas ?? [])
+    .map(
+      (parcela) =>
+        `<infPrazo><nParcela>${parcela.numero}</nParcela><dVenc>${parcela.vencimento}</dVenc><vParcela>${parcela.valor.toFixed(2)}</vParcela></infPrazo>`,
+    )
+    .join('')
+  const banco = buildDadosBancarios(pagamento.dadosBancarios)
+  return `<infPag>${nome}${documento}${componentes}<vContrato>${pagamento.valorContrato.toFixed(2)}</vContrato><indPag>${pagamento.indicadorPagamento}</indPag>${parcelas}${banco}</infPag>`
+}
+
 function buildRodo(data: MdfeData): string {
-  const infANTT = data.rntrc ? `<infANTT><RNTRC>${data.rntrc}</RNTRC></infANTT>` : ''
+  // A ordem do infANTT é fixada pelo schema: RNTRC → infContratante → infPag
+  const contratantes = (data.contratantes ?? []).map(buildContratante).join('')
+  const pagamentos = (data.pagamentos ?? []).map(buildPagamento).join('')
+  const infANTT =
+    data.rntrc || contratantes || pagamentos
+      ? `<infANTT>${data.rntrc ? `<RNTRC>${data.rntrc}</RNTRC>` : ''}${contratantes}${pagamentos}</infANTT>`
+      : ''
   const reboques = (data.reboques ?? []).map(buildVeiculoReboque).join('')
   return `<rodo>${infANTT}${buildVeiculoTracao(data.veiculoTracao)}${reboques}</rodo>`
 }
@@ -175,7 +256,7 @@ export function buildMdfeXml(config: MdfeConfig, data: MdfeData, now: Date = new
   const seg = data.seguro ? buildSeguro(data.seguro) : ''
 
   const prodPred = data.produtoPredominante
-    ? `<prodPred><tpCarga>${data.produtoPredominante.tipoCarga}</tpCarga><xProd>${data.produtoPredominante.descricao}</xProd>${data.produtoPredominante.ncm ? `<NCM>${data.produtoPredominante.ncm}</NCM>` : ''}</prodPred>`
+    ? `<prodPred><tpCarga>${data.produtoPredominante.tipoCarga}</tpCarga><xProd>${data.produtoPredominante.descricao}</xProd>${data.produtoPredominante.ncm ? `<NCM>${data.produtoPredominante.ncm}</NCM>` : ''}${data.produtoPredominante.lotacao ? buildLotacao(data.produtoPredominante.lotacao) : ''}</prodPred>`
     : ''
 
   const { qCTe, qNFe, qMDFe } = countDocumentos(data)
