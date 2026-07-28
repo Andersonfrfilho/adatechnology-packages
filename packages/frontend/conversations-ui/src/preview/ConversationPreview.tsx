@@ -55,6 +55,35 @@ function decorate(messages: readonly MessagePayload[]): RenderedMessage[] {
   })
 }
 
+/**
+ * Status HTTP do erro, quando o host o preserva.
+ *
+ * O contrato não exige um tipo de erro — cada host tem o seu —, então a leitura é estrutural: basta
+ * carregar `status` (ou `statusCode`) para ser classificável. Host que joga `new Error(texto)` cai no
+ * caminho genérico, que ainda é melhor que silêncio.
+ */
+function statusOf(error: unknown): number | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const candidate = error as { status?: unknown; statusCode?: unknown }
+  const value = candidate.status ?? candidate.statusCode
+  return typeof value === 'number' ? value : undefined
+}
+
+export function isNotFound(error: unknown): boolean {
+  return statusOf(error) === 404
+}
+
+export function describeLoadFailure(error: unknown): string {
+  const status = statusOf(error)
+  // 401/403 no simulador quase sempre é a aba sem sessão: `sessionStorage` é por aba, e link com
+  // `rel="noreferrer"` abre contexto novo que não herda o token do painel.
+  if (status === 401 || status === 403) {
+    return 'Sem sessão de administrador nesta aba: a mensagem é entregue no webhook, mas o transcript não pode ser lido. Entre no painel nesta mesma aba e reabra o simulador.'
+  }
+  if (error instanceof Error && error.message) return `Não foi possível ler o transcript: ${error.message}`
+  return 'Não foi possível ler o transcript da conversa.'
+}
+
 export function ConversationPreview({
   client,
   sse,
@@ -64,6 +93,7 @@ export function ConversationPreview({
 }: ConversationPreviewProps) {
   const [messages, setMessages] = useState<MessagePayload[]>([])
   const [failure, setFailure] = useState<string | undefined>(undefined)
+  const [loadFailure, setLoadFailure] = useState<string | undefined>(undefined)
   const loadMessagesRef = useRef(loadMessages)
   const bottomRef = useRef<HTMLDivElement>(null)
   loadMessagesRef.current = loadMessages
@@ -71,10 +101,21 @@ export function ConversationPreview({
   const refresh = useCallback(async (): Promise<void> => {
     try {
       setMessages(await loadMessagesRef.current(conversationId))
-    } catch {
-      // Conversa que ainda não existe é o estado normal do primeiro contato — a API responde erro
-      // e a tela deve mostrar o transcript vazio, não uma falha.
-      setMessages([])
+      setLoadFailure(undefined)
+    } catch (error) {
+      // Conversa que ainda não existe é o estado normal do primeiro contato — transcript vazio, sem
+      // alarme. QUALQUER outra falha precisa aparecer: engolir todas era o que transformava sessão
+      // expirada (401) em silêncio absoluto, com a thread limpa e o operador concluindo que o envio
+      // não funcionou — quando a mensagem tinha sido entregue no webhook.
+      if (isNotFound(error)) {
+        setMessages([])
+        setLoadFailure(undefined)
+        return
+      }
+
+      // Não limpa o que já está na tela: perder o histórico por causa de um refresh que falhou é
+      // dano maior que o próprio erro.
+      setLoadFailure(describeLoadFailure(error))
     }
   }, [conversationId])
 
@@ -136,6 +177,15 @@ export function ConversationPreview({
       {failure ? (
         <p role="alert" className="px-4 py-2 text-sm text-red-600 dark:text-red-400">
           {failure}
+        </p>
+      ) : null}
+
+      {/* Separado da falha de ENVIO: são causas diferentes e confundi-las manda o operador
+          investigar assinatura de webhook quando o problema é sessão. Amarelo, não vermelho — a
+          mensagem foi entregue; o que faltou foi poder ler a conversa de volta. */}
+      {loadFailure ? (
+        <p role="status" className="px-4 py-2 text-sm text-amber-700 dark:text-amber-400">
+          {loadFailure}
         </p>
       ) : null}
 
