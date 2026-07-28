@@ -47,6 +47,16 @@
  *   NFS-e substituição (--nfse-sub):
  *     mesmas de --nfse
  *     FISCAL_NFSE_NUMERO_ORIGINAL → número da NFS-e a ser substituída
+ *
+ *   MDF-e (--mdfe) — SVRS é o autorizador nacional único, não há servidor por UF:
+ *     FISCAL_CERT_BASE64 / FISCAL_CERT_SENHA
+ *     FISCAL_CNPJ / FISCAL_IE / FISCAL_UF / FISCAL_RNTRC
+ *     FISCAL_NUMERO_MDFE          → número do MDF-e (default: FISCAL_NUMERO_NF)
+ *     FISCAL_MDFE_CHAVE_CTE       → chave de 44 dígitos de um CT-e JÁ AUTORIZADO
+ *                                   em homologação; sem ela só roda build/assinatura
+ *                                   e testConnection, porque a SVRS rejeita com 599
+ *     FISCAL_MDFE_PLACA           → placa do veículo de tração (default ABC1D23)
+ *     FISCAL_MDFE_CONDUTOR_NOME / FISCAL_MDFE_CONDUTOR_CPF
  */
 
 import {
@@ -59,6 +69,8 @@ import {
   type NotaRpConfig,
   type CteConfig,
   type CteData,
+  type MdfeConfig,
+  type MdfeData,
   type EmitFiscalParams,
   type FiscalResult,
 } from '../src/index'
@@ -67,7 +79,8 @@ import { buildQrCodeUrl } from '../src/sefaz/SefazQrCode'
 import { buildDanfce } from '../src/danfce/DanfceBuilder'
 import { buildNfeXml } from '../src/sefaz/NfeXmlBuilder'
 import { buildCteXml } from '../src/sefaz/CteXmlBuilder'
-import { signCteXml, loadCertificate } from '../src/sefaz/SefazXmlSigner'
+import { buildMdfeXml } from '../src/sefaz/MdfeXmlBuilder'
+import { signCteXml, signMdfeXml, loadCertificate } from '../src/sefaz/SefazXmlSigner'
 
 const args = process.argv.slice(2)
 const runAll = args.includes('--all')
@@ -78,6 +91,7 @@ const runNfse = runAll || args.includes('--nfse')
 const runNfseSub = runAll || args.includes('--nfse-sub')
 const runNotaRp = runAll || args.includes('--notarp')
 const runCte = runAll || args.includes('--cte')
+const runMdfe = runAll || args.includes('--mdfe')
 
 let passed = 0
 let failed = 0
@@ -815,6 +829,163 @@ if (runCte) {
     if (connResult.ok) console.log(`    ${connResult.message}`)
   } else {
     skip('testConnection CT-e SEFAZ', 'FISCAL_CERT_BASE64 não definido')
+  }
+}
+
+// ─── MDF-e ────────────────────────────────────────────────────────────────────
+
+if (runMdfe) {
+  section('MDF-e 3.00 — build + assinatura (local)')
+
+  const mdfeConfig: MdfeConfig = {
+    model: 'mdfe',
+    environment: 'homologacao',
+    cnpj: env('FISCAL_CNPJ') ?? '11222333000181',
+    inscricaoEstadual: env('FISCAL_IE') ?? '111111111111',
+    razaoSocial: env('FISCAL_RAZAO') ?? 'TRANSPORTADORA TESTE LTDA',
+    uf: env('FISCAL_UF') ?? 'SP',
+    municipio: env('FISCAL_MUNICIPIO') ?? 'São Paulo',
+    codigoMunicipio: env('FISCAL_CODIGO_MUNICIPIO') ?? '3550308',
+    cep: env('FISCAL_CEP') ?? '01310100',
+    logradouro: env('FISCAL_LOGRADOURO') ?? 'Av Paulista',
+    numero: env('FISCAL_NUMERO') ?? '1000',
+    bairro: env('FISCAL_BAIRRO') ?? 'Bela Vista',
+    crt: '1',
+    certificadoBase64: env('FISCAL_CERT_BASE64') ?? '',
+    certificadoSenha: env('FISCAL_CERT_SENHA') ?? '',
+    serie: env('FISCAL_SERIE') ?? '001',
+    numeroMdfe: parseInt(env('FISCAL_NUMERO_MDFE') ?? env('FISCAL_NUMERO_NF') ?? '1', 10),
+    telefone: '11999999999',
+  }
+
+  // A chave do CT-e manifestado precisa existir e estar autorizada no ambiente de
+  // homologação, senão a SVRS rejeita com cStat 599 (documento não localizado).
+  const chaveCteManifestado = env('FISCAL_MDFE_CHAVE_CTE')
+
+  const mdfeData: MdfeData = {
+    tipoEmitente: '1',
+    tipoTransportador: '1',
+    ufInicio: env('FISCAL_UF') ?? 'SP',
+    ufFim: 'RJ',
+    municipiosCarregamento: [{ codigo: '3550308', nome: 'São Paulo' }],
+    municipiosDescarga: [
+      {
+        codigo: '3304557',
+        nome: 'Rio de Janeiro',
+        ...(chaveCteManifestado === undefined ? {} : { chavesCte: [chaveCteManifestado] }),
+      },
+    ],
+    produtoPredominante: { tipoCarga: '05', descricao: 'CARGA GERAL', ncm: '84713012' },
+    totais: { vCarga: 5000.0, cUnid: '01', qCarga: 1000.0 },
+    rntrc: env('FISCAL_RNTRC') ?? '00000000',
+    veiculoTracao: {
+      placa: env('FISCAL_MDFE_PLACA') ?? 'ABC1D23',
+      tara: 8000,
+      capacidadeKg: 20000,
+      tipoRodado: '06',
+      tipoCarroceria: '02',
+      uf: env('FISCAL_UF') ?? 'SP',
+      condutores: [
+        {
+          nome: env('FISCAL_MDFE_CONDUTOR_NOME') ?? 'MOTORISTA TESTE',
+          cpf: env('FISCAL_MDFE_CONDUTOR_CPF') ?? '11144477735',
+        },
+      ],
+    },
+    informacoesAdicionais: 'MDF-e de teste de homologação — sem valor fiscal',
+  }
+
+  let chaveMdfe = ''
+
+  try {
+    const { xml, chaveAcesso } = buildMdfeXml(mdfeConfig, mdfeData)
+    chaveMdfe = chaveAcesso
+    ok('buildMdfeXml gera XML', xml.length > 0)
+    ok('raiz é <MDFe>', xml.includes('<MDFe xmlns="http://www.portalfiscal.inf.br/mdfe">'))
+    ok('elemento <infMDFe>', xml.includes(`<infMDFe versao="3.00" Id="MDFe${chaveAcesso}">`))
+    ok('chave 44 dígitos', chaveAcesso.length === 44)
+    ok('mod=58 no XML', xml.includes('<mod>58</mod>'))
+    ok('versaoModal presente', xml.includes('versaoModal='))
+
+    if (mdfeConfig.certificadoBase64) {
+      try {
+        const certData = loadCertificate(mdfeConfig.certificadoBase64, mdfeConfig.certificadoSenha)
+        const { signedXml } = signMdfeXml(xml, certData)
+        ok('signMdfeXml assina infMDFe', signedXml.includes('<Signature'))
+        ok('referência aponta para a chave', signedXml.includes(`URI="#MDFe${chaveAcesso}"`))
+      } catch (err) {
+        ok('signMdfeXml', false, err instanceof Error ? err.message : 'erro desconhecido')
+      }
+    } else {
+      skip('signMdfeXml', 'FISCAL_CERT_BASE64 não definido')
+    }
+  } catch (err) {
+    ok('buildMdfeXml', false, err instanceof Error ? err.message : 'erro desconhecido')
+    skip('raiz <MDFe>', 'buildMdfeXml falhou')
+    skip('elemento <infMDFe>', 'buildMdfeXml falhou')
+  }
+
+  section('MDF-e 3.00 — SVRS homologação (autorizador nacional único)')
+
+  if (!mdfeConfig.certificadoBase64) {
+    skip('testConnection MDF-e SVRS', 'FISCAL_CERT_BASE64 não definido')
+    skip('emissão MDF-e', 'FISCAL_CERT_BASE64 não definido')
+    skip('encerramento MDF-e', 'FISCAL_CERT_BASE64 não definido')
+  } else {
+    const mdfeProvider = createFiscalProvider(mdfeConfig)
+    const connResult = await mdfeProvider.testConnection({ config: mdfeConfig })
+    ok('SVRS MDF-e homologação cStat 107', connResult.ok, connResult.message)
+    if (connResult.ok) console.log(`    ${connResult.message}`)
+
+    if (!connResult.ok) {
+      skip('emissão MDF-e', 'testConnection falhou')
+      skip('encerramento MDF-e', 'testConnection falhou')
+    } else if (chaveCteManifestado === undefined) {
+      // Sem CT-e autorizado para manifestar a SVRS devolve 599 e o teste não prova nada.
+      skip('emissão MDF-e', 'FISCAL_MDFE_CHAVE_CTE não definido')
+      skip('encerramento MDF-e', 'FISCAL_MDFE_CHAVE_CTE não definido')
+    } else {
+      const emitResult = await mdfeProvider.emit({
+        referenceId: `MDFE-TESTE-${mdfeConfig.numeroMdfe}`,
+        config: mdfeConfig,
+        totalAmount: 5000.0,
+        discountAmount: 0,
+        items: [],
+        payments: [],
+        mdfeData,
+      } as EmitFiscalParams)
+
+      ok(
+        'MDF-e autorizado na SVRS',
+        emitResult.success,
+        `${emitResult.errorCode ?? ''} ${emitResult.errorMessage ?? ''}`.trim(),
+      )
+
+      if (emitResult.success) {
+        console.log(`    chave:     ${emitResult.chaveAcesso}`)
+        console.log(`    protocolo: ${emitResult.protocolo}`)
+        ok('devolve xmlAutorizado (mdfeProc)', (emitResult.xmlAutorizado ?? '').length > 0)
+
+        // Encerrar libera o MDF-e; sem isso ele fica em aberto e trava o veículo
+        // para novos manifestos no ambiente de homologação.
+        const closeResult = await mdfeProvider.close({
+          chaveAcesso: emitResult.chaveAcesso ?? chaveMdfe,
+          protocolo: emitResult.protocolo ?? '',
+          dataEncerramento: new Date().toISOString().slice(0, 10),
+          ufEncerramento: 'RJ',
+          codigoMunicipioEncerramento: '3304557',
+          config: mdfeConfig,
+        })
+        ok(
+          'encerramento (110112) aceito',
+          closeResult.success,
+          `${closeResult.errorCode ?? ''} ${closeResult.errorMessage ?? ''}`.trim(),
+        )
+      } else {
+        skip('encerramento MDF-e', 'emissão falhou')
+        console.log(`    rawResponse: ${JSON.stringify(emitResult.rawResponse).slice(0, 300)}`)
+      }
+    }
   }
 }
 
