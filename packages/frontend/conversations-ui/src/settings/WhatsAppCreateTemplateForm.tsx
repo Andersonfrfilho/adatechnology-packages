@@ -24,6 +24,7 @@ export interface WhatsAppCreateTemplateFormLabels {
   sectionDescription: string
   nameLabel: string
   nameHint: string
+  namePlaceholder: string
   categoryLabel: string
   languageLabel: string
   headerLabel: string
@@ -57,6 +58,7 @@ const DEFAULT_LABELS: WhatsAppCreateTemplateFormLabels = {
   sectionDescription: 'Envia um template para aprovação da Meta.',
   nameLabel: 'Nome do template',
   nameHint: 'Somente letras minúsculas, números e underscore.',
+  namePlaceholder: 'reengajamento_cliente',
   categoryLabel: 'Categoria',
   languageLabel: 'Idioma',
   headerLabel: 'Cabeçalho',
@@ -142,7 +144,7 @@ export function WhatsAppCreateTemplateForm({
             type="text"
             value={value.name}
             onChange={(e) => set('name', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
-            placeholder="reengajamento_cliente"
+            placeholder={labels.namePlaceholder}
             className="w-full border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
             required
           />

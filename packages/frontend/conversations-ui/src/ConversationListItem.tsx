@@ -3,8 +3,21 @@ import { Avatar } from './Avatar'
 import { contactFlag, formatContactHandle } from './conversationChannel'
 import type { ConversationSummary } from './providers/types'
 
+export interface ConversationListItemLabels {
+  /** Tooltip do ponto vermelho: a janela de atendimento de 24h já fechou. */
+  expiredWindow: string
+  /** Tooltip do ponto laranja: a janela de atendimento está perto de fechar. */
+  warningWindow: string
+}
+
+export const DEFAULT_CONVERSATION_LIST_ITEM_LABELS: ConversationListItemLabels = {
+  expiredWindow: 'Janela expirada',
+  warningWindow: 'Janela próxima do fim',
+}
+
 export interface ConversationListItemProps {
   conversation: ConversationSummary
+  labels?: Partial<ConversationListItemLabels>
   active?: boolean
   selected?: boolean
   onClick?: () => void
@@ -92,7 +105,10 @@ export const ConversationListItem = ({
   onSelect,
   showDivider = true,
   highlightActive = true,
+  labels,
 }: ConversationListItemProps) => {
+  const expiredWindowLabel = labels?.expiredWindow ?? DEFAULT_CONVERSATION_LIST_ITEM_LABELS.expiredWindow
+  const warningWindowLabel = labels?.warningWindow ?? DEFAULT_CONVERSATION_LIST_ITEM_LABELS.warningWindow
   const isActive = active || selected
   const windowStatus = useMemo(() => getWindowStatus(conversation.lastInboundAt), [conversation.lastInboundAt])
   const preview = useMemo(() => lastMessagePreview(conversation), [conversation.lastContent])
@@ -134,10 +150,10 @@ export const ConversationListItem = ({
             {!conversation.clientName && flag ? <span aria-hidden>{flag}</span> : null}
             <span className="text-[16px] text-[#111b21] truncate">{name}</span>
             {windowStatus && windowStatus.label === 'expired' && (
-              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Janela expirada" />
+              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title={expiredWindowLabel} />
             )}
             {windowStatus && windowStatus.label === 'warning' && (
-              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" title="Janela próxima do fim" />
+              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" title={warningWindowLabel} />
             )}
           </div>
           {timestamp && (

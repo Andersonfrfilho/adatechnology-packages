@@ -3,7 +3,20 @@ import type { ConversationsFeatures } from './types'
 import { cn } from './lib/cn'
 import { EmojiPicker } from './EmojiPicker'
 
+export interface MessageComposerLabels {
+  emoji: string
+  attach: string
+  send: string
+}
+
+export const DEFAULT_MESSAGE_COMPOSER_LABELS: MessageComposerLabels = {
+  emoji: 'Emoji',
+  attach: 'Anexar',
+  send: 'Enviar',
+}
+
 export interface MessageComposerProps {
+  labels?: Partial<MessageComposerLabels>
   onSend: (text: string) => void
   onAttach?: (file: File) => void
   value?: string
@@ -42,7 +55,11 @@ export const MessageComposer = ({
   acceptedFileTypes = DEFAULT_ACCEPTED_FILE_TYPES,
   className,
   classNames,
+  labels,
 }: MessageComposerProps) => {
+  const emojiLabel = labels?.emoji ?? DEFAULT_MESSAGE_COMPOSER_LABELS.emoji
+  const attachLabel = labels?.attach ?? DEFAULT_MESSAGE_COMPOSER_LABELS.attach
+  const sendLabel = labels?.send ?? DEFAULT_MESSAGE_COMPOSER_LABELS.send
   const [internalText, setInternalText] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [attachments, setAttachments] = useState<FilePreview[]>([])
@@ -168,7 +185,7 @@ export const MessageComposer = ({
       <div className={cn('flex items-end gap-1.5 rounded-xl bg-white px-3 py-2', classNames?.field)}>
         {showEmojiButton && (
           <div className="relative flex-shrink-0">
-            <button onClick={() => setShowEmoji(v => !v)} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 transition-colors" aria-label="Emoji">
+            <button onClick={() => setShowEmoji(v => !v)} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 transition-colors" aria-label={emojiLabel}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="0.5" fill="currentColor"/><circle cx="15" cy="9" r="0.5" fill="currentColor"/></svg>
             </button>
             {showEmoji && (
@@ -194,7 +211,7 @@ export const MessageComposer = ({
         {showAttachButton && (
           <>
             <input ref={fileInputRef} type="file" multiple accept={acceptedFileTypes} onChange={handleFileChange} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors" aria-label="Anexar">
+            <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors" aria-label={attachLabel}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
           </>
@@ -208,7 +225,7 @@ export const MessageComposer = ({
               ? 'bg-[#00a884] text-white hover:bg-[#06cf9c] shadow-sm'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
-          aria-label="Enviar"
+          aria-label={sendLabel}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
