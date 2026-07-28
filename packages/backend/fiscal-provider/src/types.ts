@@ -817,6 +817,8 @@ export type FiscalResult = {
   readonly xmlAutorizado?: string
   /** XML cru do <protNFe>/<protCTe> devolvido pela SEFAZ — usado internamente para montar o nfeProc/cteProc (xmlAutorizado). */
   readonly xmlProtocolo?: string
+  /** procEventoCTe — evento assinado + retorno da SEFAZ; é o arquivo do cancelamento a ser guardado. */
+  readonly xmlEvento?: string
   readonly qrCodeUrl?: string
   readonly danfce?: DanfceData
   /** @deprecated Prefira `cupomPdf.base64` — mantido por compatibilidade */

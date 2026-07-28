@@ -9,6 +9,7 @@ import { sefazFetch } from './SefazHttpClient'
 
 const REQUEST_TIMEOUT_MS = 30_000
 const CTE_NS = 'http://www.portalfiscal.inf.br/cte'
+const CTE_EVENTO_VERSAO = '3.00'
 
 const XML_PARSER = new XMLParser({
   ignoreAttributes: false,
@@ -110,7 +111,7 @@ export async function sendCteCancelamento(params: {
 }): Promise<FiscalResult> {
   const ns = CTE_WS_NS.evento
   const id = `ID110111${params.chaveAcesso}01`
-  const eventoXml = `<eventoCTe versao="3.00" xmlns="${CTE_NS}"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chCTe>${params.chaveAcesso}</chCTe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><detEvento versao="3.00"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></eventoCTe>`
+  const eventoXml = `<eventoCTe versao="${CTE_EVENTO_VERSAO}" xmlns="${CTE_NS}"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chCTe>${params.chaveAcesso}</chCTe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><detEvento versao="${CTE_EVENTO_VERSAO}"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></eventoCTe>`
 
   const { signedXml } = signCteEventoXml(eventoXml, params.certData)
   const fragment = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
@@ -132,7 +133,7 @@ export async function sendCteCancelamento(params: {
   )
 
   const text = await response.text()
-  return parseCteEventoResponse(text)
+  return parseCteEventoResponse(text, fragment)
 }
 
 // ─── Parsers ──────────────────────────────────────────────────────────────────
@@ -200,7 +201,17 @@ function parseCteStatusResponse(soapXml: string): { ok: boolean; message: string
   }
 }
 
-function parseCteEventoResponse(soapXml: string): FiscalResult {
+/** procEventoCTe = evento assinado + retorno da SEFAZ. É o arquivo do cancelamento que a legislação manda guardar. */
+function buildProcEventoCte(signedEventoXml: string, soapXml: string): string | undefined {
+  const retEvento = soapXml.match(/<retEventoCTe[\s>][\s\S]*?<\/retEventoCTe>/)?.[0]
+  if (retEvento === undefined) {
+    return undefined
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?><procEventoCTe versao="${CTE_EVENTO_VERSAO}" xmlns="${CTE_NS}">${signedEventoXml}${retEvento}</procEventoCTe>`
+}
+
+function parseCteEventoResponse(soapXml: string, signedEventoXml: string): FiscalResult {
   try {
     const parsed = XML_PARSER.parse(soapXml)
     const body = parsed?.Envelope?.Body
@@ -212,7 +223,12 @@ function parseCteEventoResponse(soapXml: string): FiscalResult {
     const xMotivo = String(infEvento?.xMotivo ?? retEvento?.xMotivo ?? '')
 
     if (cStat === '135') {
-      return { success: true, protocolo: String(infEvento?.nProt ?? ''), rawResponse: retEvento }
+      return {
+        success: true,
+        protocolo: String(infEvento?.nProt ?? ''),
+        xmlEvento: buildProcEventoCte(signedEventoXml, soapXml),
+        rawResponse: retEvento,
+      }
     }
     return {
       success: false,

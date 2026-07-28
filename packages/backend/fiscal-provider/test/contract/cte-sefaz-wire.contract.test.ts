@@ -14,6 +14,7 @@ import { loadCertificate, signCteXml } from '../../src/sefaz/SefazXmlSigner'
 const CERTIFICATE_CNPJ = '11222333000181'
 const CERTIFICATE_PASSWORD = 'fixture-password'
 const MOCK_ACCESS_KEY = '35260711222333000181570010000000011000000010'
+const CANCELLATION_JUSTIFICATION = 'Cancelamento por erro de destinatario no CT-e emitido'
 const originalFetch = globalThis.fetch
 
 afterEach(() => {
@@ -303,6 +304,101 @@ describe('CTeRecepcaoSincV4 response parsing', () => {
   })
 })
 
+describe('CTeRecepcaoEvento cancelamento (110111)', () => {
+  test('devolve o procEventoCTe com o evento assinado e o retorno da SEFAZ', async () => {
+    const certificateFixture = createCertificateFixture()
+
+    globalThis.fetch = async (): Promise<Response> => new Response(buildCancelledEventoResponse(), { status: 200 })
+
+    const config = buildCteConfig(certificateFixture.pfxBase64)
+    const provider = createFiscalProvider(config)
+    const result = await provider.cancel({
+      config,
+      chaveAcesso: MOCK_ACCESS_KEY,
+      protocolo: '135260000000001',
+      justificativa: CANCELLATION_JUSTIFICATION,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.protocolo).toBe('135260000000002')
+
+    const xmlEvento = result.xmlEvento ?? ''
+    expect(xmlEvento.includes('<procEventoCTe versao="3.00" xmlns="http://www.portalfiscal.inf.br/cte">')).toBe(true)
+    expect(xmlEvento.includes(`<infEvento Id="ID110111${MOCK_ACCESS_KEY}01">`)).toBe(true)
+    expect(xmlEvento.includes('<tpEvento>110111</tpEvento>')).toBe(true)
+    expect(xmlEvento.includes('<Signature')).toBe(true)
+    expect(xmlEvento.includes('<retEventoCTe')).toBe(true)
+    expect(xmlEvento.includes('<cStat>135</cStat>')).toBe(true)
+    expect(xmlEvento.includes('</procEventoCTe>')).toBe(true)
+  })
+
+  test('envia nProt e xJust no evento e não vaza o certificado', async () => {
+    const certificateFixture = createCertificateFixture()
+    let requestBody = ''
+
+    globalThis.fetch = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      requestBody = typeof init?.body === 'string' ? init.body : ''
+      return new Response(buildCancelledEventoResponse(), { status: 200 })
+    }
+
+    const config = buildCteConfig(certificateFixture.pfxBase64)
+    const provider = createFiscalProvider(config)
+    await provider.cancel({
+      config,
+      chaveAcesso: MOCK_ACCESS_KEY,
+      protocolo: '135260000000001',
+      justificativa: CANCELLATION_JUSTIFICATION,
+    })
+
+    expect(requestBody.includes('<nProt>135260000000001</nProt>')).toBe(true)
+    expect(requestBody.includes(`<xJust>${CANCELLATION_JUSTIFICATION}</xJust>`)).toBe(true)
+    expect(requestBody.includes(CERTIFICATE_PASSWORD)).toBe(false)
+    expect(requestBody.includes(certificateFixture.pfxBase64)).toBe(false)
+  })
+
+  test('não devolve XML de evento quando a SEFAZ rejeita o cancelamento', async () => {
+    const certificateFixture = createCertificateFixture()
+
+    globalThis.fetch = async (): Promise<Response> => new Response(buildRejectedEventoResponse(), { status: 200 })
+
+    const config = buildCteConfig(certificateFixture.pfxBase64)
+    const provider = createFiscalProvider(config)
+    const result = await provider.cancel({
+      config,
+      chaveAcesso: MOCK_ACCESS_KEY,
+      protocolo: '135260000000001',
+      justificativa: CANCELLATION_JUSTIFICATION,
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.errorCode).toBe('573')
+    expect(result.xmlEvento).toBeUndefined()
+  })
+
+  test('recusa justificativa com menos de 15 caracteres antes de tocar a SEFAZ', async () => {
+    const certificateFixture = createCertificateFixture()
+    let called = false
+
+    globalThis.fetch = async (): Promise<Response> => {
+      called = true
+      return new Response(buildCancelledEventoResponse(), { status: 200 })
+    }
+
+    const config = buildCteConfig(certificateFixture.pfxBase64)
+    const provider = createFiscalProvider(config)
+    const result = await provider.cancel({
+      config,
+      chaveAcesso: MOCK_ACCESS_KEY,
+      protocolo: '135260000000001',
+      justificativa: 'erro',
+    })
+
+    expect(result.success).toBe(false)
+    expect(result.errorCode).toBe('INVALID_JUSTIFICATIVA')
+    expect(called).toBe(false)
+  })
+})
+
 describe('createFiscalProvider error message', () => {
   test('reports the unknown model without echoing the configuration', () => {
     const secretConfig = {
@@ -452,5 +548,33 @@ function buildSefazSpRejectedResponse(): string {
     '<cStat>215</cStat>',
     "<xMotivo>Rejeição: Falha no schema XML [Detalhes: The required attribute 'versaoModal' is missing.].</xMotivo>",
     '</retCTe></cteRecepcaoResult></soap:Body></soap:Envelope>',
+  ].join('')
+}
+
+function buildCancelledEventoResponse(): string {
+  return [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">',
+    '<soap:Body><cteResultMsg xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeRecepcaoEventoV4">',
+    '<retEventoCTe versao="3.00" xmlns="http://www.portalfiscal.inf.br/cte">',
+    '<retEvento versao="3.00"><infEvento><tpAmb>2</tpAmb><verAplic>SP-CTe-2026-07-01-1</verAplic>',
+    '<cOrgao>35</cOrgao><cStat>135</cStat><xMotivo>Evento registrado e vinculado a CT-e</xMotivo>',
+    `<chCTe>${MOCK_ACCESS_KEY}</chCTe><tpEvento>110111</tpEvento><xEvento>Cancelamento</xEvento>`,
+    '<nSeqEvento>1</nSeqEvento><dhRegEvento>2026-07-27T20:31:04-03:00</dhRegEvento>',
+    '<nProt>135260000000002</nProt></infEvento></retEvento>',
+    '</retEventoCTe></cteResultMsg></soap:Body></soap:Envelope>',
+  ].join('')
+}
+
+function buildRejectedEventoResponse(): string {
+  return [
+    '<?xml version="1.0" encoding="utf-8"?>',
+    '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">',
+    '<soap:Body><cteResultMsg xmlns="http://www.portalfiscal.inf.br/cte/wsdl/CTeRecepcaoEventoV4">',
+    '<retEventoCTe versao="3.00" xmlns="http://www.portalfiscal.inf.br/cte">',
+    '<retEvento versao="3.00"><infEvento><tpAmb>2</tpAmb><cOrgao>35</cOrgao>',
+    '<cStat>573</cStat><xMotivo>Rejeição: Duplicidade de evento</xMotivo>',
+    `<chCTe>${MOCK_ACCESS_KEY}</chCTe><tpEvento>110111</tpEvento>`,
+    '</infEvento></retEvento></retEventoCTe></cteResultMsg></soap:Body></soap:Envelope>',
   ].join('')
 }
