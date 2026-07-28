@@ -145,8 +145,10 @@ describe('createMockConversationsApi', () => {
     const firstPage = await api.fetchConversations({ page: 1, limit: 2 })
     const waiting = await api.fetchConversations({ waitingHuman: true })
 
-    expect(firstPage).toHaveLength(2)
-    expect(waiting.every((conversation) => conversation.waitingHuman)).toBe(true)
+    expect(firstPage.conversations).toHaveLength(2)
+    // O total conta o conjunto filtrado inteiro, não a fatia — é o que a paginação da UI lê.
+    expect(firstPage.total).toBeGreaterThan(2)
+    expect(waiting.conversations.every((conversation) => conversation.waitingHuman)).toBe(true)
   })
 
   it('markRead zera as não-lidas vistas pela lista', async () => {
@@ -156,7 +158,7 @@ describe('createMockConversationsApi', () => {
     await api.markRead(BOT_CONVERSATION_ID)
     const conversations = await api.fetchConversations()
 
-    expect(conversations.find((item) => item.id === BOT_CONVERSATION_ID)?.unread).toBe(0)
+    expect(conversations.conversations.find((item) => item.id === BOT_CONVERSATION_ID)?.unread).toBe(0)
   })
 })
 

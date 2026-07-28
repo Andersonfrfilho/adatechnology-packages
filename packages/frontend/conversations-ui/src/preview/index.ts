@@ -23,7 +23,7 @@ export type { CreateMockConversationsApiParams } from './createMockConversations
 export { createMockSSEProvider } from './createMockSSEProvider'
 export type { CreateMockSSEProviderParams } from './createMockSSEProvider'
 
-export { PREVIEW_CONVERSATIONS, PREVIEW_MESSAGES } from './previewFixtures'
+export { PREVIEW_CONVERSATIONS, PREVIEW_MESSAGES, PREVIEW_DOCUMENTS } from './previewFixtures'
 
 export { ConversationPreview } from './ConversationPreview'
 export type { ConversationPreviewProps } from './ConversationPreview'

@@ -74,6 +74,11 @@ export type { BuildTranscriptTextParams } from './conversationTranscript'
 export { useDarkMode, useIsDarkTheme } from './useDarkMode'
 export { useIsNarrow, NARROW_MAX_WIDTH_PX } from './useIsNarrow'
 export { useWaitingNotifications } from './useWaitingNotifications'
+export type {
+  UseWaitingNotificationsLabels,
+  UseWaitingNotificationsParams,
+  UseWaitingNotificationsResult,
+} from './useWaitingNotifications'
 
 export { ConversationsProvider, useConversations } from './providers/ConversationsProvider'
 
@@ -96,10 +101,13 @@ export { useConversationList } from './hooks/useConversationList'
 export { useConversationContext } from './hooks/useConversationContext'
 export { useConversationDocuments } from './hooks/useConversationDocuments'
 export { useConversationRealtime, useGlobalRealtime } from './hooks/useConversationRealtime'
+export { useConversationActions, useInboxActions } from './hooks/useConversationActions'
 
 export { parseWhatsAppFormatting, waToHTML, htmlToWA, waToHTMLInline } from './lib/whatsapp-formatting'
 export { formatPhone, phoneInitials } from './lib/phone'
-export { formatTimestamp, formatFileSize } from './lib/format'
+// `formatDateTime` e `isSameDay` já eram usados pelas bolhas e pelo divisor de data; exportá-los
+// evita que cada host mantenha a própria cópia e acabe com timeline e transcript divergindo.
+export { formatTimestamp, formatFileSize, formatDateTime, isSameDay } from './lib/format'
 
 export type { MessagePayload, ConversationsUIConfig, ConversationsTheme, ConversationsFeatures } from './types'
 export type {
@@ -108,7 +116,13 @@ export type {
   ConversationEventSource,
   ConversationSummary,
   ConversationDocument,
+  ConversationPage,
+  ConversationDocumentPage,
+  ConversationTemplate,
+  ListConversationsParams,
+  ListDocumentsParams,
 } from './providers/types'
+export type { UseConversationActionsResult, UseInboxActionsResult } from './hooks/useConversationActions'
 
 export type { MessageBubbleProps } from './MessageBubble'
 export type { ConversationWallpaperProps } from './Wallpaper'

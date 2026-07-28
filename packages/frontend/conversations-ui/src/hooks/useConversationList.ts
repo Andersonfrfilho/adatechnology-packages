@@ -1,16 +1,14 @@
 import { useConversations } from '../providers/ConversationsProvider'
 import { useAsyncResource } from './useAsyncResource'
-import type { ConversationSummary } from '../providers/types'
+import { conversationsOf, totalOf } from '../lib/paginated'
+import type { ConversationSummary, ListConversationsParams } from '../providers/types'
 
-export interface UseConversationListParams {
-  page?: number
-  limit?: number
-  waitingHuman?: boolean
-  search?: string
-}
+export type UseConversationListParams = ListConversationsParams
 
 export interface UseConversationListResult {
   conversations: ConversationSummary[]
+  /** Total no servidor. Cai para o tamanho da página quando a API devolve só o array. */
+  total: number
   loading: boolean
   error: Error | undefined
   refetch: () => Promise<void>
@@ -23,10 +21,18 @@ export function useConversationList(params?: UseConversationListParams): UseConv
   }
   const { api } = context
 
+  // `filters` é objeto novo a cada render do host; serializar evita refetch em laço sem obrigar
+  // o consumidor a memoizar — omissão que só apareceria como loop de rede em produção.
+  const filtersKey = JSON.stringify(params?.filters ?? {})
+
   const { data, loading, error, refetch } = useAsyncResource(
     () => api.fetchConversations(params),
-    [params?.page, params?.limit, params?.waitingHuman, params?.search],
+    [params?.page, params?.limit, params?.waitingHuman, params?.search, filtersKey],
   )
 
-  return { conversations: data ?? [], loading, error, refetch }
+  if (data === undefined) {
+    return { conversations: [], total: 0, loading, error, refetch }
+  }
+
+  return { conversations: conversationsOf(data), total: totalOf(data), loading, error, refetch }
 }
