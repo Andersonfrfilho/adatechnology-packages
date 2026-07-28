@@ -60,7 +60,7 @@ export type {
   CreateTemplateResult,
 } from './settings.types'
 
-export type { MetaWhatsAppHooks, MessageHookOutcome } from './events'
+export type { MetaWhatsAppHooks, MessageHookOutcome, InboundMediaDescriptor } from './events'
 
 export type {
   ChannelAdapterInterface,

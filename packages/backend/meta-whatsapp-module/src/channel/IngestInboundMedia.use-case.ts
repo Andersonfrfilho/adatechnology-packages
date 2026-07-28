@@ -1,6 +1,7 @@
 import { eq, and } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
 import type { ChannelAdapterInterface, ObjectStorageInterface } from '@adatechnology/meta-whatsapp-contracts'
+import type { DocumentRepository } from '../repositories/DocumentRepository'
 import { messages, type MessageRow } from '../schema/schema'
 
 export type IngestInboundMediaParams = {
@@ -33,6 +34,9 @@ export class IngestInboundMediaUseCase {
     private readonly db: MetaWhatsAppDatabase,
     private readonly channel: ChannelAdapterInterface,
     private readonly objectStorage: ObjectStorageInterface,
+    // Opcional: sem ele a mídia continua sendo copiada e referenciada no payload, só não entra na
+    // biblioteca da conversa. Mantém compatível quem já usava o use case antes da tabela existir.
+    private readonly documentRepository?: DocumentRepository,
   ) {}
 
   async execute(params: IngestInboundMediaParams): Promise<IngestInboundMediaResult> {
@@ -73,6 +77,21 @@ export class IngestInboundMediaUseCase {
       .update(messages)
       .set({ payload: updatedPayload })
       .where(and(eq(messages.companyId, params.companyId), eq(messages.id, params.messageId)))
+
+    // Entra na biblioteca da conversa. Idempotente por (companyId, uploadId) no repositório, o que
+    // importa aqui: a chave do objeto deriva de sourceMediaId, então a reentrega do job produz o
+    // mesmo uploadId e o link não duplica.
+    await this.documentRepository?.link({
+      companyId: params.companyId,
+      sessionId: message.sessionId,
+      messageId: message.id,
+      uploadId,
+      // Áudio e sticker chegam sem nome; sem um rótulo o painel mostraria linha vazia.
+      filename: params.filename ?? `${params.sourceMediaId}`,
+      mimeType: mimeType || params.mimeType,
+      sizeBytes: buffer.length,
+      source: message.sender,
+    })
 
     return { uploadId, alreadyIngested: false }
   }

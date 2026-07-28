@@ -13,6 +13,7 @@ import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
 import type { RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
 import type { SessionRow } from '../schema/schema'
 import { verifyWebhookSignature, claimWebhookDelivery, type NonceStoreInterface } from './webhookSecurity'
+import { extractMediaDescriptor } from './IngestInboundMedia.use-case'
 
 export type ReceiveWebhookParams = {
   companyId: string
@@ -151,6 +152,22 @@ export class ReceiveWebhookUseCase {
     // Mensagem repetida (mesmo waMessageId já gravado): não dispara o hook de novo, senão a
     // regra de negócio do host rodaria duas vezes para a mesma mensagem do cliente.
     if (!saved) return
+
+    // Antes de qualquer retorno antecipado: os `return` abaixo (atendimento humano, sessão ausente)
+    // são sobre o FLUXO DO BOT, e mídia precisa ser copiada da Meta de qualquer forma. Justamente em
+    // atendimento humano é que o cliente manda documento para o atendente — deixar a ingestão
+    // depois desse `return` perderia esses arquivos, e a URL da Meta expira sem segunda chance.
+    const media = extractMediaDescriptor(saved)
+    if (media) {
+      await this.params.hooks?.onMediaReceived?.({
+        companyId,
+        messageId: saved.id,
+        whatsappNumber: message.from,
+        sourceMediaId: media.sourceMediaId,
+        mimeType: media.mimeType,
+        ...(media.filename ? { filename: media.filename } : {}),
+      })
+    }
 
     const sessionRow = await this.params.sessionRepository.getContext(companyId, message.from)
     if (!sessionRow) return

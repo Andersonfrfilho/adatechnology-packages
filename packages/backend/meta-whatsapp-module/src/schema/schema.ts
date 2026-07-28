@@ -102,6 +102,49 @@ export const messages = metaWhatsAppSchema.table(
   ],
 )
 
+/**
+ * Biblioteca de arquivos da conversa.
+ *
+ * Tabela própria, e não derivada de `messages.payload`: o painel precisa de `source` e `linkedAt`,
+ * que não existem no payload; busca por nome de arquivo quer índice, não varredura de jsonb; e
+ * `messageId` anulável é o que permite o atendente anexar documento à conversa sem que exista uma
+ * mensagem correspondente.
+ *
+ * `sessionId` em cascata apaga a LINHA junto com a conversa, mas não o binário no storage — quem
+ * apaga objeto é passo de aplicação (listar `uploadId` → apagar no storage → apagar a sessão).
+ * Confiar só na FK deixaria objeto órfão sendo cobrado para sempre.
+ */
+export const documents = metaWhatsAppSchema.table(
+  'documents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    companyId: uuid('company_id').notNull(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'cascade' }),
+    // Anulável e `set null`: apagar a mensagem não deve apagar o arquivo da biblioteca, e arquivo
+    // do atendente nasce sem mensagem.
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'set null' }),
+    uploadId: varchar('upload_id', { length: 256 }).notNull(),
+    filename: varchar('filename', { length: 512 }).notNull(),
+    mimeType: varchar('mime_type', { length: 128 }).notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    // Do provider de storage, que é endereçado por conteúdo — serve para reconciliar storage
+    // contra tabela e para detectar o mesmo binário chegando duas vezes.
+    sha256: varchar('sha256', { length: 64 }),
+    source: varchar('source', { length: 12 }).notNull(), // customer | agent | bot
+    linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_documents_session_linked').on(table.sessionId, table.linkedAt),
+    // Para varredura de retenção por idade sem passar por sessão.
+    index('idx_documents_company_linked').on(table.companyId, table.linkedAt),
+    // O mesmo objeto não pode ser linkado duas vezes na mesma empresa: o job de ingestão é
+    // reentregue por retry, e sem isto a reentrega criaria linha duplicada no painel.
+    uniqueIndex('idx_documents_company_upload').on(table.companyId, table.uploadId),
+  ],
+)
+
 // T4.1 — um grafo por fluxo de conversa. `nodes` guarda o Record<string, FlowNodeData> inteiro
 // como jsonb (mesmo shape do editor visual em conversations-ui/flows) — não normalizado em
 // linhas, porque o grafo é sempre lido/escrito como uma unidade pelo editor e pelo interpretador.
@@ -149,3 +192,5 @@ export type MessageRow = typeof messages.$inferSelect
 export type NewMessageRow = typeof messages.$inferInsert
 export type FlowGraphRow = typeof flowGraphs.$inferSelect
 export type NewFlowGraphRow = typeof flowGraphs.$inferInsert
+export type DocumentRow = typeof documents.$inferSelect
+export type NewDocumentRow = typeof documents.$inferInsert

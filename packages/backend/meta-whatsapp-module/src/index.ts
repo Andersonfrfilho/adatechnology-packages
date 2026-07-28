@@ -7,7 +7,7 @@ export type {
   MetaWhatsAppModuleProviders,
 } from './createMetaWhatsAppModule'
 
-export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings } from './schema/schema'
+export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings, documents } from './schema/schema'
 export type {
   SessionRow,
   NewSessionRow,
@@ -17,6 +17,8 @@ export type {
   NewFlowGraphRow,
   SettingsRow,
   NewSettingsRow,
+  DocumentRow,
+  NewDocumentRow,
 } from './schema/schema'
 
 export { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
@@ -66,6 +68,27 @@ export { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-
 export type { ReleaseConversationParams } from './use-cases/ReleaseConversation.use-case'
 export { LogMessageUseCase } from './use-cases/LogMessage.use-case'
 export type { LogMessageParams, MessageModerator } from './use-cases/LogMessage.use-case'
+export { DocumentRepository } from './repositories/DocumentRepository'
+export type { LinkDocumentParams, ListDocumentsParams, ListDocumentsResult } from './repositories/DocumentRepository'
+export { DeleteConversationUseCase } from './use-cases/DeleteConversation.use-case'
+export type { DeleteConversationParams, DeleteConversationResult } from './use-cases/DeleteConversation.use-case'
+export { PurgeExpiredDocumentsUseCase } from './use-cases/PurgeExpiredDocuments.use-case'
+export type {
+  PurgeExpiredDocumentsParams,
+  PurgeExpiredDocumentsResult,
+} from './use-cases/PurgeExpiredDocuments.use-case'
+export { ListConversationDocumentsUseCase } from './use-cases/ListConversationDocuments.use-case'
+export { ListCompanyDocumentsUseCase } from './use-cases/ListCompanyDocuments.use-case'
+export type {
+  ListCompanyDocumentsParams,
+  CompanyDocumentView,
+  CompanyDocumentsPage,
+} from './use-cases/ListCompanyDocuments.use-case'
+export type {
+  ListConversationDocumentsParams,
+  ConversationDocumentView,
+  ConversationDocumentsPage,
+} from './use-cases/ListConversationDocuments.use-case'
 export { ListConversationsUseCase } from './use-cases/ListConversations.use-case'
 export type { ListConversationsParams } from './use-cases/ListConversations.use-case'
 export { ListMessagesUseCase } from './use-cases/ListMessages.use-case'

@@ -21,6 +21,11 @@ import { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.us
 import { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-case'
 import { ListConversationsUseCase } from './use-cases/ListConversations.use-case'
 import { ListMessagesUseCase } from './use-cases/ListMessages.use-case'
+import { ListConversationDocumentsUseCase } from './use-cases/ListConversationDocuments.use-case'
+import { ListCompanyDocumentsUseCase } from './use-cases/ListCompanyDocuments.use-case'
+import { DeleteConversationUseCase } from './use-cases/DeleteConversation.use-case'
+import { PurgeExpiredDocumentsUseCase } from './use-cases/PurgeExpiredDocuments.use-case'
+import { DocumentRepository } from './repositories/DocumentRepository'
 import { ExportConversationUseCase } from './use-cases/ExportConversation.use-case'
 import {
   GetFlowGraphUseCase,
@@ -100,6 +105,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   const messageRepository = new MessageRepository(db)
   const settingsRepository = new SettingsRepository(db)
   const flowGraphRepository = new FlowGraphRepository(db)
+  const documentRepository = new DocumentRepository(db)
 
   const logMessage = new LogMessageUseCase(
     sessionRepository,
@@ -107,7 +113,13 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     providers.realtime,
     providers.moderator,
   )
-  const sendMessage = new SendMessageUseCase(channel, sessionRepository, logMessage, providers.objectStorage)
+  const sendMessage = new SendMessageUseCase(
+    channel,
+    sessionRepository,
+    logMessage,
+    providers.objectStorage,
+    documentRepository,
+  )
 
   const receiveWebhook = new ReceiveWebhookUseCase({
     appSecret: config.appSecret,
@@ -127,8 +139,16 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   // Só existe com storage injetado — sem ele não há para onde copiar o binário, e devolver um
   // use-case que sempre falha seria pior do que a ausência ser visível no tipo.
   const ingestInboundMedia = providers.objectStorage
-    ? new IngestInboundMediaUseCase(db, channel, providers.objectStorage)
+    ? new IngestInboundMediaUseCase(db, channel, providers.objectStorage, documentRepository)
     : undefined
+
+  /**
+   * A leitura da biblioteca existe mesmo sem storage injetado: listar é consultar a tabela, e
+   * devolver `undefined` aqui obrigaria o host a ramificar numa rota que funciona de qualquer jeito.
+   * Quem precisa de storage é o download (URL assinada) — esse fica com o host, que já tem o
+   * provider em mãos.
+   */
+  const listDocuments = new ListConversationDocumentsUseCase(sessionRepository, documentRepository)
 
   return {
     channel,
@@ -141,8 +161,16 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
       release: new ReleaseConversationUseCase(sessionRepository, providers.realtime),
       list: new ListConversationsUseCase(sessionRepository),
       listMessages: new ListMessagesUseCase(sessionRepository, messageRepository),
+      listDocuments,
+      // Biblioteca da empresa inteira, para uma tela de Documentos fora da conversa.
+      listCompanyDocuments: new ListCompanyDocumentsUseCase(documentRepository),
+      // Apaga a mídia no storage antes das linhas — a cascata da FK sozinha deixaria os binários
+      // órfãos, já que a lista de uploadId vive justamente nas linhas que ela derruba.
+      delete: new DeleteConversationUseCase(sessionRepository, documentRepository, providers.objectStorage),
+      purgeExpiredDocuments: new PurgeExpiredDocumentsUseCase(documentRepository, providers.objectStorage),
       export: new ExportConversationUseCase(sessionRepository),
       repository: sessionRepository,
+      documentRepository,
     },
     settings: settingsRepository,
     webhook: {
