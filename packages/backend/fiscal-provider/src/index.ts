@@ -2,6 +2,19 @@ export type { FiscalProvider } from './FiscalProvider.interface'
 
 export { FiscalModel, FiscalEnvironment, PaymentMethod, CteModal, CteTipoServico, CteTomador } from './types'
 
+export {
+  MdfeTipoEmitente,
+  MdfeTipoTransportador,
+  MdfeTipoCarga,
+  MdfeUnidadeCarga,
+  MdfeTipoRodado,
+  MdfeTipoCarroceria,
+  MdfeTipoProprietario,
+  MdfeResponsavelSeguro,
+  MdfeTipoComponentePagamento,
+  MdfeIndicadorPagamento,
+} from './types'
+
 export type {
   FiscalConfig,
   NfceConfig,
@@ -19,6 +32,7 @@ export type {
   FiscalPayment,
   EmitFiscalParams,
   CancelFiscalParams,
+  CloseMdfeParams,
   TestConnectionParams,
   FiscalResult,
   TestConnectionResult,
@@ -40,6 +54,22 @@ export type {
   CteDocumentoNfe,
   CteDocumentoOutro,
   CteIcms,
+  // MDF-e
+  MdfeConfig,
+  MdfeData,
+  MdfeMunicipioCarregamento,
+  MdfeMunicipioDescarga,
+  MdfeCondutor,
+  MdfeContratante,
+  MdfeComponentePagamento,
+  MdfeDadosBancarios,
+  MdfeLotacao,
+  MdfePagamento,
+  MdfeParcelaPagamento,
+  MdfeProprietarioVeiculo,
+  MdfeVeiculoTracao,
+  MdfeVeiculoReboque,
+  MdfeSeguro,
   // NF-e Distribuição
   NfeDistribuicaoConfig,
   NfeDistribuicaoResult,
@@ -89,6 +119,7 @@ export { SatProvider } from './providers/SatProvider'
 export { NfseProvider } from './providers/NfseProvider'
 export { NotaRpNfseProvider } from './providers/NotaRpNfseProvider'
 export { SefazCteProvider } from './providers/SefazCteProvider'
+export { SefazMdfeProvider } from './providers/SefazMdfeProvider'
 export { NfeDistribuicaoProvider, consultarCnpj, importarNfeXml } from './providers/NfeDistribuicaoProvider'
 export type { CnpjInfo } from './providers/NfeDistribuicaoProvider'
 export { createFiscalProvider } from './FiscalProviderFactory'

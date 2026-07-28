@@ -6,6 +6,7 @@ import { SatProvider } from './providers/SatProvider'
 import { NfseProvider } from './providers/NfseProvider'
 import { NotaRpNfseProvider } from './providers/NotaRpNfseProvider'
 import { SefazCteProvider } from './providers/SefazCteProvider'
+import { SefazMdfeProvider } from './providers/SefazMdfeProvider'
 
 export function createFiscalProvider(config: FiscalConfig): FiscalProvider {
   if (config.model === 'nfce') return new SefazNfceProvider()
@@ -14,6 +15,7 @@ export function createFiscalProvider(config: FiscalConfig): FiscalProvider {
   if (config.model === 'nfse') return new NfseProvider()
   if (config.model === 'nfse-notarp') return new NotaRpNfseProvider()
   if (config.model === 'cte') return new SefazCteProvider()
+  if (config.model === 'mdfe') return new SefazMdfeProvider()
   if (config.model === 'nfe-distribuicao')
     throw new Error(
       'NfeDistribuicaoProvider não segue a interface FiscalProvider — instancie NfeDistribuicaoProvider diretamente',

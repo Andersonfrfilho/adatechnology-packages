@@ -108,6 +108,91 @@ export function signCteXml(xml: string, certData: CertificateData): SignedXmlRes
   }
 }
 
+export function signMdfeXml(xml: string, certData: CertificateData): SignedXmlResult {
+  try {
+    const idMatch = xml.match(/<infMDFe[^>]*\sId="([^"]+)"/)
+    if (!idMatch?.[1]) throw new Error('Id do infMDFe não encontrado no XML')
+    const mdfeId = idMatch[1]
+
+    const sig = new SignedXml({
+      privateKey: certData.privateKeyPem,
+      publicCert: certData.certificatePem,
+    })
+
+    sig.canonicalizationAlgorithm = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315'
+    sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
+
+    sig.addReference({
+      xpath: `//*[@Id='${mdfeId}']`,
+      digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1',
+      transforms: [
+        'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
+        'http://www.w3.org/TR/2001/REC-xml-c14n-20010315',
+      ],
+    })
+
+    // A sequência do schema é infMDFe, infMDFeSupl, Signature — a assinatura vai no fim do MDFe
+    sig.computeSignature(xml, {
+      location: { reference: `//*[local-name(.)='MDFe']`, action: 'append' },
+    })
+
+    return {
+      signedXml: sig.getSignedXml(),
+      certificatePem: certData.certificatePem,
+    }
+  } catch (error) {
+    if (error instanceof FiscalError) throw error
+    throw new FiscalError(
+      `Falha ao assinar XML do MDF-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
+      'XML_SIGN_ERROR',
+      error instanceof Error ? error.message : 'unknown',
+      null,
+    )
+  }
+}
+
+export function signMdfeEventoXml(xml: string, certData: CertificateData): SignedXmlResult {
+  try {
+    const idMatch = xml.match(/infEvento Id="([^"]+)"/)
+    if (!idMatch?.[1]) throw new Error('Id do infEvento MDF-e não encontrado no XML')
+    const eventoId = idMatch[1]
+
+    const sig = new SignedXml({
+      privateKey: certData.privateKeyPem,
+      publicCert: certData.certificatePem,
+    })
+
+    sig.canonicalizationAlgorithm = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315'
+    sig.signatureAlgorithm = 'http://www.w3.org/2000/09/xmldsig#rsa-sha1'
+
+    sig.addReference({
+      xpath: `//*[@Id='${eventoId}']`,
+      digestAlgorithm: 'http://www.w3.org/2000/09/xmldsig#sha1',
+      transforms: [
+        'http://www.w3.org/2000/09/xmldsig#enveloped-signature',
+        'http://www.w3.org/TR/2001/REC-xml-c14n-20010315',
+      ],
+    })
+
+    sig.computeSignature(xml, {
+      location: { reference: `//*[@Id='${eventoId}']`, action: 'after' },
+    })
+
+    return {
+      signedXml: sig.getSignedXml(),
+      certificatePem: certData.certificatePem,
+    }
+  } catch (error) {
+    if (error instanceof FiscalError) throw error
+    throw new FiscalError(
+      `Falha ao assinar XML de evento MDF-e: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
+      'XML_SIGN_ERROR',
+      error instanceof Error ? error.message : 'unknown',
+      null,
+    )
+  }
+}
+
 export function signNfeEventoXml(xml: string, certData: CertificateData): SignedXmlResult {
   try {
     const idMatch = xml.match(/infEvento Id="([^"]+)"/)

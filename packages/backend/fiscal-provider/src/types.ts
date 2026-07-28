@@ -5,6 +5,7 @@ export const FiscalModel = {
   NFSE: 'nfse',
   NFSE_NOTARP: 'nfse-notarp',
   CTE: 'cte',
+  MDFE: 'mdfe',
   NFE_DISTRIBUICAO: 'nfe-distribuicao',
 } as const
 export type FiscalModel = (typeof FiscalModel)[keyof typeof FiscalModel]
@@ -489,6 +490,287 @@ export type CteConfig = FiscalConfigBase & {
   readonly telefone?: string
 }
 
+// ─── MDF-e — Manifesto Eletrônico de Documentos Fiscais (modelo 58) ───────────
+
+/** tpEmit — quem está emitindo o manifesto */
+export const MdfeTipoEmitente = {
+  PRESTADOR_SERVICO: '1',
+  CARGA_PROPRIA: '2',
+  PRESTADOR_CTE_GLOBALIZADO: '3',
+} as const
+export type MdfeTipoEmitente = (typeof MdfeTipoEmitente)[keyof typeof MdfeTipoEmitente]
+
+/** tpTransp — categoria do transportador perante a ANTT */
+export const MdfeTipoTransportador = {
+  ETC: '1',
+  TAC: '2',
+  CTC: '3',
+} as const
+export type MdfeTipoTransportador = (typeof MdfeTipoTransportador)[keyof typeof MdfeTipoTransportador]
+
+/** tpCarga — natureza predominante da carga manifestada */
+export const MdfeTipoCarga = {
+  GRANEL_SOLIDO: '01',
+  GRANEL_LIQUIDO: '02',
+  FRIGORIFICADA: '03',
+  CONTEINERIZADA: '04',
+  CARGA_GERAL: '05',
+  NEOGRANEL: '06',
+  PERIGOSA_GRANEL_SOLIDO: '07',
+  PERIGOSA_GRANEL_LIQUIDO: '08',
+  PERIGOSA_FRIGORIFICADA: '09',
+  PERIGOSA_CONTEINERIZADA: '10',
+  PERIGOSA_CARGA_GERAL: '11',
+  GRANEL_PRESSURIZADA: '12',
+} as const
+export type MdfeTipoCarga = (typeof MdfeTipoCarga)[keyof typeof MdfeTipoCarga]
+
+/** cUnid — unidade de medida da quantidade total manifestada */
+export const MdfeUnidadeCarga = {
+  KG: '01',
+  TONELADA: '02',
+} as const
+export type MdfeUnidadeCarga = (typeof MdfeUnidadeCarga)[keyof typeof MdfeUnidadeCarga]
+
+/** tpRod — tipo de rodado do veículo de tração */
+export const MdfeTipoRodado = {
+  TRUCK: '01',
+  TOCO: '02',
+  CAVALO_MECANICO: '03',
+  VAN: '04',
+  UTILITARIO: '05',
+  OUTROS: '06',
+} as const
+export type MdfeTipoRodado = (typeof MdfeTipoRodado)[keyof typeof MdfeTipoRodado]
+
+/** tpCar — tipo de carroceria */
+export const MdfeTipoCarroceria = {
+  NAO_APLICAVEL: '00',
+  ABERTA: '01',
+  FECHADA_BAU: '02',
+  GRANELERA: '03',
+  PORTA_CONTAINER: '04',
+  SIDER: '05',
+} as const
+export type MdfeTipoCarroceria = (typeof MdfeTipoCarroceria)[keyof typeof MdfeTipoCarroceria]
+
+/** tpProp — vínculo do proprietário do veículo quando ele não é o emitente */
+export const MdfeTipoProprietario = {
+  TAC_AGREGADO: '0',
+  TAC_INDEPENDENTE: '1',
+  OUTROS: '2',
+} as const
+export type MdfeTipoProprietario = (typeof MdfeTipoProprietario)[keyof typeof MdfeTipoProprietario]
+
+/** respSeg — 1=emitente do MDF-e, 2=responsável pela contratação do transporte */
+export const MdfeResponsavelSeguro = {
+  EMITENTE: '1',
+  CONTRATANTE: '2',
+} as const
+export type MdfeResponsavelSeguro = (typeof MdfeResponsavelSeguro)[keyof typeof MdfeResponsavelSeguro]
+
+export type MdfeMunicipioCarregamento = {
+  /** Código IBGE de 7 dígitos */
+  readonly codigo: string
+  readonly nome: string
+}
+
+export type MdfeMunicipioDescarga = {
+  /** Código IBGE de 7 dígitos */
+  readonly codigo: string
+  readonly nome: string
+  /** Chaves de 44 dígitos dos CT-es descarregados neste município */
+  readonly chavesCte?: readonly string[]
+  /** Chaves de 44 dígitos das NF-es descarregadas neste município (carga própria) */
+  readonly chavesNfe?: readonly string[]
+  /** Chaves de 44 dígitos de MDF-es transportados (multimodal) */
+  readonly chavesMdfe?: readonly string[]
+}
+
+export type MdfeCondutor = {
+  readonly nome: string
+  readonly cpf: string
+}
+
+export type MdfeProprietarioVeiculo = {
+  readonly cnpj?: string
+  readonly cpf?: string
+  readonly rntrc: string
+  readonly nome: string
+  readonly inscricaoEstadual?: string
+  readonly uf?: string
+  readonly tipoProprietario: MdfeTipoProprietario
+}
+
+export type MdfeVeiculoTracao = {
+  /** cInt — código interno de controle da frota */
+  readonly codigoInterno?: string
+  readonly placa: string
+  readonly renavam?: string
+  /** Tara em KG */
+  readonly tara: number
+  readonly capacidadeKg?: number
+  readonly capacidadeM3?: number
+  readonly tipoRodado: MdfeTipoRodado
+  readonly tipoCarroceria: MdfeTipoCarroceria
+  readonly uf?: string
+  /** 1 a 10 condutores */
+  readonly condutores: readonly MdfeCondutor[]
+  /** Só quando o veículo não pertence ao emitente */
+  readonly proprietario?: MdfeProprietarioVeiculo
+}
+
+export type MdfeVeiculoReboque = {
+  readonly codigoInterno?: string
+  readonly placa: string
+  readonly renavam?: string
+  readonly tara: number
+  /** Obrigatório no reboque, diferente do veículo de tração */
+  readonly capacidadeKg: number
+  readonly capacidadeM3?: number
+  readonly tipoCarroceria: MdfeTipoCarroceria
+  readonly uf?: string
+  readonly proprietario?: MdfeProprietarioVeiculo
+}
+
+/**
+ * infLotacao — carregamento e descarregamento localizados por CEP ou por coordenada.
+ * Informe o CEP ou o par latitude/longitude de cada ponta, não os dois.
+ */
+export type MdfeLotacao = {
+  readonly cepCarregamento?: string
+  readonly latitudeCarregamento?: number
+  readonly longitudeCarregamento?: number
+  readonly cepDescarregamento?: string
+  readonly latitudeDescarregamento?: number
+  readonly longitudeDescarregamento?: number
+}
+
+/** infContratante do modal rodoviário — informe CNPJ ou CPF, nunca os dois */
+export type MdfeContratante = {
+  readonly cnpj?: string
+  readonly cpf?: string
+}
+
+/** tpComp — componente do valor da prestação do frete */
+export const MdfeTipoComponentePagamento = {
+  VALE_PEDAGIO: '01',
+  IMPOSTOS_TAXAS_CONTRIBUICOES: '02',
+  DESPESAS_BANCARIAS: '03',
+  OUTROS: '99',
+} as const
+export type MdfeTipoComponentePagamento = (typeof MdfeTipoComponentePagamento)[keyof typeof MdfeTipoComponentePagamento]
+
+/** indPag — 0=pagamento à vista, 1=a prazo */
+export const MdfeIndicadorPagamento = {
+  A_VISTA: '0',
+  A_PRAZO: '1',
+} as const
+export type MdfeIndicadorPagamento = (typeof MdfeIndicadorPagamento)[keyof typeof MdfeIndicadorPagamento]
+
+export type MdfeComponentePagamento = {
+  readonly tipoComponente: MdfeTipoComponentePagamento
+  readonly valor: number
+  /** xComp — exigido quando tipoComponente='99' */
+  readonly descricao?: string
+}
+
+export type MdfeParcelaPagamento = {
+  readonly numero: number
+  /** dVenc no formato AAAA-MM-DD */
+  readonly vencimento: string
+  readonly valor: number
+}
+
+/**
+ * infBanc — informe a conta (banco + agência), o CNPJ da instituição de pagamento
+ * ou a chave PIX, nunca mais de um.
+ */
+export type MdfeDadosBancarios = {
+  readonly codigoBanco?: string
+  readonly codigoAgencia?: string
+  readonly cnpjInstituicaoPagamento?: string
+  readonly pix?: string
+}
+
+/** infPag — pagamento do frete ao transportador; a SVRS rejeita com 302 quando falta em carga lotação */
+export type MdfePagamento = {
+  /** xNome do responsável pelo pagamento */
+  readonly nome?: string
+  /** CNPJ ou CPF do responsável — precisa ser um dos contratantes declarados */
+  readonly cnpj?: string
+  readonly cpf?: string
+  readonly componentes: readonly MdfeComponentePagamento[]
+  readonly valorContrato: number
+  readonly indicadorPagamento: MdfeIndicadorPagamento
+  /** Parcelas — exigidas quando indicadorPagamento='1' */
+  readonly parcelas?: readonly MdfeParcelaPagamento[]
+  /** infBanc é obrigatório no schema do modal, inclusive à vista */
+  readonly dadosBancarios: MdfeDadosBancarios
+}
+
+export type MdfeSeguro = {
+  readonly responsavel: MdfeResponsavelSeguro
+  /** CNPJ/CPF do responsável — exigido quando responsavel='2' */
+  readonly responsavelCnpj?: string
+  readonly responsavelCpf?: string
+  readonly seguradora?: { readonly nome: string; readonly cnpj: string }
+  readonly apolice?: string
+  readonly averbacoes?: readonly string[]
+}
+
+export type MdfeData = {
+  readonly tipoEmitente: MdfeTipoEmitente
+  readonly tipoTransportador?: MdfeTipoTransportador
+  /** UF de início da prestação */
+  readonly ufInicio: string
+  /** UF de fim da prestação */
+  readonly ufFim: string
+  /** 1 a 50 municípios de carregamento */
+  readonly municipiosCarregamento: readonly MdfeMunicipioCarregamento[]
+  /** Até 25 UFs de percurso, sem repetir UFIni/UFFim */
+  readonly ufsPercurso?: readonly string[]
+  /** 1 a 1000 municípios de descarga, cada um com os documentos manifestados */
+  readonly municipiosDescarga: readonly MdfeMunicipioDescarga[]
+  readonly produtoPredominante?: {
+    readonly tipoCarga: MdfeTipoCarga
+    readonly descricao: string
+    readonly ncm?: string
+    /** Carga lotação — a SVRS rejeita com 726 quando a operação é lotação e o grupo não vem */
+    readonly lotacao?: MdfeLotacao
+  }
+  readonly totais: {
+    readonly vCarga: number
+    readonly cUnid: MdfeUnidadeCarga
+    readonly qCarga: number
+  }
+  /** RNTRC do transportador — obrigatório no modal rodoviário para tpEmit='1' */
+  readonly rntrc?: string
+  /** Contratantes do serviço de transporte — a SVRS rejeita com 578 quando a operação exige e não vêm */
+  readonly contratantes?: readonly MdfeContratante[]
+  /** Pagamentos do frete — a SVRS rejeita com 302 quando a operação é lotação e não vêm */
+  readonly pagamentos?: readonly MdfePagamento[]
+  readonly veiculoTracao: MdfeVeiculoTracao
+  /** Até 3 reboques */
+  readonly reboques?: readonly MdfeVeiculoReboque[]
+  readonly lacres?: readonly string[]
+  readonly seguro?: MdfeSeguro
+  /** dhIniViagem no formato AAAA-MM-DDThh:mm:ss-03:00 */
+  readonly dataInicioViagem?: string
+  readonly informacoesAdicionais?: string
+  readonly informacoesFisco?: string
+}
+
+export type MdfeConfig = FiscalConfigBase & {
+  readonly model: 'mdfe'
+  readonly certificadoBase64: string
+  readonly certificadoSenha: string
+  readonly serie: string
+  readonly numeroMdfe: number
+  readonly codigoMunicipio: string
+  readonly telefone?: string
+}
+
 // ─── NF-e Distribuição DFe — consulta por CNPJ do interessado ─────────────────
 
 export type NfeDistribuicaoConfig = {
@@ -715,6 +997,7 @@ export type FiscalConfig =
   | NfseConfig
   | NotaRpConfig
   | CteConfig
+  | MdfeConfig
   | NfeDistribuicaoConfig
 
 export type FiscalItem = {
@@ -774,6 +1057,8 @@ export type EmitFiscalParams = {
   readonly notaRpNfseData?: NotaRpNfseData
   /** Dados obrigatórios para CT-e (modelo 57) */
   readonly cteData?: CteData
+  /** Dados obrigatórios para MDF-e (modelo 58) */
+  readonly mdfeData?: MdfeData
 }
 
 export type NfseCancelCode = '1' | '2' | '3' | '4' | '5'
@@ -787,6 +1072,25 @@ export type CancelFiscalParams = {
   readonly justificativa: string
   readonly codigoCancelamento?: NfseCancelCode
   readonly config: FiscalConfig
+}
+
+/** Evento 110112 — encerramento do MDF-e no fim da viagem */
+export type CloseMdfeParams = {
+  /** Chave de acesso de 44 dígitos do MDF-e autorizado */
+  readonly chaveAcesso: string
+  /** Protocolo de autorização retornado pelo emit() */
+  readonly protocolo: string
+  /** Data do encerramento no formato AAAA-MM-DD */
+  readonly dataEncerramento: string
+  /** UF onde a viagem terminou — vira o cUF do evEncMDFe */
+  readonly ufEncerramento: string
+  /** Código IBGE de 7 dígitos do município onde a viagem terminou */
+  readonly codigoMunicipioEncerramento: string
+  /** Sequência do evento — 1 no encerramento normal */
+  readonly sequenciaEvento?: number
+  /** Encerramento feito por terceiro (contratante), não pelo emitente */
+  readonly encerradoPorTerceiro?: boolean
+  readonly config: MdfeConfig
 }
 
 export type TestConnectionParams = {
@@ -817,6 +1121,8 @@ export type FiscalResult = {
   readonly xmlAutorizado?: string
   /** XML cru do <protNFe>/<protCTe> devolvido pela SEFAZ — usado internamente para montar o nfeProc/cteProc (xmlAutorizado). */
   readonly xmlProtocolo?: string
+  /** procEventoCTe — evento assinado + retorno da SEFAZ; é o arquivo do cancelamento a ser guardado. */
+  readonly xmlEvento?: string
   readonly qrCodeUrl?: string
   readonly danfce?: DanfceData
   /** @deprecated Prefira `cupomPdf.base64` — mantido por compatibilidade */
