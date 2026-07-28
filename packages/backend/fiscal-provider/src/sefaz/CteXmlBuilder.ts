@@ -89,13 +89,13 @@ function buildIcms(icms: CteIcms, crt: string): string {
     case '40':
     case '41':
     case '51':
-      return `<ICMS><ICMS40><CST>${icms.cst}</CST></ICMS40></ICMS>`
+      return `<ICMS><ICMS45><CST>${icms.cst}</CST></ICMS45></ICMS>`
     case '60':
       return `<ICMS><ICMS60><CST>60</CST><vBCSTRet>${fmt(icms.vBCSTRet)}</vBCSTRet><pICMSSTRet>${fmt(icms.pICMSSTRet)}</pICMSSTRet><vICMSSTRet>${fmt(icms.vICMSSTRet)}</vICMSSTRet></ICMS60></ICMS>`
     case '90':
       return `<ICMS><ICMS90><CST>90</CST>${icms.vBC !== undefined ? `<vBC>${fmt(icms.vBC)}</vBC><pICMS>${fmt(icms.pICMS!)}</pICMS><vICMS>${fmt(icms.vICMS!)}</vICMS>` : ''}</ICMS90></ICMS>`
     default:
-      return `<ICMS><ICMS40><CST>41</CST></ICMS40></ICMS>`
+      return `<ICMS><ICMS45><CST>41</CST></ICMS45></ICMS>`
   }
 }
 

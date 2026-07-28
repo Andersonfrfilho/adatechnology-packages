@@ -88,6 +88,29 @@ describe('CT-e 4.00 schema element names', () => {
     expect(xml.includes('<ICMSSN')).toBe(false)
   })
 
+  // O grupo do CT-e para CST 40/41/51 e ICMS45; ICMS40 so existe no schema da NF-e
+  test.each(['40', '41', '51'] as const)(
+    'names the isento, nao tributado e diferido group ICMS45 for CST %s',
+    (cst) => {
+      const data = buildCteData()
+      const { xml } = buildCteXml({ ...buildCteConfig('unused'), crt: '3' }, { ...data, icms: { cst } })
+
+      expect(xml.includes(`<ICMS><ICMS45><CST>${cst}</CST></ICMS45></ICMS>`)).toBe(true)
+      expect(xml.includes('ICMS40')).toBe(false)
+    },
+  )
+
+  test('falls back to the ICMS45 group when the CST is unknown', () => {
+    const data = buildCteData()
+    const { xml } = buildCteXml({ ...buildCteConfig('unused'), crt: '3' }, {
+      ...data,
+      icms: { cst: '70' },
+    } as unknown as CteData)
+
+    expect(xml.includes('<ICMS><ICMS45><CST>41</CST></ICMS45></ICMS>')).toBe(true)
+    expect(xml.includes('ICMS40')).toBe(false)
+  })
+
   test('writes serie and nCT without leading zeros in the ide group', () => {
     const { xml, chaveAcesso } = buildCteXml(
       { ...buildCteConfig('unused'), serie: '001', numeroCte: 2 },
