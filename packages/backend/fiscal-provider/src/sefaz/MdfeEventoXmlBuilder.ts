@@ -1,4 +1,5 @@
 import { MDFE_NS, MDFE_VERSAO } from './MdfeConstants'
+import { escapeXml } from './SefazXmlEscape'
 
 export const MDFE_TP_EVENTO = {
   cancelamento: '110111',
@@ -66,13 +67,4 @@ function buildEventoXml(tpEvento: MdfeTpEvento, base: MdfeEventoBase, detEvento:
     `</infEvento></eventoMDFe>`
 
   return { xml, id }
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
 }

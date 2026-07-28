@@ -14,6 +14,7 @@ import type {
   MdfeVeiculoTracao,
 } from '../types'
 import { UF_IBGE_CODES_CTE } from './CteConstants'
+import { escapeXml } from './SefazXmlEscape'
 import { getMdfeQrCodeUrl, MDFE_MODELO, MDFE_NS, MDFE_VERSAO } from './MdfeConstants'
 import { formatDhEmi, toBrasiliaWallClock } from './SefazDateTime'
 
@@ -60,18 +61,19 @@ function buildChaveMdfe(params: {
 function buildProprietario(prop: MdfeProprietarioVeiculo): string {
   const doc = prop.cnpj ? `<CNPJ>${prop.cnpj.replace(/\D/g, '')}</CNPJ>` : `<CPF>${prop.cpf!.replace(/\D/g, '')}</CPF>`
   const ie = prop.inscricaoEstadual && prop.uf ? `<IE>${prop.inscricaoEstadual}</IE><UF>${prop.uf}</UF>` : ''
-  return `<prop>${doc}<RNTRC>${prop.rntrc}</RNTRC><xNome>${prop.nome}</xNome>${ie}<tpProp>${prop.tipoProprietario}</tpProp></prop>`
+  return `<prop>${doc}<RNTRC>${prop.rntrc}</RNTRC><xNome>${escapeXml(prop.nome)}</xNome>${ie}<tpProp>${prop.tipoProprietario}</tpProp></prop>`
 }
 
 function buildVeiculoTracao(veiculo: MdfeVeiculoTracao): string {
-  const cInt = veiculo.codigoInterno ? `<cInt>${veiculo.codigoInterno}</cInt>` : ''
+  const cInt = veiculo.codigoInterno ? `<cInt>${escapeXml(veiculo.codigoInterno)}</cInt>` : ''
   const renavam = veiculo.renavam ? `<RENAVAM>${veiculo.renavam}</RENAVAM>` : ''
   const capKG = veiculo.capacidadeKg !== undefined ? `<capKG>${veiculo.capacidadeKg}</capKG>` : ''
   const capM3 = veiculo.capacidadeM3 !== undefined ? `<capM3>${veiculo.capacidadeM3}</capM3>` : ''
   const prop = veiculo.proprietario ? buildProprietario(veiculo.proprietario) : ''
   const condutores = veiculo.condutores
     .map(
-      (condutor) => `<condutor><xNome>${condutor.nome}</xNome><CPF>${condutor.cpf.replace(/\D/g, '')}</CPF></condutor>`,
+      (condutor) =>
+        `<condutor><xNome>${escapeXml(condutor.nome)}</xNome><CPF>${condutor.cpf.replace(/\D/g, '')}</CPF></condutor>`,
     )
     .join('')
   const uf = veiculo.uf ? `<UF>${veiculo.uf}</UF>` : ''
@@ -79,7 +81,7 @@ function buildVeiculoTracao(veiculo: MdfeVeiculoTracao): string {
 }
 
 function buildVeiculoReboque(reboque: MdfeVeiculoReboque): string {
-  const cInt = reboque.codigoInterno ? `<cInt>${reboque.codigoInterno}</cInt>` : ''
+  const cInt = reboque.codigoInterno ? `<cInt>${escapeXml(reboque.codigoInterno)}</cInt>` : ''
   const renavam = reboque.renavam ? `<RENAVAM>${reboque.renavam}</RENAVAM>` : ''
   const capM3 = reboque.capacidadeM3 !== undefined ? `<capM3>${reboque.capacidadeM3}</capM3>` : ''
   const prop = reboque.proprietario ? buildProprietario(reboque.proprietario) : ''
@@ -127,7 +129,7 @@ function buildContratante(contratante: MdfeContratante): string {
 }
 
 function buildDadosBancarios(dados: MdfeDadosBancarios): string {
-  if (dados.pix) return `<infBanc><PIX>${dados.pix}</PIX></infBanc>`
+  if (dados.pix) return `<infBanc><PIX>${escapeXml(dados.pix)}</PIX></infBanc>`
   if (dados.cnpjInstituicaoPagamento)
     return `<infBanc><CNPJIPEF>${dados.cnpjInstituicaoPagamento.replace(/\D/g, '')}</CNPJIPEF></infBanc>`
   if (dados.codigoBanco && dados.codigoAgencia)
@@ -136,7 +138,7 @@ function buildDadosBancarios(dados: MdfeDadosBancarios): string {
 }
 
 function buildPagamento(pagamento: MdfePagamento): string {
-  const nome = pagamento.nome ? `<xNome>${pagamento.nome}</xNome>` : ''
+  const nome = pagamento.nome ? `<xNome>${escapeXml(pagamento.nome)}</xNome>` : ''
   const documento = pagamento.cnpj
     ? `<CNPJ>${pagamento.cnpj.replace(/\D/g, '')}</CNPJ>`
     : pagamento.cpf
@@ -144,7 +146,7 @@ function buildPagamento(pagamento: MdfePagamento): string {
       : ''
   const componentes = pagamento.componentes
     .map((componente) => {
-      const descricao = componente.descricao ? `<xComp>${componente.descricao}</xComp>` : ''
+      const descricao = componente.descricao ? `<xComp>${escapeXml(componente.descricao)}</xComp>` : ''
       return `<Comp><tpComp>${componente.tipoComponente}</tpComp><vComp>${componente.valor.toFixed(2)}</vComp>${descricao}</Comp>`
     })
     .join('')
@@ -178,7 +180,7 @@ function buildMunicipioDescarga(municipio: MdfeMunicipioDescarga): string {
   const mdfes = (municipio.chavesMdfe ?? [])
     .map((chave) => `<infMDFeTransp><chMDFe>${chave}</chMDFe></infMDFeTransp>`)
     .join('')
-  return `<infMunDescarga><cMunDescarga>${municipio.codigo}</cMunDescarga><xMunDescarga>${municipio.nome}</xMunDescarga>${ctes}${nfes}${mdfes}</infMunDescarga>`
+  return `<infMunDescarga><cMunDescarga>${municipio.codigo}</cMunDescarga><xMunDescarga>${escapeXml(municipio.nome)}</xMunDescarga>${ctes}${nfes}${mdfes}</infMunDescarga>`
 }
 
 function countDocumentos(data: MdfeData): { qCTe: number; qNFe: number; qMDFe: number } {
@@ -201,10 +203,10 @@ function buildSeguro(seguro: MdfeSeguro): string {
       ? `<CPF>${seguro.responsavelCpf.replace(/\D/g, '')}</CPF>`
       : ''
   const seguradora = seguro.seguradora
-    ? `<infSeg><xSeg>${seguro.seguradora.nome}</xSeg><CNPJ>${seguro.seguradora.cnpj.replace(/\D/g, '')}</CNPJ></infSeg>`
+    ? `<infSeg><xSeg>${escapeXml(seguro.seguradora.nome)}</xSeg><CNPJ>${seguro.seguradora.cnpj.replace(/\D/g, '')}</CNPJ></infSeg>`
     : ''
-  const apolice = seguro.apolice ? `<nApol>${seguro.apolice}</nApol>` : ''
-  const averbacoes = (seguro.averbacoes ?? []).map((averbacao) => `<nAver>${averbacao}</nAver>`).join('')
+  const apolice = seguro.apolice ? `<nApol>${escapeXml(seguro.apolice)}</nApol>` : ''
+  const averbacoes = (seguro.averbacoes ?? []).map((averbacao) => `<nAver>${escapeXml(averbacao)}</nAver>`).join('')
   return `<seg><infResp><respSeg>${seguro.responsavel}</respSeg>${responsavelDoc}</infResp>${seguradora}${apolice}${averbacoes}</seg>`
 }
 
@@ -238,7 +240,7 @@ export function buildMdfeXml(config: MdfeConfig, data: MdfeData, now: Date = new
   const municipiosCarregamento = data.municipiosCarregamento
     .map(
       (municipio) =>
-        `<infMunCarrega><cMunCarrega>${municipio.codigo}</cMunCarrega><xMunCarrega>${municipio.nome}</xMunCarrega></infMunCarrega>`,
+        `<infMunCarrega><cMunCarrega>${municipio.codigo}</cMunCarrega><xMunCarrega>${escapeXml(municipio.nome)}</xMunCarrega></infMunCarrega>`,
     )
     .join('')
   const percurso = (data.ufsPercurso ?? []).map((uf) => `<infPercurso><UFPer>${uf}</UFPer></infPercurso>`).join('')
@@ -246,9 +248,9 @@ export function buildMdfeXml(config: MdfeConfig, data: MdfeData, now: Date = new
 
   const ide = `<ide><cUF>${cUF}</cUF><tpAmb>${tpAmb}</tpAmb><tpEmit>${data.tipoEmitente}</tpEmit>${tpTransp}<mod>${MDFE_MODELO}</mod><serie>${serie}</serie><nMDF>${nMDF}</nMDF><cMDF>${cMDF}</cMDF><cDV>${cDV}</cDV><modal>${MODAL_RODOVIARIO}</modal><dhEmi>${formatDhEmi(now)}</dhEmi><tpEmis>${TP_EMIS_NORMAL}</tpEmis><procEmi>${PROC_EMI_APLICATIVO_CONTRIBUINTE}</procEmi><verProc>${VER_PROC}</verProc><UFIni>${data.ufInicio}</UFIni><UFFim>${data.ufFim}</UFFim>${municipiosCarregamento}${percurso}${dhIniViagem}</ide>`
 
-  const complemento = config.complemento ? `<xCpl>${config.complemento}</xCpl>` : ''
+  const complemento = config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''
   const fone = config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''
-  const emit = `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${config.razaoSocial}</xNome><enderEmit><xLgr>${config.logradouro}</xLgr><nro>${config.numero}</nro>${complemento}<xBairro>${config.bairro}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${config.municipio}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${fone}</enderEmit></emit>`
+  const emit = `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${escapeXml(config.razaoSocial)}</xNome><enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${complemento}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${fone}</enderEmit></emit>`
 
   // O schema exige versaoModal em infModal — versao é rejeitado com cStat 215
   const infModal = `<infModal versaoModal="${MDFE_VERSAO}">${buildRodo(data)}</infModal>`
@@ -256,7 +258,7 @@ export function buildMdfeXml(config: MdfeConfig, data: MdfeData, now: Date = new
   const seg = data.seguro ? buildSeguro(data.seguro) : ''
 
   const prodPred = data.produtoPredominante
-    ? `<prodPred><tpCarga>${data.produtoPredominante.tipoCarga}</tpCarga><xProd>${data.produtoPredominante.descricao}</xProd>${data.produtoPredominante.ncm ? `<NCM>${data.produtoPredominante.ncm}</NCM>` : ''}${data.produtoPredominante.lotacao ? buildLotacao(data.produtoPredominante.lotacao) : ''}</prodPred>`
+    ? `<prodPred><tpCarga>${data.produtoPredominante.tipoCarga}</tpCarga><xProd>${escapeXml(data.produtoPredominante.descricao)}</xProd>${data.produtoPredominante.ncm ? `<NCM>${data.produtoPredominante.ncm}</NCM>` : ''}${data.produtoPredominante.lotacao ? buildLotacao(data.produtoPredominante.lotacao) : ''}</prodPred>`
     : ''
 
   const { qCTe, qNFe, qMDFe } = countDocumentos(data)
@@ -268,9 +270,9 @@ export function buildMdfeXml(config: MdfeConfig, data: MdfeData, now: Date = new
   // vCarga é TDec_1302 (2 casas) e qCarga é TDec_1104 (4 casas) — o schema exige a precisão exata
   const tot = `<tot>${quantidades}<vCarga>${data.totais.vCarga.toFixed(2)}</vCarga><cUnid>${data.totais.cUnid}</cUnid><qCarga>${data.totais.qCarga.toFixed(4)}</qCarga></tot>`
 
-  const lacres = (data.lacres ?? []).map((lacre) => `<lacres><nLacre>${lacre}</nLacre></lacres>`).join('')
-  const infAdFisco = data.informacoesFisco ? `<infAdFisco>${data.informacoesFisco}</infAdFisco>` : ''
-  const infCpl = data.informacoesAdicionais ? `<infCpl>${data.informacoesAdicionais}</infCpl>` : ''
+  const lacres = (data.lacres ?? []).map((lacre) => `<lacres><nLacre>${escapeXml(lacre)}</nLacre></lacres>`).join('')
+  const infAdFisco = data.informacoesFisco ? `<infAdFisco>${escapeXml(data.informacoesFisco)}</infAdFisco>` : ''
+  const infCpl = data.informacoesAdicionais ? `<infCpl>${escapeXml(data.informacoesAdicionais)}</infCpl>` : ''
   const infAdic = infAdFisco || infCpl ? `<infAdic>${infAdFisco}${infCpl}</infAdic>` : ''
 
   // O QR Code fica em infMDFeSupl, irmão de infMDFe, entre ele e a assinatura.
