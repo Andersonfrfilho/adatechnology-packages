@@ -190,6 +190,19 @@ export class SessionRepository {
     await this.setMode(companyId, whatsappNumber, 'bot', null)
   }
 
+  /**
+   * Apaga a sessão; a cascata das FKs leva mensagens e documentos.
+   *
+   * Não apaga o binário no storage — isso é passo de aplicação, e é por isso que este método é
+   * chamado por `DeleteConversationUseCase` e não diretamente pelo host. Chamar daqui sem apagar os
+   * objetos antes deixa mídia órfã sendo cobrada para sempre.
+   */
+  async deleteByNumber(companyId: string, whatsappNumber: string): Promise<void> {
+    await this.db
+      .delete(sessions)
+      .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
+  }
+
   async requestHuman(companyId: string, whatsappNumber: string): Promise<void> {
     await this.db
       .update(sessions)

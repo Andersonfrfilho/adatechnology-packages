@@ -1,7 +1,29 @@
 import { useRef, type ReactNode } from 'react'
 import { Bold, Italic, Strikethrough } from 'lucide-react'
 
+export interface WhatsAppMessageEditorLabels {
+  bold: string
+  /** Tooltip da negrito — traz a sintaxe do WhatsApp junto, por isso é separado do `aria-label`. */
+  boldHint: string
+  italic: string
+  italicHint: string
+  strikethrough: string
+  strikethroughHint: string
+  insertPlaceholder: (token: string) => string
+}
+
+export const DEFAULT_WHATSAPP_MESSAGE_EDITOR_LABELS: WhatsAppMessageEditorLabels = {
+  bold: 'Negrito',
+  boldHint: 'Negrito (*texto*)',
+  italic: 'Itálico',
+  italicHint: 'Itálico (_texto_)',
+  strikethrough: 'Tachado',
+  strikethroughHint: 'Tachado (~texto~)',
+  insertPlaceholder: (token: string) => `Inserir ${token}`,
+}
+
 export interface WhatsAppMessageEditorProps {
+  labels?: Partial<WhatsAppMessageEditorLabels>
   value: string
   onChange: (value: string) => void
   placeholder?: string
@@ -56,7 +78,9 @@ export function WhatsAppMessageEditor({
   rows = 4,
   previewLabel = 'Prévia (como aparece no WhatsApp)',
   emptyPreviewText = 'Sua mensagem aparecerá aqui…',
+  labels,
 }: WhatsAppMessageEditorProps) {
+  const editorLabels = { ...DEFAULT_WHATSAPP_MESSAGE_EDITOR_LABELS, ...labels }
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function wrapSelection(marker: string): void {
@@ -93,13 +117,13 @@ export function WhatsAppMessageEditor({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
-        <button type="button" onClick={() => wrapSelection('*')} className={toolbarButtonClass} title="Negrito (*texto*)" aria-label="Negrito">
+        <button type="button" onClick={() => wrapSelection('*')} className={toolbarButtonClass} title={editorLabels.boldHint} aria-label={editorLabels.bold}>
           <Bold size={15} />
         </button>
-        <button type="button" onClick={() => wrapSelection('_')} className={toolbarButtonClass} title="Itálico (_texto_)" aria-label="Itálico">
+        <button type="button" onClick={() => wrapSelection('_')} className={toolbarButtonClass} title={editorLabels.italicHint} aria-label={editorLabels.italic}>
           <Italic size={15} />
         </button>
-        <button type="button" onClick={() => wrapSelection('~')} className={toolbarButtonClass} title="Tachado (~texto~)" aria-label="Tachado">
+        <button type="button" onClick={() => wrapSelection('~')} className={toolbarButtonClass} title={editorLabels.strikethroughHint} aria-label={editorLabels.strikethrough}>
           <Strikethrough size={15} />
         </button>
         {placeholders.length > 0 && (
@@ -111,7 +135,7 @@ export function WhatsAppMessageEditor({
                 type="button"
                 onClick={() => insertAtCursor(token)}
                 className="inline-flex items-center h-8 px-2 rounded-lg border border-gray-200 dark:border-gray-600 text-xs text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors"
-                title={`Inserir ${token}`}
+                title={editorLabels.insertPlaceholder(token)}
               >
                 {token}
               </button>

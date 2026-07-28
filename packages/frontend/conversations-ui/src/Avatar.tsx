@@ -1,8 +1,18 @@
+export interface AvatarLabels {
+  /** Lido por leitor de tela quando não há nome nem imagem — a silhueta genérica. */
+  unnamedContact: string
+}
+
 export interface AvatarProps {
   name?: string | null
   avatarUrl?: string
   size?: 'sm' | 'md' | 'lg'
   className?: string
+  labels?: Partial<AvatarLabels>
+}
+
+export const DEFAULT_AVATAR_LABELS: AvatarLabels = {
+  unnamedContact: 'Contato sem nome',
 }
 
 const sizeClasses = {
@@ -36,8 +46,9 @@ function getBgColor(name: string | undefined | null): string {
 
 // Paridade com financiamento-imobiliario-bot/apps/web/src/components/Avatar.tsx —
 // mesmas iniciais (primeira+última letra), mesmo hash de cor, mesmas classes de tamanho.
-export function Avatar({ name, avatarUrl, size = 'md', className = '' }: AvatarProps) {
+export function Avatar({ name, avatarUrl, size = 'md', className = '', labels }: AvatarProps) {
   const sizeClass = sizeClasses[size]
+  const unnamedContactLabel = labels?.unnamedContact ?? DEFAULT_AVATAR_LABELS.unnamedContact
 
   if (avatarUrl) {
     return (
@@ -58,7 +69,7 @@ export function Avatar({ name, avatarUrl, size = 'md', className = '' }: AvatarP
       <div
         className={`${sizeClass} ${bgColor} rounded-full flex items-center justify-center text-white flex-shrink-0 ${className}`}
         role="img"
-        aria-label="Contato sem nome"
+        aria-label={unnamedContactLabel}
       >
         <svg viewBox="0 0 24 24" fill="currentColor" className="h-[60%] w-[60%]" aria-hidden>
           <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z" />

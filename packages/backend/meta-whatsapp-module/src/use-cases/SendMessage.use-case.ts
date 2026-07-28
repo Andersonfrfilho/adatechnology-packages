@@ -5,6 +5,7 @@ import {
   type SessionState,
 } from '@adatechnology/meta-whatsapp-contracts'
 import type { SessionRepository } from '../repositories/SessionRepository'
+import type { DocumentRepository } from '../repositories/DocumentRepository'
 import type { LogMessageUseCase } from './LogMessage.use-case'
 import type { MessageRow } from '../schema/schema'
 
@@ -54,6 +55,9 @@ export class SendMessageUseCase {
     private readonly sessionRepository: SessionRepository,
     private readonly logMessage: LogMessageUseCase,
     private readonly objectStorage?: ObjectStorageInterface,
+    // Opcional pelo mesmo motivo do IngestInboundMedia: sem ele o envio continua funcionando, só
+    // não entra na biblioteca de arquivos da conversa.
+    private readonly documentRepository?: DocumentRepository,
   ) {}
 
   private async assertWithinWindow(companyId: string, whatsappNumber: string): Promise<void> {
@@ -106,7 +110,7 @@ export class SendMessageUseCase {
         ).uploadId
       : undefined
 
-    return this.logMessage.execute({
+    const saved = await this.logMessage.execute({
       companyId: params.companyId,
       whatsappNumber: params.whatsappNumber,
       direction: 'outbound',
@@ -119,6 +123,27 @@ export class SendMessageUseCase {
       status: 'sent',
       startState: params.startState,
     })
+
+    // Arquivo que o atendente manda ao cliente também é arquivo da conversa: quem atende depois
+    // precisa achar o que já foi enviado sem rolar a thread inteira.
+    //
+    // Só quando `saved` existe — `undefined` significa entrega duplicada, e linkar aí criaria uma
+    // segunda linha para a mesma mensagem. E só com `uploadId`: sem storage não há objeto para
+    // apontar, e documento sem destino é linha morta no painel.
+    if (saved && uploadId) {
+      await this.documentRepository?.link({
+        companyId: params.companyId,
+        sessionId: saved.sessionId,
+        messageId: saved.id,
+        uploadId,
+        filename: params.filename,
+        mimeType: params.mimeType,
+        sizeBytes: params.buffer.length,
+        source: params.sender,
+      })
+    }
+
+    return saved
   }
 
   // Template é o único envio que ignora a janela — é justamente o mecanismo que a Meta oferece

@@ -53,7 +53,22 @@ export interface CatalogPort {
 
 export interface ObjectStorageInterface {
   upload(params: { buffer: Buffer; mimeType: string; key: string }): Promise<{ uploadId: string }>
-  getDownloadUrl(uploadId: string, expiresInSeconds?: number): Promise<string>
+  /**
+   * `options.disposition` decide entre abrir no navegador e salvar. Precisa ser resolvido na
+   * criação da URL porque entra na assinatura — depois de assinada, o cliente não muda.
+   */
+  getDownloadUrl(
+    uploadId: string,
+    options?: { expiresInSeconds?: number; disposition?: 'inline' | 'attachment'; filename?: string },
+  ): Promise<string>
+  /**
+   * Apaga o objeto. Opcional para não quebrar quem já implementa este contrato, mas **sem ele não
+   * existe exclusão de verdade**: a cascata da FK derruba a linha e deixa o binário órfão no
+   * storage, sendo cobrado indefinidamente e sem nada que o alcance.
+   *
+   * Deve ser idempotente — apagar o que já não existe não é erro, e o job de retenção pode repetir.
+   */
+  delete?(uploadId: string): Promise<void>
 }
 
 // Abstração de tempo real (SSE, WebSocket, ou nenhum) — o módulo emite eventos por este porto em

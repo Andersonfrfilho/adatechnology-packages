@@ -9,6 +9,7 @@
 
 import type { MessagePayload } from '../types'
 import type {
+  CompanyDocumentPage,
   ConversationDocumentPage,
   ConversationPage,
   ConversationTemplate,
@@ -16,11 +17,8 @@ import type {
   ListConversationsParams,
 } from '../providers/types'
 import { PREVIEW_DOCUMENTS } from './previewFixtures'
+import { previewFileBase64, previewFileUrl } from './previewMediaSource'
 import type { PreviewStore } from './previewStore'
-
-// PNG 1x1 transparente: o suficiente para o MediaRenderer ter algo válido para desenhar.
-const PREVIEW_IMAGE_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYGD4DwABBAEAX+XyEgAAAABJRU5ErkJggg=='
 
 export type CreateMockConversationsApiParams = {
   readonly store: PreviewStore
@@ -178,12 +176,68 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
       })
     },
 
-    getDocumentUrl(): Promise<string> {
-      return withLatency(() => `data:image/png;base64,${PREVIEW_IMAGE_BASE64}`)
+    /** Junta as bibliotecas de todas as conversas do fixture, com a origem de cada arquivo. */
+    getAllDocuments(documentParams): Promise<CompanyDocumentPage> {
+      return withLatency(() => {
+        let all = Object.entries(PREVIEW_DOCUMENTS).flatMap(([conversationId, docs]) =>
+          docs.map((document) => ({ ...document, conversationId })),
+        )
+
+        // Mesma regra do backend (`companyDocumentSearch`): o termo casa nome do arquivo OU
+        // telefone da conversa, e o telefone só pelos dígitos — o preview mostra o número
+        // formatado, então é assim que o atendente vai colá-lo na busca.
+        const search = documentParams?.search?.trim().toLowerCase()
+        if (search) {
+          const digits = search.replace(/\D/g, '')
+          all = all.filter(
+            (document) =>
+              document.filename.toLowerCase().includes(search) ||
+              (digits !== '' && document.conversationId.includes(digits)),
+          )
+        }
+
+        const source = documentParams?.source
+        if (source === 'team') {
+          all = all.filter((document) => document.source === 'agent' || document.source === 'bot')
+        } else if (source) {
+          all = all.filter((document) => document.source === source)
+        }
+
+        all.sort((left, right) =>
+          documentParams?.sortDirection === 'asc'
+            ? left.linkedAt.localeCompare(right.linkedAt)
+            : right.linkedAt.localeCompare(left.linkedAt),
+        )
+
+        const total = all.length
+        const limit = documentParams?.limit ?? total
+        const page = documentParams?.page ?? 1
+        return { documents: all.slice((page - 1) * limit, page * limit), total }
+      })
     },
 
-    getMediaProxyUrl(): Promise<{ mimeType: string; data: string }> {
-      return withLatency(() => ({ mimeType: 'image/png', data: PREVIEW_IMAGE_BASE64 }))
+    // Devolve os bytes DO TIPO do documento, não uma imagem para tudo: antes, abrir um PDF entregava
+    // um PNG rotulado `application/pdf` e o leitor recusava o arquivo. O `uploadId` é a única pista
+    // que o contrato dá, então o tipo vem da própria biblioteca.
+    getDocumentUrl(uploadId): Promise<string> {
+      return withLatency(() => {
+        const found = Object.values(PREVIEW_DOCUMENTS)
+          .flat()
+          .find((document) => document.id === uploadId)
+        return previewFileUrl(found?.mimeType, found?.filename)
+      })
+    },
+
+    // Caminho da mídia ainda não ingerida: o backend busca na Meta e devolve base64. Resolve pelo
+    // id para a bolha receber os bytes DO TIPO dela — devolvendo um PNG para todo id, vídeo e áudio
+    // apareciam quebrados na thread mesmo havendo amostra válida do formato.
+    getMediaProxyUrl(mediaId): Promise<{ mimeType: string; data: string }> {
+      return withLatency(() => {
+        const found = Object.values(PREVIEW_DOCUMENTS)
+          .flat()
+          .find((document) => document.id === `preview/inbound/${mediaId}`)
+        return previewFileBase64(found?.mimeType, found?.filename)
+      })
     },
 
     takeover(conversationId): Promise<void> {

@@ -43,6 +43,16 @@ export type DeleteObjectInput = ObjectLocation
 
 export type SignedDownloadInput = ObjectLocation & {
   readonly expiresInSeconds: number
+  /**
+   * `inline` abre no navegador, `attachment` salva. Ausente deixa o navegador decidir pelo
+   * content-type.
+   *
+   * Entra na assinatura da URL, então precisa ser decidido aqui: depois de assinada não há como o
+   * cliente trocar.
+   */
+  readonly disposition?: 'inline' | 'attachment'
+  /** Nome sugerido no download. Só faz efeito junto de `disposition`. */
+  readonly filename?: string
 }
 
 export type ObjectStorageProviderHealth = {

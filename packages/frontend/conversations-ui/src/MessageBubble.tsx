@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Check } from 'lucide-react'
 import type { MessagePayload } from './types'
 import { useConversationLocales } from './ConversationLocalesProvider'
@@ -7,6 +7,8 @@ import { MediaRenderer, type ResolveMediaUrl } from './MediaRenderer'
 import { Lightbox } from './Lightbox'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
 import { cn } from './lib/cn'
+import { createMediaUrlResolver } from './lib/createMediaUrlResolver'
+import { useConversations } from './providers/ConversationsProvider'
 import { formatTimestamp, formatDateTime } from './lib/format'
 
 export interface MessageBubbleProps {
@@ -17,6 +19,10 @@ export interface MessageBubbleProps {
   isSelecting?: boolean
   isSelected?: boolean
   onToggleSelect?: () => void
+  /**
+   * Como buscar a mídia da mensagem. Ausente, o balão usa o `ConversationsApi` do
+   * `ConversationsProvider` — passe apenas para sobrescrever (cache próprio, CDN, proxy do host).
+   */
   onResolveMediaUrl?: ResolveMediaUrl
   className?: string
 }
@@ -43,6 +49,16 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const { bubble, selection } = useConversationLocales()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const context = useConversations()
+
+  // Resolvedor pelo contexto quando o host não passa um: o contrato já declara `getDocumentUrl` e
+  // `getMediaProxyUrl`, então exigir que cada projeto ligasse esse fio só garantia que a mídia não
+  // carregasse em quem esquecesse. `useMemo` porque o resolvedor é a identidade de que o
+  // `MediaRenderer` depende para não refazer busca a cada render.
+  const resolveMediaUrl = useMemo(
+    () => onResolveMediaUrl ?? (context?.api ? createMediaUrlResolver(context.api) : undefined),
+    [onResolveMediaUrl, context?.api],
+  )
 
   const bubbleColor = BUBBLE_COLOR[message.sender] ?? BUBBLE_COLOR.customer
   const hasError = message.status === 'failed'
@@ -115,7 +131,7 @@ export function MessageBubble({
         )}
 
         {isMedia ? (
-          <MediaRenderer message={message} onLightbox={setLightboxSrc} onResolveUrl={onResolveMediaUrl} />
+          <MediaRenderer message={message} onLightbox={setLightboxSrc} onResolveUrl={resolveMediaUrl} />
         ) : (
           <>
             {isTemplate && (

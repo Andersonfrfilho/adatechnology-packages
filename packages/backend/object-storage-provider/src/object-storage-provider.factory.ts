@@ -18,7 +18,12 @@ import {
   validateProviderConfig,
   validateSignedExpiration,
 } from './object-storage-provider.validation'
-import type { ObjectStorageProvider, ObjectStorageProviderConfig, StoredObject } from './object-storage-provider.types'
+import type {
+  ObjectStorageProvider,
+  ObjectStorageProviderConfig,
+  SignedDownloadInput,
+  StoredObject,
+} from './object-storage-provider.types'
 
 const UNAVAILABLE_MESSAGE = 'Object storage is unavailable'
 
@@ -56,6 +61,18 @@ function redactStreamErrors(source: ReadableStream<Uint8Array>): ReadableStream<
       }
     },
   })
+}
+
+/**
+ * Monta o header `Content-Disposition`.
+ *
+ * O nome vai em `filename*=UTF-8''…` percent-encoded: nome com acento ou espaço quebra o parsing do
+ * formato antigo, e arquivo de cliente brasileiro tem acento o tempo todo.
+ */
+function contentDispositionOf(input: SignedDownloadInput): string | undefined {
+  if (!input.disposition) return undefined
+  if (!input.filename) return input.disposition
+  return `${input.disposition}; filename*=UTF-8''${encodeURIComponent(input.filename)}`
 }
 
 export function createObjectStorageProvider(config: ObjectStorageProviderConfig): ObjectStorageProvider {
@@ -155,10 +172,20 @@ export function createObjectStorageProvider(config: ObjectStorageProviderConfig)
       validateLocation(input)
       validateSignedExpiration(input.expiresInSeconds)
       try {
+        const disposition = contentDispositionOf(input)
         return new URL(
-          await getSignedUrl(client, new GetObjectCommand({ Bucket: input.bucket, Key: input.key }), {
-            expiresIn: input.expiresInSeconds,
-          }),
+          await getSignedUrl(
+            client,
+            new GetObjectCommand({
+              Bucket: input.bucket,
+              Key: input.key,
+              // Vai ASSINADO, não como query param solto: `response-content-disposition` entra na
+              // assinatura, então o cliente não consegue trocá-lo depois. É por isso que a escolha
+              // entre abrir no navegador e salvar precisa ser feita aqui, ao criar a URL.
+              ...(disposition ? { ResponseContentDisposition: disposition } : {}),
+            }),
+            { expiresIn: input.expiresInSeconds },
+          ),
         )
       } catch {
         throw unavailable()

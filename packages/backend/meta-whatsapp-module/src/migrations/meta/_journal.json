@@ -43,6 +43,13 @@
       "when": 1785176501657,
       "tag": "0005_message_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785189349276,
+      "tag": "0006_conversation_documents",
+      "breakpoints": true
     }
   ]
 }

@@ -18,4 +18,25 @@ export interface MetaWhatsAppHooks {
   // Disparado quando um handoff humano é solicitado (cliente pediu atendente, ou o fluxo decidiu
   // encaminhar) — o host decide como notificar (fila, Slack, etc.); o módulo só marca o estado.
   onHumanRequested?: (session: ConversationSession) => Promise<void>
+  /**
+   * Mídia recebida do cliente, já persistida como mensagem e pronta para ser copiada da Meta para
+   * o storage do host — normalmente enfileirando um job.
+   *
+   * Hook próprio, e não parte do `onMessageReceived`, porque aquele pertence ao fluxo do bot: ele
+   * nem é chamado quando a conversa está em atendimento humano, que é exatamente quando o cliente
+   * manda documento para o atendente. Ligar ingestão lá perderia esses arquivos em silêncio.
+   *
+   * A URL de download da Meta expira, então quem implementa deve tratar como trabalho urgente.
+   */
+  onMediaReceived?: (media: InboundMediaDescriptor) => Promise<void>
+}
+
+export type InboundMediaDescriptor = {
+  readonly companyId: string
+  readonly messageId: string
+  readonly whatsappNumber: string
+  /** ID da mídia na Meta — a origem do download, que expira. */
+  readonly sourceMediaId: string
+  readonly mimeType: string
+  readonly filename?: string
 }
