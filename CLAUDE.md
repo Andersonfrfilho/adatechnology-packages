@@ -241,6 +241,40 @@ This repo has a [Graphify](https://graphify.net/) knowledge graph (`graphify-out
    ```
 6. **CI publishes** automatically via `.github/workflows/publish.yml`
 
+### Only `main` publishes
+
+`publish.yml` runs on `push` to **`main`** (plus manual `workflow_dispatch`). Pushing a feature
+branch or opening a PR runs no publish job — the registry stays on the previous version until the
+PR is merged. This matters because a consumer repo that already depends on the new API will keep
+failing CI with type errors that look like bugs in the consumer; the actual cause is that the
+version it needs does not exist yet.
+
+Ordering when a change spans this repo and a consumer:
+
+1. merge the PR here → `publish.yml` runs `changeset version`, commits the bump, then
+   `changeset publish`;
+2. confirm the registry: `npm view @adatechnology/<pkg> dist-tags`;
+3. only then bump the dependency in the consumer and let its CI run.
+
+Publishing is never done by hand — the `NPM_TOKEN` lives only in the repo secrets, so a local
+`changeset publish` fails with 401 even for a maintainer who can push.
+
+### Prerelease (`rc`) mode
+
+`.changeset/pre.json` has `mode: "pre"` with tag `rc`, so releases go out as `x.y.z-rc.N` under
+the **`rc` dist-tag** — `npm install <pkg>` (the `latest` tag) does **not** get them. Consumers must
+pin the exact `rc` version. Leaving prerelease mode is `pnpm changeset pre exit`, and is a deliberate
+decision, not a step in the normal flow.
+
+### Mirroring `dist` locally while a version is unpublished
+
+To validate a consumer against unpublished changes, build here and copy `dist/` into the consumer's
+`node_modules` (and into its container, if it runs in Docker with a named volume for
+`node_modules` — a host-side copy never reaches the container). This is a temporary harness: any
+`bun install --force` / `pnpm install` silently restores the published version, and the consumer's
+CI never sees the mirrored files. Never treat a green local typecheck under a mirrored `dist` as
+evidence that the consumer builds.
+
 ## Troubleshooting
 
 ### "no matching version found" during `pnpm install`
