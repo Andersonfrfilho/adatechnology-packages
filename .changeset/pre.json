@@ -36,6 +36,7 @@
   "changesets": [
     "catalog-inventory",
     "configurable-product-model",
+    "cte-4-00-sefaz-authorization",
     "cte-authorized-xml-and-ide-parameters",
     "drizzle-decouple",
     "expose-flow-position",
