@@ -32,6 +32,24 @@ describe('CT-e 4.00 schema element names', () => {
     expect(xml.includes('<CTe versao=')).toBe(false)
   })
 
+  // Um & na observação ou no endereço produz XML inválido e a assinatura vai junto
+  test('escapes the free text of the emitente, das observacoes e dos participantes', () => {
+    const data = buildCteData()
+    const { xml } = buildCteXml(
+      { ...buildCteConfig('unused'), logradouro: 'Rua A & B', bairro: '<Centro>' },
+      {
+        ...data,
+        remetente: { ...data.remetente, xLgr: 'Av. Brasil & Cia' },
+        observacoes: 'Entrega "urgente" & frágil',
+      },
+    )
+
+    expect(xml.includes('<xLgr>Rua A &amp; B</xLgr>')).toBe(true)
+    expect(xml.includes('<xBairro>&lt;Centro&gt;</xBairro>')).toBe(true)
+    expect(xml.includes('<xLgr>Av. Brasil &amp; Cia</xLgr>')).toBe(true)
+    expect(xml.includes('<infCpl>Entrega &quot;urgente&quot; &amp; frágil</infCpl>')).toBe(true)
+  })
+
   test('names the remetente address group enderReme', () => {
     const { xml } = buildCteXml(buildCteConfig('unused'), buildCteData())
 

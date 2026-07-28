@@ -254,6 +254,51 @@ describe('MDF-e 3.00 schema element names', () => {
     expect(xml.includes('<infPag>')).toBe(false)
   })
 
+  // Um & na razão social ou na observação produz XML inválido e a assinatura vai junto
+  test('escapes the free text of the emitente, do produto e das observacoes', () => {
+    const { xml } = buildMdfeXml(
+      { ...buildMdfeConfig('unused'), razaoSocial: 'TRANSPORTES A & B LTDA', bairro: '<Centro>' },
+      {
+        ...buildMdfeData(),
+        produtoPredominante: { tipoCarga: '05', descricao: 'PECAS & ACESSORIOS' },
+        informacoesAdicionais: 'Carga "frágil" & urgente',
+      },
+    )
+
+    expect(xml.includes('<xNome>TRANSPORTES A &amp; B LTDA</xNome>')).toBe(true)
+    expect(xml.includes('<xBairro>&lt;Centro&gt;</xBairro>')).toBe(true)
+    expect(xml.includes('<xProd>PECAS &amp; ACESSORIOS</xProd>')).toBe(true)
+    expect(xml.includes('<infCpl>Carga &quot;frágil&quot; &amp; urgente</infCpl>')).toBe(true)
+  })
+
+  test('escapes the free text of the condutor, do municipio e do pagamento', () => {
+    const data = buildMdfeData()
+    const { xml } = buildMdfeXml(buildMdfeConfig('unused'), {
+      ...data,
+      municipiosCarregamento: [{ codigo: '3550308', nome: 'SANTA BARBARA D&#39;OESTE' }],
+      veiculoTracao: {
+        ...data.veiculoTracao,
+        condutores: [{ nome: 'JOAO & MARIA', cpf: '11144477735' }],
+      },
+      pagamentos: [
+        {
+          nome: 'CONTRATANTE A & B',
+          cnpj: '11222333000181',
+          componentes: [{ tipoComponente: '99', valor: 10, descricao: 'TAXA & PEDAGIO' }],
+          valorContrato: 10,
+          indicadorPagamento: '0',
+          dadosBancarios: { pix: 'a&b@transportadora.com.br' },
+        },
+      ],
+    })
+
+    expect(xml.includes('<xMunCarrega>SANTA BARBARA D&amp;#39;OESTE</xMunCarrega>')).toBe(true)
+    expect(xml.includes('<condutor><xNome>JOAO &amp; MARIA</xNome>')).toBe(true)
+    expect(xml.includes('<xNome>CONTRATANTE A &amp; B</xNome>')).toBe(true)
+    expect(xml.includes('<xComp>TAXA &amp; PEDAGIO</xComp>')).toBe(true)
+    expect(xml.includes('<PIX>a&amp;b@transportadora.com.br</PIX>')).toBe(true)
+  })
+
   test('declares the RNTRC and the veiculo de tracao inside rodo', () => {
     const { xml } = buildMdfeXml(buildMdfeConfig('unused'), buildMdfeData())
 
