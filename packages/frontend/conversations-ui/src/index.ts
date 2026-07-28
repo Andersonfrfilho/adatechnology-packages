@@ -65,6 +65,10 @@ export type {
 } from './ConversationContextPanel'
 export { WindowExpiredNotice, isWindowBlocking, DEFAULT_WINDOW_EXPIRED_LABELS } from './WindowExpiredNotice'
 export type { WindowExpiredNoticeProps, WindowExpiredNoticeLabels } from './WindowExpiredNotice'
+export { DocumentsLibrary, DEFAULT_DOCUMENTS_LIBRARY_LABELS } from './DocumentsLibrary'
+export type { DocumentsLibraryProps, DocumentsLibraryLabels, DocumentsLibraryClassNames } from './DocumentsLibrary'
+export { DOCUMENT_SOURCE_FILTER } from './ConversationDocumentsPanel'
+export type { DocumentSourceFilter } from './ConversationDocumentsPanel'
 export type { ConversationDocumentsPanelClassNames } from './ConversationDocumentsPanel'
 export { ConversationDocumentsPanel, DEFAULT_CONVERSATION_DOCUMENTS_LABELS } from './ConversationDocumentsPanel'
 export type { ConversationDocumentsPanelProps, ConversationDocumentsPanelLabels } from './ConversationDocumentsPanel'
@@ -118,6 +122,8 @@ export type {
   ConversationDocument,
   ConversationPage,
   ConversationDocumentPage,
+  CompanyDocument,
+  CompanyDocumentPage,
   ConversationTemplate,
   ListConversationsParams,
   ListDocumentsParams,
@@ -168,3 +174,4 @@ export type { UseConversationContextResult } from './hooks/useConversationContex
 export type { UseConversationDocumentsParams, UseConversationDocumentsResult } from './hooks/useConversationDocuments'
 export type { ConversationRealtimeHandler } from './hooks/useConversationRealtime'
 export type { AsyncResourceState } from './hooks/useAsyncResource'
+export { createMediaUrlResolver } from './lib/createMediaUrlResolver'

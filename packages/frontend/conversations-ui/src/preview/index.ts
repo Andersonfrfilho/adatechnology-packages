@@ -38,3 +38,8 @@ export type { PreviewWebhookClient, CreatePreviewWebhookClientParams } from './c
 
 export { startPreviewScript, DEFAULT_PREVIEW_SCRIPT } from './startPreviewScript'
 export type { PreviewScriptStep, StartPreviewScriptParams } from './startPreviewScript'
+export { PREVIEW_FILE_SAMPLES, resolvePreviewFileSample } from './previewFileSamples'
+export { createPreviewMediaResolver, previewFileUrl } from './previewMediaSource'
+export { previewFileBase64 } from './previewMediaSource'
+export { MediaTypesPreview, MEDIA_TYPES_CONVERSATION_ID } from './MediaTypesPreview'
+export type { MediaTypesPreviewProps } from './MediaTypesPreview'

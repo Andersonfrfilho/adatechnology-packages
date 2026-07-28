@@ -36,6 +36,16 @@ export interface ListDocumentsParams {
   sortDirection?: 'asc' | 'desc'
 }
 
+/** Arquivo na biblioteca da empresa: o mesmo da conversa, mais de qual conversa veio. */
+export interface CompanyDocument extends ConversationDocument {
+  conversationId: string
+}
+
+export interface CompanyDocumentPage {
+  documents: CompanyDocument[]
+  total: number
+}
+
 export interface ConversationDocumentPage {
   documents: ConversationDocument[]
   total: number
@@ -93,6 +103,13 @@ export interface ConversationsApi {
    * lote em vez de oferecer um botão que falha.
    */
   downloadDocumentsArchive?(conversationId: string, uploadIds: readonly string[]): Promise<Blob>
+  /**
+   * Biblioteca de TODAS as conversas, para uma tela de Documentos fora do atendimento.
+   *
+   * Opcional por capacidade: host que só expõe anexo dentro da conversa não implementa, e o
+   * componente de biblioteca simplesmente não é usável — melhor que uma tela que sempre erra.
+   */
+  getAllDocuments?(params?: ListDocumentsParams): Promise<CompanyDocumentPage>
   getMediaProxyUrl(mediaId: string): Promise<{ mimeType: string; data: string }>
 
   /**

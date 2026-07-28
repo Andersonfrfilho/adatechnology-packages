@@ -275,8 +275,7 @@ export const PREVIEW_MESSAGES: Readonly<Record<string, readonly MessagePayload[]
       timestamp: at('15:09:00'),
     },
     {
-      // Extensão fora do EXTENSION_STYLE: garante que o ícone genérico cinza também apareça.
-      id: 'fixture-doc-generic',
+      id: 'fixture-doc-txt',
       type: 'document',
       uploadId: 'preview/documentos/lista-compras.txt',
       filename: 'lista-compras.txt',
@@ -286,20 +285,153 @@ export const PREVIEW_MESSAGES: Readonly<Record<string, readonly MessagePayload[]
       sender: 'customer',
       timestamp: at('15:10:00'),
     },
+    {
+      id: 'fixture-doc-csv',
+      type: 'document',
+      uploadId: 'preview/documentos/planilha-do-pedido.csv',
+      filename: 'planilha-do-pedido.csv',
+      mimeType: 'text/csv',
+      sizeBytes: 2_048,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:11:00'),
+    },
+    {
+      id: 'fixture-doc-pptx',
+      type: 'document',
+      uploadId: 'preview/documentos/apresentacao.pptx',
+      filename: 'apresentacao.pptx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      sizeBytes: 512_000,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:12:00'),
+    },
+    {
+      id: 'fixture-doc-ppt',
+      type: 'document',
+      uploadId: 'preview/documentos/antiga.ppt',
+      filename: 'antiga.ppt',
+      mimeType: 'application/vnd.ms-powerpoint',
+      sizeBytes: 348_160,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:13:00'),
+    },
+    // Mídia enviada COMO arquivo: aí a Meta manda o nome, então é onde a extensão de música e de
+    // vídeo aparece na lista. Mandada como `image`/`audio`/`video` (acima e abaixo) ela chega sem
+    // nome nenhum, e o rótulo vira o id da mídia — como em produção.
+    {
+      id: 'fixture-doc-mp3',
+      type: 'document',
+      uploadId: 'preview/documentos/musica-do-anuncio.mp3',
+      filename: 'musica-do-anuncio.mp3',
+      mimeType: 'audio/mpeg',
+      sizeBytes: 3_145_728,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:14:00'),
+    },
+    {
+      id: 'fixture-doc-m4a',
+      type: 'document',
+      uploadId: 'preview/documentos/recado.m4a',
+      filename: 'recado.m4a',
+      mimeType: 'audio/mp4',
+      sizeBytes: 486_400,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:15:00'),
+    },
+    {
+      id: 'fixture-doc-mp4-file',
+      type: 'document',
+      uploadId: 'preview/documentos/video-do-produto.mp4',
+      filename: 'video-do-produto.mp4',
+      mimeType: 'video/mp4',
+      sizeBytes: 8_388_608,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:16:00'),
+    },
+    {
+      id: 'fixture-doc-jpg',
+      type: 'document',
+      uploadId: 'preview/documentos/foto-do-recibo.jpg',
+      filename: 'foto-do-recibo.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 262_144,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:17:00'),
+    },
+    // As espécies restantes que a Meta aceita, sem nome de arquivo — fecham a lista de tipos
+    // aceitos e exercitam o fallback de ícone pela família do mimeType.
+    {
+      id: 'fixture-media-jpeg',
+      type: 'image',
+      mediaId: 'preview-image-jpeg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 138_240,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:18:00'),
+    },
+    {
+      id: 'fixture-media-3gp',
+      type: 'video',
+      mediaId: 'preview-video-3gp',
+      mimeType: 'video/3gp',
+      sizeBytes: 921_600,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:19:00'),
+    },
+    {
+      id: 'fixture-media-aac',
+      type: 'audio',
+      mediaId: 'preview-audio-aac',
+      mimeType: 'audio/aac',
+      sizeBytes: 76_800,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:20:00'),
+    },
+    {
+      id: 'fixture-media-amr',
+      type: 'audio',
+      mediaId: 'preview-audio-amr',
+      mimeType: 'audio/amr',
+      sizeBytes: 24_576,
+      direction: 'inbound',
+      sender: 'customer',
+      timestamp: at('15:21:00'),
+    },
   ],
 }
 
 /**
- * A biblioteca de arquivos da conversa, como o backend a devolveria. Deriva das mensagens de
- * documento acima em vez de repetir os dados: fixture duplicada divergiria na primeira edição, e o
- * painel passaria a mostrar arquivo que a thread não tem.
+ * A biblioteca de arquivos da conversa, como o backend a devolveria. Deriva das mensagens acima em
+ * vez de repetir os dados: fixture duplicada divergiria na primeira edição, e o painel passaria a
+ * mostrar arquivo que a thread não tem.
+ *
+ * Entram as CINCO espécies de mídia, na mesma lista de `extractMediaDescriptor` no backend — não só
+ * `document`. Filtrar por documento era infidelidade grave do preview: `IngestInboundMedia` linka
+ * foto, vídeo, áudio e sticker na mesma tabela, então na tela real eles aparecem na biblioteca e no
+ * preview não apareciam.
  */
+const LIBRARY_MEDIA_TYPES = new Set(['document', 'image', 'video', 'audio', 'sticker'])
+
 export const PREVIEW_DOCUMENTS: Readonly<Record<string, readonly ConversationDocument[]>> = {
   '5511944443333': (PREVIEW_MESSAGES['5511944443333'] ?? [])
-    .filter((message) => message.type === 'document')
+    .filter((message) => LIBRARY_MEDIA_TYPES.has(message.type))
     .map((message) => ({
-      id: message.uploadId ?? message.id,
-      filename: message.filename ?? message.id,
+      // Mídia não tem `uploadId` na mensagem: o backend deriva a key do id da mídia na Meta, e o
+      // caminho abaixo imita esse formato para o download assinado receber algo do mesmo feitio.
+      id: message.uploadId ?? (message.mediaId ? `preview/inbound/${message.mediaId}` : message.id),
+      // Só documento chega nomeado. Para os outros o backend salva o id da mídia como rótulo —
+      // manter isso aqui é o que faz o ícone por família do mimeType ser exercitado de verdade.
+      filename: message.filename ?? message.mediaId ?? message.id,
       mimeType: message.mimeType ?? 'application/octet-stream',
       sizeBytes: message.sizeBytes ?? 0,
       source: message.sender,
