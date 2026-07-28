@@ -51,6 +51,8 @@
     "test:nfse": "bun run scripts/test-fiscal.ts --nfse",
     "test:nfse-sub": "bun run scripts/test-fiscal.ts --nfse-sub",
     "test:notarp": "bun run scripts/test-fiscal.ts --notarp",
+    "test:cte": "bun run scripts/test-fiscal.ts --cte",
+    "test:mdfe": "bun run scripts/test-fiscal.ts --mdfe",
     "test:all": "bun run scripts/test-fiscal.ts --all",
     "mock": "bun run scripts/mock-sefaz.ts",
     "test:mock": "MOCK_SEFAZ_URL=http://localhost:9090 bun run scripts/test-fiscal.ts --nfce --nfe",
