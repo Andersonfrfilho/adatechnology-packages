@@ -3,6 +3,8 @@
  * Licensed under the MIT License.
  */
 
+import { gunzipSync } from 'node:zlib'
+
 import { afterEach, describe, expect, test } from 'bun:test'
 import * as forge from 'node-forge'
 import {
@@ -93,7 +95,11 @@ describe('@adatechnology/fiscal-provider public CT-e contract', () => {
     expect(result.success).toBe(true)
     expect(result.chaveAcesso).toBe(MOCK_ACCESS_KEY)
     expect(requestUrl.startsWith('https://')).toBe(true)
-    expect(requestBody.includes('<Signature')).toBe(true)
+
+    const transportedPayload = requestBody.match(/<cteDadosMsg[^>]*>([^<]*)<\/cteDadosMsg>/)?.[1] ?? ''
+    const transportedCte = gunzipSync(Buffer.from(transportedPayload, 'base64')).toString('utf8')
+    expect(transportedCte.includes('<Signature')).toBe(true)
+
     expect(requestBody.includes(CERTIFICATE_PASSWORD)).toBe(false)
     expect(requestBody.includes(certificateFixture.pfxBase64)).toBe(false)
   })

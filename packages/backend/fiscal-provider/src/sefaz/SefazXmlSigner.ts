@@ -67,8 +67,8 @@ export function isCertificateCached(pfxBase64: string, password: string): boolea
 
 export function signCteXml(xml: string, certData: CertificateData): SignedXmlResult {
   try {
-    const idMatch = xml.match(/infCTe Id="([^"]+)"/)
-    if (!idMatch?.[1]) throw new Error('Id do infCTe não encontrado no XML')
+    const idMatch = xml.match(/<infCte[^>]*\sId="([^"]+)"/)
+    if (!idMatch?.[1]) throw new Error('Id do infCte não encontrado no XML')
     const cteId = idMatch[1]
 
     const sig = new SignedXml({
@@ -88,8 +88,9 @@ export function signCteXml(xml: string, certData: CertificateData): SignedXmlRes
       ],
     })
 
+    // A sequência do schema é infCte, infCTeSupl, Signature — a assinatura vai no fim do CTe
     sig.computeSignature(xml, {
-      location: { reference: `//*[@Id='${cteId}']`, action: 'after' },
+      location: { reference: `//*[local-name(.)='CTe']`, action: 'append' },
     })
 
     return {

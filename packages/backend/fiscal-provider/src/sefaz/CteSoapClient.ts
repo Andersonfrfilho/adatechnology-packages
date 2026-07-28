@@ -1,3 +1,5 @@
+import { gzipSync } from 'node:zlib'
+
 import { XMLParser } from 'fast-xml-parser'
 import type { FiscalResult } from '../types'
 import { signCteEventoXml } from './SefazXmlSigner'
@@ -28,8 +30,11 @@ export async function sendCteAutorizacao(params: {
   const ns = params.modoAutorizacao === 'sincrono' ? CTE_WS_NS.sincrona : CTE_WS_NS.autorizacao
   const fragment = params.signedCteXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
 
-  // CT-e 4.00 CTeRecepcaoSincV4: sem cteCabecMsg, sem enviCTe wrapper — CT-e direto no cteDadosMsg
-  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><cteDadosMsg xmlns="${ns}">${fragment}</cteDadosMsg></soap12:Body></soap12:Envelope>`
+  // CT-e 4.00 CTeRecepcaoSincV4: sem cteCabecMsg, sem enviCTe wrapper.
+  // O WSDL declara cteDadosMsg como xsd:string — o CT-e vai compactado em GZip e codificado em
+  // Base64; XML embutido devolve HTTP 400 com corpo vazio e Base64 sem GZip devolve cStat 244.
+  const payload = gzipSync(Buffer.from(fragment, 'utf8')).toString('base64')
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?><soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><cteDadosMsg xmlns="${ns}">${payload}</cteDadosMsg></soap12:Body></soap12:Envelope>`
   const soapAction = `"${ns}/cteRecepcao"`
 
   const response = await fetchWithTimeout(
@@ -137,9 +142,13 @@ function parseCteAutorizacaoResponse(soapXml: string): FiscalResult {
     const parsed = XML_PARSER.parse(soapXml)
     const body = parsed?.Envelope?.Body
 
-    // CT-e 4.00 sync: cteRecepcaoResult > retCTeSinc
+    // CT-e 4.00 sync: cteRecepcaoResult > retCTe (nome usado pela SEFAZ SP); retCTeSinc aparece na documentação
     // CT-e 3.x legacy: cteResultMsg > retEnviCTe
-    const retEnvi = body?.cteRecepcaoResult?.retCTeSinc ?? body?.cteResultMsg?.retEnviCTe ?? body?.cteResultMsg?.retCTe
+    const retEnvi =
+      body?.cteRecepcaoResult?.retCTe ??
+      body?.cteRecepcaoResult?.retCTeSinc ??
+      body?.cteResultMsg?.retEnviCTe ??
+      body?.cteResultMsg?.retCTe
 
     const cStat = String(retEnvi?.cStat ?? retEnvi?.infRec?.cStat ?? '')
     const xMotivo = String(retEnvi?.xMotivo ?? '')

@@ -172,6 +172,20 @@ export const NFE_DISTRIBUICAO_ENDPOINT = {
   producao: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
 } as const
 
+// Portal de consulta do QR Code (infCTeSupl) — SP tem portal próprio, o resto consulta pelo SVRS
+const SVRS_CTE_QR_CODE_URL = 'https://dfe-portal.svrs.rs.gov.br/cte/qrCode'
+
+const STATE_CTE_QR_CODE_URLS: Record<string, Record<'homologacao' | 'producao', string>> = {
+  SP: {
+    homologacao: 'https://homologacao.nfe.fazenda.sp.gov.br/CTeConsulta/qrCode',
+    producao: 'https://nfe.fazenda.sp.gov.br/CTeConsulta/qrCode',
+  },
+}
+
+export function getCteQrCodeUrl(uf: string, environment: 'homologacao' | 'producao'): string {
+  return STATE_CTE_QR_CODE_URLS[uf]?.[environment] ?? SVRS_CTE_QR_CODE_URL
+}
+
 export function getCteUrls(uf: string, environment: 'homologacao' | 'producao'): CteUrls {
   const mockBase = process.env['MOCK_SEFAZ_URL']
   if (mockBase) {
