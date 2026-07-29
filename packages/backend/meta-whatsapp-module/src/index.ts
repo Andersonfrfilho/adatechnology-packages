@@ -71,7 +71,7 @@ export type {
   UpdateFlowMediaParams,
 } from './repositories/FlowMediaRepository'
 export { createSendMediaAction } from './flows/createSendMediaAction'
-export type { CreateSendMediaActionParams } from './flows/createSendMediaAction'
+export type { CreateSendMediaActionParams, FlowMediaTranscriptLogger } from './flows/createSendMediaAction'
 
 export { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.use-case'
 export type { TakeoverConversationParams } from './use-cases/TakeoverConversation.use-case'
