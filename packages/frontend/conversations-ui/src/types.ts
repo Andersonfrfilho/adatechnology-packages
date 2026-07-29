@@ -20,9 +20,46 @@ export interface ConversationsFeatures {
   darkMode?: boolean
 }
 
+/**
+ * Recorte do bloco `interactive` da Meta que a UI precisa para desenhar o menu. Fica solto (e não
+ * espelhando o contrato inteiro) porque o que chega do banco é o payload cru já enviado ao
+ * WhatsApp: qualquer campo que a UI não conheça é ignorado, nunca causa erro de render.
+ */
+export interface InteractiveOption {
+  id: string
+  title: string
+  description?: string
+}
+
+export interface InteractiveSection {
+  title?: string
+  rows?: InteractiveOption[]
+}
+
+export interface InteractivePayload {
+  type?: 'button' | 'list' | string
+  header?: { text?: string }
+  body?: { text?: string }
+  footer?: { text?: string }
+  action?: {
+    /** Rótulo do botão que abre a lista — só existe em `type: 'list'`. */
+    button?: string
+    sections?: InteractiveSection[]
+    buttons?: { reply?: InteractiveOption }[]
+  }
+}
+
+/** Como o cliente respondeu a um menu: por botão ou por item de lista. */
+export type InteractiveSelection = {
+  readonly kind: 'button' | 'list'
+  readonly option: InteractiveOption
+}
+
 export interface MessagePayload {
   id: string
-  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'template'
+  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'template' | 'interactive'
+  /** Payload cru da mensagem. Em `type: 'interactive'`, carrega o menu que o cliente vê. */
+  payload?: InteractivePayload | null
   content?: string
   caption?: string
   mediaUrl?: string

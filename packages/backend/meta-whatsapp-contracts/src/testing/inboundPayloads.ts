@@ -141,6 +141,44 @@ export function buildInboundAudioPayload(params: BuildInboundAudioPayloadParams)
   })
 }
 
+/** Tipos de mídia que a Meta entrega por `id`, para o consumidor baixar depois. */
+export type InboundMediaType = 'image' | 'video' | 'audio' | 'document' | 'sticker'
+
+export type BuildInboundMediaPayloadParams = InboundEnvelopeParams & {
+  readonly mediaType: InboundMediaType
+  readonly mediaId: string
+  readonly mimeType?: string
+  readonly filename?: string
+  readonly caption?: string
+}
+
+/**
+ * Mídia genérica. O bloco vai com o nome do próprio tipo (`image`, `document`, …) porque é assim que
+ * a Meta monta o webhook — e é por esse nome que o consumidor localiza o `id` para baixar o arquivo.
+ *
+ * `filename` só existe em documento e `caption` só em imagem/vídeo/documento; enviar os dois em
+ * áudio geraria um payload que a Meta nunca produz, então eles são omitidos quando vazios.
+ */
+export function buildInboundMediaPayload(params: BuildInboundMediaPayloadParams): WhatsAppWebhookPayload {
+  const { mediaType, mediaId, mimeType, filename, caption, ...envelope } = params
+
+  return buildEnvelope({
+    ...envelope,
+    message: {
+      id: generateWamid(),
+      from: params.from,
+      type: mediaType,
+      [mediaType]: {
+        id: mediaId,
+        ...(mimeType ? { mime_type: mimeType } : {}),
+        ...(filename ? { filename } : {}),
+        ...(caption ? { caption } : {}),
+      },
+      timestamp: currentTimestamp(),
+    },
+  })
+}
+
 /**
  * Serializa o payload uma única vez. A validação assina os bytes exatos recebidos: quem reserializa
  * antes de enviar (ou deixa o cliente HTTP serializar o objeto) muda espaçamento/ordem e derruba a

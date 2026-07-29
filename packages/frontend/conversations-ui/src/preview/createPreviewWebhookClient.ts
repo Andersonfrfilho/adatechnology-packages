@@ -14,8 +14,10 @@
 import {
   buildInboundAudioPayload,
   buildInboundInteractivePayload,
+  buildInboundMediaPayload,
   buildInboundTextPayload,
   serializeWebhookPayload,
+  type InboundMediaType,
   type InteractiveReplyOption,
 } from '@adatechnology/meta-whatsapp-contracts/testing'
 
@@ -24,6 +26,20 @@ export type PreviewWebhookClient = {
   sendButtonReply(reply: InteractiveReplyOption): Promise<void>
   sendListReply(reply: InteractiveReplyOption): Promise<void>
   sendAudio(mediaId: string): Promise<void>
+  sendMedia(params: SendPreviewMediaParams): Promise<void>
+}
+
+export type SendPreviewMediaParams = {
+  readonly mediaType: InboundMediaType
+  /**
+   * Id que o host já usa para buscar o arquivo. Não é bytes: o webhook da Meta entrega mídia por
+   * referência, e o consumidor baixa depois — mandar base64 aqui simularia um payload que a Meta
+   * nunca produz, e o caminho testado deixaria de ser o de produção.
+   */
+  readonly mediaId: string
+  readonly mimeType?: string
+  readonly filename?: string
+  readonly caption?: string
 }
 
 export type CreatePreviewWebhookClientParams = {
@@ -57,7 +73,15 @@ export function assertPreviewEnvironment(isProduction: boolean): void {
   if (isProduction) throw new PreviewInProductionError()
 }
 
-async function signWithWebCrypto(params: { rawBody: string; appSecret: string }): Promise<string> {
+/**
+ * Assina um texto qualquer com o app secret, no mesmo formato do header da Meta.
+ *
+ * Exportada porque o preview precisa provar identidade em MAIS de um lugar: além de entregar a
+ * mensagem no webhook, ele lê o transcript de volta — e ler pela API de admin exigia uma sessão que
+ * a aba do simulador não tem. Assinar a leitura com o segredo que ele já carrega resolve sem token
+ * de admin e sem rota aberta.
+ */
+export async function signPreviewPayload(params: { rawBody: string; appSecret: string }): Promise<string> {
   const encoder = new TextEncoder()
   const key = await globalThis.crypto.subtle.importKey(
     'raw',
@@ -70,6 +94,8 @@ async function signWithWebCrypto(params: { rawBody: string; appSecret: string })
 
   return `sha256=${[...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`
 }
+
+const signWithWebCrypto = signPreviewPayload
 
 export function createPreviewWebhookClient(params: CreatePreviewWebhookClientParams): PreviewWebhookClient {
   const sendPayload = async (payload: ReturnType<typeof buildInboundTextPayload>): Promise<void> => {
@@ -95,5 +121,6 @@ export function createPreviewWebhookClient(params: CreatePreviewWebhookClientPar
     sendButtonReply: (reply) => sendPayload(buildInboundInteractivePayload({ ...envelope, buttonReply: reply })),
     sendListReply: (reply) => sendPayload(buildInboundInteractivePayload({ ...envelope, listReply: reply })),
     sendAudio: (mediaId) => sendPayload(buildInboundAudioPayload({ ...envelope, mediaId })),
+    sendMedia: (media) => sendPayload(buildInboundMediaPayload({ ...envelope, ...media })),
   }
 }

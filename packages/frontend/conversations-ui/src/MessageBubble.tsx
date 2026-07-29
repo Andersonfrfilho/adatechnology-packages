@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Check } from 'lucide-react'
-import type { MessagePayload } from './types'
+import type { InteractiveSelection, MessagePayload } from './types'
 import { useConversationLocales } from './ConversationLocalesProvider'
 import { StatusTicks } from './StatusTicks'
 import { MediaRenderer, type ResolveMediaUrl } from './MediaRenderer'
 import { Lightbox } from './Lightbox'
+import { InteractiveMessage } from './InteractiveMessage'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
 import { cn } from './lib/cn'
 import { createMediaUrlResolver } from './lib/createMediaUrlResolver'
@@ -24,6 +25,11 @@ export interface MessageBubbleProps {
    * `ConversationsProvider` — passe apenas para sobrescrever (cache próprio, CDN, proxy do host).
    */
   onResolveMediaUrl?: ResolveMediaUrl
+  /**
+   * Toque numa opção do menu interativo. Ausente, as opções aparecem desabilitadas — que é o certo
+   * no histórico da inbox: o operador vê o que foi oferecido, sem responder no lugar do cliente.
+   */
+  onInteractiveSelect?: (selection: InteractiveSelection) => void
   className?: string
 }
 
@@ -45,7 +51,7 @@ const MEDIA_TYPES = new Set(['image', 'audio', 'video', 'document', 'sticker'])
 // tailwind.config do host expondo as cores `whatsapp.*` — ver Wallpaper.tsx e T6.2.
 export function MessageBubble({
   message, isMine, senderName, isFirstInGroup = true, isSelecting = false, isSelected = false, onToggleSelect,
-  onResolveMediaUrl, className,
+  onResolveMediaUrl, onInteractiveSelect, className,
 }: MessageBubbleProps) {
   const { bubble, selection } = useConversationLocales()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
@@ -64,6 +70,7 @@ export function MessageBubble({
   const hasError = message.status === 'failed'
   const isMedia = MEDIA_TYPES.has(message.type)
   const isTemplate = message.type === 'template'
+  const isInteractive = message.type === 'interactive'
   const displayName = message.sender === 'agent' && senderName ? senderName : bubble[message.sender] ?? message.sender
 
   const tooltipText = message.status === 'read' && message.readAt
@@ -132,6 +139,10 @@ export function MessageBubble({
 
         {isMedia ? (
           <MediaRenderer message={message} onLightbox={setLightboxSrc} onResolveUrl={resolveMediaUrl} />
+        ) : isInteractive && message.payload ? (
+          // O texto da mensagem interativa mora dentro do payload (`body.text`), e `content` guarda
+          // só uma cópia achatada para busca — renderizar `content` aqui duplicaria o corpo.
+          <InteractiveMessage payload={message.payload} onSelect={onInteractiveSelect} />
         ) : (
           <>
             {isTemplate && (

@@ -7,6 +7,7 @@ export {
   buildInboundTextPayload,
   buildInboundInteractivePayload,
   buildInboundAudioPayload,
+  buildInboundMediaPayload,
   serializeWebhookPayload,
   PREVIEW_PHONE_NUMBER_ID,
   PREVIEW_WABA_ID,
@@ -18,5 +19,7 @@ export type {
   BuildInboundTextPayloadParams,
   BuildInboundInteractivePayloadParams,
   BuildInboundAudioPayloadParams,
+  BuildInboundMediaPayloadParams,
+  InboundMediaType,
   InteractiveReplyOption,
 } from './inboundPayloads'

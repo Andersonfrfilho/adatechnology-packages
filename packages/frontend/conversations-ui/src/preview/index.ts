@@ -26,15 +26,24 @@ export type { CreateMockSSEProviderParams } from './createMockSSEProvider'
 export { PREVIEW_CONVERSATIONS, PREVIEW_MESSAGES, PREVIEW_DOCUMENTS } from './previewFixtures'
 
 export { ConversationPreview } from './ConversationPreview'
-export type { ConversationPreviewProps } from './ConversationPreview'
+export { mediaTypeOf } from './ConversationPreview'
+export type { ConversationPreviewProps, PreviewUploadedMedia } from './ConversationPreview'
+
+export { AudioRecorderButton, DEFAULT_AUDIO_RECORDER_BUTTON_LABELS } from './AudioRecorderButton'
+export type { AudioRecorderButtonProps, AudioRecorderButtonLabels } from './AudioRecorderButton'
 
 export {
   createPreviewWebhookClient,
+  signPreviewPayload,
   assertPreviewEnvironment,
   PreviewInProductionError,
   PreviewWebhookRejectedError,
 } from './createPreviewWebhookClient'
-export type { PreviewWebhookClient, CreatePreviewWebhookClientParams } from './createPreviewWebhookClient'
+export type {
+  PreviewWebhookClient,
+  CreatePreviewWebhookClientParams,
+  SendPreviewMediaParams,
+} from './createPreviewWebhookClient'
 
 export { startPreviewScript, DEFAULT_PREVIEW_SCRIPT } from './startPreviewScript'
 export type { PreviewScriptStep, StartPreviewScriptParams } from './startPreviewScript'

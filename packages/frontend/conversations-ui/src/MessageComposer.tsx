@@ -35,8 +35,22 @@ export interface MessageComposerClassNames {
   field: string
 }
 
-// Paridade com financiamento-imobiliario-bot/apps/web/src/pages/ConversationsPage.tsx:1490
-const DEFAULT_ACCEPTED_FILE_TYPES = 'image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip'
+/**
+ * Exatamente o que a Meta aceita em mensagem de mídia — imagem, sticker, áudio, vídeo e a lista
+ * fechada de documentos. Oferecer no seletor um formato que o WhatsApp recusa (`.zip`, `.rtf`)
+ * empurra a falha para depois do envio, quando já não dá para explicar ao operador o que houve.
+ * Produto com regra própria passa `acceptedFileTypes`.
+ */
+export const DEFAULT_ACCEPTED_FILE_TYPES = [
+  'image/jpeg,image/png,image/webp',
+  'audio/aac,audio/mp4,audio/mpeg,audio/amr,audio/ogg',
+  'video/mp4,video/3gpp',
+  'application/pdf,text/plain,text/csv',
+  'application/msword,application/vnd.ms-excel,application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+].join(',')
 
 interface FilePreview {
   file: File
