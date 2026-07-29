@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type KeyboardEvent, type ChangeEvent } from 'react'
+import { useState, useRef, useCallback, type KeyboardEvent, type ChangeEvent, type ReactNode } from 'react'
 import type { ConversationsFeatures } from './types'
 import { cn } from './lib/cn'
 import { EmojiPicker } from './EmojiPicker'
@@ -26,6 +26,11 @@ export interface MessageComposerProps {
   maxLength?: number
   disabled?: boolean
   acceptedFileTypes?: string
+  /**
+   * Ocupa o lugar do botão de enviar enquanto não há nada para enviar — é onde o WhatsApp põe o
+   * microfone. Fora do campo, o botão vira um bloco solto ao lado do pill e quebra a barra.
+   */
+  idleAction?: ReactNode
   className?: string
   classNames?: Partial<MessageComposerClassNames>
 }
@@ -67,6 +72,7 @@ export const MessageComposer = ({
   maxLength,
   disabled = false,
   acceptedFileTypes = DEFAULT_ACCEPTED_FILE_TYPES,
+  idleAction,
   className,
   classNames,
   labels,
@@ -231,18 +237,22 @@ export const MessageComposer = ({
           </>
         )}
 
-        <button
-          onClick={sendMessage}
-          disabled={!canSend || disabled}
-          className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 transition-all ${
-            canSend && !disabled
-              ? 'bg-[#00a884] text-white hover:bg-[#06cf9c] shadow-sm'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
-          aria-label={sendLabel}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-        </button>
+        {!canSend && idleAction ? (
+          <div className="flex-shrink-0">{idleAction}</div>
+        ) : (
+          <button
+            onClick={sendMessage}
+            disabled={!canSend || disabled}
+            className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 transition-all ${
+              canSend && !disabled
+                ? 'bg-[#00a884] text-white hover:bg-[#06cf9c] shadow-sm'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+            aria-label={sendLabel}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        )}
       </div>
 
       {remaining !== null && (

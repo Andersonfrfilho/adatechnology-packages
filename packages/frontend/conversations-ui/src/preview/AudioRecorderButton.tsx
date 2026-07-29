@@ -107,11 +107,19 @@ export function AudioRecorderButton({ onRecorded, onFailure, labels, disabled }:
       title={isRecording ? stopLabel : startLabel}
       aria-label={isRecording ? stopLabel : startLabel}
       aria-pressed={isRecording}
-      className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-        isRecording ? 'bg-red-100 text-red-600 dark:bg-red-900/40' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+      /* Mesma caixa do botão de enviar: o microfone ocupa o lugar dele enquanto o campo está
+         vazio, e qualquer diferença de tamanho faz a barra pular a cada letra digitada. */
+      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
+        isRecording
+          ? 'bg-red-500 text-white hover:bg-red-600'
+          : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
       }`}
     >
-      {isRecording ? '■' : '🎤'}
+      {isRecording ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+      ) : (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
+      )}
     </button>
   )
 }

@@ -297,21 +297,19 @@ export function ConversationPreview({
         </p>
       ) : null}
 
-      <div className="flex items-end gap-1">
-        <div className="min-w-0 flex-1">
-          <MessageComposer
-            onSend={(text) => void handleSend(text)}
-            onAttach={uploadMedia ? (file) => void handleAttach(file) : undefined}
-            placeholder={placeholder ?? 'Escreva como o cliente…'}
-          />
-        </div>
-        {uploadMedia ? (
-          <AudioRecorderButton
-            onRecorded={(file) => void handleAttach(file)}
-            onFailure={(message) => setFailure(message)}
-          />
-        ) : null}
-      </div>
+      <MessageComposer
+        onSend={(text) => void handleSend(text)}
+        onAttach={uploadMedia ? (file) => void handleAttach(file) : undefined}
+        placeholder={placeholder ?? 'Escreva como o cliente…'}
+        idleAction={
+          uploadMedia ? (
+            <AudioRecorderButton
+              onRecorded={(file) => void handleAttach(file)}
+              onFailure={(message) => setFailure(message)}
+            />
+          ) : undefined
+        }
+      />
     </div>
   )
 }
