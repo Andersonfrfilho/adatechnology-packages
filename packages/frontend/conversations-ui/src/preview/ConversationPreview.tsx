@@ -128,6 +128,7 @@ export function ConversationPreview({
   const [messages, setMessages] = useState<MessagePayload[]>([])
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [loadFailure, setLoadFailure] = useState<string | undefined>(undefined)
+  const [isRecording, setIsRecording] = useState(false)
   // Mensagens que o servidor ainda não devolveu. Sem isto, quem não consegue LER a conversa (sessão
   // ausente, API fora) digita, envia com sucesso e não vê absolutamente nada mudar — o preview fica
   // indistinguível de quebrado. São descartadas assim que uma leitura dá certo: aí quem manda na
@@ -300,12 +301,18 @@ export function ConversationPreview({
       <MessageComposer
         onSend={(text) => void handleSend(text)}
         onAttach={uploadMedia ? (file) => void handleAttach(file) : undefined}
-        placeholder={placeholder ?? 'Escreva como o cliente…'}
+        /* Gravando, o campo diz o que falta fazer: o botão é um interruptor e o segundo toque é
+           que envia — sem esse aviso o operador grava, não vê nada acontecer e conclui que o
+           microfone está quebrado. */
+        placeholder={
+          isRecording ? 'Gravando… toque no quadrado para enviar' : (placeholder ?? 'Escreva como o cliente…')
+        }
         idleAction={
           uploadMedia ? (
             <AudioRecorderButton
               onRecorded={(file) => void handleAttach(file)}
               onFailure={(message) => setFailure(message)}
+              onRecordingChange={setIsRecording}
             />
           ) : undefined
         }
