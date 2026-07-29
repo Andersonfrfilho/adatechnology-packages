@@ -246,16 +246,17 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
       {attachmentsPreview}
 
       {quickReplies?.length ? (
-        /* Uma linha rolável no celular, quebrando em várias no desktop: empilhar os chips no
-           celular come a altura da conversa, que é o que o operador precisa ver. */
-        <div className="mb-2 flex flex-nowrap gap-1 overflow-x-auto sm:flex-wrap sm:overflow-x-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        /* Uma linha só, rolando na horizontal. Deixar quebrar em várias linhas faz a barra crescer
+           conforme o número de respostas rápidas e empurrar a conversa para cima — o composer
+           precisa ter altura previsível, independente de quantos atalhos o host configurou. */
+        <div className="mb-2 flex flex-nowrap gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {quickReplies.map((quickReply) => (
             <button
               key={quickReply.id}
               type="button"
               title={quickReply.tooltip}
               onClick={() => replaceContent(quickReply.text)}
-              className="whitespace-nowrap rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-teal-800 dark:hover:bg-teal-950/40 dark:hover:text-teal-400"
+              className="flex-shrink-0 whitespace-nowrap rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400 dark:hover:border-teal-800 dark:hover:bg-teal-950/40 dark:hover:text-teal-400"
             >
               {quickReply.label}
             </button>
