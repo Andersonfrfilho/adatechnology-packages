@@ -56,6 +56,7 @@
     "expose-flow-position",
     "fiscal-xml-escape-texto-livre",
     "fix-correlation",
+    "flow-graph-cache",
     "flow-send-media-node",
     "inbox-components",
     "inbox-operations-and-pagination",
