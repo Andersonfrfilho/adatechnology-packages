@@ -29,6 +29,14 @@ export interface MetaWhatsAppHooks {
    * A URL de download da Meta expira, então quem implementa deve tratar como trabalho urgente.
    */
   onMediaReceived?: (media: InboundMediaDescriptor) => Promise<void>
+  /**
+   * Falha ao enviar UM arquivo da biblioteca num nó `send_media`.
+   *
+   * O erro é entregue aqui em vez de propagado porque um PDF que não subiu não pode travar a
+   * conversa num nó automático — o cliente ficaria parado sem nenhuma mensagem. O módulo segue
+   * para o próximo arquivo e para o próximo nó; observar e alertar é do host.
+   */
+  onFlowMediaError?: (error: unknown, details: { flowKey: string; nodeId: string; uploadId: string }) => void
 }
 
 export type InboundMediaDescriptor = {

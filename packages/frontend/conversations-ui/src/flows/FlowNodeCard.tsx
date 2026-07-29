@@ -1,5 +1,17 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { MessageCircleQuestion, GitBranch, Zap, ListTree, Diamond, AlertTriangle, AlertCircle, Headset, Clock3, ShoppingBag, type LucideIcon } from 'lucide-react'
+import {
+  MessageCircleQuestion,
+  GitBranch,
+  Zap,
+  ListTree,
+  Diamond,
+  AlertTriangle,
+  AlertCircle,
+  Headset,
+  Clock3,
+  ShoppingBag,
+  type LucideIcon,
+} from 'lucide-react'
 import type { FlowEditorLabels } from './labels'
 import type { FlowNodeData, GraphIssue } from './flowGraph'
 
@@ -83,7 +95,9 @@ function sourceRows(node: FlowNodeData, labels: FlowEditorLabels): { id: string;
 function SourceRow({ label, isDefault, handleId }: { label: string; isDefault: boolean; handleId: string }) {
   return (
     <div className="relative flex items-center gap-1.5 rounded-md border border-gray-200 dark:border-gray-600 bg-white/70 dark:bg-gray-900/40 px-2 py-1 pr-3">
-      <span className={`text-xs truncate flex-1 ${isDefault ? 'italic text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+      <span
+        className={`text-xs truncate flex-1 ${isDefault ? 'italic text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}
+      >
         {label}
       </span>
       <Handle
@@ -98,10 +112,14 @@ function SourceRow({ label, isDefault, handleId }: { label: string; isDefault: b
 }
 
 export function FlowNodeCard({ data }: NodeProps) {
-  const { node, liveCount, isStart, isSelected, issues, labels, actionKindIcons, onSelect } = data as unknown as FlowNodeCardData
+  const { node, liveCount, isStart, isSelected, issues, labels, actionKindIcons, onSelect } =
+    data as unknown as FlowNodeCardData
   const label = nodeLabel(node, labels)
   const iconMap = { ...DEFAULT_ACTION_KIND_ICON, ...actionKindIcons }
-  const Icon = node.type === 'action' && node.actionKind ? (iconMap[node.actionKind] ?? NODE_TYPE_ICON[node.type]) : NODE_TYPE_ICON[node.type]
+  const Icon =
+    node.type === 'action' && node.actionKind
+      ? (iconMap[node.actionKind] ?? NODE_TYPE_ICON[node.type])
+      : NODE_TYPE_ICON[node.type]
   const rows = sourceRows(node, labels)
   const hasError = issues.some((i) => i.severity === 'error')
   const hasWarning = !hasError && issues.some((i) => i.severity === 'warning')

@@ -47,6 +47,8 @@ export interface FlowEditorLabels {
     conditionTrue: string
     conditionFalse: string
     conditionVariableMissing: string
+    media: string
+    mediaUnavailable: string
   }
   palette: {
     title: string
@@ -87,6 +89,7 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     handoff: 'Encaminhar para atendimento',
     rate_limited_handoff: 'Encaminhar (limite de simulações atingido)',
     send_product_list: 'Enviar catálogo de produtos',
+    send_media: 'Enviar arquivos da biblioteca',
   },
   conditionOperatorLabels: {
     '>': 'maior que',
@@ -143,6 +146,8 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     conditionTrue: 'Se verdadeiro →',
     conditionFalse: 'Se falso →',
     conditionVariableMissing: 'Se a variável ainda não foi coletada →',
+    media: 'Arquivos enviados neste ponto',
+    mediaUnavailable: 'A biblioteca de arquivos não está disponível neste painel.',
   },
   palette: {
     title: 'Adicionar ao fluxo',

@@ -7,7 +7,7 @@ export type {
   MetaWhatsAppModuleProviders,
 } from './createMetaWhatsAppModule'
 
-export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings, documents } from './schema/schema'
+export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings, documents, flowMedia } from './schema/schema'
 export type {
   SessionRow,
   NewSessionRow,
@@ -19,6 +19,8 @@ export type {
   NewSettingsRow,
   DocumentRow,
   NewDocumentRow,
+  FlowMediaRow,
+  NewFlowMediaRow,
 } from './schema/schema'
 
 export { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
@@ -61,6 +63,14 @@ export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtim
 export { FlowGraphRepository, OptimisticLockError, InvalidFlowGraphError } from './repositories/FlowGraphRepository'
 export { FlowInterpreter } from './flows/FlowInterpreter'
 export type { FlowStepInput, FlowStepResult, FlowRunResult } from './flows/FlowInterpreter'
+export { FlowMediaRepository } from './repositories/FlowMediaRepository'
+export type {
+  FlowMediaLocation,
+  AttachFlowMediaParams,
+  UpdateFlowMediaParams,
+} from './repositories/FlowMediaRepository'
+export { createSendMediaAction } from './flows/createSendMediaAction'
+export type { CreateSendMediaActionParams } from './flows/createSendMediaAction'
 
 export { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.use-case'
 export type { TakeoverConversationParams } from './use-cases/TakeoverConversation.use-case'

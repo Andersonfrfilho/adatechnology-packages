@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Plus, Trash2, Save, X, AlertTriangle, AlertCircle } from 'lucide-react'
 import { FlowWhatsAppPreview } from './FlowWhatsAppPreview'
 import { nodeLabel } from './FlowNodeCard'
-import { CROSS_FLOW_PREFIX, CONDITION_OPERATORS } from './flowGraph'
+import { CROSS_FLOW_PREFIX, CONDITION_OPERATORS, BUILT_IN_ACTION_KINDS } from './flowGraph'
 import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
 import type { FlowGraphData, FlowNodeData, GraphIssue } from './flowGraph'
 
@@ -73,6 +73,14 @@ export interface FlowNodePanelProps {
   onChange: (updated: FlowNodeData) => void
   onDelete: (nodeId: string) => void
   labels?: Partial<FlowEditorLabels>
+  /**
+   * Seletor de arquivos do nó `send_media`, renderizado no lugar da mensagem direta.
+   *
+   * Slot, e não uma lista de arquivos por prop, porque a biblioteca é do host: upload, permissão e
+   * URL assinada são dele, e o painel não tem como buscar nada. Ausente, o nó continua editável —
+   * só não dá para anexar por aqui.
+   */
+  renderMediaPicker?: (node: FlowNodeData) => ReactNode
 }
 
 // Paridade com financiamento-imobiliario-bot/apps/web/src/components/flows/FlowNodePanel.tsx —
@@ -86,18 +94,26 @@ export function FlowNodePanel({
   onChange,
   onDelete,
   labels: labelsOverride,
+  renderMediaPicker,
 }: FlowNodePanelProps) {
   const labels = { ...DEFAULT_FLOW_EDITOR_LABELS, ...labelsOverride }
   const [draft, setDraft] = useState<FlowNodeData>(node)
   const otherNodeIds = Object.keys(graph.nodes).filter((id) => id !== node.id)
   const isFixedLogic = draft.type === 'entrada_choice'
   const isAction = draft.type === 'action'
+  const isSendMedia = isAction && draft.actionKind === BUILT_IN_ACTION_KINDS.SEND_MEDIA
   const isCondition = draft.type === 'condition'
   const isStart = graph.startNodeId === node.id
   const nodeIssues = issues.filter((i) => i.nodeId === node.id)
   // Chaves já usadas por perguntas deste fluxo — sugestão pro campo de variável da condição,
   // sem travar em texto livre (a variável pode ter vindo de outro fluxo ou de um cálculo derivado).
-  const knownContextKeys = [...new Set(Object.values(graph.nodes).map((n) => n.contextKey).filter((key): key is string => !!key))]
+  const knownContextKeys = [
+    ...new Set(
+      Object.values(graph.nodes)
+        .map((n) => n.contextKey)
+        .filter((key): key is string => !!key),
+    ),
+  ]
   const conditionAnswerIds = isCondition ? ['true', 'false'] : (draft.options ?? []).map(([id]) => id)
 
   function updateNextString(value: string) {
@@ -106,7 +122,8 @@ export function FlowNodePanel({
 
   function updateNextByAnswer(answerId: string, value: string) {
     setDraft((prev) => {
-      const current = typeof prev.next === 'object' && prev.next ? prev.next : { byAnswer: {}, default: otherNodeIds[0] ?? '' }
+      const current =
+        typeof prev.next === 'object' && prev.next ? prev.next : { byAnswer: {}, default: otherNodeIds[0] ?? '' }
       return { ...prev, next: { ...current, byAnswer: { ...current.byAnswer, [answerId]: value } } }
     })
   }
@@ -129,7 +146,10 @@ export function FlowNodePanel({
   }
 
   function addOption() {
-    setDraft((prev) => ({ ...prev, options: [...(prev.options ?? []), [String((prev.options?.length ?? 0) + 1), 'Nova opção']] }))
+    setDraft((prev) => ({
+      ...prev,
+      options: [...(prev.options ?? []), [String((prev.options?.length ?? 0) + 1), 'Nova opção']],
+    }))
   }
 
   function removeOption(index: number) {
@@ -140,12 +160,16 @@ export function FlowNodePanel({
     return (
       <>
         {otherNodeIds.map((id) => (
-          <option key={id} value={id}>{truncateLabel(nodeLabel(graph.nodes[id], labels))}</option>
+          <option key={id} value={id}>
+            {truncateLabel(nodeLabel(graph.nodes[id], labels))}
+          </option>
         ))}
         {otherFlows.length > 0 && (
           <optgroup label={labels.nodePanel.otherFlowsGroup}>
             {otherFlows.map((flow) => (
-              <option key={flow.key} value={`${CROSS_FLOW_PREFIX}${flow.key}`}>{flow.label}</option>
+              <option key={flow.key} value={`${CROSS_FLOW_PREFIX}${flow.key}`}>
+                {flow.label}
+              </option>
             ))}
           </optgroup>
         )}
@@ -157,13 +181,17 @@ export function FlowNodePanel({
     <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-xl z-50 flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{labels.nodePanel.title}</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <X size={18} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {nodeIssues.length > 0 && (
           <div className="rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-2.5 space-y-1.5">
-            {nodeIssues.map((issue, i) => <IssueRow key={i} issue={issue} />)}
+            {nodeIssues.map((issue, i) => (
+              <IssueRow key={i} issue={issue} />
+            ))}
           </div>
         )}
 
@@ -185,21 +213,33 @@ export function FlowNodePanel({
 
         {draft.contextKey && (
           <div>
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.contextKey}</label>
-            <input value={draft.contextKey} disabled className="w-full mt-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2.5 text-sm text-gray-500" />
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {labels.nodePanel.contextKey}
+            </label>
+            <input
+              value={draft.contextKey}
+              disabled
+              className="w-full mt-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-3 py-2.5 text-sm text-gray-500"
+            />
           </div>
         )}
 
         {!isFixedLogic && !isAction && !isCondition && (
           <div>
-            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.questionType}</label>
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {labels.nodePanel.questionType}
+            </label>
             <select
               value={draft.questionType ?? 'text'}
-              onChange={(e) => setDraft((prev) => ({ ...prev, questionType: e.target.value as FlowNodeData['questionType'] }))}
+              onChange={(e) =>
+                setDraft((prev) => ({ ...prev, questionType: e.target.value as FlowNodeData['questionType'] }))
+              }
               className={`w-full mt-1 ${SELECT_CLASSNAME}`}
             >
               {Object.entries(labels.questionTypeLabels).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
+                <option key={key} value={key}>
+                  {label}
+                </option>
               ))}
             </select>
           </div>
@@ -218,7 +258,9 @@ export function FlowNodePanel({
         {isCondition && (
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.conditionVariable}</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {labels.nodePanel.conditionVariable}
+              </label>
               <input
                 value={draft.conditionContextKey ?? ''}
                 onChange={(e) => setDraft((prev) => ({ ...prev, conditionContextKey: e.target.value }))}
@@ -226,23 +268,36 @@ export function FlowNodePanel({
                 className={`w-full mt-1 ${INPUT_CLASSNAME}`}
               />
               <datalist id="condition-context-keys">
-                {knownContextKeys.map((key) => <option key={key} value={key} />)}
+                {knownContextKeys.map((key) => (
+                  <option key={key} value={key} />
+                ))}
               </datalist>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.conditionOperator}</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {labels.nodePanel.conditionOperator}
+              </label>
               <select
                 value={draft.conditionOperator ?? '>'}
-                onChange={(e) => setDraft((prev) => ({ ...prev, conditionOperator: e.target.value as FlowNodeData['conditionOperator'] }))}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    conditionOperator: e.target.value as FlowNodeData['conditionOperator'],
+                  }))
+                }
                 className={`w-full mt-1 ${SELECT_CLASSNAME}`}
               >
                 {CONDITION_OPERATORS.map((operator) => (
-                  <option key={operator} value={operator}>{labels.conditionOperatorLabels[operator] ?? operator}</option>
+                  <option key={operator} value={operator}>
+                    {labels.conditionOperatorLabels[operator] ?? operator}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.conditionValue}</label>
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {labels.nodePanel.conditionValue}
+              </label>
               <input
                 value={draft.conditionValue ?? ''}
                 onChange={(e) => setDraft((prev) => ({ ...prev, conditionValue: e.target.value }))}
@@ -262,7 +317,21 @@ export function FlowNodePanel({
           />
         )}
 
-        {isAction && draft.actionKind !== 'send_product_list' && (
+        {/* Os arquivos moram na biblioteca, não no grafo — trocar o material não repassa pelo editor. */}
+        {isSendMedia && (
+          <div>
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.media}</label>
+            <div className="mt-1">
+              {renderMediaPicker?.(node) ?? (
+                <p className="text-xs text-gray-400">{labels.nodePanel.mediaUnavailable}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* `send_media` fica de fora: o handler do módulo só envia os anexos, então um campo de
+            mensagem aqui seria texto que o cliente nunca recebe. A legenda é por arquivo. */}
+        {isAction && draft.actionKind !== 'send_product_list' && !isSendMedia && (
           <WhatsAppTextField
             label={labels.nodePanel.directMessage}
             value={draft.directMessage ?? ''}
@@ -283,11 +352,21 @@ export function FlowNodePanel({
             <div className="space-y-2">
               {(draft.options ?? []).map(([id, label], i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <input value={id} onChange={(e) => updateOption(i, 0, e.target.value)} placeholder={labels.nodePanel.optionId}
-                    className={`w-16 ${INPUT_CLASSNAME}`} />
-                  <input value={label} onChange={(e) => updateOption(i, 1, e.target.value)} placeholder={labels.nodePanel.optionLabel}
-                    className={`flex-1 ${INPUT_CLASSNAME}`} />
-                  <button onClick={() => removeOption(i)} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+                  <input
+                    value={id}
+                    onChange={(e) => updateOption(i, 0, e.target.value)}
+                    placeholder={labels.nodePanel.optionId}
+                    className={`w-16 ${INPUT_CLASSNAME}`}
+                  />
+                  <input
+                    value={label}
+                    onChange={(e) => updateOption(i, 1, e.target.value)}
+                    placeholder={labels.nodePanel.optionLabel}
+                    className={`flex-1 ${INPUT_CLASSNAME}`}
+                  />
+                  <button onClick={() => removeOption(i)} className="text-gray-400 hover:text-red-600">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               ))}
             </div>
@@ -299,8 +378,11 @@ export function FlowNodePanel({
             <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.next}</label>
             <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">{labels.nodePanel.nextHint}</p>
             {typeof draft.next !== 'object' && !isCondition ? (
-              <select value={typeof draft.next === 'string' ? draft.next : ''} onChange={(e) => updateNextString(e.target.value)}
-                className={`w-full mt-1 ${SELECT_CLASSNAME}`}>
+              <select
+                value={typeof draft.next === 'string' ? draft.next : ''}
+                onChange={(e) => updateNextString(e.target.value)}
+                className={`w-full mt-1 ${SELECT_CLASSNAME}`}
+              >
                 <option value="">—</option>
                 {nextNodeOptions()}
               </select>
@@ -309,10 +391,17 @@ export function FlowNodePanel({
                 {conditionAnswerIds.map((id) => (
                   <div key={id} className="flex items-center gap-2">
                     <span className="text-xs text-gray-500 w-32 shrink-0">
-                      {isCondition ? (id === 'true' ? labels.nodePanel.conditionTrue : labels.nodePanel.conditionFalse) : labels.nodePanel.nextByAnswer(id)}
+                      {isCondition
+                        ? id === 'true'
+                          ? labels.nodePanel.conditionTrue
+                          : labels.nodePanel.conditionFalse
+                        : labels.nodePanel.nextByAnswer(id)}
                     </span>
-                    <select value={draft.next && typeof draft.next === 'object' ? draft.next.byAnswer[id] ?? '' : ''} onChange={(e) => updateNextByAnswer(id, e.target.value)}
-                      className={`flex-1 ${SELECT_CLASSNAME}`}>
+                    <select
+                      value={draft.next && typeof draft.next === 'object' ? (draft.next.byAnswer[id] ?? '') : ''}
+                      onChange={(e) => updateNextByAnswer(id, e.target.value)}
+                      className={`flex-1 ${SELECT_CLASSNAME}`}
+                    >
                       <option value="">—</option>
                       {nextNodeOptions()}
                     </select>
@@ -322,8 +411,11 @@ export function FlowNodePanel({
                   <span className="text-xs text-gray-500 w-32 shrink-0">
                     {isCondition ? labels.nodePanel.conditionVariableMissing : labels.nodePanel.nextDefault}
                   </span>
-                  <select value={draft.next && typeof draft.next === 'object' ? draft.next.default : ''} onChange={(e) => updateNextDefault(e.target.value)}
-                    className={`flex-1 ${SELECT_CLASSNAME}`}>
+                  <select
+                    value={draft.next && typeof draft.next === 'object' ? draft.next.default : ''}
+                    onChange={(e) => updateNextDefault(e.target.value)}
+                    className={`flex-1 ${SELECT_CLASSNAME}`}
+                  >
                     <option value="">—</option>
                     {nextNodeOptions()}
                   </select>
@@ -335,12 +427,17 @@ export function FlowNodePanel({
       </div>
 
       <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex gap-2">
-        <button onClick={() => onChange(draft)} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+        <button
+          onClick={() => onChange(draft)}
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
           <Save size={14} /> {labels.nodePanel.save}
         </button>
         {!isStart && (
           <button
-            onClick={() => { if (window.confirm(labels.nodePanel.deleteConfirm)) onDelete(node.id) }}
+            onClick={() => {
+              if (window.confirm(labels.nodePanel.deleteConfirm)) onDelete(node.id)
+            }}
             title={labels.nodePanel.delete}
             className="px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
           >

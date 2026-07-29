@@ -13,6 +13,7 @@ import type {
   FlowNodeData,
   FlowGraphData,
 } from '@adatechnology/meta-whatsapp-contracts'
+import { FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
 
 export type {
   FlowNodeType,
@@ -28,11 +29,10 @@ export const CONDITION_OPERATORS: FlowConditionOperator[] = ['>', '>=', '<', '<=
 
 // Kinds de ação genéricos que o pacote conhece de fábrica — o host pode registrar quaisquer
 // outros via `actionKindLabels`/`actionKinds` nos componentes (ver FlowPalette, labels.ts).
-export const BUILT_IN_ACTION_KINDS = {
-  HANDOFF: 'handoff',
-  RATE_LIMITED_HANDOFF: 'rate_limited_handoff',
-  SEND_PRODUCT_LIST: 'send_product_list',
-} as const
+// Reexporta o vocabulário do contrato em vez de redeclarar os literais: o editor oferece na
+// paleta exatamente os `actionKind` que o backend sabe interpretar, e duas listas separadas
+// divergiriam em silêncio (um nó publicável que nenhum handler atende).
+export const BUILT_IN_ACTION_KINDS = FLOW_ACTION_KIND
 
 // Destinos "flow:<key>" são saltos para outro fluxo, resolvidos pelo motor do host. Duplicado
 // (em vez de importado do contracts) de propósito: são três linhas triviais e importá-las como

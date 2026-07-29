@@ -27,18 +27,21 @@ export function FlowMapCanvas({ graphs, rootKey, onOpenFlow, labels: labelsOverr
   const positions = useMemo(() => computeFlowMapLayout(graphs, rootKey), [graphs, rootKey])
 
   const nodes = useMemo<Node[]>(
-    () => Object.values(graphs).map((g): Node => ({
-      id: g.key,
-      type: 'flowMapNode',
-      position: positions[g.key] ?? { x: 0, y: 0 },
-      data: {
-        label: g.label,
-        nodeCount: Object.keys(g.nodes).length,
-        isRoot: g.key === rootKey,
-        labels,
-        onOpen: () => onOpenFlow(g.key),
-      } satisfies FlowMapNodeData,
-    })),
+    () =>
+      Object.values(graphs).map(
+        (g): Node => ({
+          id: g.key,
+          type: 'flowMapNode',
+          position: positions[g.key] ?? { x: 0, y: 0 },
+          data: {
+            label: g.label,
+            nodeCount: Object.keys(g.nodes).length,
+            isRoot: g.key === rootKey,
+            labels,
+            onOpen: () => onOpenFlow(g.key),
+          } satisfies FlowMapNodeData,
+        }),
+      ),
     [graphs, positions, rootKey, onOpenFlow, labels],
   )
 

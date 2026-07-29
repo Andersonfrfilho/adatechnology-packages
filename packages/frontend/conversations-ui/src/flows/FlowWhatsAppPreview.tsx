@@ -13,7 +13,11 @@ export interface FlowWhatsAppPreviewProps {
 // opções, botões (≤3) ou lista (4+) — para o editor mostrar exatamente o que o cliente verá.
 // Consome a mesma bolha/formatação do pacote (parseWhatsAppFormatting, T6.5) — T7.3 elimina a
 // duplicação de estilo que existia entre este preview e o MessageBubble do bot.
-export function FlowWhatsAppPreview({ body, options, labels = DEFAULT_FLOW_EDITOR_LABELS.nodePanel }: FlowWhatsAppPreviewProps) {
+export function FlowWhatsAppPreview({
+  body,
+  options,
+  labels = DEFAULT_FLOW_EDITOR_LABELS.nodePanel,
+}: FlowWhatsAppPreviewProps) {
   if (!body && (!options || options.length === 0)) {
     return <p className="text-xs text-gray-400 dark:text-gray-500 italic px-1">{labels.previewPlaceholder}</p>
   }
@@ -25,7 +29,11 @@ export function FlowWhatsAppPreview({ body, options, labels = DEFAULT_FLOW_EDITO
     <div className="rounded-xl bg-[#e5ddd5] dark:bg-gray-900 p-3 space-y-1.5">
       <div className="max-w-[85%]">
         <div className="rounded-lg rounded-tl-none bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 shadow-sm whitespace-pre-wrap break-words">
-          {body ? parseWhatsAppFormatting(body) : <span className="italic text-gray-400">{labels.previewEmptyBody}</span>}
+          {body ? (
+            parseWhatsAppFormatting(body)
+          ) : (
+            <span className="italic text-gray-400">{labels.previewEmptyBody}</span>
+          )}
           {hasOptions && !usesButtons && (
             <div className="mt-2 -mx-3 -mb-2 border-t border-gray-100 dark:border-gray-600">
               <div className="flex items-center justify-center gap-1.5 py-2 text-sm font-medium text-cyan-600 dark:text-cyan-400">
@@ -38,7 +46,10 @@ export function FlowWhatsAppPreview({ body, options, labels = DEFAULT_FLOW_EDITO
         {hasOptions && usesButtons && (
           <div className="mt-1 space-y-1">
             {options!.map(([id, label]) => (
-              <div key={id} className="rounded-lg bg-white dark:bg-gray-700 py-1.5 text-center text-sm font-medium text-cyan-600 dark:text-cyan-400 shadow-sm">
+              <div
+                key={id}
+                className="rounded-lg bg-white dark:bg-gray-700 py-1.5 text-center text-sm font-medium text-cyan-600 dark:text-cyan-400 shadow-sm"
+              >
                 {label || <span className="italic text-gray-400">{labels.previewEmptyOption}</span>}
               </div>
             ))}

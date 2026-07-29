@@ -8,6 +8,16 @@ import { z } from 'zod'
 export type FlowNodeType = 'question' | 'entrada_choice' | 'action' | 'menu' | 'condition'
 export type FlowQuestionType = 'text' | 'money' | 'date' | 'int' | 'cpf' | 'choice'
 export type FlowActionKind = string
+
+// Os únicos `actionKind` que o próprio pacote implementa — todo o resto é do host. Ficam aqui, e
+// não no editor, porque o mesmo literal é usado nos dois lados (o editor oferece na paleta, o
+// módulo registra o handler) e duas cópias divergem sem nada acusar.
+export const FLOW_ACTION_KIND = {
+  HANDOFF: 'handoff',
+  RATE_LIMITED_HANDOFF: 'rate_limited_handoff',
+  SEND_PRODUCT_LIST: 'send_product_list',
+  SEND_MEDIA: 'send_media',
+} as const
 export type FlowConditionOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'contains'
 export type FlowNodeNext = string | { byAnswer: Record<string, string>; default: string }
 
