@@ -67,6 +67,7 @@
     "preview-silent-auth-failure",
     "preview-whatsapp-components",
     "product-agnostic-flow-and-session-context",
+    "quick-replies-single-row",
     "restore-provider-factory",
     "rich-message-composer",
     "strict-declarations",

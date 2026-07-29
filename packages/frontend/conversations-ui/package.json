@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/conversations-ui",
-  "version": "0.1.0-rc.14",
+  "version": "0.1.0-rc.15",
   "description": "WhatsApp conversation UI components — parametrizável por endpoint, tema e feature flags",
   "publishConfig": {
     "access": "public"
