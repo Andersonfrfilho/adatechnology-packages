@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { AudioPlayer } from './AudioPlayer'
 import { FileIcon } from './FileIcon'
 import { useConversationLocales } from './ConversationLocalesProvider'
@@ -84,16 +84,35 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: 
   const src = eagerSrc ?? lazy.url
   const canLazyLoad = !eagerSrc && hasLazyRef(message) && Boolean(onResolveUrl)
 
-  const lazyButtonClass = 'text-xs text-blue-600 underline flex items-center gap-1'
+  /**
+   * O carregamento sob demanda continua sendo um botão, mas com a forma da mídia que ele vai virar
+   * — um link sublinhado no meio da conversa lê como texto da mensagem, não como controle, e é a
+   * única bolha que não se parece com o que contém.
+   */
+  function LazyMediaButton({ icon, label }: { icon: ReactNode; label: string }) {
+    return (
+      <button
+        onClick={lazy.load}
+        disabled={lazy.loading}
+        className="flex min-w-[180px] items-center gap-2 rounded-lg bg-black/5 px-2 py-1.5 text-left transition-colors hover:bg-black/10 disabled:opacity-60 dark:bg-white/10 dark:hover:bg-white/15"
+      >
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gray-600 text-white">
+          {icon}
+        </span>
+        <span className="truncate text-xs text-gray-600 dark:text-gray-300">{label}</span>
+      </button>
+    )
+  }
 
   switch (message.type) {
     case 'image':
     case 'sticker': {
       if (!src && canLazyLoad) {
         return (
-          <button onClick={lazy.load} className={lazyButtonClass}>
-            {lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.viewImage}
-          </button>
+          <LazyMediaButton
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>}
+            label={lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.viewImage}
+          />
         )
       }
       return (
@@ -111,9 +130,10 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: 
     case 'video': {
       if (!src && canLazyLoad) {
         return (
-          <button onClick={lazy.load} className={lazyButtonClass}>
-            {lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.viewVideo}
-          </button>
+          <LazyMediaButton
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></svg>}
+            label={lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.viewVideo}
+          />
         )
       }
       return (
@@ -131,9 +151,10 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: 
     case 'audio': {
       if (!src && canLazyLoad) {
         return (
-          <button onClick={lazy.load} className={lazyButtonClass}>
-            {lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.listenAudio}
-          </button>
+          <LazyMediaButton
+            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="translate-x-0.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>}
+            label={lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.listenAudio}
+          />
         )
       }
       return (

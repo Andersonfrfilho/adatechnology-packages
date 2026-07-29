@@ -21,11 +21,15 @@ export interface ConversationContextEntry {
 export interface ConversationContextPanelLabels {
   title: string
   empty: string
+  collapse: string
+  expand: string
 }
 
 export const DEFAULT_CONVERSATION_CONTEXT_LABELS: ConversationContextPanelLabels = {
   title: '📋 Suas Seleções',
   empty: 'Nada coletado ainda nesta conversa.',
+  collapse: 'fechar',
+  expand: 'abrir',
 }
 
 export interface ConversationContextPanelClassNames {
@@ -37,6 +41,13 @@ export interface ConversationContextPanelClassNames {
 
 export interface ConversationContextPanelProps {
   entries: readonly ConversationContextEntry[]
+  /**
+   * Estado inicial. Ausente, abre sozinho no desktop quando há algum dado preenchido.
+   *
+   * Existe porque "abre sozinho" nem sempre é o que o produto quer: com 1 de 6 campos preenchidos o
+   * painel ocupa altura mostrando quase só travessões, e empurra a conversa — que é o que se veio ver.
+   */
+  defaultOpen?: boolean
   labels?: Partial<ConversationContextPanelLabels>
   className?: string
   classNames?: Partial<ConversationContextPanelClassNames>
@@ -44,6 +55,7 @@ export interface ConversationContextPanelProps {
 
 export function ConversationContextPanel({
   entries,
+  defaultOpen,
   labels: labelsOverride,
   className,
   classNames,
@@ -61,7 +73,7 @@ export function ConversationContextPanel({
   const [manualOpen, setManualOpen] = useState<boolean | undefined>(undefined)
   // No celular nasce fechado mesmo com dados: aberto, o painel consome ~150px da conversa. O
   // contador no cabeçalho já entrega a informação de relance.
-  const open = manualOpen ?? (!isNarrow && filled.length > 0)
+  const open = manualOpen ?? defaultOpen ?? (!isNarrow && filled.length > 0)
 
   return (
     <section className={cn('border-b', classNames?.root, className)}>
@@ -69,7 +81,11 @@ export function ConversationContextPanel({
         type="button"
         onClick={() => setManualOpen(!open)}
         aria-expanded={open}
-        className={cn('flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-medium', classNames?.toggle)}
+        title={open ? labels.collapse : labels.expand}
+        className={cn(
+          'flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-gray-800',
+          classNames?.toggle,
+        )}
       >
         <span aria-hidden className="text-xs">
           {open ? '▾' : '▸'}
@@ -77,6 +93,11 @@ export function ConversationContextPanel({
         <span>{labels.title}</span>
         <span className={cn('rounded-full bg-gray-200 px-2 text-xs dark:bg-gray-700', classNames?.counter)}>
           {filled.length}/{entries.length}
+        </span>
+        {/* Rótulo escrito na ponta direita: o caret sozinho não dizia que a linha inteira fecha o
+            painel — a pergunta "cadê o botão de fechar?" veio daí. */}
+        <span aria-hidden className="ml-auto text-xs text-gray-500">
+          {open ? labels.collapse : labels.expand}
         </span>
       </button>
 
