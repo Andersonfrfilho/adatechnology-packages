@@ -13,6 +13,10 @@
 import { useState } from 'react'
 import type { InteractiveOption, InteractivePayload, InteractiveSelection } from './types'
 import { cn } from './lib/cn'
+import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
+
+/** `parseWhatsAppFormatting` emite `<strong>`/`<em>`/`<del>`, que o reset do Tailwind zera. */
+const FORMATTING_CLASSES = '[&_strong]:font-bold [&_em]:italic [&_del]:line-through'
 
 export interface InteractiveMessageLabels {
   /** Fallback do rótulo do botão que abre a lista, quando o payload não traz um. */
@@ -51,18 +55,31 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
 
   return (
     <div className={cn('flex flex-col gap-1', className)}>
+      {/* Cabeçalho, corpo e rodapé passam pela formatação do WhatsApp — o aparelho renderiza
+          `*negrito*` neles como em qualquer texto. Título e descrição de opção NÃO: ali o WhatsApp
+          mostra os asteriscos literais, e formatá-los aqui deixaria o simulador mais bonito que o
+          aparelho, que é o tipo de divergência que só aparece com o cliente na frente. */}
       {payload.header?.text ? (
-        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{payload.header.text}</p>
+        <p className={cn('text-sm font-semibold text-gray-900 dark:text-gray-100', FORMATTING_CLASSES)}>
+          {parseWhatsAppFormatting(payload.header.text)}
+        </p>
       ) : null}
 
       {payload.body?.text ? (
-        <p className="whitespace-pre-wrap break-words text-sm text-gray-900 dark:text-gray-100">
-          {payload.body.text}
+        <p
+          className={cn(
+            'whitespace-pre-wrap break-words text-sm text-gray-900 dark:text-gray-100',
+            FORMATTING_CLASSES,
+          )}
+        >
+          {parseWhatsAppFormatting(payload.body.text)}
         </p>
       ) : null}
 
       {payload.footer?.text ? (
-        <p className="text-xs text-gray-500 dark:text-gray-400">{payload.footer.text}</p>
+        <p className={cn('text-xs text-gray-500 dark:text-gray-400', FORMATTING_CLASSES)}>
+          {parseWhatsAppFormatting(payload.footer.text)}
+        </p>
       ) : null}
 
       {buttons.length > 0 ? (
