@@ -6,9 +6,14 @@
  * Assina com WebCrypto porque `node:crypto` não existe no navegador. Os builders vêm dos contratos
  * (isomórficos) justamente para que o mesmo payload seja montado nos dois runtimes.
  *
- * ⚠️ Isto carrega o app secret de DESENVOLVIMENTO no bundle. Só existe para o docker local, e
- * `assertPreviewEnvironment` recusa rodar em produção — um segredo de dev vazado é irrelevante,
- * mas o hábito de embarcar segredo em frontend não é.
+ * ⚠️ SOMENTE EXECUÇÃO LOCAL. Isto carrega o app secret no bundle, e bundle é público onde quer que
+ * seja servido — em qualquer ambiente com URL acessível (homologação inclusive) usar esta fábrica
+ * equivale a publicar o segredo, e quem o tiver forja webhooks válidos daquele app da Meta: injeta
+ * mensagem de qualquer número e dispara os fluxos. `assertPreviewEnvironment` barra produção, mas
+ * homologação passaria, então a barreira não basta.
+ *
+ * Para qualquer ambiente publicado use `createPreviewBridgeClient`: o navegador manda a intenção e
+ * o servidor assina com o segredo que ele já tem.
  */
 
 import {

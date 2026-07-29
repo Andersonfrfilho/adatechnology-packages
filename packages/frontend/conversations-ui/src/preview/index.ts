@@ -45,6 +45,13 @@ export type {
   SendPreviewMediaParams,
 } from './createPreviewWebhookClient'
 
+export { createPreviewBridgeClient, PreviewBridgeRejectedError } from './createPreviewBridgeClient'
+export type {
+  CreatePreviewBridgeClientParams,
+  PreviewInboundCommand,
+  SendPreviewInboundCommand,
+} from './createPreviewBridgeClient'
+
 export { startPreviewScript, DEFAULT_PREVIEW_SCRIPT } from './startPreviewScript'
 export type { PreviewScriptStep, StartPreviewScriptParams } from './startPreviewScript'
 export { PREVIEW_FILE_SAMPLES, resolvePreviewFileSample } from './previewFileSamples'
