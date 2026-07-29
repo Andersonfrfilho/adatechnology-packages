@@ -6,6 +6,15 @@ export { AudioPlayer } from './AudioPlayer'
 export { EmojiPicker, DEFAULT_EMOJI_PICKER_LABELS } from './EmojiPicker'
 export { EMOJI_CATEGORIES, searchEmojis } from './emojiCatalog'
 export { MessageComposer, DEFAULT_MESSAGE_COMPOSER_LABELS, DEFAULT_ACCEPTED_FILE_TYPES } from './MessageComposer'
+export { RichMessageComposer, RICH_COMPOSER_ACTION, DEFAULT_RICH_COMPOSER_TOOLTIPS } from './RichMessageComposer'
+export type {
+  RichMessageComposerProps,
+  RichComposerAction,
+  RichComposerTooltips,
+  RichComposerQuickReply,
+  RichComposerVariable,
+  RichMessageComposerHandle,
+} from './RichMessageComposer'
 export { WhatsAppMessageEditor, DEFAULT_WHATSAPP_MESSAGE_EDITOR_LABELS } from './WhatsAppMessageEditor'
 export { SimpleEmojiPicker } from './SimpleEmojiPicker'
 export { DateDivider } from './DateDivider'
