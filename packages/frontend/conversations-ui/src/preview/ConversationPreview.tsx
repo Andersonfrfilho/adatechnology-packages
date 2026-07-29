@@ -305,7 +305,7 @@ export function ConversationPreview({
            que envia — sem esse aviso o operador grava, não vê nada acontecer e conclui que o
            microfone está quebrado. */
         placeholder={
-          isRecording ? 'Gravando… toque no quadrado para enviar' : (placeholder ?? 'Escreva como o cliente…')
+          isRecording ? 'Gravando… toque no quadrado para ouvir' : (placeholder ?? 'Escreva como o cliente…')
         }
         idleAction={
           uploadMedia ? (

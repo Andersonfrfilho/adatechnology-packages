@@ -8,13 +8,17 @@
  * hospeda e devolve o `mediaId` é o host, via `uploadMedia`.
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface AudioRecorderButtonLabels {
   start: string
   stop: string
   unsupported: string
   denied: string
+  review: string
+  send: string
+  discard: string
+  empty: string
 }
 
 export const DEFAULT_AUDIO_RECORDER_BUTTON_LABELS: AudioRecorderButtonLabels = {
@@ -22,6 +26,10 @@ export const DEFAULT_AUDIO_RECORDER_BUTTON_LABELS: AudioRecorderButtonLabels = {
   stop: 'Parar gravação',
   unsupported: 'Este navegador não grava áudio.',
   denied: 'Sem permissão para usar o microfone.',
+  review: 'Ouça antes de enviar',
+  send: 'Enviar áudio',
+  discard: 'Descartar áudio',
+  empty: 'Nada foi captado pelo microfone.',
 }
 
 export interface AudioRecorderButtonProps {
@@ -33,6 +41,12 @@ export interface AudioRecorderButtonProps {
    * que o microfone está quebrado.
    */
   onRecordingChange?: (isRecording: boolean) => void
+  /**
+   * Abre uma etapa de revisão quando a gravação para: o áudio toca ali mesmo e só sai depois de
+   * confirmado. Ligado por padrão — voz é o único anexo que quem envia não viu antes de mandar, e
+   * sem ouvir não há como saber se o microfone captou alguma coisa. Desligar volta ao envio direto.
+   */
+  reviewBeforeSend?: boolean
   /**
    * Teto de duração da gravação, em milissegundos. Passado o tempo, o gravador para e envia o que
    * tem. Produto com limite próprio sobrescreve.
@@ -70,19 +84,40 @@ export function resolveRecordingFormat(): RecordingFormat | undefined {
   return RECORDING_FORMATS.find((format) => MediaRecorder.isTypeSupported(format.mimeType))
 }
 
+type PendingRecording = { file: File; objectURL: string }
+
 export function AudioRecorderButton({
   onRecorded,
   onFailure,
   onRecordingChange,
+  reviewBeforeSend = true,
   maxDurationMilliseconds = DEFAULT_MAX_RECORDING_MILLISECONDS,
   labels,
   disabled,
 }: AudioRecorderButtonProps) {
-  const startLabel = labels?.start ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS.start
-  const stopLabel = labels?.stop ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS.stop
+  const labelOf = (key: keyof AudioRecorderButtonLabels): string =>
+    labels?.[key] ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS[key]
   const [isRecording, setIsRecording] = useState(false)
+  const [pending, setPending] = useState<PendingRecording | undefined>(undefined)
   const recorderRef = useRef<MediaRecorder | null>(null)
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // O `objectURL` é um recurso do documento, não do React: sem revogar, cada gravação descartada
+  // deixa o blob inteiro preso na memória da aba até um reload.
+  const discard = useCallback(() => {
+    setPending((current) => {
+      if (current) URL.revokeObjectURL(current.objectURL)
+      return undefined
+    })
+  }, [])
+
+  useEffect(() => discard, [discard])
+
+  const confirm = useCallback(() => {
+    if (!pending) return
+    void onRecorded(pending.file)
+    discard()
+  }, [discard, onRecorded, pending])
 
   const stop = useCallback(() => {
     recorderRef.current?.stop()
@@ -114,9 +149,23 @@ export function AudioRecorderButton({
         // O `File` sai com o MIME sem os parâmetros de codec: `audio/ogg;codecs=opus` serve ao
         // gravador, mas quem valida upload compara com `audio/ogg` puro.
         const blob = new Blob(chunks, { type: format.uploadMimeType })
-        void onRecorded(
-          new File([blob], `audio-${Date.now()}.${format.extension}`, { type: format.uploadMimeType }),
-        )
+        const file = new File([blob], `audio-${Date.now()}.${format.extension}`, {
+          type: format.uploadMimeType,
+        })
+
+        // Gravação vazia não vira anexo: microfone mudo ou permissão revogada no meio produzem um
+        // blob de zero byte, e mandá-lo adiante só falha lá na frente, sem dizer por quê.
+        if (blob.size === 0) {
+          onFailure?.(labelOf('empty'))
+          return
+        }
+
+        if (!reviewBeforeSend) {
+          void onRecorded(file)
+          return
+        }
+
+        setPending({ file, objectURL: URL.createObjectURL(blob) })
       })
 
       recorderRef.current = recorder
@@ -127,29 +176,66 @@ export function AudioRecorderButton({
     } catch {
       onFailure?.(labels?.denied ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS.denied)
     }
-  }, [labels?.denied, labels?.unsupported, maxDurationMilliseconds, onFailure, onRecorded, onRecordingChange])
+    // `labelOf` lê `labels` a cada render e não entra aqui; o que importa para recriar o gravador
+    // são o teto de duração, o destino da gravação e se há etapa de revisão.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxDurationMilliseconds, onFailure, onRecorded, onRecordingChange, reviewBeforeSend])
+
+  const toggleLabel = isRecording ? labelOf('stop') : labelOf('start')
 
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => (isRecording ? stop() : void start())}
-      title={isRecording ? stopLabel : startLabel}
-      aria-label={isRecording ? stopLabel : startLabel}
-      aria-pressed={isRecording}
-      /* Mesma caixa do botão de enviar: o microfone ocupa o lugar dele enquanto o campo está
-         vazio, e qualquer diferença de tamanho faz a barra pular a cada letra digitada. */
-      className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
-        isRecording
-          ? 'animate-pulse bg-red-500 text-white ring-4 ring-red-500/30 hover:bg-red-600'
-          : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
-      }`}
-    >
-      {isRecording ? (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
-      ) : (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
+    /* O painel de revisão flutua sobre o botão em vez de ocupar espaço na barra: o microfone mora
+       na caixa do botão de enviar, e empurrar o composer para cima a cada gravação faria a
+       conversa saltar. */
+    <div className="relative flex-shrink-0">
+      {pending && (
+        <div
+          role="group"
+          aria-label={labelOf('review')}
+          className="absolute bottom-full right-0 z-20 mb-2 flex w-64 items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+        >
+          <audio src={pending.objectURL} controls className="h-8 min-w-0 flex-1" />
+          <button
+            type="button"
+            onClick={discard}
+            title={labelOf('discard')}
+            aria-label={labelOf('discard')}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-700"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+          <button
+            type="button"
+            onClick={confirm}
+            title={labelOf('send')}
+            aria-label={labelOf('send')}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition-colors hover:bg-emerald-600"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" /></svg>
+          </button>
+        </div>
       )}
-    </button>
+      <button
+        type="button"
+        disabled={disabled || pending !== undefined}
+        onClick={() => (isRecording ? stop() : void start())}
+        title={toggleLabel}
+        aria-label={toggleLabel}
+        aria-pressed={isRecording}
+        /* Mesma caixa do botão de enviar: o microfone ocupa o lugar dele enquanto o campo está
+           vazio, e qualquer diferença de tamanho faz a barra pular a cada letra digitada. */
+        className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
+          isRecording
+            ? 'animate-pulse bg-red-500 text-white ring-4 ring-red-500/30 hover:bg-red-600'
+            : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+        }`}
+      >
+        {isRecording ? (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
+        )}
+      </button>
+    </div>
   )
 }
