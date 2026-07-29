@@ -1,13 +1,25 @@
 import type { FlowActionHandler, ObjectStorageInterface, SessionState } from '@adatechnology/meta-whatsapp-contracts'
 import type { FlowMediaRepository } from '../repositories/FlowMediaRepository'
-import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
+import type { LogMessageParams } from '../use-cases/LogMessage.use-case'
+
+/**
+ * Porta de escrita no transcript, e não a classe `LogMessageUseCase`.
+ *
+ * Exigir a classe amarraria a action a quem já guarda as mensagens nas tabelas do módulo — um host
+ * em migração, com o transcript ainda no schema dele, não conseguiria usar a única action built-in
+ * sem gravar o envio numa tabela que o painel dele não lê. O que a action precisa é só de um lugar
+ * para registrar o que saiu.
+ */
+export type FlowMediaTranscriptLogger = {
+  execute(params: LogMessageParams): Promise<unknown>
+}
 
 export type CreateSendMediaActionParams = {
   flowMediaRepository: FlowMediaRepository
   // Precisa de `getObject` — sem ele não há como reenviar o arquivo, e o módulo nem registra
   // esta action (ver createMetaWhatsAppModule).
   objectStorage: ObjectStorageInterface & { getObject: NonNullable<ObjectStorageInterface['getObject']> }
-  logMessage: LogMessageUseCase
+  logMessage: FlowMediaTranscriptLogger
   startState: SessionState
   // Falha de envio de UM arquivo não deve derrubar a conversa — o cliente ficaria travado num nó
   // automático por causa de um PDF. O host recebe o erro por aqui para alertar/observar.

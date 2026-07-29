@@ -6,9 +6,13 @@
 
 import { describe, expect, it, mock } from 'bun:test'
 import type { ChannelAdapterInterface, ConversationSession, FlowNodeData } from '@adatechnology/meta-whatsapp-contracts'
-import { createSendMediaAction, type CreateSendMediaActionParams } from './createSendMediaAction'
+import {
+  createSendMediaAction,
+  type CreateSendMediaActionParams,
+  type FlowMediaTranscriptLogger,
+} from './createSendMediaAction'
 import type { FlowMediaRepository } from '../repositories/FlowMediaRepository'
-import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
+import type { LogMessageParams, LogMessageUseCase } from '../use-cases/LogMessage.use-case'
 import type { FlowMediaRow } from '../schema/schema'
 
 const node: FlowNodeData = { id: 'materiais', type: 'action', actionKind: 'send_media' }
@@ -137,6 +141,33 @@ describe('createSendMediaAction', () => {
     expect(sendMedia).toHaveBeenCalledTimes(1)
     expect(sendMedia.mock.calls[0]![0]).toMatchObject({ filename: 'folder.jpg' })
     expect(onError.mock.calls[0]![1]).toMatchObject({ flowKey: 'consorcio', nodeId: 'materiais', uploadId: 'upload-1' })
+  })
+
+  // Host em migração: o transcript ainda é o dele, então o que ele tem para oferecer é um objeto
+  // com `execute`, não a instância de LogMessageUseCase. Sem cast nenhum neste teste de propósito —
+  // é a compilação dele que garante que a action continua utilizável fora do módulo completo.
+  it('aceita qualquer logger com execute, sem exigir a classe do módulo', async () => {
+    const registrado: LogMessageParams[] = []
+    const logger: FlowMediaTranscriptLogger = {
+      execute: async (params) => {
+        registrado.push(params)
+        return { id: 'mensagem-do-host' }
+      },
+    }
+    const sendMedia = sendMediaMock()
+
+    const handler = createSendMediaAction({
+      flowMediaRepository: {
+        listActive: mock(async () => [attachmentOf({})]),
+      } as unknown as FlowMediaRepository,
+      objectStorage: storageOf(async () => Buffer.from('bytes')),
+      logMessage: logger,
+      startState: 'start',
+    })
+
+    await handler({ node, session, channel: { sendMedia } as unknown as ChannelAdapterInterface, context: {} })
+
+    expect(registrado[0]).toMatchObject({ direction: 'outbound', payload: { uploadId: 'upload-1' } })
   })
 
   // Conversa fora de fluxo não tem de onde ler a biblioteca — não pode explodir nem inventar chave.
