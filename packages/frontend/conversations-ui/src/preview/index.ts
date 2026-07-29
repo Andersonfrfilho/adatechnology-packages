@@ -29,8 +29,8 @@ export { ConversationPreview } from './ConversationPreview'
 export { mediaTypeOf } from './ConversationPreview'
 export type { ConversationPreviewProps, PreviewUploadedMedia } from './ConversationPreview'
 
-export { AudioRecorderButton, DEFAULT_AUDIO_RECORDER_BUTTON_LABELS } from './AudioRecorderButton'
-export type { AudioRecorderButtonProps, AudioRecorderButtonLabels } from './AudioRecorderButton'
+export { AudioRecorderButton, DEFAULT_AUDIO_RECORDER_BUTTON_LABELS } from '../AudioRecorderButton'
+export type { AudioRecorderButtonProps, AudioRecorderButtonLabels } from '../AudioRecorderButton'
 
 export {
   createPreviewWebhookClient,
