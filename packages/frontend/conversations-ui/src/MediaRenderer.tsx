@@ -6,6 +6,25 @@ import { formatFileSize } from './lib/format'
 import { cn } from './lib/cn'
 import type { MessagePayload } from './types'
 
+/**
+ * Rótulo curto do tipo, para a linha de baixo da bolha de documento.
+ *
+ * O subtipo cru do Office é gigantesco — `vnd.openxmlformats-officedocument.wordprocessingml.document`
+ * vira uma linha de 58 caracteres em caixa alta que estica a bolha, empurra a coluna da conversa e
+ * quebra o layout de três painéis. A extensão do arquivo diz a mesma coisa em quatro letras.
+ */
+export function documentTypeLabel(filename?: string, mimeType?: string): string {
+  const extension = filename?.split('.').pop()
+  if (extension && extension.length <= 5 && extension !== filename) return extension.toUpperCase()
+
+  const subtype = mimeType?.split(';')[0]?.split('/')[1]
+  if (!subtype) return 'FILE'
+  // Sem extensão e com subtipo longo (áudio/vídeo sem nome), fica o sufixo depois do último ponto:
+  // `…wordprocessingml.document` -> `DOCUMENT`, que ainda informa e não estoura.
+  const compacto = subtype.split('.').pop() ?? subtype
+  return compacto.slice(0, 12).toUpperCase()
+}
+
 function resolveMediaSource(message: MessagePayload): string | null {
   if (message.mediaUrl) return message.mediaUrl
   if (message.base64) {
@@ -126,7 +145,7 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: 
       )
     }
     case 'document': {
-      const typeLabel = message.mimeType?.split('/')[1]?.toUpperCase() ?? 'FILE'
+      const typeLabel = documentTypeLabel(message.filename, message.mimeType)
       const sizeLabel = message.sizeBytes ? formatFileSize(message.sizeBytes) : null
       return (
         <div className={cn('flex items-center gap-3 min-w-[200px]', className)}>
@@ -135,7 +154,7 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: 
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{message.filename ?? bubble.untitledDocument}</p>
-            <p className="text-xs text-gray-500">{sizeLabel ? `${typeLabel} · ${sizeLabel}` : typeLabel}</p>
+            <p className="truncate text-xs text-gray-500">{sizeLabel ? `${typeLabel} · ${sizeLabel}` : typeLabel}</p>
           </div>
           {src ? (
             <a href={src} download={message.filename} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 flex-shrink-0 transition-colors" aria-label={bubble.downloadFile}>
