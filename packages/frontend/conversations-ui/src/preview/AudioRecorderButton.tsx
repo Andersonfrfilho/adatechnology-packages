@@ -27,9 +27,27 @@ export const DEFAULT_AUDIO_RECORDER_BUTTON_LABELS: AudioRecorderButtonLabels = {
 export interface AudioRecorderButtonProps {
   onRecorded: (file: File) => void | Promise<void>
   onFailure?: (message: string) => void
+  /**
+   * Avisa quando a gravação começa e termina. O botão é um interruptor — o segundo toque é que
+   * envia — e sem um aviso fora dele o operador grava, não vê nada acontecer e desiste achando
+   * que o microfone está quebrado.
+   */
+  onRecordingChange?: (isRecording: boolean) => void
+  /**
+   * Teto de duração da gravação, em milissegundos. Passado o tempo, o gravador para e envia o que
+   * tem. Produto com limite próprio sobrescreve.
+   */
+  maxDurationMilliseconds?: number
   labels?: Partial<AudioRecorderButtonLabels>
   disabled?: boolean
 }
+
+/**
+ * Cinco minutos: com o codec de voz do WhatsApp isso dá menos de 3MB, folgado dentro do teto de
+ * 16MB que a Meta impõe a áudio, e é mais do que qualquer recado de cliente. O corte automático
+ * existe porque gravação esquecida aberta só se descobre no envio, com o arquivo inteiro perdido.
+ */
+export const DEFAULT_MAX_RECORDING_MILLISECONDS = 5 * 60 * 1000
 
 /**
  * Ordem de preferência de formato: os dois primeiros o WhatsApp aceita como áudio; `webm` é só
@@ -52,11 +70,19 @@ export function resolveRecordingFormat(): RecordingFormat | undefined {
   return RECORDING_FORMATS.find((format) => MediaRecorder.isTypeSupported(format.mimeType))
 }
 
-export function AudioRecorderButton({ onRecorded, onFailure, labels, disabled }: AudioRecorderButtonProps) {
+export function AudioRecorderButton({
+  onRecorded,
+  onFailure,
+  onRecordingChange,
+  maxDurationMilliseconds = DEFAULT_MAX_RECORDING_MILLISECONDS,
+  labels,
+  disabled,
+}: AudioRecorderButtonProps) {
   const startLabel = labels?.start ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS.start
   const stopLabel = labels?.stop ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS.stop
   const [isRecording, setIsRecording] = useState(false)
   const recorderRef = useRef<MediaRecorder | null>(null)
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const stop = useCallback(() => {
     recorderRef.current?.stop()
@@ -81,7 +107,9 @@ export function AudioRecorderButton({ onRecorded, onFailure, labels, disabled }:
         // Solta o microfone assim que para: sem isto o indicador de gravação do navegador fica
         // aceso depois do envio, e o operador acha que o simulador continua ouvindo.
         stream.getTracks().forEach((track) => track.stop())
+        clearTimeout(autoStopRef.current)
         setIsRecording(false)
+        onRecordingChange?.(false)
         recorderRef.current = null
         // O `File` sai com o MIME sem os parâmetros de codec: `audio/ogg;codecs=opus` serve ao
         // gravador, mas quem valida upload compara com `audio/ogg` puro.
@@ -93,11 +121,13 @@ export function AudioRecorderButton({ onRecorded, onFailure, labels, disabled }:
 
       recorderRef.current = recorder
       recorder.start()
+      autoStopRef.current = setTimeout(() => recorder.stop(), maxDurationMilliseconds)
       setIsRecording(true)
+      onRecordingChange?.(true)
     } catch {
       onFailure?.(labels?.denied ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS.denied)
     }
-  }, [labels?.denied, labels?.unsupported, onFailure, onRecorded])
+  }, [labels?.denied, labels?.unsupported, maxDurationMilliseconds, onFailure, onRecorded, onRecordingChange])
 
   return (
     <button
@@ -111,7 +141,7 @@ export function AudioRecorderButton({ onRecorded, onFailure, labels, disabled }:
          vazio, e qualquer diferença de tamanho faz a barra pular a cada letra digitada. */
       className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full transition-colors ${
         isRecording
-          ? 'bg-red-500 text-white hover:bg-red-600'
+          ? 'animate-pulse bg-red-500 text-white ring-4 ring-red-500/30 hover:bg-red-600'
           : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
       }`}
     >

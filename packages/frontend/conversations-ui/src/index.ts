@@ -181,3 +181,5 @@ export type { ConversationRealtimeHandler } from './hooks/useConversationRealtim
 export type { AsyncResourceState } from './hooks/useAsyncResource'
 export { createMediaUrlResolver } from './lib/createMediaUrlResolver'
 export type { ConversationHeaderUtility } from './ConversationHeader'
+export { applyQuickReplyVariables, resolveQuickReply } from './MessageComposer'
+export type { QuickReply } from './MessageComposer'

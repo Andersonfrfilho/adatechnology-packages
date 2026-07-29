@@ -3,6 +3,40 @@ import type { ConversationsFeatures } from './types'
 import { cn } from './lib/cn'
 import { EmojiPicker } from './EmojiPicker'
 
+/**
+ * Mensagem pronta que o atendente cola no campo com um clique.
+ *
+ * `text` aceita string com `{{variavel}}` ou função: a string cobre o caso comum (copy fixa com o
+ * nome do cliente no meio) sem o host escrever código, e a função cobre o que precisa de lógica —
+ * escolher texto por produto, pluralizar, formatar moeda.
+ */
+export interface QuickReply {
+  key: string
+  /** O que aparece no chip, emoji incluso: `👋 Saudação`. */
+  label: string
+  text: string | ((variables: Readonly<Record<string, string>>) => string)
+}
+
+/**
+ * Troca `{{nome}}` pelos valores passados. Variável ausente vira string vazia, e não o literal
+ * `{{nome}}`: mandar "Olá {{nome}}!" para o cliente é pior que mandar "Olá !".
+ */
+export function applyQuickReplyVariables(
+  template: string,
+  variables: Readonly<Record<string, string>> = {},
+): string {
+  return template.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, chave: string) => variables[chave] ?? '')
+}
+
+export function resolveQuickReply(
+  quickReply: QuickReply,
+  variables: Readonly<Record<string, string>> = {},
+): string {
+  return typeof quickReply.text === 'function'
+    ? quickReply.text(variables)
+    : applyQuickReplyVariables(quickReply.text, variables)
+}
+
 export interface MessageComposerLabels {
   emoji: string
   attach: string
@@ -31,12 +65,18 @@ export interface MessageComposerProps {
    * microfone. Fora do campo, o botão vira um bloco solto ao lado do pill e quebra a barra.
    */
   idleAction?: ReactNode
+  /** Mensagens prontas exibidas acima do campo. Vazio ou ausente, a faixa não é renderizada. */
+  quickReplies?: readonly QuickReply[]
+  /** Valores para `{{variavel}}` — tipicamente nome do cliente, produto, protocolo. */
+  quickReplyVariables?: Readonly<Record<string, string>>
   className?: string
   classNames?: Partial<MessageComposerClassNames>
 }
 
 export interface MessageComposerClassNames {
   root: string
+  quickReplies: string
+  quickReply: string
   field: string
 }
 
@@ -67,6 +107,8 @@ export const MessageComposer = ({
   onAttach,
   value: externalValue,
   onChange: externalOnChange,
+  quickReplies,
+  quickReplyVariables,
   features,
   placeholder = 'Digite uma mensagem...',
   maxLength,
@@ -185,6 +227,37 @@ export const MessageComposer = ({
        ordem do WhatsApp. Invertido, o pill arredondado ia até a borda da tela e os cantos
        descobriam o fundo branco da página, que lia como defeito. */
     <div className={cn('bg-[#f0f2f5] px-2 py-2', className)}>
+      {/* Uma linha com scroll no celular e wrap no desktop: em 375px seis chips em wrap empurrariam
+          o campo para fora da tela, e o campo é a razão de a barra existir. */}
+      {quickReplies && quickReplies.length > 0 && (
+        <div
+          className={cn(
+            'mb-2 flex flex-nowrap gap-1 overflow-x-auto px-1 sm:flex-wrap sm:overflow-x-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+            classNames?.quickReplies,
+          )}
+        >
+          {quickReplies.map((quickReply) => (
+            <button
+              key={quickReply.key}
+              type="button"
+              // Preenche o campo em vez de enviar: mensagem pronta é ponto de partida, e quem
+              // atende quase sempre ajusta uma palavra antes de mandar. Enviar direto no clique
+              // transformaria um toque errado em mensagem entregue ao cliente.
+              onClick={() => {
+                setText(resolveQuickReply(quickReply, quickReplyVariables))
+                textareaRef.current?.focus()
+              }}
+              className={cn(
+                'whitespace-nowrap rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400',
+                classNames?.quickReply,
+              )}
+            >
+              {quickReply.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {attachments.length > 0 && (
         <div className="flex gap-2 px-1 pb-2 overflow-x-auto">
           {attachments.map((a, i) => (
