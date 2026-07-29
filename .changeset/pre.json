@@ -36,6 +36,7 @@
   "changesets": [
     "agent-media-enters-document-library",
     "catalog-inventory",
+    "composer-idle-action",
     "configurable-product-model",
     "conversation-deletion-and-retention",
     "conversation-documents-data-layer",
