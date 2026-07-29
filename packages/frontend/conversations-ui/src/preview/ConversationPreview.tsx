@@ -188,7 +188,10 @@ export function ConversationPreview({
   }, [pollIntervalMs, refresh])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // `block: 'nearest'` e não o padrão ('start'): o padrão alinha o elemento ao topo da área
+    // visível MAIS PRÓXIMA que role — e quando o container do preview não tem altura limitada, essa
+    // área é a PÁGINA. O efeito era a tela inteira saltar para baixo ao abrir/usar o simulador.
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [messages])
 
   const rendered = useMemo(() => decorate([...messages, ...pendingLocal]), [messages, pendingLocal])
