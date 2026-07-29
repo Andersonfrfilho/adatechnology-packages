@@ -59,6 +59,7 @@
     "inbox-components",
     "inbox-operations-and-pagination",
     "interactive-message-formatting",
+    "lazy-media-button",
     "mdfe-3-00-emissao-encerramento-cancelamento",
     "mdfe-svrs-lotacao-contratante-pagamento",
     "media-types-and-valid-preview-files",
