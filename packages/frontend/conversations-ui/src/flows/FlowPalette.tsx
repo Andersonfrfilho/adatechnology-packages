@@ -72,7 +72,9 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
               onClick={() => setSubmenu(submenu === 'question' ? null : 'question')}
               className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              <span className="flex items-center gap-2"><MessageCircleQuestion size={15} className="text-blue-500" /> {labels.palette.question}</span>
+              <span className="flex items-center gap-2">
+                <MessageCircleQuestion size={15} className="text-blue-500" /> {labels.palette.question}
+              </span>
               <ChevronRight size={13} className="text-gray-400" />
             </button>
             {submenu === 'question' && (
@@ -113,7 +115,9 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
               onClick={() => setSubmenu(submenu === 'action' ? null : 'action')}
               className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              <span className="flex items-center gap-2"><Zap size={15} className="text-orange-500" /> {labels.palette.action}</span>
+              <span className="flex items-center gap-2">
+                <Zap size={15} className="text-orange-500" /> {labels.palette.action}
+              </span>
               <ChevronRight size={13} className="text-gray-400" />
             </button>
             {submenu === 'action' && (

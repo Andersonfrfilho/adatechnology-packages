@@ -62,6 +62,13 @@ export interface ObjectStorageInterface {
     options?: { expiresInSeconds?: number; disposition?: 'inline' | 'attachment'; filename?: string },
   ): Promise<string>
   /**
+   * Lê o binário de volta. Opcional pelo mesmo motivo do `delete` — quem já implementa este
+   * contrato não pode quebrar ao atualizar o pacote — mas sem ele a action `send_media` fica
+   * desligada: reenviar um arquivo da biblioteca ao cliente exige os bytes, e `getDownloadUrl`
+   * não serve (a Graph API recebe o conteúdo, não uma URL assinada nossa).
+   */
+  getObject?(uploadId: string): Promise<Buffer>
+  /**
    * Apaga o objeto. Opcional para não quebrar quem já implementa este contrato, mas **sem ele não
    * existe exclusão de verdade**: a cascata da FK derruba a linha e deixa o binário órfão no
    * storage, sendo cobrado indefinidamente e sem nada que o alcance.

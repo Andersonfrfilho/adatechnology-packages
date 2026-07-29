@@ -34,6 +34,7 @@ export type {
 
 export {
   CROSS_FLOW_PREFIX,
+  FLOW_ACTION_KIND,
   isCrossFlowTarget,
   crossFlowKey,
   flowNodeNextSchema,

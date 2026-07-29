@@ -168,6 +168,50 @@ export const flowGraphs = metaWhatsAppSchema.table(
   (table) => [uniqueIndex('idx_flow_graphs_company_key').on(table.companyId, table.key)],
 )
 
+/**
+ * Biblioteca de mídia do bot: arquivos que um nó `action` de `send_media` dispara ao chegar nele.
+ *
+ * Tabela separada de `documents` de propósito, e não por simetria: `documents` é o acervo DE UMA
+ * CONVERSA (tem `sessionId` obrigatório) e tem índice único em (companyId, uploadId), porque lá o
+ * mesmo binário chegando duas vezes é reentrega de job. Aqui é o oposto — o mesmo arquivo é
+ * enviado para todo cliente que passar pelo nó, então aquele único bloquearia o segundo envio.
+ *
+ * Sem FK para `flow_graphs.id`: o vínculo natural é (companyId, flowKey), que é justamente o
+ * índice único de lá. `nodeId` não tem como ser FK — nós vivem dentro do jsonb `nodes` — então
+ * apagar um nó no editor deixa a linha órfã; quem lista sempre parte de um nó existente, e a
+ * limpeza é passo de aplicação ao salvar o grafo.
+ */
+export const flowMedia = metaWhatsAppSchema.table(
+  'flow_media',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    companyId: uuid('company_id').notNull(),
+    flowKey: varchar('flow_key', { length: 64 }).notNull(),
+    nodeId: varchar('node_id', { length: 64 }).notNull(),
+    uploadId: varchar('upload_id', { length: 256 }).notNull(),
+    filename: varchar('filename', { length: 512 }).notNull(),
+    mimeType: varchar('mime_type', { length: 128 }).notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    // Legenda da mídia no WhatsApp. Por arquivo, não por nó: um nó que manda tabela de preços e
+    // um folder precisa de textos diferentes para cada um.
+    caption: text('caption'),
+    // Ordem de envio dentro do nó — o cliente recebe as mensagens em sequência, e "tabela antes
+    // do folder" é decisão de quem edita, não do banco.
+    sortOrder: integer('sort_order').notNull().default(0),
+    // Desligar sem desanexar: trocar o material da campanha é o caso comum, e apagar a linha
+    // perderia a ordem e a legenda já ajustadas.
+    active: boolean('active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_flow_media_node').on(table.companyId, table.flowKey, table.nodeId, table.sortOrder),
+    // O mesmo arquivo anexado duas vezes ao MESMO nó é erro de clique no editor, e o cliente
+    // receberia o documento repetido.
+    uniqueIndex('idx_flow_media_node_upload').on(table.companyId, table.flowKey, table.nodeId, table.uploadId),
+  ],
+)
+
 // T5.5 — configuração de WhatsApp POR EMPRESA, em tabela do módulo. Deliberadamente separada do
 // app_config genérico do host: são chaves que só o módulo entende, e mantê-las aqui é o que
 // permite instalar/remover a capacidade sem migrar a tabela de configuração do produto.
@@ -194,3 +238,5 @@ export type FlowGraphRow = typeof flowGraphs.$inferSelect
 export type NewFlowGraphRow = typeof flowGraphs.$inferInsert
 export type DocumentRow = typeof documents.$inferSelect
 export type NewDocumentRow = typeof documents.$inferInsert
+export type FlowMediaRow = typeof flowMedia.$inferSelect
+export type NewFlowMediaRow = typeof flowMedia.$inferInsert

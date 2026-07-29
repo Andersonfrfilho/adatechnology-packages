@@ -21,7 +21,9 @@ export function FlowMapNode({ data }: NodeProps) {
       <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300">
         <GitBranch size={14} />
         <span className="text-sm font-semibold truncate">{label}</span>
-        {isRoot && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title={labels.startNodeTooltip} />}
+        {isRoot && (
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title={labels.startNodeTooltip} />
+        )}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{labels.flowMap.nodeCount(nodeCount)}</p>
       <button

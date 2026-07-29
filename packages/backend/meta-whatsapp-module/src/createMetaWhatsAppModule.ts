@@ -1,5 +1,6 @@
 import { WhatsAppMessageProvider } from '@adatechnology/meta-whatsapp-provider'
 import type { MetaWhatsAppDatabase } from './database.types'
+import { FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
 import type {
   CatalogPort,
   ChannelAdapterInterface,
@@ -36,6 +37,8 @@ import {
   GetLiveFlowPositionsUseCase,
 } from './use-cases/FlowGraph.use-cases'
 import { FlowInterpreter } from './flows/FlowInterpreter'
+import { createSendMediaAction } from './flows/createSendMediaAction'
+import { FlowMediaRepository } from './repositories/FlowMediaRepository'
 import { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
 import { IngestInboundMediaUseCase } from './channel/IngestInboundMedia.use-case'
@@ -106,6 +109,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   const settingsRepository = new SettingsRepository(db)
   const flowGraphRepository = new FlowGraphRepository(db)
   const documentRepository = new DocumentRepository(db)
+  const flowMediaRepository = new FlowMediaRepository(db)
 
   const logMessage = new LogMessageUseCase(
     sessionRepository,
@@ -135,6 +139,22 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   // Só existe se a flag estiver ligada — não adianta o host "não usar" um interpretador que
   // ainda assim ficou instanciado e exposto na API pública do módulo.
   const flowInterpreter = flowEngineEnabled ? new FlowInterpreter() : undefined
+
+  // `send_media` é a única action que o pacote registra sozinho — as demais dependem de regra do
+  // produto. Condicionada a `getObject` porque sem os bytes o handler não teria o que enviar:
+  // registrá-lo assim mesmo deixaria um nó que o editor oferece e que silenciosamente não faz nada.
+  if (flowInterpreter && providers.objectStorage?.getObject) {
+    flowInterpreter.registerFlowAction(
+      FLOW_ACTION_KIND.SEND_MEDIA,
+      createSendMediaAction({
+        flowMediaRepository,
+        objectStorage: providers.objectStorage as Parameters<typeof createSendMediaAction>[0]['objectStorage'],
+        logMessage,
+        startState,
+        onError: hooks?.onFlowMediaError,
+      }),
+    )
+  }
 
   // Só existe com storage injetado — sem ele não há para onde copiar o binário, e devolver um
   // use-case que sempre falha seria pior do que a ausência ser visível no tipo.
@@ -192,6 +212,10 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
           delete: new DeleteFlowGraphUseCase(flowGraphRepository),
           livePositions: new GetLiveFlowPositionsUseCase(flowGraphRepository),
           repository: flowGraphRepository,
+          // Biblioteca de mídia dos nós `send_media` — o host liga nas rotas do editor
+          // (anexar/reordenar/desligar). Existe mesmo sem storage injetado: gerenciar anexos é
+          // consultar a tabela, e só o ENVIO precisa dos bytes.
+          mediaRepository: flowMediaRepository,
         }
       : undefined,
     catalog: providers.catalog,
