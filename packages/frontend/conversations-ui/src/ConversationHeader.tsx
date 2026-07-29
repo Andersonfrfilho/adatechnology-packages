@@ -52,6 +52,20 @@ export interface ConversationHeaderClassNames {
   mobileMenu: string
 }
 
+/**
+ * Utilitário extra que o host pendura no cabeçalho — ícone no desktop, item de menu no celular,
+ * como os nativos. Entra por aqui, e não por um slot de ReactNode, porque é isso que preserva o
+ * comportamento responsivo: um nó solto viraria um quarto ícone em 375px, sem área de toque.
+ */
+export interface ConversationHeaderUtility {
+  key: string
+  /** Emoji, para casar com os utilitários nativos do cabeçalho. */
+  icon: string
+  label: string
+  run: () => void
+  active?: boolean
+}
+
 export interface ConversationHeaderProps {
   conversation: ConversationSummary
   busy?: boolean
@@ -61,6 +75,8 @@ export interface ConversationHeaderProps {
   onDownload?: () => void
   onOpenDocuments?: () => void
   documentsOpen?: boolean
+  /** Ações do produto que não existem no contrato do pacote (ex.: ferramentas de dev). */
+  extraUtilities?: readonly ConversationHeaderUtility[]
   onBack?: () => void
   labels?: Partial<ConversationHeaderLabels>
   className?: string
@@ -76,6 +92,7 @@ export function ConversationHeader({
   onDownload,
   onOpenDocuments,
   documentsOpen = false,
+  extraUtilities,
   onBack,
   labels: labelsOverride,
   className,
@@ -96,6 +113,7 @@ export function ConversationHeader({
       ? { key: 'documents', icon: '📄', label: labels.documents, run: onOpenDocuments, active: documentsOpen }
       : undefined,
     onDownload ? { key: 'download', icon: '⬇️', label: labels.download, run: onDownload, active: false } : undefined,
+    ...(extraUtilities ?? []).map((utility) => ({ ...utility, active: utility.active ?? false })),
   ].filter(
     (utility): utility is { key: string; icon: string; label: string; run: () => void; active: boolean } =>
       Boolean(utility),
