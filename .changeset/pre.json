@@ -66,6 +66,7 @@
     "preview-whatsapp-components",
     "product-agnostic-flow-and-session-context",
     "restore-provider-factory",
+    "rich-message-composer",
     "strict-declarations",
     "style-customization-and-moderation-badge",
     "summary-preview",
