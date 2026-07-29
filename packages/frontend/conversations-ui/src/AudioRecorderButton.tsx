@@ -10,6 +10,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { AudioPlayer } from './AudioPlayer'
+
 export interface AudioRecorderButtonLabels {
   start: string
   stop: string
@@ -192,9 +194,14 @@ export function AudioRecorderButton({
         <div
           role="group"
           aria-label={labelOf('review')}
-          className="absolute bottom-full right-0 z-20 mb-2 flex w-64 items-center gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+          /* Largura presa à viewport, não ao conteúdo: ancorado à direita do microfone, qualquer
+             largura fixa maior que a tela sangra para fora no celular. `flex-wrap` é a segunda
+             rede — se o player e os dois botões não couberem lado a lado, os botões descem. */
+          className="absolute bottom-full right-0 z-20 mb-2 flex w-[calc(100vw-2rem)] max-w-[20rem] flex-wrap items-center justify-end gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800"
         >
-          <audio src={pending.objectURL} controls className="h-8 min-w-0 flex-1" />
+          <div className="min-w-0 flex-1">
+            <AudioPlayer src={pending.objectURL} />
+          </div>
           <button
             type="button"
             onClick={discard}

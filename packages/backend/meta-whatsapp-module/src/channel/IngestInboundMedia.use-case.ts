@@ -70,6 +70,10 @@ export class IngestInboundMediaUseCase {
       uploadId,
       sourceMediaId: params.sourceMediaId,
       mimeType: mimeType || params.mimeType,
+      // O tamanho já está na mão (é o buffer que acabou de ser copiado) e a bolha de documento o
+      // exibe ao lado do tipo. Sem gravar aqui, a UI mostraria "PDF" sem o "· 180 KB", e buscá-lo
+      // depois custaria uma consulta à tabela de documentos por mensagem renderizada.
+      sizeBytes: buffer.length,
       ...(params.filename ? { filename: params.filename } : {}),
     }
 
