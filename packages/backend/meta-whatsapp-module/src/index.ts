@@ -63,6 +63,7 @@ export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtim
 export { FlowGraphRepository, OptimisticLockError, InvalidFlowGraphError } from './repositories/FlowGraphRepository'
 export { FlowInterpreter } from './flows/FlowInterpreter'
 export type { FlowStepInput, FlowStepResult, FlowRunResult } from './flows/FlowInterpreter'
+export { FlowGraphCache, DEFAULT_FLOW_GRAPH_CACHE_TTL_SECONDS } from './repositories/FlowGraphCache'
 export { FlowMediaRepository } from './repositories/FlowMediaRepository'
 export type {
   FlowMediaLocation,

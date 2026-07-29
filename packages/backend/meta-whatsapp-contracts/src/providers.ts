@@ -84,6 +84,23 @@ export interface RealtimeNotifierInterface {
   emit(channel: string, event: string, payload: Record<string, unknown>): void
 }
 
+/**
+ * Cache chave-valor do host (Redis, Memcached, o que for). Injetado como todo o resto de
+ * ambiente: o módulo não abre conexão própria nem decide onde o dado mora.
+ *
+ * Precisa ser COMPARTILHADO entre instâncias. Um cache em memória por processo faria cada
+ * instância servir uma versão diferente do mesmo fluxo depois de uma publicação, e a invalidação
+ * de uma não alcançaria as outras — o cliente cairia no grafo velho ou no novo conforme o
+ * balanceador.
+ *
+ * Valores são texto: serializar é responsabilidade de quem usa, para o contrato não impor formato.
+ */
+export interface CacheInterface {
+  get(key: string): Promise<string | null>
+  set(key: string, value: string, ttlSeconds?: number): Promise<void>
+  delete(key: string): Promise<void>
+}
+
 export type FlowActionResult = {
   // Desvia o fluxo para um nó específico, ignorando o `next` declarado no grafo.
   next?: string

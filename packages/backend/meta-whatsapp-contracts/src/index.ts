@@ -70,6 +70,7 @@ export type {
   CatalogPort,
   ObjectStorageInterface,
   RealtimeNotifierInterface,
+  CacheInterface,
   FlowActionHandler,
   FlowActionResult,
   FlowActionRegistry,
