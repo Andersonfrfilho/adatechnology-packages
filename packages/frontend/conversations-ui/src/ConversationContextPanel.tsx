@@ -9,7 +9,6 @@
 import { useState } from 'react'
 
 import { cn } from './lib/cn'
-import { useIsNarrow } from './useIsNarrow'
 
 export interface ConversationContextEntry {
   key: string
@@ -69,11 +68,15 @@ export function ConversationContextPanel({
   // `undefined` = usuário ainda não mexeu. Guardar só um booleano não serve: o contexto chega
   // depois da montagem, então o estado inicial seria calculado com a lista vazia e o painel ficaria
   // fechado mesmo com dados.
-  const isNarrow = useIsNarrow()
   const [manualOpen, setManualOpen] = useState<boolean | undefined>(undefined)
-  // No celular nasce fechado mesmo com dados: aberto, o painel consome ~150px da conversa. O
-  // contador no cabeçalho já entrega a informação de relance.
-  const open = manualOpen ?? defaultOpen ?? (!isNarrow && filled.length > 0)
+  // Nasce FECHADO, em qualquer tamanho de tela. Antes abria sozinho no desktop quando havia algum
+  // campo preenchido, e o efeito era o painel ocupar ~200px mostrando quase só travessões — com 1 de
+  // 6 campos, empurrava para baixo a conversa, que é o que se veio ver. O contador no cabeçalho
+  // (`1/6`) já entrega a informação de relance, e agora o rótulo `abrir` diz como ver o detalhe.
+  //
+  // O padrão vive AQUI e não em cada host: se cada produto decidisse, a mesma tela nasceria diferente
+  // em cada projeto — e a decisão certa é a mesma para todos.
+  const open = manualOpen ?? defaultOpen ?? false
 
   return (
     <section className={cn('border-b', classNames?.root, className)}>
