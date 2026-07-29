@@ -15,6 +15,12 @@ export type {
   RichComposerVariable,
   RichMessageComposerHandle,
 } from './RichMessageComposer'
+export {
+  AudioRecorderButton,
+  DEFAULT_AUDIO_RECORDER_BUTTON_LABELS,
+  DEFAULT_MAX_RECORDING_MILLISECONDS,
+} from './AudioRecorderButton'
+export type { AudioRecorderButtonProps, AudioRecorderButtonLabels } from './AudioRecorderButton'
 export { WhatsAppMessageEditor, DEFAULT_WHATSAPP_MESSAGE_EDITOR_LABELS } from './WhatsAppMessageEditor'
 export { SimpleEmojiPicker } from './SimpleEmojiPicker'
 export { DateDivider } from './DateDivider'

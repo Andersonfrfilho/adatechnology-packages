@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 
 import { resolveRecordingFormat } from './AudioRecorderButton'
-import { DEFAULT_ACCEPTED_FILE_TYPES } from '../MessageComposer'
+import { DEFAULT_ACCEPTED_FILE_TYPES } from './MessageComposer'
 
 const originalMediaRecorder = (globalThis as Record<string, unknown>).MediaRecorder
 

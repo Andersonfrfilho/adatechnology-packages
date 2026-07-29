@@ -20,7 +20,7 @@ import { MessageComposer } from '../MessageComposer'
 import { DateDivider } from '../DateDivider'
 import { ConversationWallpaper } from '../Wallpaper'
 import type { PreviewWebhookClient, SendPreviewMediaParams } from './createPreviewWebhookClient'
-import { AudioRecorderButton } from './AudioRecorderButton'
+import { AudioRecorderButton } from '../AudioRecorderButton'
 
 export type ConversationPreviewProps = {
   client: PreviewWebhookClient
