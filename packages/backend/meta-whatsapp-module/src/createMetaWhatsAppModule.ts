@@ -8,6 +8,7 @@ import type {
   FlowActionKind,
   MetaWhatsAppHooks,
   ObjectStorageInterface,
+  CacheInterface,
   RealtimeNotifierInterface,
   SessionState,
   SubjectResolverInterface,
@@ -15,6 +16,7 @@ import type {
 import { SessionRepository } from './repositories/SessionRepository'
 import { MessageRepository } from './repositories/MessageRepository'
 import { FlowGraphRepository } from './repositories/FlowGraphRepository'
+import { FlowGraphCache, DEFAULT_FLOW_GRAPH_CACHE_TTL_SECONDS } from './repositories/FlowGraphCache'
 import { SettingsRepository } from './repositories/SettingsRepository'
 import { LogMessageUseCase, type MessageModerator } from './use-cases/LogMessage.use-case'
 import { SendMessageUseCase } from './use-cases/SendMessage.use-case'
@@ -60,10 +62,19 @@ export interface MetaWhatsAppModuleFeatures {
   // (o QuickCart tem o seu ConversationEngine) não deve nem carregar o interpretador, e o
   // módulo não pode presumir que todo consumidor quer fluxo visual.
   flowEngine?: boolean
+
+  // Cache de leitura dos grafos. Desligado por omissão: cachear é decisão do host, que é quem
+  // sabe se o Redis dele é compartilhado entre instâncias — cache por processo serviria versões
+  // diferentes do mesmo fluxo depois de uma publicação. Ligar exige `providers.cache`; sem ele o
+  // flag é ignorado, porque o módulo não abre conexão própria.
+  flowGraphCache?: boolean | { ttlSeconds?: number }
 }
 
 export interface MetaWhatsAppModuleProviders {
   objectStorage?: ObjectStorageInterface
+  // Cache do host, compartilhado entre instâncias (ver CacheInterface). Hoje serve os grafos de
+  // fluxo, que são lidos a cada mensagem recebida.
+  cache?: CacheInterface
   realtime?: RealtimeNotifierInterface
   subjectResolver?: SubjectResolverInterface
   // Opcional por desenho — sem catálogo injetado o módulo sobe e funciona, só os recursos de
@@ -107,7 +118,18 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   const sessionRepository = new SessionRepository(db)
   const messageRepository = new MessageRepository(db)
   const settingsRepository = new SettingsRepository(db)
-  const flowGraphRepository = new FlowGraphRepository(db)
+  const flowGraphCacheFeature = params.features?.flowGraphCache ?? false
+  const flowGraphCache =
+    flowGraphCacheFeature && providers.cache
+      ? new FlowGraphCache(
+          providers.cache,
+          typeof flowGraphCacheFeature === 'object'
+            ? (flowGraphCacheFeature.ttlSeconds ?? DEFAULT_FLOW_GRAPH_CACHE_TTL_SECONDS)
+            : DEFAULT_FLOW_GRAPH_CACHE_TTL_SECONDS,
+        )
+      : undefined
+
+  const flowGraphRepository = new FlowGraphRepository(db, flowGraphCache)
   const documentRepository = new DocumentRepository(db)
   const flowMediaRepository = new FlowMediaRepository(db)
 

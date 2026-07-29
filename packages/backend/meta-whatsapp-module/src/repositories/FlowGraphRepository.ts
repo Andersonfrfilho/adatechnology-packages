@@ -8,6 +8,7 @@ import type {
   LiveFlowPosition,
 } from '@adatechnology/meta-whatsapp-contracts'
 import { sessions, flowGraphs, type FlowGraphRow } from '../schema/schema'
+import type { FlowGraphCache } from './FlowGraphCache'
 
 export class InvalidFlowGraphError extends Error {
   constructor(
@@ -45,15 +46,27 @@ export class OptimisticLockError extends Error {
 // T4.2 — CRUD de grafo de fluxo, mais a consulta de posições ao vivo (quantas sessões estão
 // em cada nó agora) que alimenta o liveCount no editor visual (FlowNodeCardData).
 export class FlowGraphRepository {
-  constructor(private readonly db: MetaWhatsAppDatabase) {}
+  // Cache opcional: sem ele o repositório se comporta exatamente como antes, lendo sempre do
+  // banco. É o host que decide se quer cachear e com qual provedor (ver CacheInterface).
+  constructor(
+    private readonly db: MetaWhatsAppDatabase,
+    private readonly cache?: FlowGraphCache,
+  ) {}
 
   async get(companyId: string, key: string): Promise<FlowGraphData | undefined> {
+    const cached = await this.cache?.read(companyId, key)
+    if (cached) return cached
+
     const [row] = await this.db
       .select()
       .from(flowGraphs)
       .where(and(eq(flowGraphs.companyId, companyId), eq(flowGraphs.key, key)))
       .limit(1)
-    return row ? toContractGraph(row) : undefined
+    if (!row) return undefined
+
+    const graph = toContractGraph(row)
+    await this.cache?.write(companyId, graph)
+    return graph
   }
 
   async list(companyId: string): Promise<FlowGraphSummary[]> {
@@ -93,7 +106,10 @@ export class FlowGraphRepository {
         menuOptionLabel: graph.menuOptionLabel,
       })
       .returning()
-    return toContractGraph(created!)
+
+    const createdGraph = toContractGraph(created!)
+    await this.cache?.invalidate(companyId, createdGraph.key)
+    return createdGraph
   }
 
   // Lock otimista: a escrita só aplica se `expectedVersion` ainda bater com o que está salvo —
@@ -120,11 +136,17 @@ export class FlowGraphRepository {
       .returning()
 
     if (rows.length === 0) throw new OptimisticLockError(graph.key)
+
+    // Invalida em vez de reescrever a entrada com o grafo novo: reescrever perderia a corrida
+    // contra uma leitura concorrente que já tivesse buscado a versão anterior e ainda não tivesse
+    // gravado — o cache ficaria com o grafo velho, com TTL cheio pela frente.
+    await this.cache?.invalidate(companyId, graph.key)
     return toContractGraph(rows[0]!)
   }
 
   async delete(companyId: string, key: string): Promise<void> {
     await this.db.delete(flowGraphs).where(and(eq(flowGraphs.companyId, companyId), eq(flowGraphs.key, key)))
+    await this.cache?.invalidate(companyId, key)
   }
 
   // T4.2 — GetLiveFlowPositions: agrega sessões ativas por (flowKey, currentNodeId), lendo as
