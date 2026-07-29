@@ -36,6 +36,7 @@
   "changesets": [
     "agent-media-enters-document-library",
     "audio-recorder-feedback",
+    "audio-recorder-root",
     "catalog-inventory",
     "composer-idle-action",
     "configurable-product-model",
