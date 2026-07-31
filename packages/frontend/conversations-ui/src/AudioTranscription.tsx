@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Check, Copy, FileText, Loader2, RefreshCw } from 'lucide-react'
 import { useConversationLocales } from './ConversationLocalesProvider'
+import { cn } from './lib/cn'
 import type { MessageTranscription } from './types'
 
 export interface AudioTranscriptionProps {
@@ -20,6 +21,19 @@ export interface AudioTranscriptionProps {
 
 /** Feedback de "copiado" some sozinho — confirmação que exige clique para fechar é ruído. */
 const COPIED_FEEDBACK_MS = 2000
+
+/**
+ * Acima disto a transcrição nasce recolhida.
+ *
+ * Medido: 1147 caracteres (cerca de um minuto de fala) produziram uma bolha de 854px — mais alta que
+ * a área visível da conversa, empurrando todo o resto para fora. Nota de voz de três minutos
+ * triplicaria. O limite é em caracteres, e não em linhas de CSS, porque a decisão precisa acontecer
+ * antes de renderizar: `line-clamp` sozinho esconde o texto mas ainda paga o layout inteiro.
+ */
+const COLLAPSE_ABOVE_CHARS = 320
+
+/** Linhas visíveis quando recolhido — o bastante para saber do que o cliente está falando. */
+const COLLAPSED_LINE_CLAMP = 4
 
 /**
  * Transcrição sob a nota de voz, com botão de copiar.
@@ -44,10 +58,16 @@ export function AudioTranscription({ transcription, onTranscribe, isMine = false
    * coisa. Sem isto o clique terminaria em nada visível.
    */
   const [justTranscribed, setJustTranscribed] = useState<MessageTranscription | undefined>()
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const effective = justTranscribed ?? transcription
   const text = effective?.text?.trim() ?? ''
   const status = effective?.status
+
+  // Nasce recolhido e o operador decide: abrir tudo por padrão faria a nota de voz longa esconder as
+  // mensagens seguintes, que é justamente o contexto de que ele precisa para responder.
+  const isLong = text.length > COLLAPSE_ABOVE_CHARS
+  const isTruncated = isLong && !isExpanded
   const isDone = status === 'done'
   const hasText = isDone && text.length > 0
   // Silêncio já processado: dizer "sem fala detectada" evita o operador clicar em transcrever de novo
@@ -138,11 +158,37 @@ export function AudioTranscription({ transcription, onTranscribe, isMine = false
       {isSilent ? (
         <p className="text-xs italic text-gray-500 dark:text-gray-400">{locales.empty}</p>
       ) : (
-        // `select-all` para o clique único selecionar tudo: é o fallback quando o clipboard não está
-        // disponível, e o caminho de quem prefere copiar com o teclado.
-        <p className="select-all whitespace-pre-wrap break-words text-[13px] leading-[18px] text-gray-700 dark:text-gray-200">
-          {text}
-        </p>
+        <>
+          {/* `select-all` para o clique único selecionar tudo: é o fallback quando o clipboard não
+              está disponível, e o caminho de quem prefere copiar com o teclado. */}
+          <p
+            className={cn(
+              'select-all whitespace-pre-wrap break-words text-[13px] leading-[18px] text-gray-700 dark:text-gray-200',
+              isTruncated && 'overflow-hidden',
+            )}
+            style={
+              isTruncated
+                ? {
+                    display: '-webkit-box',
+                    WebkitBoxOrient: 'vertical',
+                    WebkitLineClamp: COLLAPSED_LINE_CLAMP,
+                  }
+                : undefined
+            }
+          >
+            {text}
+          </p>
+          {/* O botão de copiar leva o texto INTEIRO, recolhido ou não — recolher é sobre altura na
+              tela, não sobre o que o operador cola no sistema interno. */}
+          {isLong && (
+            <button
+              onClick={() => setIsExpanded((current) => !current)}
+              className="mt-1 text-[11px] font-medium text-gray-500 underline decoration-dotted hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              {isExpanded ? locales.showLess : locales.showMore}
+            </button>
+          )}
+        </>
       )}
 
       {/* Retranscrever fica escondido atrás do hover do balão: é ação rara e paga cota de engine. */}

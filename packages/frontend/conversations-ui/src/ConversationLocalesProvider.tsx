@@ -33,6 +33,8 @@ export interface ConversationLocales {
     /** Áudio processado sem fala detectada — distinto de "não transcrito". */
     empty: string
     unsupported: string
+    showMore: string
+    showLess: string
   }
   selection: {
     select: string
@@ -75,6 +77,8 @@ const DEFAULT_LOCALES: ConversationLocales = {
     failed: 'Falha ao transcrever — tentar novamente',
     empty: 'Sem fala detectada',
     unsupported: 'Formato de áudio não suportado para transcrição',
+    showMore: 'ver transcrição completa',
+    showLess: 'ver menos',
   },
   selection: {
     select: 'Selecionar',

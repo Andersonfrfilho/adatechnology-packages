@@ -74,6 +74,32 @@ describe('AudioTranscription', () => {
     expect(markup).not.toContain('Transcrever novamente')
   })
 
+  /**
+   * Medido: 1147 caracteres produziram uma bolha de 854px, mais alta que a área visível da conversa.
+   * Sem o recolhimento, uma nota de voz longa esconde as mensagens seguintes.
+   */
+  it('recolhe transcrição longa e oferece ver o texto completo', () => {
+    const markup = render({ transcription: { status: 'done', text: 'palavra '.repeat(60).trim() } })
+
+    expect(markup).toContain('ver transcrição completa')
+    expect(markup).toContain('-webkit-line-clamp')
+  })
+
+  it('não recolhe transcrição curta', () => {
+    const markup = render({ transcription: { status: 'done', text: 'quero dois pães' } })
+
+    expect(markup).not.toContain('ver transcrição completa')
+    expect(markup).not.toContain('-webkit-line-clamp')
+  })
+
+  // Recolher é sobre altura na tela; o operador cola o pedido inteiro no sistema interno.
+  it('mantém o texto inteiro no DOM mesmo recolhido, para o copiar levar tudo', () => {
+    const markup = render({ transcription: { status: 'done', text: 'primeira ' + 'meio '.repeat(70) + 'ultima' } })
+
+    expect(markup).toContain('primeira')
+    expect(markup).toContain('ultima')
+  })
+
   it('oferece retranscrever quando já há texto e o host sabe transcrever', () => {
     const markup = render({ transcription: { status: 'done', text: 'ruim' }, onTranscribe: noop })
 
