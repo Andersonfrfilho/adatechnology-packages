@@ -42,6 +42,11 @@ export type {
   IngestTranscriptionOptions,
 } from './channel/IngestInboundMedia.use-case'
 
+export { StorePreviewMediaUseCase } from './use-cases/StorePreviewMedia.use-case'
+export type { StorePreviewMediaParams, StorePreviewMediaResult } from './use-cases/StorePreviewMedia.use-case'
+export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './channel/previewMedia'
+export type { PreviewMediaSupport } from './channel/WhatsAppChannelAdapter'
+
 export { TranscribeAudioUseCase, resolveFailureStatus } from './use-cases/TranscribeAudio.use-case'
 export type {
   TranscribeAudioParams,
@@ -83,6 +88,7 @@ export { MessageRepository } from './repositories/MessageRepository'
 export type {
   InsertMessageParams,
   SaveTranscriptionParams,
+  SaveTranscriptionByWaMessageIdParams,
   ListMessagesParams as RepositoryListMessagesParams,
 } from './repositories/MessageRepository'
 

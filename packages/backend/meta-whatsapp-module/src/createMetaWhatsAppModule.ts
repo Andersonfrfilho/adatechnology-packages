@@ -41,12 +41,13 @@ import {
 import { FlowInterpreter } from './flows/FlowInterpreter'
 import { createSendMediaAction } from './flows/createSendMediaAction'
 import { FlowMediaRepository } from './repositories/FlowMediaRepository'
-import { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
+import { WhatsAppChannelAdapter, type PreviewMediaSupport } from './channel/WhatsAppChannelAdapter'
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
 import { IngestInboundMediaUseCase } from './channel/IngestInboundMedia.use-case'
 import { verifyWebhookChallenge, type NonceStoreInterface } from './channel/webhookSecurity'
 import { TranscribeAudioUseCase, type TranscribeAudioDependencies } from './use-cases/TranscribeAudio.use-case'
 import { createTranscriptionPolicyResolver } from './use-cases/resolveTranscriptionPolicy'
+import { StorePreviewMediaUseCase } from './use-cases/StorePreviewMedia.use-case'
 import { TRANSCRIPTION_MODE, type AudioTranscriber, type TranscriptionMode } from './transcription.types'
 
 export interface MetaWhatsAppModuleConfig {
@@ -71,6 +72,18 @@ export interface MetaWhatsAppModuleFeatures {
   // diferentes do mesmo fluxo depois de uma publicação. Ligar exige `providers.cache`; sem ele o
   // flag é ignorado, porque o módulo não abre conexão própria.
   flowGraphCache?: boolean | { ttlSeconds?: number }
+
+  /**
+   * Aceita mídia do simulador de conversa — o que faz o microfone aparecer no preview do cliente.
+   *
+   * **Desligado por omissão, e a decisão é consciente.** Ligado, o canal passa a aceitar id que não
+   * veio da Meta: `preview-upload:<chave>` faz o servidor ler aquele objeto do storage. Em ambiente
+   * de simulação isso é o recurso; em produção é leitura arbitrária do bucket por webhook forjado.
+   *
+   * Exige `providers.objectStorage` com `getObject` — sem os bytes não há o que devolver, e o flag é
+   * ignorado em vez de produzir um canal que falha na primeira nota de voz.
+   */
+  previewMedia?: boolean
 }
 
 /**
@@ -146,7 +159,19 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     apiVersion: config.apiVersion,
     baseUrl: config.baseUrl,
   })
-  const channel: ChannelAdapterInterface = new WhatsAppChannelAdapter(messageProvider)
+  /**
+   * Só monta o suporte quando as DUAS condições existem: o host pediu e o storage sabe ler de volta.
+   * Ligar o flag sem storage legível daria um canal que aceita o id do simulador e falha ao buscar.
+   */
+  const previewMediaSupport =
+    params.features?.previewMedia && providers.objectStorage?.getObject
+      ? {
+          isEnabled: true,
+          objectStorage: providers.objectStorage as PreviewMediaSupport['objectStorage'],
+        }
+      : undefined
+
+  const channel: ChannelAdapterInterface = new WhatsAppChannelAdapter(messageProvider, previewMediaSupport)
 
   const sessionRepository = new SessionRepository(db)
   const messageRepository = new MessageRepository(db)
@@ -312,6 +337,16 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
         ? { defaultMode: transcriptionMode, resolvePolicy: resolveTranscriptionPolicy }
         : undefined,
     settings: settingsRepository,
+    /**
+     * `undefined` quando o recurso não está ligado (ou falta storage legível). O host consulta a
+     * ausência para não registrar a rota de upload — e o preview, sem a rota, esconde o microfone.
+     */
+    previewMedia: previewMediaSupport
+      ? new StorePreviewMediaUseCase(
+          providers.objectStorage!,
+          () => `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        )
+      : undefined,
     webhook: {
       receive: receiveWebhook,
       // GET de verificação da Meta — o host liga na sua rota e devolve o retorno como texto puro.

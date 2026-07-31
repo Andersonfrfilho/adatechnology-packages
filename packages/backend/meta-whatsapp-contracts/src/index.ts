@@ -95,3 +95,5 @@ export {
   MessageNotAudioError,
   TranscriptionDisabledError,
 } from './errors'
+
+export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './previewMedia.types'
