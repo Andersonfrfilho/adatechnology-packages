@@ -67,6 +67,7 @@
     "media-types-and-valid-preview-files",
     "message-moderation",
     "meta-whatsapp-trio-rc",
+    "object-storage-signed-download-disposition",
     "preview-and-testing-subpaths",
     "preview-bridge-client-no-secret",
     "preview-silent-auth-failure",
