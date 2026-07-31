@@ -1,0 +1,51 @@
+{
+  "name": "@adatechnology/audio-transcription-provider",
+  "version": "0.1.0-rc.0",
+  "description": "Speech-to-text for conversational products: hosted Whisper (Groq) by default, local whisper.cpp opt-in, chainable",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./whisper-local": {
+      "types": "./dist/whisper-local/index.d.ts",
+      "import": "./dist/whisper-local/index.js",
+      "default": "./dist/whisper-local/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "CLAUDE.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit",
+    "prepack": "bun run build",
+    "test": "bun test",
+    "format": "prettier --write package.json src tsconfig.json tsup.config.ts",
+    "format:check": "prettier --check package.json src tsconfig.json tsup.config.ts"
+  },
+  "keywords": [
+    "transcription",
+    "speech-to-text",
+    "whisper",
+    "groq",
+    "pt-br",
+    "whatsapp"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

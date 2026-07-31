@@ -10,6 +10,10 @@ function toContractSettings(row: SettingsRow): WhatsAppSettings {
     templateVariables: row.templateVariables,
     welcomeMessage: row.welcomeMessage ?? '',
     farewellMessage: row.farewellMessage ?? '',
+    // `?? null` e não `?? false`: nulo é "o painel não decidiu", e é o que faz valer o padrão do
+    // host. Colapsar para `false` desligaria quem ligou por ambiente.
+    transcriptionEnabled: row.transcriptionEnabled ?? null,
+    transcriptionMode: row.transcriptionMode ?? null,
   }
 }
 
@@ -19,6 +23,8 @@ const EMPTY_SETTINGS: WhatsAppSettings = {
   templateVariables: [],
   welcomeMessage: '',
   farewellMessage: '',
+  transcriptionEnabled: null,
+  transcriptionMode: null,
 }
 
 // T5.5 — configuração de WhatsApp por empresa.
@@ -46,6 +52,11 @@ export class SettingsRepository {
         templateVariables: merged.templateVariables,
         welcomeMessage: merged.welcomeMessage || null,
         farewellMessage: merged.farewellMessage || null,
+        // Sem `|| null`: `false` aqui é decisão explícita do painel ("desligado para esta empresa"),
+        // e colapsá-lo para nulo faria a empresa voltar a herdar o padrão do host — exatamente o
+        // oposto do que o operador acabou de pedir.
+        transcriptionEnabled: merged.transcriptionEnabled,
+        transcriptionMode: merged.transcriptionMode,
       })
       .onConflictDoUpdate({
         target: settings.companyId,
@@ -55,6 +66,8 @@ export class SettingsRepository {
           templateVariables: merged.templateVariables,
           welcomeMessage: merged.welcomeMessage || null,
           farewellMessage: merged.farewellMessage || null,
+          transcriptionEnabled: merged.transcriptionEnabled,
+          transcriptionMode: merged.transcriptionMode,
           updatedAt: new Date(),
         },
       })

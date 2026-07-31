@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react'
 import { AudioPlayer } from './AudioPlayer'
+import { AudioTranscription } from './AudioTranscription'
 import { FileIcon } from './FileIcon'
 import { useConversationLocales } from './ConversationLocalesProvider'
 import { formatFileSize } from './lib/format'
 import { cn } from './lib/cn'
-import type { MessagePayload } from './types'
+import type { MessagePayload, MessageTranscription } from './types'
 
 /**
  * Rótulo curto do tipo, para a linha de baixo da bolha de documento.
@@ -50,6 +51,13 @@ export interface MediaRendererProps {
   // loadUrl/loadMedia de financiamento-imobiliario-bot/apps/web/src/components/MessageBubble.tsx,
   // porém delegando o fetch ao host em vez de hardcodar `/uploads/:id/download-url`.
   onResolveUrl?: ResolveMediaUrl
+  /**
+   * Pede ao backend a transcrição do áudio desta mensagem. Ausente, o bloco de transcrição só exibe
+   * o que já veio pronto — sem oferecer um botão que o host não sabe atender.
+   *
+   * O que devolver é exibido na hora, sem esperar refetch da lista.
+   */
+  onTranscribeAudio?: () => Promise<MessageTranscription | void>
   /** Aplicado no wrapper de cada tipo de mídia — imagem, vídeo, áudio e documento. */
   className?: string
 }
@@ -77,7 +85,13 @@ function useLazyMediaUrl(message: MessagePayload, onResolveUrl?: ResolveMediaUrl
   return { url, loading, error, load }
 }
 
-export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: MediaRendererProps) {
+export function MediaRenderer({
+  message,
+  onLightbox,
+  onResolveUrl,
+  onTranscribeAudio,
+  className,
+}: MediaRendererProps) {
   const { bubble } = useConversationLocales()
   const eagerSrc = resolveMediaSource(message)
   const lazy = useLazyMediaUrl(message, onResolveUrl)
@@ -149,12 +163,28 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: 
       )
     }
     case 'audio': {
+      /**
+       * Fica fora do ramo de carregamento de propósito: a transcrição não depende dos bytes do
+       * áudio. Ler o que o cliente disse sem baixar e tocar a nota de voz é o caminho rápido do
+       * atendimento — e é justamente o que se perderia se o bloco só aparecesse depois do play.
+       */
+      const transcriptionBlock = (
+        <AudioTranscription
+          transcription={message.transcription}
+          isMine={message.direction === 'outbound'}
+          {...(onTranscribeAudio ? { onTranscribe: onTranscribeAudio } : {})}
+        />
+      )
+
       if (!src && canLazyLoad) {
         return (
-          <LazyMediaButton
-            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="translate-x-0.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>}
-            label={lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.listenAudio}
-          />
+          <div className="min-w-[200px]">
+            <LazyMediaButton
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="translate-x-0.5"><polygon points="5 3 19 12 5 21 5 3" /></svg>}
+              label={lazy.loading ? bubble.mediaLoading : lazy.error ? bubble.mediaRetry : bubble.listenAudio}
+            />
+            {transcriptionBlock}
+          </div>
         )
       }
       return (
@@ -162,6 +192,7 @@ export function MediaRenderer({ message, onLightbox, onResolveUrl, className }: 
           {src ? <AudioPlayer src={src} isMine={message.direction === 'outbound'} /> : (
             <div className="h-12 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400 text-xs">{bubble.mediaUnavailable}</div>
           )}
+          {transcriptionBlock}
         </div>
       )
     }

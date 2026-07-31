@@ -1,8 +1,23 @@
 import { eq, and } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
-import type { ChannelAdapterInterface, ObjectStorageInterface } from '@adatechnology/meta-whatsapp-contracts'
+import type {
+  ChannelAdapterInterface,
+  MetaWhatsAppHooks,
+  ObjectStorageInterface,
+} from '@adatechnology/meta-whatsapp-contracts'
 import type { DocumentRepository } from '../repositories/DocumentRepository'
+import type { MessageRepository } from '../repositories/MessageRepository'
 import { messages, type MessageRow } from '../schema/schema'
+import { resolveFailureStatus } from '../use-cases/TranscribeAudio.use-case'
+import type { TranscriptionPolicyResolver } from '../use-cases/resolveTranscriptionPolicy'
+import {
+  TRANSCRIPTION_MODE,
+  TRANSCRIPTION_STATUS,
+  isAudioMimeType,
+  transcriptionRetryAfterSeconds,
+  type AudioTranscriber,
+  type TranscriptionStatus,
+} from '../transcription.types'
 
 export type IngestInboundMediaParams = {
   companyId: string
@@ -18,6 +33,31 @@ export type IngestInboundMediaResult = {
   uploadId: string
   // true quando a mídia já estava no storage e nada foi baixado de novo.
   alreadyIngested: boolean
+  /**
+   * Só presente quando a transcrição automática rodou nesta execução. Ausente é o normal: mídia que
+   * não é áudio, transcrição desligada, modo sob demanda, ou mídia já ingerida antes.
+   */
+  transcription?: { status: TranscriptionStatus }
+}
+
+/**
+ * Transcrição durante a ingestão — o modo `auto`.
+ *
+ * Entra aqui, e não em use-case separado, por um motivo só: neste ponto o buffer do áudio ACABOU de
+ * ser baixado e está em memória. Transcrever fora daqui custaria um segundo download do storage por
+ * áudio, e o `TranscribeAudioUseCase` existe justamente para esse caso (sob demanda e retomada).
+ */
+export type IngestTranscriptionOptions = {
+  transcriber: AudioTranscriber
+  messageRepository: MessageRepository
+  /**
+   * Política POR EMPRESA, resolvida a cada áudio. Não é um `mode` fixo porque o interruptor mora nas
+   * configurações da empresa: um valor capturado na construção do use-case congelaria a escolha até
+   * o próximo deploy, e o worker é um processo longo — o operador mexeria no painel e nada mudaria.
+   */
+  resolvePolicy: TranscriptionPolicyResolver
+  languageHint?: string
+  hooks?: Pick<MetaWhatsAppHooks, 'onTranscriptionDeferred'>
 }
 
 // T5.3 — copia mídia recebida da Meta para o storage do host.
@@ -37,6 +77,9 @@ export class IngestInboundMediaUseCase {
     // Opcional: sem ele a mídia continua sendo copiada e referenciada no payload, só não entra na
     // biblioteca da conversa. Mantém compatível quem já usava o use case antes da tabela existir.
     private readonly documentRepository?: DocumentRepository,
+    // Último e opcional para não quebrar quem já constrói este use-case posicionalmente. Ausente,
+    // a ingestão se comporta exatamente como antes da transcrição existir.
+    private readonly transcription?: IngestTranscriptionOptions,
   ) {}
 
   async execute(params: IngestInboundMediaParams): Promise<IngestInboundMediaResult> {
@@ -51,6 +94,11 @@ export class IngestInboundMediaUseCase {
     const payload = (message.payload ?? {}) as Record<string, unknown>
 
     // Já ingerida: devolve o uploadId existente sem tocar na rede.
+    //
+    // Não tenta transcrever aqui de propósito. Sem o download não há buffer, e reler do storage
+    // duplicaria o `TranscribeAudioUseCase`. Retomada de transcrição pendente é trabalho DELE — o
+    // `onTranscriptionDeferred` carrega o `uploadId` exatamente para o host enfileirar uma
+    // transcrição, não uma segunda ingestão.
     if (payload['uploadId'] && payload['sourceMediaId'] === params.sourceMediaId) {
       return { uploadId: String(payload['uploadId']), alreadyIngested: true }
     }
@@ -97,7 +145,90 @@ export class IngestInboundMediaUseCase {
       source: message.sender,
     })
 
-    return { uploadId, alreadyIngested: false }
+    const transcription = await this.transcribeIfAuto({
+      companyId: params.companyId,
+      message,
+      uploadId,
+      buffer,
+      mimeType: mimeType || params.mimeType,
+    })
+
+    return { uploadId, alreadyIngested: false, ...(transcription ? { transcription } : {}) }
+  }
+
+  /**
+   * Transcreve o áudio recém-baixado, quando o modo é `auto`.
+   *
+   * **Nunca propaga erro.** Neste ponto o binário já está no storage e já entrou na biblioteca da
+   * conversa: deixar uma falha de transcrição subir marcaria a ingestão inteira como falha, e o
+   * retry do host baixaria de novo da Meta um arquivo que está salvo — gastando banda para reproduzir
+   * um efeito que já aconteceu. O status fica gravado na mensagem e o `onTranscriptionDeferred`
+   * avisa quem sabe reenfileirar.
+   */
+  private async transcribeIfAuto(context: {
+    companyId: string
+    message: MessageRow
+    uploadId: string
+    buffer: Buffer
+    mimeType: string
+  }): Promise<{ status: TranscriptionStatus } | undefined> {
+    const transcription = this.transcription
+    if (!transcription) return undefined
+    // Vídeo, imagem e documento passam sem tocar no engine — checado ANTES de consultar a política,
+    // para um PDF não custar uma leitura de `settings`.
+    if (!isAudioMimeType(context.mimeType)) return undefined
+
+    const policy = await transcription.resolvePolicy(context.companyId)
+    if (!policy.isEnabled || policy.mode !== TRANSCRIPTION_MODE.AUTO) return undefined
+
+    try {
+      const result = await transcription.transcriber.transcribe({
+        buffer: context.buffer,
+        mimeType: context.mimeType,
+        ...(transcription.languageHint ? { languageHint: transcription.languageHint } : {}),
+      })
+
+      await transcription.messageRepository.saveTranscription({
+        companyId: context.companyId,
+        messageId: context.message.id,
+        status: TRANSCRIPTION_STATUS.DONE,
+        text: result.text,
+        language: result.language ?? null,
+        engine: result.engine,
+      })
+
+      return { status: TRANSCRIPTION_STATUS.DONE }
+    } catch (error) {
+      return this.recordTranscriptionFailure(context, error)
+    }
+  }
+
+  private async recordTranscriptionFailure(
+    context: { companyId: string; message: MessageRow; uploadId: string },
+    error: unknown,
+  ): Promise<{ status: TranscriptionStatus }> {
+    const status = resolveFailureStatus(error)
+
+    await this.transcription?.messageRepository.saveTranscription({
+      companyId: context.companyId,
+      messageId: context.message.id,
+      status,
+    })
+
+    if (status === TRANSCRIPTION_STATUS.PENDING) {
+      const retryAfterSeconds = transcriptionRetryAfterSeconds(error)
+      await this.transcription?.hooks?.onTranscriptionDeferred?.({
+        companyId: context.companyId,
+        messageId: context.message.id,
+        whatsappNumber: context.message.whatsappNumber,
+        uploadId: context.uploadId,
+        ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
+        reason: retryAfterSeconds !== undefined ? 'rate-limited' : 'transient-failure',
+        error,
+      })
+    }
+
+    return { status }
   }
 }
 

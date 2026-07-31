@@ -55,13 +55,19 @@ export type {
 
 export type {
   WhatsAppSettings,
+  TranscriptionMode,
   TemplateVariablesMap,
   TemplateConfig,
   WhatsAppTemplateSummary,
   CreateTemplateResult,
 } from './settings.types'
 
-export type { MetaWhatsAppHooks, MessageHookOutcome, InboundMediaDescriptor } from './events'
+export type {
+  MetaWhatsAppHooks,
+  MessageHookOutcome,
+  InboundMediaDescriptor,
+  TranscriptionDeferredDescriptor,
+} from './events'
 
 export type {
   ChannelAdapterInterface,
@@ -85,4 +91,7 @@ export {
   ConfigMissingError,
   TemplateNotConfiguredError,
   SessionNotFoundError,
+  AudioNotIngestedError,
+  MessageNotAudioError,
+  TranscriptionDisabledError,
 } from './errors'

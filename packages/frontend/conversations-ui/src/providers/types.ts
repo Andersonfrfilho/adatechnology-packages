@@ -1,4 +1,4 @@
-import type { MessagePayload } from '../types'
+import type { MessagePayload, MessageTranscription } from '../types'
 import type { ConversationChannel } from '../conversationChannel'
 
 export interface ListConversationsParams {
@@ -134,6 +134,17 @@ export interface ConversationsApi {
    * nem todo backend expõe a rota — quem não tem continua usando o builder local.
    */
   exportTranscript?(conversationId: string): Promise<{ transcript: string; filename: string }>
+
+  /**
+   * Transcreve o áudio de uma mensagem e devolve o resultado.
+   *
+   * **Opcional por capacidade.** Um host em modo automático transcreve na ingestão e não expõe rota
+   * nenhuma; um host sem engine configurado não transcreve de jeito algum. Nos dois casos o balão
+   * simplesmente não desenha o botão, em vez de oferecer uma ação que estoura no clique.
+   *
+   * `messageId` e não `conversationId`: transcrição é por áudio, e uma conversa tem vários.
+   */
+  transcribeAudio?(messageId: string): Promise<MessageTranscription>
 }
 
 /**

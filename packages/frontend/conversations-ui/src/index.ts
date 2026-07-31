@@ -3,6 +3,7 @@ export { InteractiveMessage, DEFAULT_INTERACTIVE_MESSAGE_LABELS } from './Intera
 export { ConversationWallpaper } from './Wallpaper'
 export { ConversationLocalesProvider, useConversationLocales } from './ConversationLocalesProvider'
 export { AudioPlayer } from './AudioPlayer'
+export { AudioTranscription } from './AudioTranscription'
 export { EmojiPicker, DEFAULT_EMOJI_PICKER_LABELS } from './EmojiPicker'
 export { EMOJI_CATEGORIES, searchEmojis } from './emojiCatalog'
 export { MessageComposer, DEFAULT_MESSAGE_COMPOSER_LABELS, DEFAULT_ACCEPTED_FILE_TYPES } from './MessageComposer'
@@ -108,6 +109,7 @@ export { ConversationsProvider, useConversations } from './providers/Conversatio
 export { WhatsAppTemplateSettingsForm } from './settings/WhatsAppTemplateSettingsForm'
 export { WhatsAppCreateTemplateForm } from './settings/WhatsAppCreateTemplateForm'
 export { WelcomeFarewellForm } from './settings/WelcomeFarewellForm'
+export { TranscriptionSettingsForm } from './settings/TranscriptionSettingsForm'
 export {
   WhatsAppTemplatesSettings,
   TEMPLATE_SETTINGS_TAB,
@@ -132,6 +134,7 @@ export { formatTimestamp, formatFileSize, formatDateTime, isSameDay } from './li
 
 export type { MessagePayload, ConversationsUIConfig, ConversationsTheme, ConversationsFeatures } from './types'
 export type { InteractivePayload, InteractiveSection, InteractiveOption, InteractiveSelection } from './types'
+export type { MessageTranscription, TranscriptionStatus, TranscriptionMode } from './types'
 export type {
   ConversationsApi,
   SSEProvider,
@@ -152,6 +155,7 @@ export type { MessageBubbleProps } from './MessageBubble'
 export type { ConversationWallpaperProps } from './Wallpaper'
 export type { ConversationLocales, ConversationLocalesProviderProps } from './ConversationLocalesProvider'
 export type { AudioPlayerProps } from './AudioPlayer'
+export type { AudioTranscriptionProps } from './AudioTranscription'
 export type { EmojiPickerProps, EmojiPickerLabels } from './EmojiPicker'
 export type { EmojiEntry, EmojiCategory } from './emojiCatalog'
 export type { InteractiveMessageProps, InteractiveMessageLabels } from './InteractiveMessage'
@@ -181,6 +185,10 @@ export type {
   WhatsAppCreateTemplateFormLabels,
 } from './settings/WhatsAppCreateTemplateForm'
 export type { WelcomeFarewellFormProps, WelcomeFarewellFormLabels } from './settings/WelcomeFarewellForm'
+export type {
+  TranscriptionSettingsFormProps,
+  TranscriptionSettingsFormLabels,
+} from './settings/TranscriptionSettingsForm'
 export type {
   WhatsAppTemplatesSettingsProps,
   WhatsAppTemplatesSettingsLabels,

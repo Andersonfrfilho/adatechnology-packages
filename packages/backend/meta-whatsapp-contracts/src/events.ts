@@ -37,6 +37,31 @@ export interface MetaWhatsAppHooks {
    * para o próximo arquivo e para o próximo nó; observar e alertar é do host.
    */
   onFlowMediaError?: (error: unknown, details: { flowKey: string; nodeId: string; uploadId: string }) => void
+  /**
+   * Transcrição de áudio falhou de forma **retriável** (cota estourada, rede, 5xx) — o áudio segue
+   * transcritível e alguém precisa tentar de novo.
+   *
+   * É hook, e não exceção propagada, porque a mídia JÁ foi copiada para o storage quando isto
+   * acontece: deixar o erro subir marcaria a ingestão inteira como falha e o job reprocessaria o
+   * download de um binário que está salvo. E é hook, e não retentativa interna, porque o módulo não
+   * tem fila — quem sabe reenfileirar com atraso é o host, que já tem uma.
+   *
+   * Sem implementar, o áudio fica com `transcription_status = 'pending'` e nada o retoma: a
+   * transcrição não se perde nem mente, mas só sai se pedirem sob demanda.
+   */
+  onTranscriptionDeferred?: (details: TranscriptionDeferredDescriptor) => Promise<void> | void
+}
+
+export type TranscriptionDeferredDescriptor = {
+  readonly companyId: string
+  readonly messageId: string
+  readonly whatsappNumber: string
+  /** Onde o áudio já está salvo — quem retomar lê daqui, não da Meta (cuja URL expira). */
+  readonly uploadId: string
+  /** Do `Retry-After` do engine, quando informado. É o intervalo mínimo a respeitar. */
+  readonly retryAfterSeconds?: number
+  readonly reason: 'rate-limited' | 'transient-failure'
+  readonly error: unknown
 }
 
 export type InboundMediaDescriptor = {

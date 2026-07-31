@@ -11,6 +11,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
+import type { TranscriptionMode, TranscriptionStatus } from '../transcription.types'
 
 // Schema Postgres dedicado (T3.1/T3.5) — o módulo nunca escreve no schema `public` do host,
 // só ocupa este namespace próprio. O banco continua sendo um por produto; isto é apenas um
@@ -81,6 +82,21 @@ export const messages = metaWhatsAppSchema.table(
     // parcial sobre boolean resolve isso sem cavar jsonb.
     moderationFlagged: boolean('moderation_flagged'),
     moderationTerms: jsonb('moderation_terms').$type<string[]>(),
+    /**
+     * Transcrição de áudio. `null` em `transcription_status` significa NÃO AVALIADO — áudio nunca
+     * pedido (modo sob demanda), transcrição desligada, mensagem anterior ao recurso, ou mensagem
+     * que não é áudio. Diferente de `'done'` com texto vazio, que é áudio em silêncio já processado
+     * e que NÃO deve ser reprocessado.
+     *
+     * Colunas em vez de chave em `payload` pelo mesmo motivo da moderação: "quais áudios ficaram
+     * pendentes" e "quais falharam" são consultas de operação, e índice parcial resolve sem cavar
+     * jsonb. Buscar texto de áudio também deixa de exigir varredura de payload.
+     */
+    transcriptionStatus: varchar('transcription_status', { length: 16 }).$type<TranscriptionStatus>(),
+    transcriptionText: text('transcription_text'),
+    transcriptionLanguage: varchar('transcription_language', { length: 32 }),
+    /** Qual engine produziu. Com uma cadeia de engines, é o que responde "por que esta saiu ruim". */
+    transcriptionEngine: varchar('transcription_engine', { length: 32 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -99,6 +115,12 @@ export const messages = metaWhatsAppSchema.table(
     index('idx_messages_moderation_flagged')
       .on(table.companyId, table.createdAt)
       .where(sql`${table.moderationFlagged}`),
+    // Alimenta a varredura de retomada: "quais áudios ficaram pendentes de transcrição". Parcial
+    // porque pendente é estado transitório e raro — o índice fica do tamanho da fila atrasada, não
+    // do transcript inteiro.
+    index('idx_messages_transcription_pending')
+      .on(table.companyId, table.createdAt)
+      .where(sql`${table.transcriptionStatus} = 'pending'`),
   ],
 )
 
@@ -223,6 +245,13 @@ export const settings = metaWhatsAppSchema.table('settings', {
   templateVariables: jsonb('template_variables').$type<string[]>().notNull().default([]),
   welcomeMessage: text('welcome_message'),
   farewellMessage: text('farewell_message'),
+  /**
+   * Política de transcrição desta empresa. Nulo é significativo: "o painel não decidiu", e aí vale
+   * o padrão que o host injetou. Sem a distinção, atualizar o módulo desligaria a transcrição de
+   * quem já a tinha ligada por ambiente.
+   */
+  transcriptionEnabled: boolean('transcription_enabled'),
+  transcriptionMode: varchar('transcription_mode', { length: 16 }).$type<TranscriptionMode>(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
