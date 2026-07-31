@@ -58,12 +58,6 @@
       "@adatechnology/fiscal-provider/*": [
         "packages/backend/fiscal-provider/src/*"
       ],
-      "@adatechnology/whatsapp-provider": [
-        "packages/backend/whatsapp-provider/src"
-      ],
-      "@adatechnology/whatsapp-provider/*": [
-        "packages/backend/whatsapp-provider/src/*"
-      ],
       "#shared": [
         "packages/backend/shared/src"
       ],
