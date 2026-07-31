@@ -85,3 +85,41 @@ test('proves immutable lifecycle against a real MinIO server', async () => {
   )
   expect(await objectStorageProvider.health()).toEqual({ status: 'up' })
 })
+
+test('makes a real MinIO answer the signed download with the requested disposition', async () => {
+  const objectStorageProvider = getProvider()
+  const downloadKey = `tenants/synthetic/documents/${randomUUID()}.xml`
+  await objectStorageProvider.put({
+    bucket,
+    key: downloadKey,
+    body: bytes,
+    contentLength: bytes.byteLength,
+    contentType: 'application/xml',
+    sha256,
+    mode: 'create-only',
+  })
+
+  try {
+    const signedDownload = (extra: { disposition?: 'attachment'; filename?: string }): Promise<URL> =>
+      objectStorageProvider.createSignedDownload({ bucket, key: downloadKey, expiresInSeconds: 60, ...extra })
+    const withoutDisposition = await fetch(await signedDownload({}))
+    const attachment = await fetch(
+      await signedDownload({ disposition: 'attachment', filename: 'relatório de frete.xml' }),
+    )
+
+    // Sem disposição o navegador decide pelo content-type — é isso que abre XML na aba.
+    expect(withoutDisposition.headers.get('content-disposition')).toBeNull()
+    expect(await withoutDisposition.text()).toBe(new TextDecoder().decode(bytes))
+    expect(attachment.headers.get('content-disposition')).toBe(
+      "attachment; filename*=UTF-8''relat%C3%B3rio%20de%20frete.xml",
+    )
+    expect(await attachment.text()).toBe(new TextDecoder().decode(bytes))
+
+    // A disposição está dentro da assinatura: trocá-la na mão invalida a URL.
+    const tampered = await signedDownload({ disposition: 'attachment', filename: 'relatório de frete.xml' })
+    tampered.searchParams.set('response-content-disposition', 'inline')
+    expect((await fetch(tampered)).status).toBe(403)
+  } finally {
+    await objectStorageProvider.delete({ bucket, key: downloadKey })
+  }
+})
