@@ -38,6 +38,9 @@ export {
   assertPreviewEnvironment,
   PreviewInProductionError,
   PreviewWebhookRejectedError,
+  PreviewMediaUploadRejectedError,
+  createPreviewMediaPoster,
+  DEFAULT_MEDIA_UPLOAD_PATH,
 } from './createPreviewWebhookClient'
 export type {
   PreviewWebhookClient,

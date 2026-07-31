@@ -40,6 +40,7 @@ export type ConversationPreviewProps = {
    * inventa um endpoint de upload. Ausente, o compositor não oferece anexo nem gravação: melhor um
    * botão que não existe do que um que falha ao ser tocado.
    */
+  /** Destino alternativo do áudio gravado. Sem isto, usa o do próprio `client`. */
   uploadMedia?: (file: File) => Promise<PreviewUploadedMedia>
 }
 
@@ -246,11 +247,19 @@ export function ConversationPreview({
     }
   }
 
+  /**
+   * O cliente do preview sabe subir mídia sozinho; a prop é só para quem quer outro destino.
+   *
+   * Antes isto era `uploadMedia` puro, e o microfone só aparecia no produto que lembrasse de montar
+   * o upload — de onde veio a divergência entre dois simuladores da mesma casa.
+   */
+  const uploadFile = uploadMedia ?? client.uploadMedia
+
   async function handleAttach(file: File): Promise<void> {
-    if (!uploadMedia) return
+    if (!uploadFile) return
     setFailure(undefined)
     try {
-      const uploaded = await uploadMedia(file)
+      const uploaded = await uploadFile(file)
       await client.sendMedia({
         mediaType: mediaTypeOf(uploaded.mimeType ?? file.type),
         mediaId: uploaded.mediaId,
@@ -303,7 +312,7 @@ export function ConversationPreview({
 
       <MessageComposer
         onSend={(text) => void handleSend(text)}
-        onAttach={uploadMedia ? (file) => void handleAttach(file) : undefined}
+        onAttach={uploadFile ? (file) => void handleAttach(file) : undefined}
         /* Gravando, o campo diz o que falta fazer: o botão é um interruptor e o segundo toque é
            que envia — sem esse aviso o operador grava, não vê nada acontecer e conclui que o
            microfone está quebrado. */
@@ -311,7 +320,7 @@ export function ConversationPreview({
           isRecording ? 'Gravando… toque no quadrado para ouvir' : (placeholder ?? 'Escreva como o cliente…')
         }
         idleAction={
-          uploadMedia ? (
+          uploadFile ? (
             <AudioRecorderButton
               onRecorded={(file) => void handleAttach(file)}
               onFailure={(message) => setFailure(message)}

@@ -25,6 +25,7 @@ import {
   type InboundMediaType,
   type InteractiveReplyOption,
 } from '@adatechnology/meta-whatsapp-contracts/testing'
+import { createPreviewMediaUploader, type PreviewUploadedMedia } from './createPreviewMediaUploader'
 
 export type PreviewWebhookClient = {
   sendText(text: string): Promise<void>
@@ -32,6 +33,19 @@ export type PreviewWebhookClient = {
   sendListReply(reply: InteractiveReplyOption): Promise<void>
   sendAudio(mediaId: string): Promise<void>
   sendMedia(params: SendPreviewMediaParams): Promise<void>
+  /**
+   * Guarda um arquivo gravado e devolve o `mediaId` já prefixado, pronto para `sendMedia`.
+   *
+   * Existe no cliente, e não como prop de quem monta a tela, porque isto é exatamente o que ele já
+   * sabe fazer: falar com ESTE host usando ESTE segredo. Enquanto era responsabilidade do produto,
+   * o resultado prático foi um produto com microfone no simulador e outro sem — não por decisão,
+   * por esquecimento. Cliente montado, microfone na tela.
+   *
+   * Opcional porque o cliente-ponte só consegue oferecer isto quando sabe a rota de mídia (ou quando
+   * o host injeta a função): sem destino, gravar áudio seria falar para o vazio, e aí a tela
+   * corretamente não desenha o gravador.
+   */
+  uploadMedia?(file: File): Promise<PreviewUploadedMedia>
 }
 
 export type SendPreviewMediaParams = {
@@ -52,8 +66,23 @@ export type CreatePreviewWebhookClientParams = {
   readonly appSecret: string
   readonly from: string
   readonly phoneNumberId?: string
+  /**
+   * Rota que guarda o áudio gravado. Por padrão, `/v1/preview/media` na mesma origem do webhook.
+   *
+   * O padrão cobre o caso normal — as duas rotas são do mesmo servidor — e a prop existe para quem
+   * publica a API em outro host ou versiona o caminho.
+   */
+  readonly mediaUploadUrl?: string
   // Escape hatch para teste; em runtime real é sempre o fetch global.
   readonly fetchImplementation?: typeof fetch
+}
+
+/** Falha da rota de upload, separada da do webhook: os dois lados quebram por motivos diferentes. */
+export class PreviewMediaUploadRejectedError extends Error {
+  constructor(readonly status: number) {
+    super(`A rota de mídia do simulador recusou o upload (HTTP ${status}).`)
+    this.name = 'PreviewMediaUploadRejectedError'
+  }
 }
 
 export class PreviewInProductionError extends Error {
@@ -102,6 +131,53 @@ export async function signPreviewPayload(params: { rawBody: string; appSecret: s
 
 const signWithWebCrypto = signPreviewPayload
 
+export const DEFAULT_MEDIA_UPLOAD_PATH = '/v1/preview/media'
+
+/**
+ * Mesma origem do webhook: as duas rotas são do mesmo servidor no caso normal.
+ *
+ * Quando `webhookUrl` é relativa — que é o que sai de um `VITE_API_URL` vazio, com o front servido
+ * pela própria API — não há origem para resolver contra, e o caminho relativo já aponta para o
+ * lugar certo. `new URL` com base relativa lançaria, e o microfone morreria no `createClient`.
+ */
+export function defaultMediaUploadUrl(webhookUrl: string): string {
+  try {
+    return new URL(DEFAULT_MEDIA_UPLOAD_PATH, webhookUrl).toString()
+  } catch {
+    return DEFAULT_MEDIA_UPLOAD_PATH
+  }
+}
+
+/**
+ * O POST de mídia, sem a parte de assinatura — para os dois clientes usarem o mesmo caminho.
+ *
+ * O cliente-ponte autentica por sessão e o de webhook por HMAC; o que não muda é a rota, o formato
+ * do corpo e a leitura do `uploadId`. Duas cópias disso é como o prefixo de mídia divergiu antes.
+ */
+export function createPreviewMediaPoster(params: {
+  readonly url: string
+  readonly headers?: (mimeType: string) => Promise<Readonly<Record<string, string>>>
+  readonly fetchImplementation?: typeof fetch
+}): (file: File) => Promise<PreviewUploadedMedia> {
+  return createPreviewMediaUploader({
+    upload: async (request) => {
+      const performRequest = params.fetchImplementation ?? fetch
+      const extraHeaders = (await params.headers?.(request.mimeType)) ?? {}
+
+      const response = await performRequest(params.url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...extraHeaders },
+        body: JSON.stringify(request),
+      })
+
+      if (!response.ok) throw new PreviewMediaUploadRejectedError(response.status)
+
+      const body = (await response.json()) as { data: { uploadId: string } }
+      return { uploadId: body.data.uploadId }
+    },
+  })
+}
+
 export function createPreviewWebhookClient(params: CreatePreviewWebhookClientParams): PreviewWebhookClient {
   const sendPayload = async (payload: ReturnType<typeof buildInboundTextPayload>): Promise<void> => {
     // Serializa uma vez só: assinar um texto e enviar outro (mesmo com o conteúdo igual) derruba a
@@ -119,6 +195,20 @@ export function createPreviewWebhookClient(params: CreatePreviewWebhookClientPar
     if (!response.ok) throw new PreviewWebhookRejectedError(response.status)
   }
 
+  /**
+   * Assina o MIME, não o binário — mesmo contrato da rota.
+   *
+   * Passar megabytes de base64 pelo HMAC do navegador travaria a aba a cada nota de voz; o que a
+   * assinatura protege aqui é o acesso à rota, e o binário já tem teto de tamanho no servidor.
+   */
+  const uploadMedia = createPreviewMediaPoster({
+    url: params.mediaUploadUrl ?? defaultMediaUploadUrl(params.webhookUrl),
+    headers: async (mimeType) => ({
+      'x-preview-signature': await signWithWebCrypto({ rawBody: mimeType, appSecret: params.appSecret }),
+    }),
+    ...(params.fetchImplementation ? { fetchImplementation: params.fetchImplementation } : {}),
+  })
+
   const envelope = { from: params.from, phoneNumberId: params.phoneNumberId }
 
   return {
@@ -127,5 +217,6 @@ export function createPreviewWebhookClient(params: CreatePreviewWebhookClientPar
     sendListReply: (reply) => sendPayload(buildInboundInteractivePayload({ ...envelope, listReply: reply })),
     sendAudio: (mediaId) => sendPayload(buildInboundAudioPayload({ ...envelope, mediaId })),
     sendMedia: (media) => sendPayload(buildInboundMediaPayload({ ...envelope, ...media })),
+    uploadMedia,
   }
 }
