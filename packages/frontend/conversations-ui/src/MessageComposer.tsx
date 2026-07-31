@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, type KeyboardEvent, type ChangeEvent, type ReactNode } from 'react'
+import { AudioRecorderButton } from './AudioRecorderButton'
 import type { ConversationsFeatures } from './types'
 import { cn } from './lib/cn'
 import { EmojiPicker } from './EmojiPicker'
@@ -219,6 +220,24 @@ export const MessageComposer = ({
     }
   }, [text, setText])
 
+  /**
+   * Microfone por padrão, sem o host precisar compor nada.
+   *
+   * Antes o gravador era só um componente exportado e um slot vazio: cada inbox tinha que lembrar de
+   * juntar os dois. Dois produtos, dois resultados — um ligou, o outro não, e a ausência não dava
+   * erro nenhum. Um composer de WhatsApp sem microfone está incompleto, então o default certo é ter.
+   *
+   * Depende de `onAttach` porque áudio gravado é um arquivo para entregar, e microfone que grava sem
+   * ter para onde mandar é pior que microfone nenhum — o operador fala e o áudio evapora. É a mesma
+   * regra de capacidade usada no resto do pacote: sem a porta, a afordância não aparece.
+   *
+   * `idleAction` continua vencendo: quem já compunha o próprio gravador (com rótulos, limite de
+   * duração ou revisão diferentes) não muda de comportamento ao atualizar.
+   */
+  const effectiveIdleAction =
+    idleAction ??
+    (onAttach ? <AudioRecorderButton onRecorded={(file) => onAttach(file)} /> : undefined)
+
   const canSend = text.trim().length > 0 || attachments.length > 0
   const remaining = maxLength ? maxLength - text.length : null
 
@@ -310,8 +329,8 @@ export const MessageComposer = ({
           </>
         )}
 
-        {!canSend && idleAction ? (
-          <div className="flex-shrink-0">{idleAction}</div>
+        {!canSend && effectiveIdleAction ? (
+          <div className="flex-shrink-0">{effectiveIdleAction}</div>
         ) : (
           <button
             onClick={sendMessage}

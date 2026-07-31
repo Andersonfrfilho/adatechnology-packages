@@ -78,6 +78,7 @@ export { ConversationContextPanel, DEFAULT_CONVERSATION_CONTEXT_LABELS } from '.
 export type {
   ConversationContextPanelProps,
   ConversationContextEntry,
+  ConversationContextStatus,
   ConversationContextPanelLabels,
   ConversationContextPanelClassNames,
 } from './ConversationContextPanel'
@@ -120,6 +121,7 @@ export { TopicsForm } from './settings/TopicsForm'
 // Camada headless (T6.9) — hooks de dados/ações independentes de qualquer tela, para o
 // produto montar sua própria UI sobre eles. Requerem <ConversationsProvider> como ancestral.
 export { useConversationMessages } from './hooks/useConversationMessages'
+export { useScrollToLatestMessage } from './hooks/useScrollToLatestMessage'
 export { useConversationList } from './hooks/useConversationList'
 export { useConversationContext } from './hooks/useConversationContext'
 export { useConversationDocuments } from './hooks/useConversationDocuments'
@@ -199,6 +201,7 @@ export type { TopicsFormProps, TopicItem, TopicsFormLabels } from './settings/To
 export type { UseConversationMessagesResult } from './hooks/useConversationMessages'
 export type { UseConversationListParams, UseConversationListResult } from './hooks/useConversationList'
 export type { UseConversationContextResult } from './hooks/useConversationContext'
+export type { UseScrollToLatestMessageParams, UseScrollToLatestMessageResult } from './hooks/useScrollToLatestMessage'
 export type { UseConversationDocumentsParams, UseConversationDocumentsResult } from './hooks/useConversationDocuments'
 export type { ConversationRealtimeHandler } from './hooks/useConversationRealtime'
 export type { AsyncResourceState } from './hooks/useAsyncResource'

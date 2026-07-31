@@ -155,3 +155,40 @@
     max-width: calc(100vw - 1.5rem);
   }
 }
+
+/**
+ * Scrollbar fina — paridade com `.scrollbar-thin` de
+ * financiamento-imobiliario-bot/apps/web/src/index.css.
+ *
+ * Prefixo `cv-` porque o host pode ter a própria `.scrollbar-thin` (plugin do Tailwind ou CSS
+ * próprio): colidir no nome faria o painel herdar regra alheia sem ninguém entender por quê.
+ *
+ * Usada onde a área rola dentro de um bloco de altura limitada, como o grid de "Suas Seleções":
+ * a barra padrão do sistema ocupa ~15px e, num card de 3 colunas, come uma coluna inteira.
+ */
+.cv-scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.cv-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+.cv-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.cv-scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 2px; }
+.cv-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
+.dark .cv-scrollbar-thin { scrollbar-color: rgba(255, 255, 255, 0.15) transparent; }
+.dark .cv-scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); }
+.dark .cv-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+/**
+ * Mãozinha no que é clicável.
+ *
+ * O Preflight do Tailwind v3 punha `cursor: pointer` em `button`; o v4 removeu, e sem regra
+ * explícita o botão herda o `cursor: default` do browser — os componentes deste pacote deixam de
+ * parecer clicáveis num host v4. São 91 botões aqui: carimbar a classe em cada um seria ruído que o
+ * próximo componente esqueceria de repetir.
+ *
+ * `:where()` zera a especificidade de propósito: a regra vence o UA stylesheet (autor sempre vence)
+ * mas perde de qualquer regra do host, então quem quiser outro cursor não precisa de `!important`.
+ */
+:where(button:not(:disabled), [role='button']:not(:disabled), summary) {
+  cursor: pointer;
+}
