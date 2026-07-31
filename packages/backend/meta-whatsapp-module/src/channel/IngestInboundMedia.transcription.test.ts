@@ -66,6 +66,8 @@ function buildTranscription(options: {
   mode?: TranscriptionMode
   /** Simula o interruptor do painel desligado para esta empresa. */
   isEnabled?: boolean
+  /** Simula transcrição que o host já gravou antes do job rodar. */
+  alreadyTranscribed?: boolean
 }) {
   const saved: SaveTranscriptionParams[] = []
   const deferred: TranscriptionDeferredDescriptor[] = []
@@ -78,6 +80,9 @@ function buildTranscription(options: {
       return { isEnabled: options.isEnabled ?? true, mode: options.mode ?? TRANSCRIPTION_MODE.AUTO }
     },
     messageRepository: {
+      // A guarda de idempotência relê o status antes de transcrever: sem isto o fake não responde e
+      // o use-case nem chega ao engine.
+      findById: async () => (options.alreadyTranscribed ? ({ transcriptionStatus: 'done' } as never) : undefined),
       saveTranscription: async (params: SaveTranscriptionParams) => {
         saved.push(params)
         return undefined
@@ -127,6 +132,33 @@ describe('IngestInboundMediaUseCase — transcrição automática', () => {
     await useCase.execute(ingestParams())
 
     expect(receivedBytes).toBe('fake-ogg-bytes')
+  })
+
+  /**
+   * O caso que evita gasto dobrado: o host (o grafo de conversa) transcreve no webhook porque precisa
+   * do texto para responder, e grava o resultado. Sem esta guarda o job transcreveria o MESMO áudio
+   * de novo — duas cobranças pelo mesmo texto.
+   */
+  it('não transcreve de novo o que o host já gravou', async () => {
+    let engineWasCalled = false
+    const { transcription, saved } = buildTranscription({
+      alreadyTranscribed: true,
+      transcriber: {
+        name: 'groq',
+        transcribe: async () => {
+          engineWasCalled = true
+          return { text: 'nunca', engine: 'groq' }
+        },
+      },
+    })
+    const useCase = new IngestInboundMediaUseCase(fakeDatabase(), channel, objectStorage, undefined, transcription)
+
+    const result = await useCase.execute(ingestParams())
+
+    expect(engineWasCalled).toBe(false)
+    expect(saved).toEqual([])
+    // A mídia segue ingerida normalmente — a guarda é só sobre transcrever.
+    expect(result.uploadId).toBe('upload-abc')
   })
 
   it('não transcreve no modo sob demanda', async () => {

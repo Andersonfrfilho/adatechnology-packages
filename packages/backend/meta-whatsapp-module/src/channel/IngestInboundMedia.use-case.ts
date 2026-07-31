@@ -181,6 +181,25 @@ export class IngestInboundMediaUseCase {
     const policy = await transcription.resolvePolicy(context.companyId)
     if (!policy.isEnabled || policy.mode !== TRANSCRIPTION_MODE.AUTO) return undefined
 
+    /**
+     * Já transcrito, não transcreve de novo.
+     *
+     * Quem chega antes é normalmente o próprio host: o grafo de conversa transcreve no webhook
+     * porque precisa do texto para responder ao cliente, e grava o resultado na mensagem. Sem esta
+     * guarda o job de ingestão transcreveria o MESMO áudio uma segunda vez — duas cobranças e duas
+     * chamadas ao engine para um resultado que já estava no banco.
+     *
+     * Reduz a corrida, não a elimina: host e worker podem ler `null` no mesmo instante. Aí um dos
+     * dois grava por cima com o mesmo texto, o que é inofensivo — o desperdício fica na janela
+     * estreita entre a gravação de um e a leitura do outro, em vez de acontecer sempre.
+     *
+     * A releitura é obrigatória. A linha de `context.message` foi lida no começo de `execute()`,
+     * ANTES de baixar o binário da Meta — e é durante esse download que o host costuma gravar a
+     * transcrição dele. Confiar na linha velha faria a guarda falhar justamente no caso comum.
+     */
+    const current = await transcription.messageRepository.findById(context.companyId, context.message.id)
+    if (current?.transcriptionStatus === TRANSCRIPTION_STATUS.DONE) return undefined
+
     try {
       const result = await transcription.transcriber.transcribe({
         buffer: context.buffer,

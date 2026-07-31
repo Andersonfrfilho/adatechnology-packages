@@ -28,6 +28,15 @@ export interface ListMessagesParams {
   before?: string
 }
 
+export interface SaveTranscriptionByWaMessageIdParams extends Omit<SaveTranscriptionParams, 'messageId'> {
+  /**
+   * Id da mensagem na Meta. É o único que quem processa o webhook conhece — o id do módulo só
+   * existe depois da gravação, e obrigar o host a descobri-lo faria cada um escrever a própria
+   * consulta por `wa_message_id`.
+   */
+  waMessageId: string
+}
+
 export interface SaveTranscriptionParams {
   companyId: string
   messageId: string
@@ -78,6 +87,30 @@ export class MessageRepository {
       .update(messages)
       .set({ status, ...(status === 'read' ? { readAt: new Date() } : {}) })
       .where(and(eq(messages.companyId, companyId), eq(messages.waMessageId, waMessageId)))
+      .returning()
+    return updated
+  }
+
+  /**
+   * Grava a transcrição endereçando pelo id da Meta, para quem só tem esse.
+   *
+   * Serve ao caso em que a transcrição acontece no próprio webhook — o grafo precisa do texto para
+   * responder ao cliente, e jogar fora o que ele já pagou para transcrever significaria transcrever
+   * o mesmo áudio uma segunda vez só para o painel ver.
+   *
+   * Devolve `undefined` quando não achou a mensagem: entrega duplicada e mensagem apagada são
+   * corridas normais, não erro.
+   */
+  async saveTranscriptionByWaMessageId(params: SaveTranscriptionByWaMessageIdParams): Promise<MessageRow | undefined> {
+    const [updated] = await this.db
+      .update(messages)
+      .set({
+        transcriptionStatus: params.status,
+        ...(params.text !== undefined ? { transcriptionText: params.text } : {}),
+        ...(params.language !== undefined ? { transcriptionLanguage: params.language } : {}),
+        ...(params.engine !== undefined ? { transcriptionEngine: params.engine } : {}),
+      })
+      .where(and(eq(messages.companyId, params.companyId), eq(messages.waMessageId, params.waMessageId)))
       .returning()
     return updated
   }
