@@ -11,6 +11,7 @@ import {
   createObjectStorageProvider,
   type ObjectBody,
   type ObjectStorageProvider,
+  type SignedDownloadInput,
 } from '../src'
 import { startSyntheticS3Server, type SyntheticS3Server } from './synthetic-s3.server'
 
@@ -18,6 +19,8 @@ const BUCKET = 'transportada-test-private'
 const KEY = 'tenants/tenant-1/nfe-documents/document-1/original/object-1.xml'
 const CONTENT_TYPE = 'application/xml'
 const SYNTHETIC_SECRET_ACCESS_KEY = 'synthetic-secret-key'
+const CONTENT_DISPOSITION_PARAMETER = 'response-content-disposition'
+const SIGNATURE_PARAMETER = 'X-Amz-Signature'
 const ORIGINAL_BYTES = new TextEncoder().encode('<NFe id="synthetic"/>')
 const DIFFERENT_BYTES = new TextEncoder().encode('<NFe id="different"/>')
 let syntheticS3Server: SyntheticS3Server | undefined
@@ -257,5 +260,29 @@ describe('ObjectStorageProvider public contract', () => {
     await expect(
       provider.createSignedDownload({ bucket: BUCKET, key: KEY, expiresInSeconds: 0 }),
     ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid })
+  })
+
+  test('signs the requested content disposition into the download URL', async () => {
+    const provider = createProvider()
+    const signedDownload = (extra: Partial<SignedDownloadInput>): Promise<URL> =>
+      provider.createSignedDownload({ bucket: BUCKET, key: KEY, expiresInSeconds: 60, ...extra })
+
+    const attachment = await signedDownload({ disposition: 'attachment', filename: 'nota fiscal.xml' })
+    const inline = await signedDownload({ disposition: 'inline' })
+    const withoutDisposition = await signedDownload({})
+    const filenameWithoutDisposition = await signedDownload({ filename: 'nota fiscal.xml' })
+
+    expect(attachment.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBe(
+      "attachment; filename*=UTF-8''nota%20fiscal.xml",
+    )
+    expect(inline.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBe('inline')
+    expect(withoutDisposition.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBeNull()
+    expect(filenameWithoutDisposition.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBeNull()
+
+    // Vai assinado, não como parâmetro solto: mudar a disposição muda a assinatura.
+    expect(attachment.searchParams.get(SIGNATURE_PARAMETER)).not.toBe(inline.searchParams.get(SIGNATURE_PARAMETER))
+    expect(inline.searchParams.get(SIGNATURE_PARAMETER)).not.toBe(
+      withoutDisposition.searchParams.get(SIGNATURE_PARAMETER),
+    )
   })
 })
