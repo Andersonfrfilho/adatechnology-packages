@@ -31,6 +31,7 @@ export const PRODUCT_OPTIONAL_FIELD = {
   PREPARATION_TIME: 'preparationTime',
   PREPARATION_INSTRUCTIONS: 'preparationInstructions',
   INVENTORY: 'inventory',
+  SORT_ORDER: 'sortOrder',
   SYNC_STATUS: 'syncStatus',
 } as const
 export type ProductOptionalField = (typeof PRODUCT_OPTIONAL_FIELD)[keyof typeof PRODUCT_OPTIONAL_FIELD]

@@ -14,8 +14,10 @@ export type ProductFormProps = {
   readonly sections: readonly Section[]
   // Leitura de código de barras. A captura é do host — depende de câmera, permissão e biblioteca
   // que não cabem num pacote de UI. Resolver com `null` quando o usuário cancela; sem a prop, o
-  // botão de escanear não aparece.
-  readonly onScanBarcode?: () => Promise<string | null>
+  // botão de escanear não aparece. O retorno é uma sugestão, e não só o código, porque o host que
+  // consulta uma base de GTIN já tem nome e imagem em mãos — devolver só o número obrigaria o
+  // usuário a redigitar o que o scanner acabou de descobrir.
+  readonly onScanBarcode?: () => Promise<ProductSuggestion | null>
   // Busca em base externa de produtos. Sem a prop, o campo de nome é um input comum.
   readonly onSearchSuggestions?: (query: string) => Promise<readonly ProductSuggestion[]>
 }
@@ -41,6 +43,7 @@ type FormState = {
   inventory: string
   preparationTimeMinutes: string
   preparationInstructions: string
+  sortOrder: string
   active: boolean
 }
 
@@ -78,6 +81,7 @@ export function ProductForm({
     inventory: initialValues?.inventory?.toString() ?? '0',
     preparationTimeMinutes: initialValues?.preparationTimeMinutes?.toString() ?? '',
     preparationInstructions: initialValues?.preparationInstructions ?? '',
+    sortOrder: initialValues?.sortOrder?.toString() ?? '0',
     active: initialValues?.active ?? true,
   })
 
@@ -158,11 +162,20 @@ export function ProductForm({
     setScanning(true)
     try {
       const scanned = await onScanBarcode()
-      if (scanned) updateField('barcode', scanned.replace(/\D/g, ''))
+      if (scanned) {
+        skipNextSearch.current = true
+        setSuggestions([])
+        setForm((prev) => ({
+          ...prev,
+          ...(scanned.name ? { name: scanned.name } : {}),
+          ...(scanned.barcode ? { barcode: scanned.barcode.replace(/\D/g, '') } : {}),
+          ...(scanned.imageUrl ? { imageUrl: scanned.imageUrl } : {}),
+        }))
+      }
     } finally {
       setScanning(false)
     }
-  }, [onScanBarcode, updateField])
+  }, [onScanBarcode])
 
   const validate = useCallback((): boolean => {
     const newErrors: Partial<Record<keyof FormState, string>> = {}
@@ -213,6 +226,9 @@ export function ProductForm({
         form.preparationInstructions.trim()
           ? { preparationInstructions: form.preparationInstructions.trim() }
           : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SORT_ORDER)
+          ? { sortOrder: Number.parseInt(form.sortOrder, 10) || 0 }
+          : {}),
         active: form.active,
       })
     } finally {
@@ -228,6 +244,7 @@ export function ProductForm({
   const showInventory = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.INVENTORY)
   const showPreparationTime = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME)
   const showPreparationInstructions = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_INSTRUCTIONS)
+  const showSortOrder = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SORT_ORDER)
   const moneyPlaceholder = formatMoney(0, moneyFormat)
   const unitOptions = config.unitOptions ?? DEFAULT_UNIT_OPTIONS
   const marginShortcuts = config.marginShortcutPercents ?? []
@@ -450,6 +467,19 @@ export function ProductForm({
               />
             </div>
           )}
+        </div>
+      )}
+
+      {showSortOrder && (
+        <div>
+          <label className={LABEL_CLASS}>Ordem de exibição</label>
+          <input
+            type="number"
+            value={form.sortOrder}
+            onChange={(e) => updateField('sortOrder', e.target.value)}
+            className={INPUT_CLASS}
+            min={0}
+          />
         </div>
       )}
 
