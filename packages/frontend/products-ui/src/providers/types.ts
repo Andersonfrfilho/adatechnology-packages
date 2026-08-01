@@ -29,6 +29,7 @@ export const PRODUCT_OPTIONAL_FIELD = {
   BARCODE: 'barcode',
   SECTION: 'section',
   PREPARATION_TIME: 'preparationTime',
+  PREPARATION_INSTRUCTIONS: 'preparationInstructions',
   INVENTORY: 'inventory',
   SYNC_STATUS: 'syncStatus',
 } as const
@@ -67,6 +68,9 @@ export type Product = {
   readonly sectionId?: string | null
   readonly sectionName?: string
   readonly preparationTimeMinutes?: number | null
+  // Texto livre para quem produz o item (ficha técnica, ponto da carne, ordem de montagem). É
+  // separado de `description`, que é o que o cliente lê.
+  readonly preparationInstructions?: string | null
 
   readonly externalId?: string | null
   readonly syncStatus?: ProductSyncStatus | null
@@ -81,10 +85,24 @@ export type Catalog = {
   readonly productCount?: number
 }
 
+// `catalogId` ausente = seção válida para todo o catálogo. Nem todo negócio subdivide seção por
+// catálogo: em restaurante ela é o posto de produção (cozinha, bar, chapa), e o mesmo posto atende
+// itens de categorias diferentes. Amarrar seção a catálogo obrigaria o consumidor a duplicar cada
+// seção por categoria só para conseguir exibi-la.
 export type Section = {
   readonly id: string
   readonly name: string
-  readonly catalogId: string
+  readonly catalogId?: string | null
+}
+
+// Sugestão vinda de base externa de produtos (GTIN, OpenFoodFacts, distribuidor). O componente só
+// preenche o formulário com ela — nada é persistido antes de o usuário salvar.
+export type ProductSuggestion = {
+  readonly name: string
+  readonly brand?: string
+  readonly barcode?: string
+  readonly imageUrl?: string
+  readonly category?: string
 }
 
 export type PaginatedResponse<TItem> = {
@@ -107,6 +125,7 @@ export type CreateProductInput = {
   readonly imageUrl?: string
   readonly inventory?: number
   readonly preparationTimeMinutes?: number
+  readonly preparationInstructions?: string
 }
 
 export type UpdateProductInput = Partial<CreateProductInput> & {
@@ -136,7 +155,9 @@ export type ProductsConfig = {
   readonly locale: string
   readonly fields: readonly ProductOptionalField[]
   readonly unitOptions?: readonly string[]
-  // Atalhos de margem sobre o preço de custo. Vazio esconde os botões.
+  // Atalhos de margem **sobre o preço de venda** — a mesma conta de `applyMarginToCost`. Vazio
+  // esconde os botões. Valor >= 100 é descartado por aquele helper: margem de 100% sobre a venda
+  // implicaria custo zero.
   readonly marginShortcutPercents?: readonly number[]
 }
 
@@ -154,5 +175,5 @@ export const DEFAULT_PRODUCTS_CONFIG: ProductsConfig = {
     PRODUCT_OPTIONAL_FIELD.INVENTORY,
   ],
   unitOptions: DEFAULT_UNIT_OPTIONS,
-  marginShortcutPercents: [30, 50, 100],
+  marginShortcutPercents: [30, 50, 60],
 }

@@ -44,6 +44,7 @@ export type {
   ProductOptionalField,
   ProductSyncStatus,
   PaginatedResponse,
+  ProductSuggestion,
   CreateProductInput,
   UpdateProductInput,
   CreateCatalogInput,

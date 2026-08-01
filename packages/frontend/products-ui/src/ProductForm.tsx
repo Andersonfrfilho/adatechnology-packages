@@ -1,14 +1,23 @@
-import { useState, useCallback, type FormEvent } from 'react'
-import type { Product, Catalog, Section, CreateProductInput } from './providers/types'
+import { useState, useCallback, useEffect, useRef, type FormEvent } from 'react'
+import type { Product, Catalog, Section, CreateProductInput, ProductSuggestion } from './providers/types'
 import { DEFAULT_UNIT_OPTIONS, PRODUCT_OPTIONAL_FIELD } from './providers/types'
 import { useIsProductFieldEnabled, useProductsConfig } from './providers/ProductsProvider'
 import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
+
+const SUGGESTION_MIN_QUERY_LENGTH = 2
+const SUGGESTION_DEBOUNCE_MS = 400
 
 export type ProductFormProps = {
   readonly onSubmit: (data: CreateProductInput & { active?: boolean; sortOrder?: number }) => Promise<void>
   readonly initialValues?: Partial<Product>
   readonly catalogs: readonly Catalog[]
   readonly sections: readonly Section[]
+  // Leitura de código de barras. A captura é do host — depende de câmera, permissão e biblioteca
+  // que não cabem num pacote de UI. Resolver com `null` quando o usuário cancela; sem a prop, o
+  // botão de escanear não aparece.
+  readonly onScanBarcode?: () => Promise<string | null>
+  // Busca em base externa de produtos. Sem a prop, o campo de nome é um input comum.
+  readonly onSearchSuggestions?: (query: string) => Promise<readonly ProductSuggestion[]>
 }
 
 // Texto exibido e centavos andam juntos no estado: o texto é o que o usuário vê e os centavos são
@@ -31,13 +40,21 @@ type FormState = {
   imageUrl: string
   inventory: string
   preparationTimeMinutes: string
+  preparationInstructions: string
   active: boolean
 }
 
 const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
 const LABEL_CLASS = 'block text-sm font-medium text-gray-700 mb-1'
 
-export function ProductForm({ onSubmit, initialValues, catalogs, sections }: ProductFormProps) {
+export function ProductForm({
+  onSubmit,
+  initialValues,
+  catalogs,
+  sections,
+  onScanBarcode,
+  onSearchSuggestions,
+}: ProductFormProps) {
   const config = useProductsConfig()
   const isFieldEnabled = useIsProductFieldEnabled()
   const moneyFormat = { currency: config.currency, locale: config.locale }
@@ -60,11 +77,17 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
     imageUrl: initialValues?.imageUrl ?? '',
     inventory: initialValues?.inventory?.toString() ?? '0',
     preparationTimeMinutes: initialValues?.preparationTimeMinutes?.toString() ?? '',
+    preparationInstructions: initialValues?.preparationInstructions ?? '',
     active: initialValues?.active ?? true,
   })
 
   const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
+  const [suggestions, setSuggestions] = useState<readonly ProductSuggestion[]>([])
+  const [scanning, setScanning] = useState(false)
+  // Escolher uma sugestão preenche o nome, e o nome preenchido dispararia a busca de novo. O flag
+  // corta esse ciclo sem precisar comparar strings.
+  const skipNextSearch = useRef(false)
 
   const updateField = useCallback((field: keyof FormState, value: string | boolean | MoneyField) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -89,6 +112,57 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
     },
     [form.costPrice.amountInCents, updateField, config.currency, config.locale],
   )
+
+  useEffect(() => {
+    if (!onSearchSuggestions) return
+    if (skipNextSearch.current) {
+      skipNextSearch.current = false
+      return
+    }
+    if (form.name.trim().length < SUGGESTION_MIN_QUERY_LENGTH) {
+      setSuggestions([])
+      return
+    }
+
+    let active = true
+    const timer = setTimeout(() => {
+      void onSearchSuggestions(form.name.trim())
+        .then((results) => {
+          if (active) setSuggestions(results)
+        })
+        // Sugestão é conveniência: base externa fora do ar não pode impedir o cadastro manual.
+        .catch(() => {
+          if (active) setSuggestions([])
+        })
+    }, SUGGESTION_DEBOUNCE_MS)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [form.name, onSearchSuggestions])
+
+  const handleSelectSuggestion = useCallback((suggestion: ProductSuggestion) => {
+    skipNextSearch.current = true
+    setSuggestions([])
+    setForm((prev) => ({
+      ...prev,
+      name: suggestion.name,
+      ...(suggestion.barcode ? { barcode: suggestion.barcode } : {}),
+      ...(suggestion.imageUrl ? { imageUrl: suggestion.imageUrl } : {}),
+    }))
+  }, [])
+
+  const handleScanBarcode = useCallback(async () => {
+    if (!onScanBarcode) return
+    setScanning(true)
+    try {
+      const scanned = await onScanBarcode()
+      if (scanned) updateField('barcode', scanned.replace(/\D/g, ''))
+    } finally {
+      setScanning(false)
+    }
+  }, [onScanBarcode, updateField])
 
   const validate = useCallback((): boolean => {
     const newErrors: Partial<Record<keyof FormState, string>> = {}
@@ -135,6 +209,10 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
         ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME) && form.preparationTimeMinutes
           ? { preparationTimeMinutes: Number.parseInt(form.preparationTimeMinutes, 10) }
           : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_INSTRUCTIONS) &&
+        form.preparationInstructions.trim()
+          ? { preparationInstructions: form.preparationInstructions.trim() }
+          : {}),
         active: form.active,
       })
     } finally {
@@ -149,22 +227,48 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
   const showSection = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SECTION)
   const showInventory = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.INVENTORY)
   const showPreparationTime = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME)
+  const showPreparationInstructions = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_INSTRUCTIONS)
   const moneyPlaceholder = formatMoney(0, moneyFormat)
   const unitOptions = config.unitOptions ?? DEFAULT_UNIT_OPTIONS
   const marginShortcuts = config.marginShortcutPercents ?? []
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
+      <div className="relative">
         <label className={LABEL_CLASS}>Nome do produto *</label>
         <input
           type="text"
           value={form.name}
           onChange={(e) => updateField('name', e.target.value)}
+          onBlur={() => setTimeout(() => setSuggestions([]), 150)}
           className={`${INPUT_CLASS} ${errors.name ? 'border-red-300 bg-red-50' : ''}`}
           placeholder="Ex: Pizza Margherita"
+          autoComplete="off"
         />
         {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+        {suggestions.length > 0 && (
+          <ul className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+            {suggestions.map((suggestion, index) => (
+              <li key={`${suggestion.barcode ?? suggestion.name}-${index}`}>
+                <button
+                  type="button"
+                  onClick={() => handleSelectSuggestion(suggestion)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors"
+                >
+                  {suggestion.imageUrl && (
+                    <img src={suggestion.imageUrl} alt="" className="w-8 h-8 rounded object-cover bg-gray-100" />
+                  )}
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate">{suggestion.name}</span>
+                    {suggestion.brand && (
+                      <span className="block text-xs text-gray-400 truncate">{suggestion.brand}</span>
+                    )}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div>
@@ -246,19 +350,23 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
                   placeholder="7891234567890"
                   maxLength={13}
                 />
-                <button
-                  type="button"
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
-                  title="Escanear código de barras"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-                    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-                    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-                    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                    <line x1="7" y1="12" x2="17" y2="12" />
-                  </svg>
-                </button>
+                {onScanBarcode && (
+                  <button
+                    type="button"
+                    onClick={() => void handleScanBarcode()}
+                    disabled={scanning}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    title="Escanear código de barras"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                      <line x1="7" y1="12" x2="17" y2="12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -289,7 +397,10 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
             >
               <option value="">Nenhuma</option>
               {sections
-                .filter((section) => !form.catalogId || section.catalogId === form.catalogId)
+                .filter(
+                  (section) =>
+                    !section.catalogId || !form.catalogId || section.catalogId === form.catalogId,
+                )
                 .map((section) => (
                   <option key={section.id} value={section.id}>{section.name}</option>
                 ))}
@@ -339,6 +450,19 @@ export function ProductForm({ onSubmit, initialValues, catalogs, sections }: Pro
               />
             </div>
           )}
+        </div>
+      )}
+
+      {showPreparationInstructions && (
+        <div>
+          <label className={LABEL_CLASS}>Modo de preparo</label>
+          <textarea
+            value={form.preparationInstructions}
+            onChange={(e) => updateField('preparationInstructions', e.target.value)}
+            rows={3}
+            className={INPUT_CLASS}
+            placeholder="Instruções para quem produz o item..."
+          />
         </div>
       )}
 
