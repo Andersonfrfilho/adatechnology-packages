@@ -4,7 +4,7 @@ export type { ProductListProps } from './ProductList'
 export { ProductForm } from './ProductForm'
 export type { ProductFormProps } from './ProductForm'
 
-export { CatalogList } from './CatalogList'
+export { CatalogList, CATALOG_NONE } from './CatalogList'
 export type { CatalogListProps } from './CatalogList'
 
 export { ImageUpload } from './ImageUpload'
@@ -33,6 +33,7 @@ export {
   PRODUCT_SYNC_STATUS,
   DEFAULT_PRODUCTS_CONFIG,
   DEFAULT_UNIT_OPTIONS,
+  DEFAULT_META_SYNC,
 } from './providers/types'
 
 export type {
@@ -41,6 +42,7 @@ export type {
   Section,
   ProductsApi,
   ProductsConfig,
+  MetaSyncConfig,
   ProductOptionalField,
   ProductSyncStatus,
   PaginatedResponse,

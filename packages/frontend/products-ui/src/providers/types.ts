@@ -32,7 +32,6 @@ export const PRODUCT_OPTIONAL_FIELD = {
   PREPARATION_INSTRUCTIONS: 'preparationInstructions',
   INVENTORY: 'inventory',
   SORT_ORDER: 'sortOrder',
-  SYNC_STATUS: 'syncStatus',
 } as const
 export type ProductOptionalField = (typeof PRODUCT_OPTIONAL_FIELD)[keyof typeof PRODUCT_OPTIONAL_FIELD]
 
@@ -84,6 +83,15 @@ export type Catalog = {
   readonly description: string | null
   readonly active: boolean
   readonly productCount?: number
+  // Ordem de exibição ao cliente final. Opcional porque nem todo host a persiste: quem não manda o
+  // campo continua com a ordem que a API devolver.
+  readonly sortOrder?: number
+
+  // Espelho do que o `Product` já carrega. Só faz sentido quando `metaSync.catalogs` está ligado:
+  // na Meta, um catálogo do host vira um product set dentro do catálogo da conta.
+  readonly externalId?: string | null
+  readonly syncStatus?: ProductSyncStatus | null
+  readonly syncError?: string | null
 }
 
 // `catalogId` ausente = seção válida para todo o catálogo. Nem todo negócio subdivide seção por
@@ -137,11 +145,23 @@ export type UpdateProductInput = Partial<CreateProductInput> & {
 export type CreateCatalogInput = {
   readonly name: string
   readonly description?: string
+  readonly sortOrder?: number
 }
 
 export type UpdateCatalogInput = Partial<CreateCatalogInput> & {
   readonly active?: boolean
 }
+
+// Sincronização com o catálogo da Meta (WhatsApp e Instagram Shopping). Desligada por padrão:
+// vertical que não vende por WhatsApp não deve ver estado de sincronização nem botão de publicar.
+// Produto e catálogo são independentes porque a Meta os trata como entidades distintas — dá para
+// publicar itens em um catálogo único sem espelhar a divisão interna em product sets.
+export type MetaSyncConfig = {
+  readonly products: boolean
+  readonly catalogs: boolean
+}
+
+export const DEFAULT_META_SYNC: MetaSyncConfig = { products: false, catalogs: false }
 
 export type BulkImportResult = {
   readonly succeeded: number
@@ -160,6 +180,7 @@ export type ProductsConfig = {
   // esconde os botões. Valor >= 100 é descartado por aquele helper: margem de 100% sobre a venda
   // implicaria custo zero.
   readonly marginShortcutPercents?: readonly number[]
+  readonly metaSync?: MetaSyncConfig
 }
 
 export const DEFAULT_UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx', 'dz'] as const
@@ -177,4 +198,5 @@ export const DEFAULT_PRODUCTS_CONFIG: ProductsConfig = {
   ],
   unitOptions: DEFAULT_UNIT_OPTIONS,
   marginShortcutPercents: [30, 50, 60],
+  metaSync: DEFAULT_META_SYNC,
 }
