@@ -124,10 +124,25 @@ export function createInMemoryProducts(seed: ProductRow[] = []) {
       row.inventory -= params.quantity
       return { remaining: row.inventory }
     },
-    async listBySyncStatus(): Promise<ProductRow[]> {
-      return []
+    async listBySyncStatus(params: { companyId: string; syncStatus: string; limit: number }): Promise<ProductRow[]> {
+      return rows
+        .filter((row) => row.companyId === params.companyId && row.syncStatus === params.syncStatus && !row.deletedAt)
+        .slice(0, params.limit)
+        .map((row) => ({ ...row }))
     },
-    async markSync(): Promise<void> {},
+    async markSync(params: {
+      companyId: string
+      id: string
+      syncStatus: string
+      externalId?: string
+      syncError?: string | null
+    }): Promise<void> {
+      const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === params.id)
+      if (!row) return
+      row.syncStatus = params.syncStatus
+      if (params.externalId !== undefined) row.externalId = params.externalId
+      row.syncError = params.syncError ?? null
+    },
   }
 }
 
@@ -177,7 +192,19 @@ export function createInMemoryCatalogs(seed: CatalogRow[] = []) {
       row.deletedAt = EPOCH
       return true
     },
-    async markSync(): Promise<void> {},
+    async markSync(params: {
+      companyId: string
+      id: string
+      syncStatus: string
+      externalId?: string
+      syncError?: string | null
+    }): Promise<void> {
+      const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === params.id)
+      if (!row) return
+      row.syncStatus = params.syncStatus
+      if (params.externalId !== undefined) row.externalId = params.externalId
+      row.syncError = params.syncError ?? null
+    },
   }
 }
 

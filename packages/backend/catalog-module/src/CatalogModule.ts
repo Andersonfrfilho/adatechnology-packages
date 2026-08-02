@@ -37,6 +37,12 @@ import {
 } from './use-cases/Catalog.use-cases'
 import { AdjustInventoryUseCase, ConsumeInventoryUseCase } from './use-cases/Inventory.use-cases'
 import {
+  RetryFailedSyncsUseCase,
+  SyncCatalogToMetaUseCase,
+  SyncPendingToMetaUseCase,
+  SyncProductToMetaUseCase,
+} from './use-cases/MetaSync.use-cases'
+import {
   CreateProductUseCase,
   DeleteProductUseCase,
   GetProductUseCase,
@@ -59,6 +65,13 @@ export type CreateCatalogModuleParams = {
   readonly hooks?: CatalogHooks
 }
 
+export type CatalogSchedule = {
+  readonly name: string
+  readonly cronExpression: string
+  /** Recebe a empresa: o módulo não conhece a lista de empresas do host. */
+  run(companyId: string): Promise<void>
+}
+
 export type CatalogModule = {
   readonly useCases: {
     readonly createProduct: CreateProductUseCase
@@ -77,7 +90,13 @@ export type CatalogModule = {
     readonly consumeInventory: ConsumeInventoryUseCase
     readonly adjustInventory: AdjustInventoryUseCase
     readonly bulkImportProducts: BulkImportProductsUseCase
+    readonly syncProductToMeta: SyncProductToMetaUseCase
+    readonly syncCatalogToMeta: SyncCatalogToMetaUseCase
+    readonly syncPendingToMeta: SyncPendingToMetaUseCase
+    readonly retryFailedSyncs: RetryFailedSyncsUseCase
   }
+  /** Descritores para o cron do host registrar; o módulo não abre timer próprio. */
+  readonly schedules: readonly CatalogSchedule[]
   /** Projeção para o canal de conversa plugar no `CatalogPort` do `meta-whatsapp-module`. */
   readonly lookup: CatalogProductLookup
 }
@@ -106,6 +125,8 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
 
   const createProduct = new CreateProductUseCase(dependencies)
   const consumeInventory = new ConsumeInventoryUseCase(dependencies)
+  const syncProductToMeta = new SyncProductToMetaUseCase(dependencies)
+  const syncPendingToMeta = new SyncPendingToMetaUseCase(dependencies, syncProductToMeta)
 
   return {
     useCases: {
@@ -125,7 +146,23 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       consumeInventory,
       adjustInventory: new AdjustInventoryUseCase(dependencies),
       bulkImportProducts: new BulkImportProductsUseCase(dependencies, createProduct),
+      syncProductToMeta,
+      syncCatalogToMeta: new SyncCatalogToMetaUseCase(dependencies),
+      syncPendingToMeta,
+      retryFailedSyncs: new RetryFailedSyncsUseCase(dependencies),
     },
+
+    schedules: wantsMetaSync
+      ? [
+          {
+            name: 'catalog:sync-pending',
+            // A cada 5 min: o intervalo do cron É o backoff do `retriable`, e catálogo tolera
+            // essa latência. Um minuto só gastaria chamada da Graph API à toa.
+            cronExpression: '*/5 * * * *',
+            run: (companyId: string) => syncPendingToMeta.execute({ companyId }).then(() => undefined),
+          },
+        ]
+      : [],
 
     lookup: {
       async findByRetailerId({ companyId, retailerId }) {

@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
- * Fases 1-3: dados, comportamento e HTTP. A publicação na Meta chega na Fase 4.\n *\n * Adaptadores em entrypoints próprios: `./http/fetch`, `./http/uws`, `./openapi`.
+ * Fases 1-4: dados, comportamento, HTTP e publicação na Meta.\n *\n * Adaptadores em entrypoints próprios: `./http/fetch`, `./http/uws`, `./openapi`.
  */
 
 export type { CatalogDatabase, DrizzleMigrateFunction } from './database.types'
@@ -64,3 +64,12 @@ export type { ProductProjection } from './shared/toContract'
 export { createCatalogRoutes } from './http/routes'
 export type { CreateCatalogRoutesParams } from './http/routes'
 export { requireCompany } from './http/requireCompany'
+
+export {
+  SyncProductToMetaUseCase,
+  SyncCatalogToMetaUseCase,
+  SyncPendingToMetaUseCase,
+  RetryFailedSyncsUseCase,
+} from './use-cases/MetaSync.use-cases'
+export type { SweepResult } from './use-cases/MetaSync.use-cases'
+export type { CatalogSchedule } from './CatalogModule'
