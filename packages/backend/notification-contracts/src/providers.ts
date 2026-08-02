@@ -46,6 +46,12 @@ export interface RecipientResolverPort {
 export type NotificationJob = {
   /** Só a referência: conteúdo e endereço ficam no banco, nunca na fila (`worker.md`). */
   readonly notificationId: NotificationId
+  /**
+   * A entrega específica, não só a notificação — push fan-out cria uma `delivery` por device
+   * ativo, todas para o mesmo `(notificationId, channel)`; sem este id o worker não saberia qual
+   * delas aquele job representa.
+   */
+  readonly deliveryId: string
   readonly companyId: CompanyId
   readonly channel: NotificationChannel
   readonly attempt: number
