@@ -14,10 +14,12 @@ import {
   type NotificationHooks,
 } from '@adatechnology/notification-contracts'
 import type {
+  AuthContextResolverPort,
   CachePort,
   ClockPort,
   LoggerPort,
   QueuePort,
+  RealtimeNotifierPort,
   RecipientResolverPort,
   TemplateRendererPort,
 } from '@adatechnology/notification-contracts'
@@ -31,6 +33,7 @@ import { SuppressionRepository } from './repositories/SuppressionRepository'
 import { TemplateRepository } from './repositories/TemplateRepository'
 import { createDefaultTemplateRenderer } from './shared/DefaultTemplateRenderer'
 import { createInProcessQueue } from './shared/InProcessQueue'
+import { createInProcessRealtimeNotifier } from './shared/InProcessRealtimeNotifier'
 import {
   CountUnreadUseCase,
   DeleteNotificationUseCase,
@@ -80,6 +83,13 @@ export type NotificationModuleProviders = {
   readonly templateRenderer?: TemplateRendererPort
   readonly clock?: ClockPort
   readonly logger?: LoggerPort
+  /**
+   * Omitido, o módulo usa o notificador em processo — que só entrega na mesma instância. Com
+   * mais de uma réplica, injete um sobre o pub/sub do host (ver `RealtimeNotifierPort.subscribe`).
+   */
+  readonly realtime?: RealtimeNotifierPort
+  /** Obrigatória quando as rotas HTTP estão montadas; sem ela, `createNotificationRoutes` falha. */
+  readonly authContextResolver?: AuthContextResolverPort
 }
 
 export type CreateNotificationModuleParams = {
@@ -91,6 +101,10 @@ export type CreateNotificationModuleParams = {
 }
 
 export type NotificationModule = {
+  /** Reexpostas para a camada HTTP montar SSE, nonce de webhook e horário determinístico. */
+  readonly realtime?: RealtimeNotifierPort
+  readonly cache?: CachePort
+  readonly clock?: ClockPort
   readonly useCases: {
     readonly sendNotification: SendNotificationUseCase
     readonly dispatchDelivery: DispatchDeliveryUseCase
@@ -137,6 +151,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
 
   const queue = params.providers.queue ?? createInProcessQueue()
   const templateRenderer = params.providers.templateRenderer ?? createDefaultTemplateRenderer()
+  const realtime = params.providers.realtime ?? createInProcessRealtimeNotifier()
 
   const sharedDeps = {
     notifications,
@@ -153,6 +168,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     clock: params.providers.clock,
     hooks: params.hooks,
     logger: params.providers.logger,
+    realtime,
   }
 
   const sendNotification = new SendNotificationUseCase(sharedDeps, {
@@ -171,6 +187,9 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
   const upsertTemplate = new UpsertTemplateUseCase(templates)
 
   return {
+    realtime,
+    cache: params.providers.cache,
+    clock: params.providers.clock,
     useCases: {
       sendNotification,
       dispatchDelivery,

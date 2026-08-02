@@ -9,6 +9,7 @@
 
 import {
   NOTIFICATION_CHANNEL,
+  NOTIFICATION_EVENT,
   RecipientUnresolvedError,
   type DeliverySummary,
   type NotificationChannel,
@@ -129,6 +130,23 @@ export async function dispatchDeliveries(params: {
           sentAt: now,
         }),
       )
+      // Badge em tempo real. Só id e título — o corpo da notificação atravessaria o pub/sub do
+      // host (Redis, NATS), e conteúdo endereçado a uma pessoa não sai do banco (`security.md` §1).
+      // Falha de realtime não derruba a entrega: a inbox já está gravada, e o pior caso é o badge
+      // só aparecer no próximo refetch.
+      await dependencies.realtime
+        ?.publish({
+          companyId: notification.companyId,
+          userId: notification.recipientUserId,
+          event: NOTIFICATION_EVENT.CREATED,
+          data: { notificationId: notification.id, title: notification.title, category: notification.category },
+        })
+        .catch((error: unknown) => {
+          dependencies.logger?.warn('notification.realtime_publish_failed', {
+            notificationId: notification.id,
+            error: String(error),
+          })
+        })
       continue
     }
 

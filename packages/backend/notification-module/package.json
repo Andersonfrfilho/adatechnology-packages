@@ -13,6 +13,36 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./http/fetch": {
+      "types": "./dist/http/fetch.d.ts",
+      "import": "./dist/http/fetch.js",
+      "require": "./dist/http/fetch.cjs"
+    },
+    "./http/uws": {
+      "types": "./dist/http/uws.d.ts",
+      "import": "./dist/http/uws.js",
+      "require": "./dist/http/uws.cjs"
+    },
+    "./queue/bullmq": {
+      "types": "./dist/queue/bullmq.d.ts",
+      "import": "./dist/queue/bullmq.js",
+      "require": "./dist/queue/bullmq.cjs"
+    },
+    "./queue/amqp": {
+      "types": "./dist/queue/amqp.d.ts",
+      "import": "./dist/queue/amqp.js",
+      "require": "./dist/queue/amqp.cjs"
+    },
+    "./openapi": {
+      "types": "./dist/openapi.d.ts",
+      "import": "./dist/openapi.js",
+      "require": "./dist/openapi.cjs"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js",
+      "require": "./dist/testing/index.cjs"
     }
   },
   "files": [
@@ -26,7 +56,8 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts"
   },
   "dependencies": {
-    "@adatechnology/notification-contracts": "workspace:*"
+    "@adatechnology/notification-contracts": "workspace:*",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/bun": "1.3.14",

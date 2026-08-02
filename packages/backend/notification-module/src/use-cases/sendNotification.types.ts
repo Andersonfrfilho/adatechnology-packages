@@ -14,6 +14,7 @@ import type {
   LoggerPort,
   NotificationHooks,
   QueuePort,
+  RealtimeNotifierPort,
   RecipientResolverPort,
   TemplateRendererPort,
 } from '@adatechnology/notification-contracts'
@@ -75,6 +76,8 @@ export type SendNotificationDependencies = {
   readonly clock?: ClockPort
   readonly hooks?: NotificationHooks
   readonly logger?: LoggerPort
+  /** Alimenta o badge em tempo real; ausente, a inbox só atualiza no próximo refetch. */
+  readonly realtime?: RealtimeNotifierPort
 }
 
 export type SendNotificationConfig = {

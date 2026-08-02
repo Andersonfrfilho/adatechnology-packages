@@ -1,9 +1,24 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
- * Fases 3 e 4: dados (schema, migrations, repositories) + comportamento (`createNotificationModule`
- * e use-cases). Rotas HTTP, worker e `schedules` de cron chegam na Fase 5.
+ * Superfície principal do módulo. Os adaptadores opcionais vivem em entrypoints próprios
+ * (`./http/fetch`, `./http/uws`, `./queue/bullmq`, `./queue/amqp`, `./openapi`, `./testing`) —
+ * quem não importa, não carrega a dependência.
  */
+
+export { createNotificationRoutes } from './http/routes'
+export type { CreateNotificationRoutesParams } from './http/routes'
+export { DEFAULT_SSE_HEARTBEAT_SECONDS } from './http/inboxRoutes'
+export { compileRoutes, dispatchRoute, findRoute } from './http/dispatchRoute'
+export type { CompiledRoute, RawRequest, DispatchRouteParams } from './http/dispatchRoute'
+export { toErrorResult, toValidationResult, VALIDATION_ERROR_CODE, INTERNAL_ERROR_CODE } from './http/errorFilter'
+export { compilePath, matchPath } from './http/pathMatcher'
+export type { CompiledPath } from './http/pathMatcher'
+
+export { createNotificationWorker, createNotificationSchedules } from './worker'
+export type { NotificationWorker, CreateNotificationWorkerParams, NotificationSchedule } from './worker'
+
+export { createInProcessRealtimeNotifier } from './shared/InProcessRealtimeNotifier'
 
 export { createNotificationModule } from './NotificationModule'
 export type {
