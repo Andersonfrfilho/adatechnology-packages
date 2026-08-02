@@ -111,21 +111,35 @@ driver real é usado sem cliente injetado.
 
 ---
 
-## Fase 3 — `notification-module`: dados
+## Fase 3 — `notification-module`: dados ✅
 > 🤖 Modelo: `sonnet`
 
-- [ ] **T3.1** Pacote + `database.types.ts` (`PgDatabase` genérico +
-      `DrizzleMigrateFunction` injetado, como em `meta-whatsapp-module`) + exports map com
-      os 7 entrypoints da §4.
-- [ ] **T3.2** `schema/schema.ts` — as 6 tabelas da §5 em `pgSchema('notification')`, com
-      todos os índices. `varchar` em vez de ENUM; `companyId` em todas.
-- [ ] **T3.3** Migrations geradas pelo drizzle-kit **do pacote** +
-      `runNotificationMigrations` com journal `notification_migrations` fora do pgSchema
-      (pelo motivo documentado em `meta-whatsapp-module/runMigrations.ts`).
-- [ ] **T3.4** Repositories: `NotificationRepository`, `DeliveryRepository`,
+- ✅ **T3.1** Pacote + `database.types.ts` (`PgDatabase` genérico +
+      `DrizzleMigrateFunction` injetado, como em `meta-whatsapp-module`). O `index.ts`
+      exporta schema/migrations/repositories desta fase; os entrypoints `./http/*`,
+      `./queue/*`, `./openapi` e `./testing` da §4 nascem nas Fases 4–5, junto com o que
+      eles servem.
+- ✅ **T3.2** `schema/schema.ts` — as 6 tabelas da §5 em `pgSchema('notification')`, com
+      todos os índices. `varchar` em vez de ENUM; `companyId` em todas. `notifications`
+      ganhou `deletedAt` (soft delete da Fase 4, ausente da tabela original da spec —
+      lacuna fechada aqui, já que o schema é a hora certa de decidir a coluna).
+- ✅ **T3.3** Migração gerada via `drizzle-kit generate` (revisada: schema + 6 tabelas +
+      índices, incluindo o partial unique de `dedupeKey` renderizado corretamente) +
+      `runNotificationMigrations` com journal `notification_migrations` fora do
+      pgSchema.
+- ✅ **T3.4** Repositories: `NotificationRepository`, `DeliveryRepository`,
       `DeviceRepository`, `PreferenceRepository`, `TemplateRepository`,
-      `SuppressionRepository` — todo método filtra `companyId` por construção.
-- [ ] **T3.5** Teste negativo de isolamento multiempresa: empresa A não lê inbox de B.
+      `SuppressionRepository`. `PreferenceRepository.upsertMany` é um único
+      `INSERT...ON CONFLICT DO UPDATE` com `excluded.*`, não upsert por linha em loop.
+      `TemplateRepository.upsert` nunca sobrescreve — cada chamada cria a próxima
+      versão. Exceção documentada: `DeliveryRepository.findByProviderMessage` não é
+      escopado por `companyId` (webhook só tem o id do provedor; é essa busca que
+      descobre a empresa).
+- ✅ **T3.5** `repositories/isolation.test.ts` — toda condição de leitura/escrita
+      alcançável por usuário é função pura exportada, renderizada com `PgDialect`
+      (sem Postgres real, molde de `meta-whatsapp-module/SessionRepository.test.ts`):
+      prova que `company_id` está em toda cláusula e que duas empresas nunca
+      compartilham o parâmetro vinculado.
 
 ---
 
