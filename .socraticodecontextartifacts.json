@@ -3,13 +3,19 @@
     {
       "name": "tracestack-logging",
       "description": "Complete TraceStack logging system documentation - call hierarchy tracking, format, implementation guide",
-      "path": "packages/logger/TRACESTACK.md",
+      "path": "packages/backend/nestjs-logger/TRACESTACK.md",
+      "type": "documentation"
+    },
+    {
+      "name": "nestjs-logger-package-readme",
+      "description": "NestJS logger package overview and API documentation",
+      "path": "packages/backend/nestjs-logger/README.md",
       "type": "documentation"
     },
     {
       "name": "logger-package-readme",
-      "description": "Logger package overview and API documentation",
-      "path": "packages/logger/README.md",
+      "description": "Bun/Node logger package overview and API documentation",
+      "path": "packages/backend/logger/README.md",
       "type": "documentation"
     }
   ]
