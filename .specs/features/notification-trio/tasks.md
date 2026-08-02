@@ -70,26 +70,44 @@ além de `zod`.
 
 ---
 
-## Fase 2 — Drivers (SDKs stateless)
+## Fase 2 — Drivers (SDKs stateless) ✅
 > 🤖 Modelo: `sonnet`
 
-- [ ] **T2.1** `packages/backend/push-provider`: `ExpoPushProvider` — Expo Push API,
-      chunking de 100 tokens, `DeviceNotRegistered` → `invalid_target`, `429`/`5xx` →
-      `retriable`.
-- [ ] **T2.2** `FcmPushProvider` — `firebase-admin` como peer opcional;
-      `messaging/registration-token-not-registered` → `invalid_target`. Suporta **web
-      push** (é o que valida o canal no PWA do quickcart).
-- [ ] **T2.3** `createPushProvider({ driver })` — fábrica exaustiva no molde de
+- ✅ **T2.1** `packages/backend/push-provider`: `ExpoPushProvider` — `sendExpoPushBatch`
+      fragmenta em lotes de 100 e despacha em paralelo (`Promise.all`, sem `await` em
+      loop); `send()` é o wrapper de lote-de-1 que satisfaz `PushDriverPort`.
+      `DeviceNotRegistered` → `invalid_target`, `MessageRateExceeded` → `retriable`,
+      `MessageTooBig`/`InvalidCredentials`/código novo → `permanent`, HTTP 429/5xx →
+      `retriable`, demais 4xx → `permanent`.
+- ✅ **T2.2** `FcmPushProvider` — `firebase-admin` como peer **opcional**, carregado por
+      `import()` dinâmico só quando não há `messagingClient` injetado (quem só usa Expo
+      não carrega o SDK). Suporta **web push** pelo mesmo `messaging().send()` — é o que
+      valida o canal no PWA do quickcart sem app mobile.
+      `registration-token-not-registered`/`invalid-registration-token` →
+      `invalid_target`, `quota-exceeded`/`unavailable`/`internal-error` → `retriable`,
+      `invalid-argument`/código novo → `permanent`.
+- ✅ **T2.3** `createPushProvider({ driver })` — fábrica exaustiva no molde de
       `createFiscalProvider`, com `never` no default.
-- [ ] **T2.4** `packages/backend/email-provider`: `SmtpEmailProvider` (nodemailer),
-      `ResendEmailProvider`, `SesEmailProvider` + `createEmailProvider({ driver })`.
-- [ ] **T2.5** Parsers de recibo por driver (`parseResendWebhook`, `parseSesNotification`)
-      devolvendo `DeliveryReceipt` do contracts.
-- [ ] **T2.6** Testes unitários por driver com HTTP mockado — nenhum teste bate em API
-      real. Cabeçalho de copyright em todo arquivo (§17 do `code-standart.md`).
+- ✅ **T2.4** `packages/backend/email-provider`: `SmtpEmailProvider` (`nodemailer` via
+      `smtpUrl`, aponta para o Mailpit em dev), `ResendEmailProvider` (a Resend não lança
+      em erro de negócio — `{ data, error }` — a classificação lê `error.name`/
+      `statusCode`), `SesEmailProvider` (`@aws-sdk/client-sesv2` via `import()` dinâmico)
+      + `createEmailProvider({ driver })` exaustivo. Nenhum driver expõe
+      `invalid_target` síncrono — bounce de e-mail é assíncrono por natureza do
+      protocolo (spec §11); SMTP é exceção parcial via `accepted`/`rejected` e código
+      550/551/553.
+- ✅ **T2.5** `parseResendWebhook` (`email.delivered`/`.bounced`/`.complained`, demais
+      tipos → `undefined`) e `parseSesNotification` (dois `JSON.parse` em sequência:
+      envelope SNS por fora, evento SES dentro de `Message`) devolvendo `DeliveryReceipt`
+      do contracts.
+- ✅ **T2.6** Testes unitários por driver e por parser com cliente/transporte dublê
+      injetado — nenhum teste bate em SMTP, Resend, AWS ou Expo/FCM reais. Cabeçalho de
+      copyright em todo arquivo (§17 do `code-standart.md`).
 
 **Aceite:** cada provider instalável sozinho, sem o módulo; zero `process.env`; token e
-segredo nunca aparecem em mensagem de erro.
+segredo nunca aparecem em mensagem de erro. `firebase-admin`, `nodemailer`, `resend` e
+`@aws-sdk/client-sesv2` são peer opcionais, carregados por `import()` dinâmico só quando o
+driver real é usado sem cliente injetado.
 
 ---
 
