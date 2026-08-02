@@ -143,41 +143,48 @@ driver real é usado sem cliente injetado.
 
 ---
 
-## Fase 4 — `notification-module`: comportamento
+## Fase 4 — `notification-module`: comportamento ✅
 > 🤖 Modelo: `sonnet` (T4.2 e T4.6 são 🧠)
 
-- [ ] **T4.1** `createNotificationModule({ db, config, features, providers, hooks })` —
+> **Correções de schema feitas nesta fase** (duas migrações aditivas, ambas geradas pelo
+> drizzle-kit do pacote): `0001` adiciona `deliveries.deviceId` — push tem uma entrega por
+> aparelho, e sem essa coluna o dispatch não saberia qual token desativar em
+> `invalid_target`; `0002` troca a FK `notification_id` para `ON DELETE cascade`, sem o
+> que a purga por retenção violaria constraint. Também `NotificationJob` do contracts
+> ganhou `deliveryId` (commit próprio) pelo mesmo motivo do `0001`.
+
+- ✅ **T4.1** `createNotificationModule({ db, config, features, providers, hooks })` —
       valida config com zod próprio, checa feature × porta (ligar `email` sem driver, ou
       rotas sem `authContextResolver`, = erro **no boot**) e devolve
       `{ useCases, routes, worker, schedules, channel }`.
-- [ ] **T4.2** 🧠 `SendNotification.use-case.ts` — template → destinatário →
+- ✅ **T4.2** 🧠 `SendNotification.use-case.ts` — template → destinatário →
       preferência/quiet hours/supressão/throttle → grava `notifications` + `deliveries`
       `queued` → enfileira `notificationId`. Idempotente por `dedupeKey` via unique
       parcial + tratamento de conflito (**não** read-then-write).
-- [ ] **T4.3** `DispatchDelivery.use-case.ts` — consome job, chama o driver, age sobre o
+- ✅ **T4.3** `DispatchDelivery.use-case.ts` — consome job, chama o driver, age sobre o
       `DeliveryAttemptResult`: `sent` grava id do provedor; `invalid_target` desativa
       device / cria supressão; `retriable` reagenda com backoff+jitter até `attempts`;
       `permanent` finaliza. Nenhum try/catch só para relogar (§7 do `code-standart.md`).
-- [ ] **T4.4** Inbox: `ListNotifications` (cursor), `CountUnread`, `MarkAsRead`,
+- ✅ **T4.4** Inbox: `ListNotifications` (cursor), `CountUnread`, `MarkAsRead`,
       `MarkAllAsRead`, `DeleteNotification` — todos validando propriedade do objeto.
-- [ ] **T4.5** Devices e preferências: `RegisterDevice` (idempotente por
+- ✅ **T4.5** Devices e preferências: `RegisterDevice` (idempotente por
       `(driver, token)`), `UnregisterDevice`, `GetPreferences`, `UpdatePreferences`.
-- [ ] **T4.6** 🧠 `DispatchDueNotifications.use-case.ts` — agendados e reagendados por
+- ✅ **T4.6** 🧠 `DispatchDueNotifications.use-case.ts` — agendados e reagendados por
       quiet hours, com `FOR UPDATE SKIP LOCKED` para múltiplas instâncias de cron não
       dispararem a mesma notificação.
-- [ ] **T4.7** `ReceiveDeliveryReceipt.use-case.ts` + `webhookSecurity` (HMAC sobre
+- ✅ **T4.7** `ReceiveDeliveryReceipt.use-case.ts` + `webhookSecurity` (HMAC sobre
       `rawBody`, janela de timestamp, nonce via `CachePort`, fail-closed sem segredo),
       reaproveitando o desenho de `meta-whatsapp-module/channel/webhookSecurity.ts`.
-- [ ] **T4.8** `PurgeExpiredNotifications.use-case.ts` (retenção configurável).
-- [ ] **T4.9** `TemplateRenderer` default (`{{campo}}` + escape por canal) + CRUD de
+- ✅ **T4.8** `PurgeExpiredNotifications.use-case.ts` (retenção configurável).
+- ✅ **T4.9** `TemplateRenderer` default (`{{campo}}` + escape por canal) + CRUD de
       template por empresa + `seedDefaultTemplates()` rodando os use-cases (nunca `INSERT`
       bruto — §5 do `code-standart.md`).
-- [ ] **T4.10** `InProcessQueue` default + emissão dos 9 eventos de domínio nos pontos
+- ✅ **T4.10** `InProcessQueue` default + emissão dos 9 eventos de domínio nos pontos
       corretos.
-- [ ] **T4.11** Suite de comportamento: idempotência, fan-out por preferência, quiet hours
+- ✅ **T4.11** Suite de comportamento: idempotência, fan-out por preferência, quiet hours
       em timezone com DST, token morto desativado sem retry, supressão respeitada, retry
       com backoff, inbox gravado mesmo com push falhando.
-- [ ] **T4.12** Auditoria de PII: teste que exercita o logger do módulo e **falha** se
+- ✅ **T4.12** Auditoria de PII: teste que exercita o logger do módulo e **falha** se
       e-mail, telefone ou corpo de mensagem aparecer em qualquer nível, inclusive `debug`.
 
 ---
