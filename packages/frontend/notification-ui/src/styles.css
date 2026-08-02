@@ -1,0 +1,379 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * O pacote não tem cor própria (regra de módulos plugáveis §4.1): tudo sai de custom properties
+ * com fallback neutro. O host sobrescreve `--adn-*` no escopo dele e a mesma tela ganha a cara do
+ * produto — sem fork, sem prop de cor, sem valor hexadecimal aqui dentro que não seja fallback.
+ */
+
+.adn-bell,
+.adn-list,
+.adn-preferences {
+  --adn-color-surface: var(--adn-surface, #ffffff);
+  --adn-color-text: var(--adn-text, #111827);
+  --adn-color-muted: var(--adn-muted, #6b7280);
+  --adn-color-accent: var(--adn-accent, #3b82f6);
+  --adn-color-danger: var(--adn-danger, #dc2626);
+  --adn-color-border: var(--adn-border, #e5e7eb);
+  --adn-radius: var(--adn-radius-md, 8px);
+  /* Grade base de 4px (web.md §8) — múltiplos, nunca pixel mágico. */
+  --adn-space-1: 4px;
+  --adn-space-2: 8px;
+  --adn-space-3: 12px;
+  --adn-space-4: 16px;
+  /* 44px: alvo mínimo de toque em mobile (web.md §10). */
+  --adn-touch-target: 44px;
+
+  color: var(--adn-color-text);
+  font-family: inherit;
+}
+
+/* ── Sino ─────────────────────────────────────────────────────────────────────── */
+
+.adn-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--adn-touch-target);
+  min-height: var(--adn-touch-target);
+  padding: var(--adn-space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--adn-radius);
+  cursor: pointer;
+  color: inherit;
+}
+
+.adn-bell:hover {
+  background: var(--adn-color-border);
+}
+
+/* Foco visível é requisito de teclado — remover outline sem repor indicador quebra navegação. */
+.adn-bell:focus-visible,
+.adn-list__bulk-action:focus-visible,
+.adn-list__retry:focus-visible,
+.adn-list__load-more:focus-visible,
+.adn-item__main:focus-visible,
+.adn-item__action:focus-visible,
+.adn-preferences__save:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: 2px;
+}
+
+.adn-bell__icon {
+  width: 20px;
+  height: 20px;
+  /* Herda a cor do botão, para acompanhar hover e estado desabilitado sem regra extra. */
+  color: currentColor;
+}
+
+.adn-bell__badge {
+  position: absolute;
+  top: var(--adn-space-1);
+  right: var(--adn-space-1);
+  min-width: 18px;
+  padding: 0 var(--adn-space-1);
+  background: var(--adn-color-danger);
+  color: #ffffff;
+  border-radius: 9999px;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* ── Lista ────────────────────────────────────────────────────────────────────── */
+
+.adn-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2);
+  background: var(--adn-color-surface);
+  border-radius: var(--adn-radius);
+}
+
+.adn-list__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--adn-space-2);
+  padding: var(--adn-space-3);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-list__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.adn-list__bulk-action,
+.adn-list__retry,
+.adn-list__load-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--adn-space-2);
+  min-height: var(--adn-touch-target);
+  padding: var(--adn-space-2) var(--adn-space-3);
+  background: transparent;
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  color: var(--adn-color-accent);
+  cursor: pointer;
+  font: inherit;
+}
+
+.adn-list__bulk-action:disabled,
+.adn-list__load-more:disabled,
+.adn-item__action:disabled,
+.adn-preferences__save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adn-list__bulk-icon,
+.adn-list__retry-icon,
+.adn-preferences__save-icon {
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+
+.adn-list__items {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adn-list__state {
+  padding: var(--adn-space-4);
+  color: var(--adn-color-muted);
+  text-align: center;
+}
+
+.adn-list__state--error {
+  color: var(--adn-color-danger);
+}
+
+.adn-list__state--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--adn-space-2);
+}
+
+.adn-list__empty-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--adn-color-muted);
+}
+
+/* ── Item ─────────────────────────────────────────────────────────────────────── */
+
+.adn-item {
+  display: flex;
+  align-items: stretch;
+  gap: var(--adn-space-2);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-item--unread {
+  background: color-mix(in srgb, var(--adn-color-accent) 6%, transparent);
+}
+
+.adn-item__main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--adn-space-1);
+  min-height: var(--adn-touch-target);
+  padding: var(--adn-space-3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.adn-item__title {
+  font-weight: 600;
+}
+
+.adn-item__body {
+  color: var(--adn-color-muted);
+  font-size: 0.875rem;
+}
+
+.adn-item__unread-dot {
+  position: absolute;
+  top: var(--adn-space-3);
+  right: var(--adn-space-2);
+  width: 8px;
+  height: 8px;
+  background: var(--adn-color-accent);
+  border-radius: 9999px;
+}
+
+.adn-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-1);
+  padding-right: var(--adn-space-2);
+}
+
+.adn-item__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--adn-touch-target);
+  min-height: var(--adn-touch-target);
+  background: transparent;
+  border: none;
+  border-radius: var(--adn-radius);
+  color: var(--adn-color-muted);
+  cursor: pointer;
+}
+
+.adn-item__action:hover {
+  background: var(--adn-color-border);
+  color: var(--adn-color-text);
+}
+
+.adn-item__action--danger:hover {
+  color: var(--adn-color-danger);
+}
+
+.adn-item__action-icon {
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+}
+
+/* ── Preferências ─────────────────────────────────────────────────────────────── */
+
+.adn-preferences {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-3);
+  padding: var(--adn-space-3);
+  background: var(--adn-color-surface);
+  border-radius: var(--adn-radius);
+}
+
+.adn-preferences__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.adn-preferences__description,
+.adn-preferences__state {
+  margin: 0;
+  color: var(--adn-color-muted);
+  font-size: 0.875rem;
+}
+
+.adn-preferences__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adn-preferences__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--adn-space-2);
+  min-height: var(--adn-touch-target);
+}
+
+.adn-preferences__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--adn-space-2);
+  cursor: pointer;
+}
+
+.adn-preferences__checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--adn-color-accent);
+}
+
+.adn-preferences__channel,
+.adn-preferences__quiet-hours {
+  color: var(--adn-color-muted);
+  font-size: 0.875rem;
+}
+
+.adn-preferences__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--adn-space-3);
+}
+
+.adn-preferences__save {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--adn-space-2);
+  min-height: var(--adn-touch-target);
+  padding: var(--adn-space-2) var(--adn-space-4);
+  background: var(--adn-color-accent);
+  border: none;
+  border-radius: var(--adn-radius);
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.adn-preferences__feedback {
+  font-size: 0.875rem;
+  color: var(--adn-color-muted);
+}
+
+.adn-preferences__feedback--error {
+  color: var(--adn-color-danger);
+}
+
+/* ── Responsivo ───────────────────────────────────────────────────────────────── */
+
+/* Mobile-first: `min-width` para adicionar, nunca `max-` para remover (web.md §10). */
+@media (min-width: 640px) {
+  .adn-list__header {
+    padding: var(--adn-space-3) var(--adn-space-4);
+  }
+
+  .adn-item__main {
+    padding: var(--adn-space-3) var(--adn-space-4);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .adn-bell,
+  .adn-list,
+  .adn-preferences {
+    --adn-color-surface: var(--adn-surface, #111827);
+    --adn-color-text: var(--adn-text, #f9fafb);
+    --adn-color-muted: var(--adn-muted, #9ca3af);
+    --adn-color-border: var(--adn-border, #374151);
+  }
+}
+
+/* Respeita quem pediu menos movimento no sistema. */
+@media (prefers-reduced-motion: reduce) {
+  .adn-bell,
+  .adn-item__action,
+  .adn-list__bulk-action {
+    transition: none;
+  }
+}
