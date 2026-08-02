@@ -84,41 +84,6 @@ export const notifications = notificationSchema.table(
   ],
 )
 
-export const deliveries = notificationSchema.table(
-  'deliveries',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    notificationId: uuid('notification_id')
-      .notNull()
-      .references(() => notifications.id),
-    // Denormalizado: toda leitura de delivery é sempre escopada por empresa também, e evita um
-    // join com `notifications` só para filtrar tenant (mesmo padrão de `messages.companyId` em
-    // `meta-whatsapp-module`).
-    companyId: COMPANY_ID,
-    channel: CHANNEL.notNull(),
-    driver: varchar('driver', { length: 32 }),
-    // Nunca o endereço em claro — `****1234` / `a***@dominio.com` (LGPD, spec §5).
-    targetMasked: varchar('target_masked', { length: 128 }),
-    status: varchar('status', { length: 16 }).notNull().default('queued'),
-    attempt: integer('attempt').notNull().default(0),
-    providerMessageId: varchar('provider_message_id', { length: 256 }),
-    errorCode: varchar('error_code', { length: 64 }),
-    sentAt: timestamp('sent_at', { withTimezone: true }),
-    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
-    failedAt: timestamp('failed_at', { withTimezone: true }),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    index('idx_deliveries_notification').on(table.notificationId),
-    index('idx_deliveries_company_status').on(table.companyId, table.status, table.createdAt),
-    // Correlaciona o recibo assíncrono (bounce/complaint/delivered) com a delivery que o
-    // originou. Não escopado por companyId de propósito — o webhook chega só com o id que o
-    // provedor emitiu, e é esta busca que descobre a empresa (ver DeliveryRepository).
-    index('idx_deliveries_provider_message').on(table.channel, table.providerMessageId),
-  ],
-)
-
 export const devices = notificationSchema.table(
   'devices',
   {
@@ -142,6 +107,47 @@ export const devices = notificationSchema.table(
     // existente em vez de duplicar linha (RegisterDevice é idempotente por isto).
     uniqueIndex('idx_devices_driver_token').on(table.driver, table.token),
     index('idx_devices_company_user').on(table.companyId, table.userId, table.disabledAt),
+  ],
+)
+
+export const deliveries = notificationSchema.table(
+  'deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // Cascade: a notificação é dona das próprias deliveries — nada as referencia fora daqui, e
+    // `PurgeExpiredNotifications` apaga a notificação sem precisar apagar cada delivery à mão.
+    notificationId: uuid('notification_id')
+      .notNull()
+      .references(() => notifications.id, { onDelete: 'cascade' }),
+    // Denormalizado: toda leitura de delivery é sempre escopada por empresa também, e evita um
+    // join com `notifications` só para filtrar tenant (mesmo padrão de `messages.companyId` em
+    // `meta-whatsapp-module`).
+    companyId: COMPANY_ID,
+    channel: CHANNEL.notNull(),
+    driver: varchar('driver', { length: 32 }),
+    // Só para canal `push` — um usuário pode ter vários aparelhos, e cada um vira uma delivery
+    // própria (o fan-out do SendNotification expande "canal push" em "um por device ativo").
+    // Nulo em todo outro canal, que tem um único destino por notificação.
+    deviceId: uuid('device_id').references(() => devices.id),
+    // Nunca o endereço em claro — `****1234` / `a***@dominio.com` (LGPD, spec §5).
+    targetMasked: varchar('target_masked', { length: 128 }),
+    status: varchar('status', { length: 16 }).notNull().default('queued'),
+    attempt: integer('attempt').notNull().default(0),
+    providerMessageId: varchar('provider_message_id', { length: 256 }),
+    errorCode: varchar('error_code', { length: 64 }),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    failedAt: timestamp('failed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_deliveries_notification').on(table.notificationId),
+    index('idx_deliveries_company_status').on(table.companyId, table.status, table.createdAt),
+    // Correlaciona o recibo assíncrono (bounce/complaint/delivered) com a delivery que o
+    // originou. Não escopado por companyId de propósito — o webhook chega só com o id que o
+    // provedor emitiu, e é esta busca que descobre a empresa (ver DeliveryRepository).
+    index('idx_deliveries_provider_message').on(table.channel, table.providerMessageId),
   ],
 )
 

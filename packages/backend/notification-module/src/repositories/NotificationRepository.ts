@@ -85,6 +85,20 @@ export class NotificationRepository {
     return row
   }
 
+  /**
+   * Sem `recipientUserId`: uso interno do worker (`DispatchDelivery`, `ReceiveDeliveryReceipt`),
+   * que já recebeu o `companyId` de um job/webhook confiável — não uma rota HTTP exposta ao
+   * usuário final. `findById` (abaixo) é a versão BOLA-safe, para quem lê a própria inbox.
+   */
+  async findByIdForCompany(params: { companyId: string; id: string }): Promise<NotificationRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.companyId, params.companyId), eq(notifications.id, params.id)))
+      .limit(1)
+    return row
+  }
+
   // Escopado por `recipientUserId` além de `companyId`: ler notificação de outro usuário da
   // mesma empresa é o mesmo BOLA que ler de outra empresa — o objeto pertence à pessoa, não só
   // ao tenant.
@@ -166,6 +180,19 @@ export class NotificationRepository {
       .where(notificationOwnedByCondition(params))
       .returning({ id: notifications.id })
     return row !== undefined
+  }
+
+  /**
+   * Sem filtro de empresa: retenção é manutenção de toda a tabela, não uma ação por tenant. O
+   * `onDelete: 'cascade'` da FK em `deliveries` apaga o histórico de entrega junto, sem uma
+   * segunda query.
+   */
+  async purgeExpired(params: { olderThan: Date }): Promise<number> {
+    const rows = await this.db
+      .delete(notifications)
+      .where(lt(notifications.createdAt, params.olderThan))
+      .returning({ id: notifications.id })
+    return rows.length
   }
 
   async updateStatus(params: { companyId: string; id: string; status: string }): Promise<void> {
