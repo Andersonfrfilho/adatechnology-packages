@@ -1,7 +1,7 @@
 {
   "name": "@adatechnology/catalog-module",
   "version": "0.1.0-rc.0",
-  "description": "Stateful catalog module — schema, migrations, repositories and use-cases behind pluggable ports",
+  "description": "Stateful catalog module \u2014 schema, migrations, repositories and use-cases behind pluggable ports",
   "publishConfig": {
     "access": "public"
   },
@@ -13,6 +13,21 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./http/fetch": {
+      "types": "./dist/http/fetch.d.ts",
+      "import": "./dist/http/fetch.js",
+      "require": "./dist/http/fetch.cjs"
+    },
+    "./http/uws": {
+      "types": "./dist/http/uws.d.ts",
+      "import": "./dist/http/uws.js",
+      "require": "./dist/http/uws.cjs"
+    },
+    "./openapi": {
+      "types": "./dist/openapi.d.ts",
+      "import": "./dist/openapi.js",
+      "require": "./dist/openapi.cjs"
     }
   },
   "files": [
@@ -27,7 +42,8 @@
   },
   "dependencies": {
     "@adatechnology/catalog-contracts": "workspace:*",
-    "zod": "^3.24.1"
+    "zod": "^3.24.1",
+    "@adatechnology/module-http": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "1.3.14",
