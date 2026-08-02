@@ -51,7 +51,7 @@ export type MetaSyncOutcome =
 
 /**
  * Publicação na Meta Commerce. Satisfeita por um adaptador sobre o
- * `@adatechnology/meta-catalog-provider` — que o módulo **não importa**, para quem só quer
+ * `@adatechnology/meta-catalog-provider` (esse sim específico da Meta) — que o módulo **não importa**, para quem só quer
  * gerenciar catálogo interno não carregar cliente de Graph API (granularidade, §2 da regra).
  *
  * Ausente = `metaSync` desligado, e o módulo funciona inteiro sem ela.

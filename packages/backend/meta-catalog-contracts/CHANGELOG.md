@@ -1,1 +1,0 @@
-# @adatechnology/meta-catalog-contracts
