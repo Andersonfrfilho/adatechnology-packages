@@ -62,6 +62,8 @@ export type {
   TemplateRendererPort,
   CachePort,
   RealtimeNotifierPort,
+  RealtimeEvent,
+  RealtimeSubscription,
   ClockPort,
   LogMeta,
   LoggerPort,

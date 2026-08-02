@@ -130,9 +130,15 @@ export class ThrottledError extends NotificationError {
   }
 }
 
-/** Configuração obrigatória ausente (chave de HMAC, segredo de webhook) — falha no boot. */
+/**
+ * Configuração obrigatória ausente (chave de HMAC, segredo de webhook) — falha no boot.
+ *
+ * Único erro do módulo cuja mensagem nomeia o campo: ele é lido por quem está subindo o serviço,
+ * não devolvido a um cliente, e "algo está faltando" sem dizer o quê custa uma bisca no código.
+ * O nome do campo é identificador de configuração, nunca valor — o segredo em si não aparece.
+ */
 export class ConfigMissingError extends NotificationError {
   constructor(public readonly field: string) {
-    super(`Configuração obrigatória ausente.`, 500, NOTIFICATION_ERROR_CODES.CONFIG_MISSING, { field })
+    super(`Configuração obrigatória ausente: ${field}.`, 500, NOTIFICATION_ERROR_CODES.CONFIG_MISSING, { field })
   }
 }

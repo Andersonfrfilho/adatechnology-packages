@@ -98,6 +98,15 @@ export interface CachePort {
   delete(key: string): Promise<void>
 }
 
+export type RealtimeEvent = {
+  readonly event: string
+  readonly data: Readonly<Record<string, unknown>>
+}
+
+export type RealtimeSubscription = {
+  close(): void
+}
+
 /** Alimenta o badge em tempo real; o SSE do próprio módulo é um consumidor desta porta. */
 export interface RealtimeNotifierPort {
   publish(params: {
@@ -106,6 +115,22 @@ export interface RealtimeNotifierPort {
     readonly event: string
     readonly data: Readonly<Record<string, unknown>>
   }): Promise<void>
+
+  /**
+   * Opcional, e a consequência de omiti-la é concreta: sem `subscribe`, o SSE do módulo cai no
+   * notificador em processo, que só entrega a eventos originados na **mesma instância**. Com duas
+   * réplicas atrás de um balanceador, o usuário conectado na réplica A não recebe o evento que
+   * nasceu na B — o badge fica parado até o próximo refetch.
+   *
+   * O host que roda mais de uma instância implementa esta porta sobre o pub/sub dele (Redis,
+   * NATS, Postgres LISTEN/NOTIFY). Opcional porque exigi-la obrigaria quem roda instância única a
+   * subir um broker que não precisa.
+   */
+  subscribe?(params: {
+    readonly companyId: CompanyId
+    readonly userId: UserId
+    readonly onEvent: (event: RealtimeEvent) => void
+  }): Promise<RealtimeSubscription>
 }
 
 /** Injetável para tornar determinístico o que depende de horário: quiet hours, agendamento, TTL. */
