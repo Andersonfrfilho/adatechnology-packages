@@ -1,0 +1,263 @@
+# NOTIF — Tasks
+
+Spec: `.specs/features/notification-trio/spec.md`
+Gate obrigatório ao fim de **cada** task: `pnpm --filter=<pacote> exec tsc --noEmit` +
+testes do pacote + commit isolado (`model-economy.md` §3).
+Host de referência: **quickcart**. `domestic-*` está fora de escopo e não aparece em
+nenhuma task. Nenhum adaptador NestJS.
+
+Decisões fechadas: Q1 (legado fora), Q2 (`category` string livre), Q3 (rotas prontas),
+Q4 (precedência do timezone), Q5 (nasce no monorepo).
+
+---
+
+## Fase 0 — Decisões e ADR ✅
+> 🤖 Modelo: `opus` 🧠
+
+- ✅ **T0.1** Q2 e Q4 fechadas na §12 da spec. `category` é `varchar` livre com
+      `NOTIFICATION_CATEGORY_HINT` só como sugestão; timezone resolve na ordem
+      preferência → resolver → device → default.
+- ✅ **T0.2** ADR em `docs/adr/0001-notification-trio.md`: módulo × gateway, separação
+      provider/module, e a tabela de rotas declarativa como fonte única de adaptadores +
+      OpenAPI + testes de contrato (com a métrica de ≤ 25 linhas de cola).
+- ✅ **T0.3** Conflito de plataforma registrado na §4 do ADR: `code-standart.md` §2 pede
+      `Bun.serve` e proíbe o addon `uWebSockets.js`, e o template `micro-backend-uws` usa
+      o addon. O SDK atende aos dois; convergir é decisão de plataforma, pendente.
+
+---
+
+## Fase 1 — `notification-contracts`
+> 🤖 Modelo: `haiku` (T1.4 e T1.5 são 🧠 — validar com `opus`)
+
+- ✅ **T1.1** Pacote `packages/backend/notification-contracts` criado (package.json
+      `0.1.0-rc.0`, tsconfig, tsup, CHANGELOG, .gitignore) espelhando
+      `meta-whatsapp-contracts`. `pnpm install` rodado; `tsc --noEmit` limpo.
+      Falta `CLAUDE.md` (T1.10).
+- ✅ **T1.2** `notification.types.ts` — canais, status, plataformas, drivers e
+      supressão como `const` object + `as const`; entidades (`NotificationSummary`,
+      `DeliverySummary`, `DeviceRegistration`, `NotificationPreference`,
+      `NotificationTemplate`) e params/result de envio e listagem.
+- [ ] **T1.3** Schemas zod de fronteira: `SendNotificationSchema`, `RegisterDeviceSchema`,
+      `UpdatePreferencesSchema`, `UpsertTemplateSchema`, `ListNotificationsQuerySchema`,
+      `DeliveryWebhookSchema`. Tipos derivados com sufixo `Params`/`Result`.
+- ✅ **T1.4** 🧠 Portas escritas em **dois** arquivos, para respeitar o limite de 200
+      linhas por arquivo (§ "File Organization"): `channelDrivers.ts`
+      (`DeliveryAttemptResult` + `Push`/`Email`/`WhatsApp`/`Sms` `DriverPort` + params de
+      envio) e `providers.ts` (`AuthContextResolverPort`, `RecipientResolverPort`,
+      `QueuePort`, `TemplateRendererPort`, `CachePort`, `RealtimeNotifierPort`,
+      `ClockPort`, `LoggerPort`, `MetricsPort`). Cada porta com o **porquê** documentado.
+- ✅ **T1.5** 🧠 `http.types.ts` — `NotificationRoute`, `NotificationRouteTable`,
+      `NotificationRequestContext` (com `rawBody` preservado para HMAC),
+      `NotificationHttpResult` (`json` | `empty` | `stream`) e `NotificationStreamResult`
+      com `heartbeatSeconds` no contrato. Zero tipo de framework no arquivo.
+- [ ] **T1.6** `events.ts` — os 9 eventos da §6.5 com payload tipado.
+- [ ] **T1.7** `errors.ts` — hierarquia **autocontida** (pacote publicado não importa o
+      `DomainError` do host): `NotificationError extends Error` com
+      `statusCode`/`code`/`details`, mapa `NOTIFICATION_ERROR_CODES` e subclasses
+      (`TemplateNotFoundError`, `ChannelNotConfiguredError`, `RecipientUnresolvedError`,
+      `SuppressedTargetError`, `NotificationNotFoundError`,
+      `InvalidWebhookSignatureError`). Molde: `meta-whatsapp-contracts/src/errors.ts`.
+- [ ] **T1.8** `createWhatsAppDriverFromChannel()` — adaptador duck-typed, **zero**
+      dependência de Meta (§4.3).
+- [ ] **T1.9** `index.ts` exportando tudo (tipos com `export type`) +
+      `strictness.test.ts` no molde do contracts de WhatsApp: nenhum tipo público vaza
+      `any`.
+- [ ] **T1.10** `CLAUDE.md` do pacote no formato dos vizinhos (propósito, uso, portas).
+
+**Aceite:** `tsc --noEmit` limpo; `index.ts` exporta tudo; nenhuma dependência de runtime
+além de `zod`.
+
+---
+
+## Fase 2 — Drivers (SDKs stateless)
+> 🤖 Modelo: `sonnet`
+
+- [ ] **T2.1** `packages/backend/push-provider`: `ExpoPushProvider` — Expo Push API,
+      chunking de 100 tokens, `DeviceNotRegistered` → `invalid_target`, `429`/`5xx` →
+      `retriable`.
+- [ ] **T2.2** `FcmPushProvider` — `firebase-admin` como peer opcional;
+      `messaging/registration-token-not-registered` → `invalid_target`. Suporta **web
+      push** (é o que valida o canal no PWA do quickcart).
+- [ ] **T2.3** `createPushProvider({ driver })` — fábrica exaustiva no molde de
+      `createFiscalProvider`, com `never` no default.
+- [ ] **T2.4** `packages/backend/email-provider`: `SmtpEmailProvider` (nodemailer),
+      `ResendEmailProvider`, `SesEmailProvider` + `createEmailProvider({ driver })`.
+- [ ] **T2.5** Parsers de recibo por driver (`parseResendWebhook`, `parseSesNotification`)
+      devolvendo `DeliveryReceipt` do contracts.
+- [ ] **T2.6** Testes unitários por driver com HTTP mockado — nenhum teste bate em API
+      real. Cabeçalho de copyright em todo arquivo (§17 do `code-standart.md`).
+
+**Aceite:** cada provider instalável sozinho, sem o módulo; zero `process.env`; token e
+segredo nunca aparecem em mensagem de erro.
+
+---
+
+## Fase 3 — `notification-module`: dados
+> 🤖 Modelo: `sonnet`
+
+- [ ] **T3.1** Pacote + `database.types.ts` (`PgDatabase` genérico +
+      `DrizzleMigrateFunction` injetado, como em `meta-whatsapp-module`) + exports map com
+      os 7 entrypoints da §4.
+- [ ] **T3.2** `schema/schema.ts` — as 6 tabelas da §5 em `pgSchema('notification')`, com
+      todos os índices. `varchar` em vez de ENUM; `companyId` em todas.
+- [ ] **T3.3** Migrations geradas pelo drizzle-kit **do pacote** +
+      `runNotificationMigrations` com journal `notification_migrations` fora do pgSchema
+      (pelo motivo documentado em `meta-whatsapp-module/runMigrations.ts`).
+- [ ] **T3.4** Repositories: `NotificationRepository`, `DeliveryRepository`,
+      `DeviceRepository`, `PreferenceRepository`, `TemplateRepository`,
+      `SuppressionRepository` — todo método filtra `companyId` por construção.
+- [ ] **T3.5** Teste negativo de isolamento multiempresa: empresa A não lê inbox de B.
+
+---
+
+## Fase 4 — `notification-module`: comportamento
+> 🤖 Modelo: `sonnet` (T4.2 e T4.6 são 🧠)
+
+- [ ] **T4.1** `createNotificationModule({ db, config, features, providers, hooks })` —
+      valida config com zod próprio, checa feature × porta (ligar `email` sem driver, ou
+      rotas sem `authContextResolver`, = erro **no boot**) e devolve
+      `{ useCases, routes, worker, schedules, channel }`.
+- [ ] **T4.2** 🧠 `SendNotification.use-case.ts` — template → destinatário →
+      preferência/quiet hours/supressão/throttle → grava `notifications` + `deliveries`
+      `queued` → enfileira `notificationId`. Idempotente por `dedupeKey` via unique
+      parcial + tratamento de conflito (**não** read-then-write).
+- [ ] **T4.3** `DispatchDelivery.use-case.ts` — consome job, chama o driver, age sobre o
+      `DeliveryAttemptResult`: `sent` grava id do provedor; `invalid_target` desativa
+      device / cria supressão; `retriable` reagenda com backoff+jitter até `attempts`;
+      `permanent` finaliza. Nenhum try/catch só para relogar (§7 do `code-standart.md`).
+- [ ] **T4.4** Inbox: `ListNotifications` (cursor), `CountUnread`, `MarkAsRead`,
+      `MarkAllAsRead`, `DeleteNotification` — todos validando propriedade do objeto.
+- [ ] **T4.5** Devices e preferências: `RegisterDevice` (idempotente por
+      `(driver, token)`), `UnregisterDevice`, `GetPreferences`, `UpdatePreferences`.
+- [ ] **T4.6** 🧠 `DispatchDueNotifications.use-case.ts` — agendados e reagendados por
+      quiet hours, com `FOR UPDATE SKIP LOCKED` para múltiplas instâncias de cron não
+      dispararem a mesma notificação.
+- [ ] **T4.7** `ReceiveDeliveryReceipt.use-case.ts` + `webhookSecurity` (HMAC sobre
+      `rawBody`, janela de timestamp, nonce via `CachePort`, fail-closed sem segredo),
+      reaproveitando o desenho de `meta-whatsapp-module/channel/webhookSecurity.ts`.
+- [ ] **T4.8** `PurgeExpiredNotifications.use-case.ts` (retenção configurável).
+- [ ] **T4.9** `TemplateRenderer` default (`{{campo}}` + escape por canal) + CRUD de
+      template por empresa + `seedDefaultTemplates()` rodando os use-cases (nunca `INSERT`
+      bruto — §5 do `code-standart.md`).
+- [ ] **T4.10** `InProcessQueue` default + emissão dos 9 eventos de domínio nos pontos
+      corretos.
+- [ ] **T4.11** Suite de comportamento: idempotência, fan-out por preferência, quiet hours
+      em timezone com DST, token morto desativado sem retry, supressão respeitada, retry
+      com backoff, inbox gravado mesmo com push falhando.
+- [ ] **T4.12** Auditoria de PII: teste que exercita o logger do módulo e **falha** se
+      e-mail, telefone ou corpo de mensagem aparecer em qualquer nível, inclusive `debug`.
+
+---
+
+## Fase 5 — HTTP, worker, cron e testing (as baterias)
+> 🤖 Modelo: `sonnet` (T5.1 é 🧠)
+
+- [ ] **T5.1** 🧠 `http/routes.ts` — a tabela declarativa das 15 rotas da §7.2:
+      método, path, escopo, schema de body/query, handler puro sobre
+      `NotificationRequestContext`. Nenhum tipo de framework.
+- [ ] **T5.2** `http/errorFilter.ts` — mapa `NotificationError` → status + envelope
+      `{ error: { code, message } }`; erro desconhecido vira 500 genérico, sem stack para
+      o cliente (§7 do `code-standart.md`).
+- [ ] **T5.3** `./http/fetch` — `createNotificationFetchRouter({ basePath, module,
+      heartbeatSeconds })` com `match(request)` / `handle(request)`; SSE via
+      `ReadableStream`. README documenta que o `idleTimeout` do `Bun.serve` precisa ser
+      **maior** que o heartbeat (o quickcart perdeu stream por isso —
+      `api-quickcart/src/index.ts:48`).
+- [ ] **T5.4** `./http/uws` — `mountNotificationRoutes({ app, basePath, module })` com
+      `res.cork()`, `onAborted` e leitura de `rawBody` para HMAC, no padrão do template
+      `micro-backend-uws`.
+- [ ] **T5.5** **Teste de contrato compartilhado**: a mesma bateria roda contra os dois
+      adaptadores e exige respostas idênticas (status, envelope, headers). É o que impede
+      os adaptadores de divergirem.
+- [ ] **T5.6** Teste de autorização por objeto (BOLA): usuário A não lê, não marca como
+      lida e não apaga notificação de B; rota `service` recusa token de usuário.
+- [ ] **T5.7** `./queue/bullmq` (peer `bullmq` + `ioredis`) e `./queue/amqp` (peer
+      `amqplib`) implementando `QueuePort`, com retenção (`removeOnComplete`/`OnFail`) e
+      DLQ obrigatórias (`security.md` §6).
+- [ ] **T5.8** `createNotificationWorker({ module, concurrency })` + `module.schedules`
+      (`dispatch-due`, `purge-expired`, `retry-stuck`) como descritores
+      `{ name, cronExpression, run }`.
+- [ ] **T5.9** `./openapi` — `notificationOpenApiPaths({ basePath })` derivado da tabela
+      de rotas + zod. Teste garante que rota nova sem path OpenAPI **quebra o build**.
+- [ ] **T5.10** `./testing` — `createInMemoryPushDriver`, `createInMemoryEmailDriver`,
+      `createInMemoryQueue`, `createNotificationTestHarness`, factories de payload. A
+      suíte do módulo roda sem rede.
+
+---
+
+## Fase 6 — Frontend
+> 🤖 Modelo: `sonnet`
+
+- [ ] **T6.1** `packages/frontend/notification-client` — cliente HTTP tipado pelo
+      contracts, isomórfico (sem DOM), `createDeviceRegistration({ getToken })` com token
+      injetado (não importa `expo-notifications` nem `firebase`).
+- [ ] **T6.2** Hooks headless: `useNotifications.query`, `useUnreadCount.query`,
+      `useNotificationStream.hook` (SSE + reconexão), `useMarkAsRead.mutation`,
+      `useMarkAllAsRead.mutation`, `usePreferences.query/mutation`,
+      `useDeviceRegistration.hook` — TanStack Query **do host**, nunca instanciado no
+      pacote.
+- [ ] **T6.3** `packages/frontend/notification-ui` — `NotificationProvider`,
+      `NotificationBell`, `NotificationList`, `NotificationItem`, `PreferencesPanel`,
+      `TemplateAdmin`. Zero valor hardcoded: cor, espaçamento e raio via tokens injetados
+      (`web.md` §8).
+- [ ] **T6.4** `*.locale.json` (pt-BR, en) com merge de override do host; nenhum texto em
+      tag ou prop.
+- [ ] **T6.5** Slots/overrides (`components={{ NotificationItem: … }}`) + `styles.css`
+      publicado.
+- [ ] **T6.6** Acessibilidade e responsividade: sino navegável por teclado, badge com
+      `aria-live`, drawer em mobile, verificado em 375 / 768 / 1280 px.
+
+---
+
+## Fase 7 — quickcart de ponta a ponta
+> 🤖 Modelo: `sonnet`
+
+- [ ] **T7.1** `Router.mount()` em `apps/api-quickcart/src/infra/http/router.ts` (~20
+      linhas): delega ao `match`/`handle` do pacote antes do `registerNotFoundHandler`.
+- [ ] **T7.2** `authContextResolver` e `recipientResolver` do quickcart (sessão Bearer
+      atual + tabela de clientes), em `modules/notification/infra/`.
+- [ ] **T7.3** Compor o módulo no `infra/container.ts` com o `whatsapp.channel` já
+      existente (`modules/webhook/infra/whatsapp/metaWhatsAppModule.ts`), driver FCM e
+      fila BullMQ sobre o Redis atual. Montar as rotas no `server.ts`.
+      **Aceite: ≤ 25 linhas de cola** (métrica da §2 da spec).
+- [ ] **T7.4** Trocar `ProcessNotificationJob.use-case` e a guarda por `jobId` por
+      `sendNotification` com `dedupeKey` `order:<id>:<status>`; apagar
+      `modules/notification` do worker. Sem regressão no fluxo de status de pedido.
+- [ ] **T7.5** Registrar os `schedules` no agendador do worker; somar
+      `createNotificationWorker` ao `infra/queue/workers.ts`.
+- [ ] **T7.6** Merge dos `notificationOpenApiPaths` no Swagger do quickcart.
+- [ ] **T7.7** Frontend: sino + lista + preferências no `frontend-web`; web push via FCM
+      no service worker do PWA (`vite-plugin-pwa`) — é o que valida o canal push sem
+      depender do app mobile.
+- [ ] **T7.8** Mailpit no `docker-compose.yml` + targets `notification-migrate`,
+      `notification-worker`, `mail-ui` no `Makefile`, com prefixo
+      `$(PROJECT_NAME)-$(ENV)-`.
+- [ ] **T7.9** Validação E2E em `env.test.e2e`: pedido muda de status → inbox gravado +
+      WhatsApp enviado + badge chegando por SSE + retry de push com token inválido
+      desativando o device.
+
+---
+
+## Fase 8 — Publicação
+> 🤖 Modelo: `haiku` para T8.1–T8.2, **`opus` obrigatório** para T8.3
+
+- [ ] **T8.1** README de cada pacote: instalação, `create…`, tabela de portas, exemplo de
+      host (fetch **e** uws), gotchas de `idleTimeout`/Tailwind/Vite.
+- [ ] **T8.2** Changesets com destaque para migrations incluídas e portas novas; bump nos
+      consumidores.
+- [ ] **T8.3** **Gate de revisão com `opus`**: checklist da §13 da spec, caça a bugs de
+      lógica/concorrência, auditoria de segurança (PII em log, HMAC, autorização por
+      objeto, segredo em mensagem de erro) e de performance (N+1 no fan-out, I/O em série
+      no worker, `await` dentro de loop). Nenhuma versão vai ao registry sem este passe.
+
+---
+
+## Fase 9 — Depois do quickcart (fora da v1)
+> 🤖 Modelo: `sonnet`
+
+- [ ] **T9.1** `financiamento-imobiliario-bot`: `NodemailerEmailProvider` →
+      `email-provider`; webhook de bounce ligado ao hook `onDeliveryBounced`.
+- [ ] **T9.2** `sakura-bot-oficial`: notificação de fiscal/entrega.
+- [ ] **T9.3** Template `micro-backend-uws`: trocar o `modules/notification` próprio pelo
+      adaptador `./http/uws`, para todo projeto novo nascer com notificação.
+- [ ] **T9.4** `cawme`: push mobile, quando o backend dele entrar em escopo.
