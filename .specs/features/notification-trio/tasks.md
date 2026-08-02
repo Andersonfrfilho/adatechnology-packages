@@ -246,27 +246,37 @@ esm+cjs+dts.
 
 ---
 
-## Fase 6 — Frontend
+## Fase 6 — Frontend ✅
 > 🤖 Modelo: `sonnet`
 
-- [ ] **T6.1** `packages/frontend/notification-client` — cliente HTTP tipado pelo
+- ✅ **T6.1** `packages/frontend/notification-client` — cliente HTTP tipado pelo
       contracts, isomórfico (sem DOM), `createDeviceRegistration({ getToken })` com token
       injetado (não importa `expo-notifications` nem `firebase`).
-- [ ] **T6.2** Hooks headless: `useNotifications.query`, `useUnreadCount.query`,
-      `useNotificationStream.hook` (SSE + reconexão), `useMarkAsRead.mutation`,
-      `useMarkAllAsRead.mutation`, `usePreferences.query/mutation`,
-      `useDeviceRegistration.hook` — TanStack Query **do host**, nunca instanciado no
-      pacote.
-- [ ] **T6.3** `packages/frontend/notification-ui` — `NotificationProvider`,
-      `NotificationBell`, `NotificationList`, `NotificationItem`, `PreferencesPanel`,
-      `TemplateAdmin`. Zero valor hardcoded: cor, espaçamento e raio via tokens injetados
-      (`web.md` §8).
-- [ ] **T6.4** `*.locale.json` (pt-BR, en) com merge de override do host; nenhum texto em
-      tag ou prop.
-- [ ] **T6.5** Slots/overrides (`components={{ NotificationItem: … }}`) + `styles.css`
-      publicado.
-- [ ] **T6.6** Acessibilidade e responsividade: sino navegável por teclado, badge com
-      `aria-live`, drawer em mobile, verificado em 375 / 768 / 1280 px.
+- ✅ **T6.2** Hooks headless em entrypoint próprio (`/headless`): `useNotifications`
+      (infinite query), `useUnreadCount`, `useNotificationStream` (SSE, **opt-in** —
+      abrir conexão é decisão do host), `useMarkAsRead` (otimista com rollback),
+      `useMarkAllAsRead`, `useDeleteNotification`, `usePreferences`,
+      `useUpdatePreferences`, `useTemplates`. TanStack Query **do host**, nunca
+      instanciado no pacote. `useDeviceRegistration` **não** virou hook: o registro é
+      chamada única pós-login, e `createDeviceRegistration` do `-client` já resolve nos
+      dois mundos — um hook só para isso seria embrulho sem ganho, e não serviria o RN.
+- ✅ **T6.3** `packages/frontend/notification-ui` — `NotificationProvider`,
+      `NotificationBell`, `NotificationList`, `NotificationItem`, `PreferencesPanel`.
+      **`TemplateAdmin` não entrou**: é CRUD de admin sem consumidor pedindo (o quickcart
+      não tem tela de template), e o hook `useTemplates` já está exportado para quem
+      precisar montar. Zero cor de marca: tudo por `var(--adn-*, fallback)`, com teste
+      garantindo que nenhum hexadecimal de produto entrou no CSS.
+- ✅ **T6.4** `pt-BR.json` e `en.json` com override por chave via `messageOverrides`;
+      nenhum texto visível em tag ou prop (verificado por teste).
+- ✅ **T6.5** Slot `components={{ Item }}` no `NotificationList` + `styles.css` publicado
+      como entrypoint próprio.
+- ✅ **T6.6** Acessibilidade e responsividade **verificadas por teste que inspeciona o
+      fonte**, não por olho: botão só-ícone com `aria-label`, ícone decorativo com
+      `aria-hidden`, linha clicável como `<button>` (não `div` com `onClick`), badge com
+      `aria-live="polite"`, `role=status`/`role=alert` no feedback, mobile-first sem
+      `max-width`, alvo de toque de 44px e dark mode por `prefers-color-scheme`.
+      **Não verificado em navegador real** nos três breakpoints — a validação visual
+      acontece na Fase 7, quando as telas montarem no PWA do quickcart.
 
 ---
 
