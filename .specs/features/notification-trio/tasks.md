@@ -189,39 +189,60 @@ driver real é usado sem cliente injetado.
 
 ---
 
-## Fase 5 — HTTP, worker, cron e testing (as baterias)
-> 🤖 Modelo: `sonnet` (T5.1 é 🧠)
+## Fase 5 — HTTP, worker, cron e testing (as baterias) ✅
+> 🤖 Modelo: `opus` (a spec pedia `sonnet`; o usuário trocou para opus durante a Fase 4 e
+> mandou seguir — registrado aqui em vez de repetir a pergunta)
 
-- [ ] **T5.1** 🧠 `http/routes.ts` — a tabela declarativa das 15 rotas da §7.2:
-      método, path, escopo, schema de body/query, handler puro sobre
-      `NotificationRequestContext`. Nenhum tipo de framework.
-- [ ] **T5.2** `http/errorFilter.ts` — mapa `NotificationError` → status + envelope
+> **Lacuna fechada nesta fase:** `RealtimeNotifierPort` só tinha `publish`, e o SSE precisa
+> **assinar** eventos. Ganhou `subscribe` opcional no contracts (commit próprio), com o
+> custo de omiti-la documentado no contrato: sem ela o badge não cruza réplicas.
+> `InProcessRealtimeNotifier` é o default, com esse limite explícito.
+
+- ✅ **T5.1** 🧠 Tabela declarativa em três arquivos, pelo limite de 200 linhas:
+      `http/inboxRoutes.ts` (6 rotas de inbox + SSE), `http/managementRoutes.ts` (7 de
+      envio/devices/preferências/templates + webhook) e `http/routes.ts`
+      (`createNotificationRoutes`, que compõe as duas e **omite a rota de webhook quando
+      não há segredo** — fail-closed). São **13 rotas**, 14 com webhook habilitado; a §7.2
+      da spec listava 15 porque contava `GET`/`PUT` de preferências e `GET`/`POST` de
+      templates como linhas separadas do mesmo path.
+- ✅ **T5.2** `http/errorFilter.ts` — mapa `NotificationError` → status + envelope
       `{ error: { code, message } }`; erro desconhecido vira 500 genérico, sem stack para
       o cliente (§7 do `code-standart.md`).
-- [ ] **T5.3** `./http/fetch` — `createNotificationFetchRouter({ basePath, module,
+- ✅ **T5.3** `./http/fetch` — `createNotificationFetchRouter({ basePath, module,
       heartbeatSeconds })` com `match(request)` / `handle(request)`; SSE via
       `ReadableStream`. README documenta que o `idleTimeout` do `Bun.serve` precisa ser
       **maior** que o heartbeat (o quickcart perdeu stream por isso —
       `api-quickcart/src/index.ts:48`).
-- [ ] **T5.4** `./http/uws` — `mountNotificationRoutes({ app, basePath, module })` com
+- ✅ **T5.4** `./http/uws` — `mountNotificationRoutes({ app, basePath, module })` com
       `res.cork()`, `onAborted` e leitura de `rawBody` para HMAC, no padrão do template
       `micro-backend-uws`.
-- [ ] **T5.5** **Teste de contrato compartilhado**: a mesma bateria roda contra os dois
+- ✅ **T5.5** **Teste de contrato compartilhado**: a mesma bateria roda contra os dois
       adaptadores e exige respostas idênticas (status, envelope, headers). É o que impede
       os adaptadores de divergirem.
-- [ ] **T5.6** Teste de autorização por objeto (BOLA): usuário A não lê, não marca como
-      lida e não apaga notificação de B; rota `service` recusa token de usuário.
-- [ ] **T5.7** `./queue/bullmq` (peer `bullmq` + `ioredis`) e `./queue/amqp` (peer
+- ✅ **T5.6** Teste de autorização por objeto (BOLA) sobre as rotas **reais**: usuário A
+      não lê, não marca como lida, não apaga e não alcança por `read-all` a notificação de
+      B — e o mesmo usuário autenticado em outro tenant também não. Sempre 404, nunca 403:
+      confirmar a existência do recurso já seria vazamento. Escopo de `admin` coberto no
+      teste de contrato (403 com identidade e sem escopo, 401 sem identidade).
+- ✅ **T5.7** `./queue/bullmq` (peer `bullmq` + `ioredis`) e `./queue/amqp` (peer
       `amqplib`) implementando `QueuePort`, com retenção (`removeOnComplete`/`OnFail`) e
       DLQ obrigatórias (`security.md` §6).
-- [ ] **T5.8** `createNotificationWorker({ module, concurrency })` + `module.schedules`
+- ✅ **T5.8** `createNotificationWorker({ module, concurrency })` + `module.schedules`
       (`dispatch-due`, `purge-expired`, `retry-stuck`) como descritores
       `{ name, cronExpression, run }`.
-- [ ] **T5.9** `./openapi` — `notificationOpenApiPaths({ basePath })` derivado da tabela
+- ✅ **T5.9** `./openapi` — `notificationOpenApiPaths({ basePath })` derivado da tabela
       de rotas + zod. Teste garante que rota nova sem path OpenAPI **quebra o build**.
-- [ ] **T5.10** `./testing` — `createInMemoryPushDriver`, `createInMemoryEmailDriver`,
-      `createInMemoryQueue`, `createNotificationTestHarness`, factories de payload. A
-      suíte do módulo roda sem rede.
+- ✅ **T5.10** `./testing` — `createInMemoryPushDriver`/`Email`/`WhatsApp` (com `outcome`
+      fixo por construção, que é como o teste do host força retry ou token morto),
+      `createControllableQueue` (`drain()` manual: o teste decide QUANDO o job roda, sem
+      timer), `createInMemoryCache`, `createStaticRecipientResolver`, `createFixedClock`.
+      Em vez de um `createNotificationTestHarness` monolítico, peças compostas — o host
+      combina só as que precisa. A suíte do módulo roda sem rede, banco nem broker.
+
+**Aceite verificado:** `hostIntegration.test.ts` **executa** a montagem mínima e prova que
+ela responde — o orçamento de ≤ 25 linhas de cola não é conferido por um exemplo de README
+que envelhece calado. 75 testes no pacote, `tsc --noEmit` limpo, 7 entrypoints emitindo
+esm+cjs+dts.
 
 ---
 
