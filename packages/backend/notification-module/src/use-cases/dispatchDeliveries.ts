@@ -107,7 +107,8 @@ export async function dispatchDeliveries(params: {
 
   for (const planned of plan) {
     if (planned.action === 'skip') {
-      // canais); paralelizar não compensaria a perda de ordem previsível para os testes.
+      // Sequencial de propósito: no máximo 5 iterações (tamanho do enum de canais), e
+      // paralelizar custaria a ordem previsível de criação que os testes verificam.
       createdDeliveries.push(
         await dependencies.deliveries.create({
           notificationId: notification.id,
