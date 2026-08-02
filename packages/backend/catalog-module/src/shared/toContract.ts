@@ -21,9 +21,12 @@ import type { CatalogWithCount } from '../repositories/CatalogRepository'
 export type ProductProjection = 'admin' | 'customer'
 
 /**
- * `projection: 'customer'` **omite `costPriceInCents`**. A coluna nem é lida do banco na projeção
- * de cliente (ver `CUSTOMER_FACING_PRODUCT_COLUMNS`), mas o tipo garante a segunda barreira:
- * quem passar uma linha completa por engano continua sem vazar margem.
+ * `projection: 'customer'` **omite `costPriceInCents`**.
+ *
+ * Duas barreiras, e as duas importam: as leituras do canal (`findByIdForCustomer`,
+ * `listForCustomer`) selecionam só as colunas do cliente, então o custo nem sai do banco; e esta
+ * função descarta o campo mesmo se receber uma linha completa, cobrindo quem chamar com o
+ * resultado de um `findById` comum.
  */
 export function toProduct(row: ProductRow, projection: ProductProjection = 'admin'): Product {
   const base: Product = {

@@ -5,7 +5,7 @@
  * produto de outra empresa. Sempre 404, nunca 403 — confirmar a existência do recurso já seria
  * vazamento.
  *
- * Cobre também o vazamento de margem: `costPriceInCents` não pode sair na projeção de cliente.
+ * Vazamento de margem tem arquivo próprio: `src/costLeak.test.ts`.
  */
 
 import { describe, expect, it } from 'bun:test'

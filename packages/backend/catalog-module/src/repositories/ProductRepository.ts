@@ -47,6 +47,11 @@ export const CUSTOMER_FACING_PRODUCT_COLUMNS = {
   availability: products.availability,
 } as const
 
+/** Linha sem as colunas de margem — o que a projeção de cliente devolve. */
+export type CustomerFacingProductRow = {
+  [Key in keyof typeof CUSTOMER_FACING_PRODUCT_COLUMNS]: ProductRow[Key]
+}
+
 export class ProductRepository {
   constructor(private readonly db: CatalogDatabase) {}
 
@@ -161,6 +166,42 @@ export class ProductRepository {
     }
 
     return { remaining: row.inventory ?? 0 }
+  }
+
+  /**
+   * Leitura para o canal do cliente: seleciona **só** as colunas de
+   * `CUSTOMER_FACING_PRODUCT_COLUMNS`, então `cost_price_in_cents` nem sai do banco.
+   *
+   * A barreira no mapeamento (`toProduct(row, 'customer')`) continua existindo, mas ela sozinha
+   * depende de o chamador lembrar do argumento. Esta aqui não depende de ninguém lembrar.
+   */
+  async findByIdForCustomer(params: { companyId: string; id: string }): Promise<CustomerFacingProductRow | undefined> {
+    const [row] = await this.db
+      .select(CUSTOMER_FACING_PRODUCT_COLUMNS)
+      .from(products)
+      .where(productOwnedByCondition(params))
+      .limit(1)
+    return row
+  }
+
+  async listForCustomer(query: {
+    companyId: string
+    search?: string
+    limit: number
+  }): Promise<CustomerFacingProductRow[]> {
+    const where = and(
+      query.search
+        ? productSearchCondition({ companyId: query.companyId, search: query.search })
+        : productListCondition(query),
+      eq(products.active, true),
+    )
+
+    return this.db
+      .select(CUSTOMER_FACING_PRODUCT_COLUMNS)
+      .from(products)
+      .where(where)
+      .orderBy(asc(products.sortOrder), asc(products.name))
+      .limit(query.limit)
   }
 
   /** Usado pelo `RetryFailedSyncs`; não é rota exposta. */

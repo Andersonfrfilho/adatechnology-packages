@@ -101,6 +101,9 @@ export type CatalogModule = {
   readonly lookup: CatalogProductLookup
 }
 
+/** Teto da listagem do canal: lista interativa de WhatsApp não comporta mais que isso. */
+const CHANNEL_PRODUCT_LIMIT = 30
+
 export function createCatalogModule(params: CreateCatalogModuleParams): CatalogModule {
   if (!params.config.currency) throw new ConfigMissingError('currency')
   if (!params.config.locale) throw new ConfigMissingError('locale')
@@ -167,20 +170,14 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
     lookup: {
       async findByRetailerId({ companyId, retailerId }) {
         // `retailerId` na Meta é o id do produto aqui — é o que o `SyncProductToMeta` envia.
-        const row = await dependencies.products.findById({ companyId, id: retailerId })
-        // Projeção de cliente: o canal de conversa fala com o comprador, e custo não vai junto.
-        return row ? toProduct(row, 'customer') : undefined
+        // `findByIdForCustomer` seleciona só as colunas do cliente: o custo nem sai do banco.
+        const row = await dependencies.products.findByIdForCustomer({ companyId, id: retailerId })
+        return row ? toProduct(row as never, 'customer') : undefined
       },
 
       async listForChannel({ companyId, search }) {
-        const page = await dependencies.products.list({
-          companyId,
-          page: 1,
-          pageSize: 30,
-          search,
-          active: true,
-        })
-        return page.rows.map((row) => toProduct(row, 'customer'))
+        const rows = await dependencies.products.listForCustomer({ companyId, search, limit: CHANNEL_PRODUCT_LIMIT })
+        return rows.map((row) => toProduct(row as never, 'customer'))
       },
 
       async consumeInventory({ companyId, productId, quantity }) {
