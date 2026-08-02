@@ -26,20 +26,21 @@ Q4 (precedência do timezone), Q5 (nasce no monorepo).
 
 ---
 
-## Fase 1 — `notification-contracts`
+## Fase 1 — `notification-contracts` ✅
 > 🤖 Modelo: `haiku` (T1.4 e T1.5 são 🧠 — validar com `opus`)
 
 - ✅ **T1.1** Pacote `packages/backend/notification-contracts` criado (package.json
       `0.1.0-rc.0`, tsconfig, tsup, CHANGELOG, .gitignore) espelhando
       `meta-whatsapp-contracts`. `pnpm install` rodado; `tsc --noEmit` limpo.
-      Falta `CLAUDE.md` (T1.10).
 - ✅ **T1.2** `notification.types.ts` — canais, status, plataformas, drivers e
       supressão como `const` object + `as const`; entidades (`NotificationSummary`,
       `DeliverySummary`, `DeviceRegistration`, `NotificationPreference`,
       `NotificationTemplate`) e params/result de envio e listagem.
-- [ ] **T1.3** Schemas zod de fronteira: `SendNotificationSchema`, `RegisterDeviceSchema`,
+- ✅ **T1.3** Schemas zod de fronteira: `SendNotificationSchema`, `RegisterDeviceSchema`,
       `UpdatePreferencesSchema`, `UpsertTemplateSchema`, `ListNotificationsQuerySchema`,
-      `DeliveryWebhookSchema`. Tipos derivados com sufixo `Params`/`Result`.
+      `DeliveryWebhookSchema`. Tipos derivados com sufixo `Body`/`Query` (os
+      `Params`/`Result` de use-case vivem em `notification.types.ts`). Nenhum schema
+      aceita `companyId` — teste em `strictness.test.ts` garante.
 - ✅ **T1.4** 🧠 Portas escritas em **dois** arquivos, para respeitar o limite de 200
       linhas por arquivo (§ "File Organization"): `channelDrivers.ts`
       (`DeliveryAttemptResult` + `Push`/`Email`/`WhatsApp`/`Sms` `DriverPort` + params de
@@ -50,19 +51,19 @@ Q4 (precedência do timezone), Q5 (nasce no monorepo).
       `NotificationRequestContext` (com `rawBody` preservado para HMAC),
       `NotificationHttpResult` (`json` | `empty` | `stream`) e `NotificationStreamResult`
       com `heartbeatSeconds` no contrato. Zero tipo de framework no arquivo.
-- [ ] **T1.6** `events.ts` — os 9 eventos da §6.5 com payload tipado.
-- [ ] **T1.7** `errors.ts` — hierarquia **autocontida** (pacote publicado não importa o
+- ✅ **T1.6** `events.ts` — os 9 eventos da §6.5 com payload tipado.
+- ✅ **T1.7** `errors.ts` — hierarquia **autocontida** (pacote publicado não importa o
       `DomainError` do host): `NotificationError extends Error` com
       `statusCode`/`code`/`details`, mapa `NOTIFICATION_ERROR_CODES` e subclasses
       (`TemplateNotFoundError`, `ChannelNotConfiguredError`, `RecipientUnresolvedError`,
       `SuppressedTargetError`, `NotificationNotFoundError`,
       `InvalidWebhookSignatureError`). Molde: `meta-whatsapp-contracts/src/errors.ts`.
-- [ ] **T1.8** `createWhatsAppDriverFromChannel()` — adaptador duck-typed, **zero**
+- ✅ **T1.8** `createWhatsAppDriverFromChannel()` — adaptador duck-typed, **zero**
       dependência de Meta (§4.3).
-- [ ] **T1.9** `index.ts` exportando tudo (tipos com `export type`) +
+- ✅ **T1.9** `index.ts` exportando tudo (tipos com `export type`) +
       `strictness.test.ts` no molde do contracts de WhatsApp: nenhum tipo público vaza
       `any`.
-- [ ] **T1.10** `CLAUDE.md` do pacote no formato dos vizinhos (propósito, uso, portas).
+- ✅ **T1.10** `CLAUDE.md` do pacote no formato dos vizinhos (propósito, uso, portas).
 
 **Aceite:** `tsc --noEmit` limpo; `index.ts` exporta tudo; nenhuma dependência de runtime
 além de `zod`.
