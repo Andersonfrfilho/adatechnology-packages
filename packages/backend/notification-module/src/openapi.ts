@@ -1,3 +1,4 @@
+import { ROUTE_SCOPE, type ModuleRoute, type ModuleRouteTable } from '@adatechnology/module-http'
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
@@ -5,8 +6,6 @@
  * documentação sozinha; rota removida some do spec sozinha. É o terceiro consumidor da tabela
  * declarativa (ADR 0001 §3), e a razão de a rota ser dado em vez de código.
  */
-
-import { ROUTE_SCOPE, type NotificationRoute, type NotificationRouteTable } from '@adatechnology/notification-contracts'
 
 export type OpenApiPaths = Record<string, Record<string, unknown>>
 
@@ -33,7 +32,7 @@ function extractPathParameters(
   }))
 }
 
-function buildResponses(route: NotificationRoute): Record<string, unknown> {
+function buildResponses(route: ModuleRoute): Record<string, unknown> {
   const responses: Record<string, unknown> = {
     '400': { description: 'Requisição inválida — envelope `{ error: { code, message, issues } }`.' },
     '500': { description: 'Erro interno.' },
@@ -53,7 +52,7 @@ function buildResponses(route: NotificationRoute): Record<string, unknown> {
   return responses
 }
 
-export function notificationOpenApiPaths(params: { routes: NotificationRouteTable; basePath?: string }): OpenApiPaths {
+export function notificationOpenApiPaths(params: { routes: ModuleRouteTable; basePath?: string }): OpenApiPaths {
   const base = (params.basePath ?? '').endsWith('/') ? (params.basePath ?? '').slice(0, -1) : (params.basePath ?? '')
   const paths: OpenApiPaths = {}
 

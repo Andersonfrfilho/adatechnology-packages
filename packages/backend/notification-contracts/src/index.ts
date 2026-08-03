@@ -51,8 +51,6 @@ export type {
 } from './channelDrivers'
 
 export type {
-  AuthContext,
-  AuthContextResolverPort,
   ResolvedRecipient,
   RecipientResolverPort,
   NotificationJob,
@@ -69,21 +67,6 @@ export type {
   LoggerPort,
   MetricsPort,
 } from './providers'
-
-export { HTTP_METHOD, ROUTE_SCOPE } from './http.types'
-export type {
-  HttpMethod,
-  RouteScope,
-  NotificationRequestContext,
-  SseEvent,
-  SseSubscription,
-  NotificationStreamResult,
-  NotificationJsonResult,
-  NotificationEmptyResult,
-  NotificationHttpResult,
-  NotificationRoute,
-  NotificationRouteTable,
-} from './http.types'
 
 export {
   sendNotificationSchema,

@@ -2,7 +2,8 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { ConfigMissingError, type NotificationRouteTable } from '@adatechnology/notification-contracts'
+import { ConfigMissingError } from '@adatechnology/notification-contracts'
+import type { ModuleRouteTable } from '@adatechnology/module-http'
 
 import type { NotificationModule } from '../NotificationModule'
 import { buildInboxRoutes } from './inboxRoutes'
@@ -20,7 +21,7 @@ export type CreateNotificationRoutesParams = {
   readonly features?: { readonly webhooks?: boolean }
 }
 
-export function createNotificationRoutes(params: CreateNotificationRoutesParams): NotificationRouteTable {
+export function createNotificationRoutes(params: CreateNotificationRoutesParams): ModuleRouteTable {
   if (params.features?.webhooks && !params.webhookSecret) throw new ConfigMissingError('webhookSecret')
 
   const routes = [

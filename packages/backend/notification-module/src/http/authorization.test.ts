@@ -7,10 +7,10 @@
  */
 
 import { describe, expect, it } from 'bun:test'
+import type { AuthContextResolverPort } from '@adatechnology/module-http'
 import { randomUUID } from 'node:crypto'
-import type { AuthContextResolverPort } from '@adatechnology/notification-contracts'
 
-import { createNotificationFetchRouter } from './fetch'
+import { createModuleFetchRouter } from '@adatechnology/module-http/fetch'
 import { createNotificationRoutes } from './routes'
 import { NotificationRepository } from '../repositories/NotificationRepository'
 import type { NotificationModule } from '../NotificationModule'
@@ -100,7 +100,7 @@ function buildRouterFor(module: NotificationModule, auth: { companyId: string; u
       return { companyId: auth.companyId, userId: auth.userId, scopes: [] }
     },
   }
-  return createNotificationFetchRouter({
+  return createModuleFetchRouter({
     routes: createNotificationRoutes({ module }),
     basePath: '/v1',
     authResolver,

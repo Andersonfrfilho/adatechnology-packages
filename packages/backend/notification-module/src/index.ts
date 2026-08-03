@@ -1,19 +1,17 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
- * Superfície principal do módulo. Os adaptadores opcionais vivem em entrypoints próprios
- * (`./http/fetch`, `./http/uws`, `./queue/bullmq`, `./queue/amqp`, `./openapi`, `./testing`) —
- * quem não importa, não carrega a dependência.
+ * Superfície principal do módulo. Os entrypoints opcionais (`./queue/bullmq`, `./queue/amqp`,
+ * `./openapi`, `./testing`) ficam separados — quem não importa, não carrega a dependência.
+ *
+ * O módulo entrega a TABELA de rotas (`createNotificationRoutes`); montar é com
+ * `@adatechnology/module-http`, o mesmo pacote que monta o `catalog-module`. Um host com os dois
+ * usa um router só para as duas tabelas, em vez de um adaptador por módulo.
  */
 
 export { createNotificationRoutes } from './http/routes'
 export type { CreateNotificationRoutesParams } from './http/routes'
 export { DEFAULT_SSE_HEARTBEAT_SECONDS } from './http/inboxRoutes'
-export { compileRoutes, dispatchRoute, findRoute } from './http/dispatchRoute'
-export type { CompiledRoute, RawRequest, DispatchRouteParams } from './http/dispatchRoute'
-export { toErrorResult, toValidationResult, VALIDATION_ERROR_CODE, INTERNAL_ERROR_CODE } from './http/errorFilter'
-export { compilePath, matchPath } from './http/pathMatcher'
-export type { CompiledPath } from './http/pathMatcher'
 
 export { createNotificationWorker, createNotificationSchedules } from './worker'
 export type { NotificationWorker, CreateNotificationWorkerParams, NotificationSchedule } from './worker'

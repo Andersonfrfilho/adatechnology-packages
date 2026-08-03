@@ -5,22 +5,15 @@
  * `dispatchRoute` — daí não haver `try/catch` nem checagem de escopo aqui dentro.
  */
 
-import {
-  NOTIFICATION_EVENT,
-  listNotificationsQuerySchema,
-  type NotificationRoute,
-  type SseEvent,
-} from '@adatechnology/notification-contracts'
+import { NOTIFICATION_EVENT, listNotificationsQuerySchema } from '@adatechnology/notification-contracts'
+import type { ModuleRoute, SseEvent } from '@adatechnology/module-http'
 
 import type { NotificationModule } from '../NotificationModule'
 import { requireUser } from './requireUser'
 
 export const DEFAULT_SSE_HEARTBEAT_SECONDS = 25
 
-export function buildInboxRoutes(params: {
-  module: NotificationModule
-  heartbeatSeconds?: number
-}): NotificationRoute[] {
+export function buildInboxRoutes(params: { module: NotificationModule; heartbeatSeconds?: number }): ModuleRoute[] {
   const { useCases, realtime } = params.module
 
   return [

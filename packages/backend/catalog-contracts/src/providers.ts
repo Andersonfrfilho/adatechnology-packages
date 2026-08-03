@@ -4,20 +4,6 @@
 
 import type { CompanyId, MetaSyncConfig, Product, ProductAvailability } from './catalog.types'
 
-export type AuthContext = {
-  readonly companyId: CompanyId
-  readonly userId?: string
-  readonly scopes: readonly string[]
-}
-
-/**
- * Identidade **já validada pelo host** — o módulo não verifica token nem conhece o emissor da
- * sessão (`security.md` §2). Recebe pronto e aplica o escopo por empresa em toda query.
- */
-export interface AuthContextResolverPort {
-  resolve(params: { readonly headers: Readonly<Record<string, string>> }): Promise<AuthContext | undefined>
-}
-
 /**
  * Upload de imagem de produto. Porta e não implementação porque o bucket é do host — e o pacote
  * não deve escolher entre S3, MinIO ou disco local por ele.

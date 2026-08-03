@@ -13,8 +13,8 @@ import {
   type ChannelDrivers,
   type NotificationHooks,
 } from '@adatechnology/notification-contracts'
+import type { AuthContextResolverPort } from '@adatechnology/module-http'
 import type {
-  AuthContextResolverPort,
   CachePort,
   ClockPort,
   LoggerPort,

@@ -51,8 +51,6 @@ export type {
 } from './schemas'
 
 export type {
-  AuthContext,
-  AuthContextResolverPort,
   ProductImageStoragePort,
   MetaProductPayload,
   MetaSyncOutcome,

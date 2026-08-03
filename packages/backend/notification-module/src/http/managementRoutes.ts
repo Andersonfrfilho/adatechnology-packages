@@ -12,17 +12,14 @@ import {
   sendNotificationSchema,
   updatePreferencesSchema,
   upsertTemplateSchema,
-  type NotificationRoute,
 } from '@adatechnology/notification-contracts'
+import type { ModuleRoute } from '@adatechnology/module-http'
 
 import type { NotificationModule } from '../NotificationModule'
 import { claimNotificationWebhookDelivery, verifyNotificationWebhookSignature } from '../shared/webhookSecurity'
 import { requireUser } from './requireUser'
 
-export function buildManagementRoutes(params: {
-  module: NotificationModule
-  webhookSecret?: string
-}): NotificationRoute[] {
+export function buildManagementRoutes(params: { module: NotificationModule; webhookSecret?: string }): ModuleRoute[] {
   const { useCases, cache, clock } = params.module
 
   return [

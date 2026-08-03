@@ -3,7 +3,7 @@
  */
 
 import { NotificationError, NOTIFICATION_ERROR_CODES } from '@adatechnology/notification-contracts'
-import type { NotificationRequestContext } from '@adatechnology/notification-contracts'
+import type { RequestContext } from '@adatechnology/module-http'
 
 /**
  * `dispatchRoute` já recusou a requisição sem `auth` numa rota de escopo `user`, então este erro
@@ -11,7 +11,7 @@ import type { NotificationRequestContext } from '@adatechnology/notification-con
  * handler poder tratar `auth.userId` como definido sem `!` nem `?? ''` — o tipo garante, em vez
  * de o handler confiar.
  */
-export function requireUser(context: NotificationRequestContext): { companyId: string; userId: string } {
+export function requireUser(context: RequestContext): { companyId: string; userId: string } {
   if (!context.auth?.userId) {
     throw new NotificationError('Rota exige usuário autenticado.', 401, NOTIFICATION_ERROR_CODES.CONFIG_MISSING)
   }

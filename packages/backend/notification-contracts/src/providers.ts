@@ -4,25 +4,6 @@
 
 import type { CompanyId, NotificationChannel, NotificationId, UserId } from './notification.types'
 
-export type AuthContext = {
-  readonly companyId: CompanyId
-  /** Ausente em rota de escopo `service`/`admin` autenticada por credencial de máquina. */
-  readonly userId?: UserId
-  readonly scopes: readonly string[]
-}
-
-/**
- * Identidade **já validada pelo host**. O módulo não verifica token, não conhece o emissor da
- * sessão e não decide o que é uma credencial válida (`security.md` §2) — recebe pronto e aplica
- * autorização por objeto: toda leitura de inbox filtra por `companyId` + `userId` deste contexto,
- * nunca por id vindo do cliente (BOLA/API1).
- *
- * Obrigatória quando as rotas estão ligadas; sem ela, `createNotificationModule` falha no boot.
- */
-export interface AuthContextResolverPort {
-  resolve(params: { readonly headers: Readonly<Record<string, string>> }): Promise<AuthContext | undefined>
-}
-
 export type ResolvedRecipient = {
   readonly email?: string
   readonly phone?: string

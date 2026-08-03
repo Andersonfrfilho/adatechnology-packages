@@ -11,10 +11,10 @@
  */
 
 import { describe, expect, it } from 'bun:test'
+import type { AuthContextResolverPort } from '@adatechnology/module-http'
 import { randomUUID } from 'node:crypto'
-import type { AuthContextResolverPort } from '@adatechnology/notification-contracts'
 
-import { createNotificationFetchRouter } from './fetch'
+import { createModuleFetchRouter } from '@adatechnology/module-http/fetch'
 import { createNotificationRoutes } from './routes'
 import type { NotificationModule } from '../NotificationModule'
 import { CountUnreadUseCase, ListNotificationsUseCase } from '../use-cases/Inbox.use-cases'
@@ -51,7 +51,7 @@ describe('integração mínima no host', () => {
     }
 
     // ─── início da cola do host ────────────────────────────────────────────────────────────
-    const notificationHttp = createNotificationFetchRouter({
+    const notificationHttp = createModuleFetchRouter({
       routes: createNotificationRoutes({ module }),
       basePath: '/v1',
       authResolver: authContextResolver,

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from 'bun:test'
-import type { NotificationRoute } from '@adatechnology/notification-contracts'
+import type { ModuleRoute } from '@adatechnology/module-http'
 
 import { notificationOpenApiPaths } from './openapi'
 import { createNotificationRoutes } from './http/routes'
@@ -63,7 +63,7 @@ describe('notificationOpenApiPaths', () => {
   })
 
   it('marca requestBody só onde há schema de corpo', () => {
-    const withBody: NotificationRoute[] = routes.filter((route) => route.bodySchema !== undefined)
+    const withBody: ModuleRoute[] = routes.filter((route) => route.bodySchema !== undefined)
     const paths = notificationOpenApiPaths({ routes, basePath: '/v1' })
 
     expect(withBody.length).toBeGreaterThan(0)
