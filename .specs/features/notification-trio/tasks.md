@@ -309,17 +309,40 @@ esm+cjs+dts.
 
 ---
 
-## Fase 8 — Publicação
+## Fase 8 — Publicação ✅ (menos a publicação em si)
 > 🤖 Modelo: `haiku` para T8.1–T8.2, **`opus` obrigatório** para T8.3
 
-- [ ] **T8.1** README de cada pacote: instalação, `create…`, tabela de portas, exemplo de
-      host (fetch **e** uws), gotchas de `idleTimeout`/Tailwind/Vite.
-- [ ] **T8.2** Changesets com destaque para migrations incluídas e portas novas; bump nos
-      consumidores.
-- [ ] **T8.3** **Gate de revisão com `opus`**: checklist da §13 da spec, caça a bugs de
-      lógica/concorrência, auditoria de segurança (PII em log, HMAC, autorização por
-      objeto, segredo em mensagem de erro) e de performance (N+1 no fan-out, I/O em série
-      no worker, `await` dentro de loop). Nenhuma versão vai ao registry sem este passe.
+- ✅ **T8.1** README dos seis pacotes. Escritos por inferência e depois conferidos contra o
+      código, o que achou **quatro afirmações falsas** antes de virarem documentação: rota de
+      device é `:id` (não `:token`), webhook é `:driver` (não `:provider`), o cliente expõe
+      `getAuthHeaders` (não `getToken`), e `sendNotification` recebe
+      `recipientUserId`/`category`/`payload` — o exemplo usava `recipientId`/`variables` e omitia
+      `category`, que é obrigatório.
+- ✅ **T8.2** Dois changesets: o do trio e o da migração para o `module-http` (que é breaking nos
+      subpaths `./http/fetch` e `./http/uws`, embora nada consuma ainda).
+- ✅ **T8.3** **Gate de revisão com `opus`** — um defeito confirmado e corrigido:
+
+  **`piiAudit.test.ts` auditava log sem auditar log nenhum.** Conferia
+  `logger.lines.join('\n')` contra e-mail, telefone e corpo, e o logger tinha **zero linhas**
+  nos dois casos — medido, não suposto. O caminho feliz do envio não loga, e a supressão também
+  não. Os assertos passavam por vacuidade enquanto o cabeçalho anunciava "exercita o caminho
+  real com um logger que grava tudo". A metade de persistência sempre foi real.
+
+  Corrigido em três frentes: afirmar o **zero** onde não há log (quebra se alguém acrescentar um
+  `info` com endereço; conferir string vazia não quebraria), guarda que exige linha gravada antes
+  de olhar conteúdo, e um bloco novo sobre `realtime.publish` falhando — o log mais exposto do
+  módulo, que dispara no meio do fan-out com destinatário e conteúdo em escopo. Validado por
+  mutação: com o e-mail na mensagem de erro do broker, falha.
+
+  Passaram sem correção: zero `process.env` e zero `console` nos nove pacotes; `timingSafeEqual`
+  sobre digests dos dois lados; isolamento multiempresa cobrindo **7 de 7** condições puras; só
+  `error_code` persistido (a mensagem livre do driver, que num bounce SMTP traz o endereço, não é
+  gravada); job da fila com cinco referências opacas; nenhum valor de segredo em mensagem de erro,
+  só o nome da chave ausente; teste de OpenAPI com dentes de verdade. O laço sequencial do
+  fan-out é limitado a 5 canais e documentado — bounded, não descuido.
+
+- [ ] **T8.4 Publicar no registry.** Não feito: é ação externa e irreversível (versão publicada
+      não se reusa). Depende de decisão sua.
 
 ---
 
@@ -332,3 +355,22 @@ esm+cjs+dts.
 - [ ] **T9.3** Template `micro-backend-uws`: trocar o `modules/notification` próprio pelo
       adaptador `./http/uws`, para todo projeto novo nascer com notificação.
 - [ ] **T9.4** `cawme`: push mobile, quando o backend dele entrar em escopo.
+
+
+---
+
+## Ordem real de execução (o documento estava invertido)
+
+O quickcart consome os pacotes **do registry**, com versão fixada
+(`meta-whatsapp-module: 0.2.0-rc.16`), não por workspace. Então a Fase 7 **não roda antes de
+publicar** — é preciso publicar um `rc`, apontar o quickcart para ele, e iterar. É o que os 16
+release candidates do `meta-whatsapp-module` mostram ter sido o fluxo até aqui.
+
+Sequência correta:
+
+1. **T8.4** — publicar `rc` dos seis pacotes + `module-http`
+2. **Fase 7** — montar no quickcart e medir a cola contra a métrica de ≤ 25 linhas
+3. `rc+1` para o que a Fase 7 descobrir
+
+A métrica de ≤ 25 linhas é a tese do projeto inteiro e **segue não medida** — nenhum host montou
+o módulo ainda.
