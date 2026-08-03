@@ -1,6 +1,7 @@
 {
   "name": "@adatechnology/notification-client",
   "version": "0.1.0-rc.0",
+  "license": "MIT",
   "description": "Isomorphic notification client — typed HTTP, device registration and SSE. Runs in React Native, web, Node and Bun.",
   "publishConfig": {
     "access": "public"

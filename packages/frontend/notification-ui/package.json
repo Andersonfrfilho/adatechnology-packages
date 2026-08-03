@@ -1,6 +1,7 @@
 {
   "name": "@adatechnology/notification-ui",
   "version": "0.1.0-rc.0",
+  "license": "MIT",
   "description": "Notification UI — headless hooks + componentes de inbox, sino e preferências",
   "publishConfig": {
     "access": "public"

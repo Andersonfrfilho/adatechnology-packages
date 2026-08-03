@@ -1,6 +1,7 @@
 {
   "name": "@adatechnology/notification-module",
   "version": "0.1.0-rc.0",
+  "license": "MIT",
   "description": "Stateful notification module \u2014 schema, migrations, repositories and use-cases behind pluggable ports (part of the notification trio)",
   "publishConfig": {
     "access": "public"
@@ -36,8 +37,7 @@
     }
   },
   "files": [
-    "dist",
-    "src/migrations"
+    "dist"
   ],
   "scripts": {
     "build": "tsup",

@@ -1,6 +1,7 @@
 {
   "name": "@adatechnology/catalog-contracts",
   "version": "0.1.0-rc.0",
+  "license": "MIT",
   "description": "Shared types, zod schemas and port interfaces for the catalog trio (contracts only — no runtime behavior)",
   "publishConfig": {
     "access": "public"
