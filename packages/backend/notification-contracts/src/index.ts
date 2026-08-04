@@ -118,3 +118,12 @@ export {
 
 export { createWhatsAppDriverFromChannel } from './whatsappDriver'
 export type { WhatsAppSendingChannel } from './whatsappDriver'
+
+export {
+  deriveTitleFromBody,
+  escapeTemplateHtml,
+  extractTemplatePlaceholders,
+  interpolateTemplate,
+  renderTemplate,
+} from './templateRender'
+export type { RenderedTemplatePreview } from './templateRender'

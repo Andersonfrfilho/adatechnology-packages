@@ -21,7 +21,7 @@ export type { UseNotificationsOptions } from './hooks/useNotifications'
 export { useNotificationStream } from './hooks/useNotificationStream'
 export type { UseNotificationStreamOptions } from './hooks/useNotificationStream'
 
-export { usePreferences, useUpdatePreferences, useTemplates } from './hooks/usePreferences'
+export { usePreferences, useUpdatePreferences, useTemplates, useUpsertTemplate } from './hooks/usePreferences'
 
 export { NOTIFICATION_QUERY_KEYS } from './hooks/queryKeys'
 
