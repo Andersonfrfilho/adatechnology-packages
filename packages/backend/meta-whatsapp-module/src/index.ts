@@ -5,6 +5,7 @@ export type {
   MetaWhatsAppModuleConfig,
   MetaWhatsAppModuleFeatures,
   MetaWhatsAppModuleProviders,
+  MetaWhatsAppTranscriptionConfig,
 } from './createMetaWhatsAppModule'
 
 export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings, documents, flowMedia } from './schema/schema'
@@ -35,7 +36,39 @@ export {
 export type { NonceStoreInterface } from './channel/webhookSecurity'
 
 export { IngestInboundMediaUseCase, extractMediaDescriptor } from './channel/IngestInboundMedia.use-case'
-export type { IngestInboundMediaParams, IngestInboundMediaResult } from './channel/IngestInboundMedia.use-case'
+export type {
+  IngestInboundMediaParams,
+  IngestInboundMediaResult,
+  IngestTranscriptionOptions,
+} from './channel/IngestInboundMedia.use-case'
+
+export { StorePreviewMediaUseCase } from './use-cases/StorePreviewMedia.use-case'
+export type { StorePreviewMediaParams, StorePreviewMediaResult } from './use-cases/StorePreviewMedia.use-case'
+export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './channel/previewMedia'
+export type { PreviewMediaSupport } from './channel/WhatsAppChannelAdapter'
+
+export { TranscribeAudioUseCase, resolveFailureStatus } from './use-cases/TranscribeAudio.use-case'
+export type {
+  TranscribeAudioParams,
+  TranscribeAudioResult,
+  TranscribeAudioDependencies,
+} from './use-cases/TranscribeAudio.use-case'
+export { createTranscriptionPolicyResolver } from './use-cases/resolveTranscriptionPolicy'
+export type {
+  TranscriptionPolicy,
+  TranscriptionPolicyDefaults,
+  TranscriptionPolicyResolver,
+  ResolveTranscriptionPolicyDependencies,
+} from './use-cases/resolveTranscriptionPolicy'
+export {
+  TRANSCRIPTION_MODE,
+  TRANSCRIPTION_STATUS,
+  isAudioMimeType,
+  isRetriableTranscriptionError,
+  isUnsupportedTranscriptionError,
+  transcriptionRetryAfterSeconds,
+} from './transcription.types'
+export type { AudioTranscriber, TranscriptionMode, TranscriptionStatus } from './transcription.types'
 
 export { SettingsRepository } from './repositories/SettingsRepository'
 export { SendMessageUseCase } from './use-cases/SendMessage.use-case'
@@ -54,6 +87,8 @@ export type { ListConversationsFilters } from './repositories/SessionRepository'
 export { MessageRepository } from './repositories/MessageRepository'
 export type {
   InsertMessageParams,
+  SaveTranscriptionParams,
+  SaveTranscriptionByWaMessageIdParams,
   ListMessagesParams as RepositoryListMessagesParams,
 } from './repositories/MessageRepository'
 

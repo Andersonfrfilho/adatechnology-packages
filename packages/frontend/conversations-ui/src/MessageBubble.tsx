@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Check } from 'lucide-react'
-import type { InteractiveSelection, MessagePayload } from './types'
+import type { InteractiveSelection, MessagePayload, MessageTranscription } from './types'
 import { useConversationLocales } from './ConversationLocalesProvider'
 import { StatusTicks } from './StatusTicks'
 import { MediaRenderer, type ResolveMediaUrl } from './MediaRenderer'
@@ -30,6 +30,12 @@ export interface MessageBubbleProps {
    * no histórico da inbox: o operador vê o que foi oferecido, sem responder no lugar do cliente.
    */
   onInteractiveSelect?: (selection: InteractiveSelection) => void
+  /**
+   * Pede a transcrição do áudio. Ausente, o balão usa `transcribeAudio` do `ConversationsApi` do
+   * contexto — passe apenas para sobrescrever. Sem nenhum dos dois, o bloco de transcrição só exibe
+   * o que já veio pronto do backend.
+   */
+  onTranscribeAudio?: (messageId: string) => Promise<MessageTranscription | void>
   className?: string
 }
 
@@ -51,7 +57,7 @@ const MEDIA_TYPES = new Set(['image', 'audio', 'video', 'document', 'sticker'])
 // tailwind.config do host expondo as cores `whatsapp.*` — ver Wallpaper.tsx e T6.2.
 export function MessageBubble({
   message, isMine, senderName, isFirstInGroup = true, isSelecting = false, isSelected = false, onToggleSelect,
-  onResolveMediaUrl, onInteractiveSelect, className,
+  onResolveMediaUrl, onInteractiveSelect, onTranscribeAudio, className,
 }: MessageBubbleProps) {
   const { bubble, selection } = useConversationLocales()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
@@ -65,6 +71,18 @@ export function MessageBubble({
     () => onResolveMediaUrl ?? (context?.api ? createMediaUrlResolver(context.api) : undefined),
     [onResolveMediaUrl, context?.api],
   )
+
+  /**
+   * `undefined` quando nem o host nem o `ConversationsApi` sabem transcrever — é essa ausência que o
+   * bloco de transcrição consulta para decidir se desenha a afordância, mesmo padrão de
+   * `takeover`/`release`.
+   */
+  const requestTranscription = useMemo(() => {
+    const transcribe = onTranscribeAudio ?? context?.api?.transcribeAudio?.bind(context.api)
+    if (!transcribe) return undefined
+    // Devolve o resultado em vez de descartar: é o que o bloco exibe na hora, sem esperar refetch.
+    return () => transcribe(message.id)
+  }, [onTranscribeAudio, context?.api, message.id])
 
   const bubbleColor = BUBBLE_COLOR[message.sender] ?? BUBBLE_COLOR.customer
   const hasError = message.status === 'failed'
@@ -138,7 +156,12 @@ export function MessageBubble({
         )}
 
         {isMedia ? (
-          <MediaRenderer message={message} onLightbox={setLightboxSrc} onResolveUrl={resolveMediaUrl} />
+          <MediaRenderer
+            message={message}
+            onLightbox={setLightboxSrc}
+            onResolveUrl={resolveMediaUrl}
+            {...(requestTranscription ? { onTranscribeAudio: requestTranscription } : {})}
+          />
         ) : isInteractive && message.payload ? (
           // O texto da mensagem interativa mora dentro do payload (`body.text`), e `content` guarda
           // só uma cópia achatada para busca — renderizar `content` aqui duplicaria o corpo.

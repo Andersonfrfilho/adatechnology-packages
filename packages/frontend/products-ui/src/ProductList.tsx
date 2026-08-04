@@ -117,7 +117,9 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
   const showUnit = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT)
   const showBarcode = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BARCODE)
   const showInventory = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.INVENTORY)
-  const showSyncStatus = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SYNC_STATUS)
+  // Estado de sincronização não é um campo do produto que o host escolhe exibir: ele existe se, e
+  // só se, o host publica na Meta. Uma flag só, em `metaSync`, evita a tela mostrar coluna vazia.
+  const showSyncStatus = config.metaSync?.products === true
 
   return (
     <div className="overflow-x-auto">

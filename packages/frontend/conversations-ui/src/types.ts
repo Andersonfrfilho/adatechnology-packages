@@ -84,6 +84,32 @@ export interface MessagePayload {
    * diferente de avaliado e limpo.
    */
   moderation?: { isOffensive: boolean; terms: string[] } | null
+  /**
+   * Transcrição do áudio, vinda do backend — a UI só exibe, nunca transcreve. Rodar STT no browser
+   * exigiria baixar modelo por aba e daria resultado diferente por versão de cliente.
+   *
+   * `null`/ausente = não avaliado, que é diferente de `'done'` com texto vazio (áudio em silêncio,
+   * já processado). É essa distinção que decide se o balão oferece "transcrever" ou "sem fala
+   * detectada".
+   */
+  transcription?: MessageTranscription | null
   isFirstInGroup?: boolean
   isLastInGroup?: boolean
+}
+
+export type TranscriptionStatus = 'pending' | 'done' | 'failed' | 'unsupported'
+
+/**
+ * Quando transcrever, escolhido nas configurações da empresa. Espelha o
+ * `TranscriptionMode` de `@adatechnology/meta-whatsapp-contracts`; declarado aqui para o pacote de
+ * UI não obrigar quem só desenha telas a instalar os contratos do backend.
+ */
+export type TranscriptionMode = 'auto' | 'onDemand'
+
+export interface MessageTranscription {
+  status: TranscriptionStatus
+  text?: string | null
+  /** ISO 639-1 ou nome do idioma, conforme o engine. Exibido como dica, não interpretado. */
+  language?: string | null
+  engine?: string | null
 }

@@ -41,10 +41,14 @@ import {
 import { FlowInterpreter } from './flows/FlowInterpreter'
 import { createSendMediaAction } from './flows/createSendMediaAction'
 import { FlowMediaRepository } from './repositories/FlowMediaRepository'
-import { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
+import { WhatsAppChannelAdapter, type PreviewMediaSupport } from './channel/WhatsAppChannelAdapter'
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
 import { IngestInboundMediaUseCase } from './channel/IngestInboundMedia.use-case'
 import { verifyWebhookChallenge, type NonceStoreInterface } from './channel/webhookSecurity'
+import { TranscribeAudioUseCase, type TranscribeAudioDependencies } from './use-cases/TranscribeAudio.use-case'
+import { createTranscriptionPolicyResolver } from './use-cases/resolveTranscriptionPolicy'
+import { StorePreviewMediaUseCase } from './use-cases/StorePreviewMedia.use-case'
+import { TRANSCRIPTION_MODE, type AudioTranscriber, type TranscriptionMode } from './transcription.types'
 
 export interface MetaWhatsAppModuleConfig {
   phoneNumberId: string
@@ -68,6 +72,43 @@ export interface MetaWhatsAppModuleFeatures {
   // diferentes do mesmo fluxo depois de uma publicação. Ligar exige `providers.cache`; sem ele o
   // flag é ignorado, porque o módulo não abre conexão própria.
   flowGraphCache?: boolean | { ttlSeconds?: number }
+
+  /**
+   * Aceita mídia do simulador de conversa — o que faz o microfone aparecer no preview do cliente.
+   *
+   * **Desligado por omissão, e a decisão é consciente.** Ligado, o canal passa a aceitar id que não
+   * veio da Meta: `preview-upload:<chave>` faz o servidor ler aquele objeto do storage. Em ambiente
+   * de simulação isso é o recurso; em produção é leitura arbitrária do bucket por webhook forjado.
+   *
+   * Exige `providers.objectStorage` com `getObject` — sem os bytes não há o que devolver, e o flag é
+   * ignorado em vez de produzir um canal que falha na primeira nota de voz.
+   */
+  previewMedia?: boolean
+}
+
+/**
+ * Transcrição de áudio. Ausente = desligada, e as colunas ficam nulas ("não avaliado").
+ *
+ * `mode` é a decisão de produto que este objeto existe para carregar: `auto` transcreve toda nota de
+ * voz recebida, na ingestão, onde o buffer já está em memória; `onDemand` só transcreve quando o
+ * atendente pede, gastando cota apenas com áudio que alguém vai ler de fato.
+ */
+export interface MetaWhatsAppTranscriptionConfig {
+  transcriber: AudioTranscriber
+  /**
+   * PADRÃO, não decisão final: vale para as empresas que não mexeram no interruptor do painel. As
+   * configurações por empresa (`settings.transcriptionMode`) têm precedência.
+   *
+   * Padrão `onDemand` — o modo que não gasta cota sem alguém pedir.
+   */
+  mode?: TranscriptionMode
+  /**
+   * PADRÃO de ligado/desligado para empresas sem escolha registrada. `true` — injetar o transcritor
+   * já é a declaração de que o host quer o recurso; quem controla por empresa usa o painel.
+   */
+  isEnabledByDefault?: boolean
+  /** ISO 639-1 do produto (ex.: `'pt'`). Corta a detecção de idioma do engine. */
+  languageHint?: string
 }
 
 export interface MetaWhatsAppModuleProviders {
@@ -84,6 +125,11 @@ export interface MetaWhatsAppModuleProviders {
   // motivo dos outros providers: a lista de termos e o liga/desliga são de cada produto, e o módulo
   // não lê process.env. Ausente, as colunas ficam nulas — "não avaliado".
   moderator?: MessageModerator
+  /**
+   * Converte nota de voz em texto. Exige `objectStorage` com `getObject` para o modo sob demanda —
+   * transcrever um áudio já salvo significa ler os bytes de volta.
+   */
+  transcription?: MetaWhatsAppTranscriptionConfig
 }
 
 export interface CreateMetaWhatsAppModuleParams {
@@ -113,7 +159,19 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     apiVersion: config.apiVersion,
     baseUrl: config.baseUrl,
   })
-  const channel: ChannelAdapterInterface = new WhatsAppChannelAdapter(messageProvider)
+  /**
+   * Só monta o suporte quando as DUAS condições existem: o host pediu e o storage sabe ler de volta.
+   * Ligar o flag sem storage legível daria um canal que aceita o id do simulador e falha ao buscar.
+   */
+  const previewMediaSupport =
+    params.features?.previewMedia && providers.objectStorage?.getObject
+      ? {
+          isEnabled: true,
+          objectStorage: providers.objectStorage as PreviewMediaSupport['objectStorage'],
+        }
+      : undefined
+
+  const channel: ChannelAdapterInterface = new WhatsAppChannelAdapter(messageProvider, previewMediaSupport)
 
   const sessionRepository = new SessionRepository(db)
   const messageRepository = new MessageRepository(db)
@@ -178,11 +236,62 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     )
   }
 
+  const transcriptionMode = providers.transcription?.mode ?? TRANSCRIPTION_MODE.ON_DEMAND
+
+  /**
+   * Ambiente decide se é POSSÍVEL (o transcritor acima), settings decide se é para FAZER. Este
+   * resolvedor junta os dois, a cada áudio, para o interruptor do painel valer sem deploy.
+   */
+  const resolveTranscriptionPolicy = providers.transcription
+    ? createTranscriptionPolicyResolver({
+        settingsRepository,
+        defaults: {
+          isEnabled: providers.transcription.isEnabledByDefault ?? true,
+          mode: transcriptionMode,
+        },
+      })
+    : undefined
+
   // Só existe com storage injetado — sem ele não há para onde copiar o binário, e devolver um
   // use-case que sempre falha seria pior do que a ausência ser visível no tipo.
   const ingestInboundMedia = providers.objectStorage
-    ? new IngestInboundMediaUseCase(db, channel, providers.objectStorage, documentRepository)
+    ? new IngestInboundMediaUseCase(
+        db,
+        channel,
+        providers.objectStorage,
+        documentRepository,
+        providers.transcription && resolveTranscriptionPolicy
+          ? {
+              transcriber: providers.transcription.transcriber,
+              resolvePolicy: resolveTranscriptionPolicy,
+              messageRepository,
+              ...(providers.transcription.languageHint ? { languageHint: providers.transcription.languageHint } : {}),
+              ...(hooks ? { hooks } : {}),
+            }
+          : undefined,
+      )
     : undefined
+
+  /**
+   * Transcrição sob demanda e retomada de pendente. Exige `getObject`: transcrever um áudio já
+   * salvo é ler os bytes de volta do storage, e sem esse método o use-case só saberia falhar —
+   * a ausência no tipo é mais honesta que um botão que estoura no clique.
+   *
+   * O modo `auto` NÃO depende disto: ele transcreve dentro da ingestão, com o buffer que acabou de
+   * baixar. Um host em `auto` sem `getObject` transcreve normalmente, só não oferece "transcrever
+   * de novo".
+   */
+  const transcribeAudio =
+    providers.transcription && providers.objectStorage?.getObject
+      ? new TranscribeAudioUseCase({
+          messageRepository,
+          objectStorage: providers.objectStorage as TranscribeAudioDependencies['objectStorage'],
+          transcriber: providers.transcription.transcriber,
+          ...(resolveTranscriptionPolicy ? { resolvePolicy: resolveTranscriptionPolicy } : {}),
+          ...(providers.transcription.languageHint ? { languageHint: providers.transcription.languageHint } : {}),
+          ...(hooks ? { hooks } : {}),
+        })
+      : undefined
 
   /**
    * A leitura da biblioteca existe mesmo sem storage injetado: listar é consultar a tabela, e
@@ -211,10 +320,33 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
       delete: new DeleteConversationUseCase(sessionRepository, documentRepository, providers.objectStorage),
       purgeExpiredDocuments: new PurgeExpiredDocumentsUseCase(documentRepository, providers.objectStorage),
       export: new ExportConversationUseCase(sessionRepository),
+      // undefined quando transcrição não foi injetada, ou quando o storage não sabe ler de volta.
+      // O painel consulta a ausência para decidir se desenha o botão "transcrever".
+      transcribeAudio,
       repository: sessionRepository,
+      messageRepository,
       documentRepository,
     },
+    /**
+     * `undefined` = o host não injetou transcritor, e nenhuma configuração de empresa muda isso: a
+     * capacidade não existe. Presente, `resolvePolicy` responde o que vale para uma empresa —
+     * é o que a rota de configurações usa para dizer ao painel se desenha o interruptor.
+     */
+    transcription:
+      providers.transcription && resolveTranscriptionPolicy
+        ? { defaultMode: transcriptionMode, resolvePolicy: resolveTranscriptionPolicy }
+        : undefined,
     settings: settingsRepository,
+    /**
+     * `undefined` quando o recurso não está ligado (ou falta storage legível). O host consulta a
+     * ausência para não registrar a rota de upload — e o preview, sem a rota, esconde o microfone.
+     */
+    previewMedia: previewMediaSupport
+      ? new StorePreviewMediaUseCase(
+          providers.objectStorage!,
+          () => `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        )
+      : undefined,
     webhook: {
       receive: receiveWebhook,
       // GET de verificação da Meta — o host liga na sua rota e devolve o retorno como texto puro.

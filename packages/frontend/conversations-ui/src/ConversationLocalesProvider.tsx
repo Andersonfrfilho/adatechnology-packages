@@ -22,6 +22,20 @@ export interface ConversationLocales {
     untitledDocument: string
     downloadFile: string
   }
+  transcription: {
+    label: string
+    copy: string
+    copied: string
+    transcribe: string
+    transcribing: string
+    retry: string
+    failed: string
+    /** Áudio processado sem fala detectada — distinto de "não transcrito". */
+    empty: string
+    unsupported: string
+    showMore: string
+    showLess: string
+  }
   selection: {
     select: string
   }
@@ -53,6 +67,19 @@ const DEFAULT_LOCALES: ConversationLocales = {
     untitledDocument: 'Documento',
     downloadFile: 'Baixar',
   },
+  transcription: {
+    label: 'Transcrição',
+    copy: 'Copiar',
+    copied: 'Copiado!',
+    transcribe: 'Transcrever áudio',
+    transcribing: 'Transcrevendo...',
+    retry: 'Transcrever novamente',
+    failed: 'Falha ao transcrever — tentar novamente',
+    empty: 'Sem fala detectada',
+    unsupported: 'Formato de áudio não suportado para transcrição',
+    showMore: 'ver transcrição completa',
+    showLess: 'ver menos',
+  },
   selection: {
     select: 'Selecionar',
   },
@@ -76,6 +103,7 @@ export interface ConversationLocalesProviderProps {
 export function ConversationLocalesProvider({ children, locales }: ConversationLocalesProviderProps) {
   const merged: ConversationLocales = {
     bubble: { ...DEFAULT_LOCALES.bubble, ...locales?.bubble },
+    transcription: { ...DEFAULT_LOCALES.transcription, ...locales?.transcription },
     selection: { ...DEFAULT_LOCALES.selection, ...locales?.selection },
     dateDivider: { ...DEFAULT_LOCALES.dateDivider, ...locales?.dateDivider },
   }

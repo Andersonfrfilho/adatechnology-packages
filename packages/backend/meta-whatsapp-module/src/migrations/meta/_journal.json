@@ -57,6 +57,20 @@
       "when": 1785276000000,
       "tag": "0007_flow_media",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785471336000,
+      "tag": "0008_message_transcription",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785471337000,
+      "tag": "0009_settings_transcription_policy",
+      "breakpoints": true
     }
   ]
 }

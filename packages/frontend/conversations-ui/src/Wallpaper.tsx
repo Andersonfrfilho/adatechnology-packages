@@ -8,7 +8,7 @@
  * A classe `cv-wallpaper` continua no elemento para quem já sobrescreve por CSS.
  */
 
-import type { CSSProperties, ReactNode } from 'react'
+import { forwardRef, type CSSProperties, type ReactNode, type UIEvent } from 'react'
 
 import { cn } from './lib/cn'
 import { useIsDarkTheme } from './useDarkMode'
@@ -45,17 +45,31 @@ export interface ConversationWallpaperProps {
   className?: string
   /** Ajusta ou substitui o fundo padrão — para produto com identidade visual própria. */
   style?: CSSProperties
+  /**
+   * Rolagem da área de mensagens. Par do `ref`: é este elemento que rola, então é aqui que
+   * `useScrollToLatestMessage` observa a posição para saber se o operador está acompanhando o fim.
+   */
+  onScroll?: (event: UIEvent<HTMLDivElement>) => void
 }
 
-export function ConversationWallpaper({ children, className, style }: ConversationWallpaperProps) {
-  const isDark = useIsDarkTheme()
+/**
+ * `forwardRef` porque quem controla a rolagem é de fora — o hook precisa do elemento para saltar
+ * até a última mensagem. `forwardRef` e não `ref` como prop: o pacote suporta React 18, onde
+ * ref-como-prop ainda não existe.
+ */
+export const ConversationWallpaper = forwardRef<HTMLDivElement, ConversationWallpaperProps>(
+  function ConversationWallpaper({ children, className, style, onScroll }, ref) {
+    const isDark = useIsDarkTheme()
 
-  return (
-    <div
-      className={cn('cv-wallpaper', className)}
-      style={{ ...(isDark ? DARK_WALLPAPER : LIGHT_WALLPAPER), ...style }}
-    >
-      {children}
-    </div>
-  )
-}
+    return (
+      <div
+        ref={ref}
+        onScroll={onScroll}
+        className={cn('cv-wallpaper', className)}
+        style={{ ...(isDark ? DARK_WALLPAPER : LIGHT_WALLPAPER), ...style }}
+      >
+        {children}
+      </div>
+    )
+  },
+)

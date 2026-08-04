@@ -16,7 +16,13 @@
  */
 
 import type { InboundMediaType, InteractiveReplyOption } from '@adatechnology/meta-whatsapp-contracts/testing'
-import type { PreviewWebhookClient, SendPreviewMediaParams } from './createPreviewWebhookClient'
+import {
+  createPreviewMediaPoster,
+  defaultMediaUploadUrl,
+  type PreviewWebhookClient,
+  type SendPreviewMediaParams,
+} from './createPreviewWebhookClient'
+import type { PreviewUploadedMedia } from './createPreviewMediaUploader'
 
 /**
  * Comando semântico entregue ao host. É deliberadamente o QUE o cliente fez, não o payload da Meta:
@@ -50,6 +56,18 @@ export type CreatePreviewBridgeClientParams = {
   readonly endpointUrl?: string
   readonly headers?: Readonly<Record<string, string>>
   readonly fetchImplementation?: typeof fetch
+  /**
+   * Rota que guarda o áudio gravado. Por padrão, `/v1/preview/media` na origem do `endpointUrl`.
+   *
+   * Aqui não há assinatura a calcular: a ponte existe justamente para não ter segredo no navegador,
+   * e a rota é protegida pela sessão do painel — os mesmos `headers` do comando valem para o upload.
+   */
+  readonly mediaUploadUrl?: string
+  /**
+   * Substitui o upload embutido. Necessário para host que só passa `sendCommand`: sem `endpointUrl`
+   * não há origem a derivar, e sem destino o gravador não é desenhado.
+   */
+  readonly uploadMedia?: (file: File) => Promise<PreviewUploadedMedia>
 }
 
 function buildFetchSender(params: CreatePreviewBridgeClientParams): SendPreviewInboundCommand {
@@ -72,9 +90,26 @@ function buildFetchSender(params: CreatePreviewBridgeClientParams): SendPreviewI
   }
 }
 
+/** Só existe quando há para onde mandar: rota explícita, ou origem herdada do `endpointUrl`. */
+function resolveBridgeUpload(
+  params: CreatePreviewBridgeClientParams,
+): ((file: File) => Promise<PreviewUploadedMedia>) | undefined {
+  if (params.uploadMedia) return params.uploadMedia
+
+  const url = params.mediaUploadUrl ?? (params.endpointUrl ? defaultMediaUploadUrl(params.endpointUrl) : undefined)
+  if (!url) return undefined
+
+  return createPreviewMediaPoster({
+    url,
+    ...(params.headers ? { headers: async () => params.headers ?? {} } : {}),
+    ...(params.fetchImplementation ? { fetchImplementation: params.fetchImplementation } : {}),
+  })
+}
+
 export function createPreviewBridgeClient(params: CreatePreviewBridgeClientParams): PreviewWebhookClient {
   const send = params.sendCommand ?? buildFetchSender(params)
   const from = params.from
+  const uploadMedia = resolveBridgeUpload(params)
 
   return {
     sendText: (text) => send({ kind: 'text', from, text }),
@@ -82,6 +117,7 @@ export function createPreviewBridgeClient(params: CreatePreviewBridgeClientParam
     sendListReply: (reply) => send({ kind: 'listReply', from, reply }),
     sendAudio: (mediaId) => send({ kind: 'audio', from, mediaId }),
     sendMedia: (media) => send({ kind: 'media', from, ...media }),
+    ...(uploadMedia ? { uploadMedia } : {}),
   }
 }
 

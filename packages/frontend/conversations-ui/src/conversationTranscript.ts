@@ -33,14 +33,39 @@ export function buildTranscriptText(params: BuildTranscriptTextParams): string {
   ]
 
   const lines = params.messages.map((message) => {
-    const stamp = new Date(message.timestamp).toLocaleString('pt-BR')
     const author = message.agentName ?? SENDER_LABEL[message.sender]
-    // Mídia sem legenda não tem texto nenhum; marcar o tipo evita uma linha vazia sem explicação.
-    const body = message.content ?? message.caption ?? `<${message.type}>`
-    return `[${stamp}] ${author}: ${body}`
+    return `[${formatStamp(message.timestamp)}] ${author}: ${bodyOf(message)}`
   })
 
   return [...header, ...lines].join('\n')
+}
+
+/**
+ * Corpo da linha no arquivo.
+ *
+ * Áudio transcrito entra com o TEXTO, não como `<audio>`. Quem baixa a conversa quer lê-la, e um
+ * histórico onde o pedido do cliente aparece como marcador vazio é inútil justamente para o caso que
+ * motiva o download: auditoria e repasse. O prefixo `[áudio]` fica na frente para a linha não passar
+ * por mensagem digitada — quem audita precisa saber que aquilo foi falado e transcrito por máquina.
+ */
+function bodyOf(message: MessagePayload): string {
+  const transcript = message.transcription?.text?.trim()
+  if (message.type === 'audio' && transcript) return `[áudio] ${transcript}`
+
+  // Mídia sem legenda não tem texto nenhum; marcar o tipo evita uma linha vazia sem explicação.
+  return message.content ?? message.caption ?? `<${message.type}>`
+}
+
+/**
+ * `Invalid Date` no arquivo é pior do que data ausente: parece dado corrompido e põe em dúvida o
+ * resto do transcript. E acontece de verdade — a rota de export do módulo devolve `createdAt`, não
+ * `sentAt`, então quem mapeia esperando `sentAt` recebe `undefined` aqui.
+ */
+function formatStamp(timestamp: string | undefined): string {
+  if (!timestamp) return 'data indisponível'
+
+  const parsed = new Date(timestamp)
+  return Number.isNaN(parsed.getTime()) ? 'data indisponível' : parsed.toLocaleString('pt-BR')
 }
 
 export function buildTranscriptFilename(whatsappNumber: string, generatedAt: Date): string {

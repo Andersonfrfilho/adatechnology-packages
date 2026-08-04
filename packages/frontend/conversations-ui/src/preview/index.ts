@@ -38,6 +38,9 @@ export {
   assertPreviewEnvironment,
   PreviewInProductionError,
   PreviewWebhookRejectedError,
+  PreviewMediaUploadRejectedError,
+  createPreviewMediaPoster,
+  DEFAULT_MEDIA_UPLOAD_PATH,
 } from './createPreviewWebhookClient'
 export type {
   PreviewWebhookClient,
@@ -59,3 +62,6 @@ export { createPreviewMediaResolver, previewFileUrl } from './previewMediaSource
 export { previewFileBase64 } from './previewMediaSource'
 export { MediaTypesPreview, MEDIA_TYPES_CONVERSATION_ID } from './MediaTypesPreview'
 export type { MediaTypesPreviewProps } from './MediaTypesPreview'
+
+export { createPreviewMediaUploader, PREVIEW_MEDIA_ID_PREFIX } from './createPreviewMediaUploader'
+export type { CreatePreviewMediaUploaderParams, PreviewMediaUploadRequest } from './createPreviewMediaUploader'
