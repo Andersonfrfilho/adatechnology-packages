@@ -20,5 +20,12 @@ simulador é slot de render para manter o `preview/` fora do bundle de quem não
 mora no cabeçalho da conversa, ao lado de "Assumir atendimento" — ele age sobre aquela conversa, e
 no cabeçalho da página parecia um filtro da inbox.
 
+Entram também, por capacidade da `ConversationsApi`, as peças que só uma das telas tinha: modal de
+escolha de template para o envio em lote (com busca e aviso quando nenhuma selecionada está fora da
+janela), "marcar todas como lidas", seleção de mensagens no transcript com cópia do trecho, texto
+inicial no composer para deep link, etapa do fluxo no painel de contexto, exportação pela rota do
+servidor, composer bloqueado enquanto a conversa está com o bot e paginação no servidor
+(`serverPaginated`) para base grande.
+
 Ações ausentes na `ConversationsApi` do host não desenham afordância: sem `finalize` não há botão
-de finalizar em lote.
+de finalizar em lote, sem `listTemplates` não há modal.

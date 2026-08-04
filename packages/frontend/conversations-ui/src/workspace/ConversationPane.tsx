@@ -5,7 +5,7 @@
  * última mensagem, outro engolia falha de anexo, outro não abria a biblioteca de arquivos.
  */
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { ConversationContextPanel, type ConversationContextEntry } from '../ConversationContextPanel'
 import { ConversationDocumentsPanel } from '../ConversationDocumentsPanel'
@@ -62,6 +62,13 @@ export interface ConversationPaneProps {
    * atropelaria o fluxo automático no meio de uma pergunta.
    */
   readonly requireTakeoverToReply?: boolean
+  /**
+   * Deixa marcar mensagens e copiar o trecho. É o que se faz para levar um pedaço da conversa a um
+   * e-mail ou a um chamado, sem baixar o transcript inteiro.
+   */
+  readonly messageSelection?: boolean
+  /** Texto já no campo ao abrir (deep link que sugere a resposta). */
+  readonly initialComposerText?: string | undefined
   /** Peça do produto entre o contexto e o transcript (ex.: ficha do lead, resumo do pedido). */
   readonly renderAboveTranscript?: (conversation: ConversationSummary) => ReactNode
   readonly onAttach?: ((file: File) => Promise<void>) | undefined
@@ -83,6 +90,8 @@ export function ConversationPane({
   flowLabel,
   onDownload,
   requireTakeoverToReply,
+  messageSelection,
+  initialComposerText,
   renderAboveTranscript,
   onAttach,
 }: ConversationPaneProps) {
@@ -96,6 +105,37 @@ export function ConversationPane({
   const { context: conversationContext } = useConversationContext(conversation.id)
   const [documentsOpen, setDocumentsOpen] = useState(false)
   const [sendFailure, setSendFailure] = useState<string | undefined>(undefined)
+  const [selectedMessageIds, setSelectedMessageIds] = useState<ReadonlySet<string>>(new Set())
+  const [draft, setDraft] = useState(initialComposerText ?? '')
+
+  // Trocar de conversa zera as duas coisas: seleção de mensagem e rascunho pertencem à thread, e
+  // levá-los adiante faria copiar o trecho errado ou responder ao cliente errado.
+  useEffect(() => {
+    setSelectedMessageIds(new Set())
+    setDraft(initialComposerText ?? '')
+  }, [conversation.id, initialComposerText])
+
+  function toggleMessageSelected(messageId: string): void {
+    setSelectedMessageIds((current) => {
+      const next = new Set(current)
+      if (next.has(messageId)) next.delete(messageId)
+      else next.add(messageId)
+      return next
+    })
+  }
+
+  /** Data, quem falou e o texto: fora do painel o trecho precisa se sustentar sozinho. */
+  function copySelectedMessages(): void {
+    const transcript = messages
+      .filter((message) => selectedMessageIds.has(message.id))
+      .map(
+        (message) =>
+          `[${new Date(message.timestamp).toLocaleString()}] ${message.sender}: ${message.content ?? `(${message.type})`}`,
+      )
+      .join('\n')
+    void navigator.clipboard.writeText(transcript)
+    setSelectedMessageIds(new Set())
+  }
 
   // Abrir no topo do histórico obrigava a rolar semanas até a última mensagem — que é sempre o que
   // interessa. O hook salta ao trocar de conversa sem arrastar quem estiver lendo o histórico.
@@ -188,11 +228,32 @@ export function ConversationPane({
                 message={message}
                 isMine={message.direction === 'outbound'}
                 isFirstInGroup={!previous || previous.sender !== message.sender}
+                {...(messageSelection
+                  ? {
+                      isSelecting: selectedMessageIds.size > 0,
+                      isSelected: selectedMessageIds.has(message.id),
+                      onToggleSelect: () => toggleMessageSelected(message.id),
+                    }
+                  : {})}
               />
             </div>
           )
         })}
       </ConversationWallpaper>
+
+      {messageSelection && selectedMessageIds.size > 0 ? (
+        <div className="cv-workspace-selection">
+          <span>{labels.messagesSelected(selectedMessageIds.size)}</span>
+          <div className="cv-workspace-selection__actions">
+            <button type="button" onClick={() => setSelectedMessageIds(new Set())}>
+              {labels.bulkClear}
+            </button>
+            <button type="button" onClick={copySelectedMessages}>
+              {labels.copySelected}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {sendFailure ? (
         <p role="alert" className="cv-workspace-alert">
@@ -210,6 +271,8 @@ export function ConversationPane({
         <p className="cv-workspace-notice">{labels.takeoverToReply}</p>
       ) : (
         <MessageComposer
+          value={draft}
+          onChange={setDraft}
           onSend={(text) => void handleSend(text)}
           // Habilita clipe E microfone: o composer desenha o gravador sozinho quando existe um jeito
           // de entregar arquivo, porque áudio gravado é um anexo como qualquer outro.

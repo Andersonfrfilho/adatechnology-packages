@@ -21,6 +21,17 @@ export interface ConversationsWorkspaceLabels {
   readonly bulkFinalize: string
   readonly bulkFinalizeConfirm: (count: number) => string
   readonly bulkTemplate: string
+  readonly markAllAsRead: string
+  readonly templateModalTitle: string
+  readonly templateModalSearch: string
+  readonly templateModalEmpty: string
+  readonly templateModalCancel: string
+  readonly templateModalSending: string
+  readonly templateModalNoneExpired: string
+  readonly templateModalAvailable: (count: number) => string
+  readonly templateModalSend: (count: number) => string
+  readonly messagesSelected: (count: number) => string
+  readonly copySelected: string
   readonly composerPlaceholder: string
   readonly attachFailure: string
   readonly sendFailure: string
@@ -48,6 +59,17 @@ export const DEFAULT_CONVERSATIONS_WORKSPACE_LABELS: ConversationsWorkspaceLabel
   bulkFinalize: 'Finalizar',
   bulkFinalizeConfirm: (count) => `Finalizar ${count} conversa${count === 1 ? '' : 's'}?`,
   bulkTemplate: 'Enviar template',
+  markAllAsRead: 'Marcar todas como lidas',
+  templateModalTitle: 'Escolher template',
+  templateModalSearch: 'Buscar template...',
+  templateModalEmpty: 'Nenhum template encontrado.',
+  templateModalCancel: 'Cancelar',
+  templateModalSending: 'Enviando…',
+  templateModalNoneExpired: 'Nenhuma das conversas selecionadas está fora da janela de 24h.',
+  templateModalAvailable: (count) => `${count} template${count === 1 ? '' : 's'} disponíve${count === 1 ? 'l' : 'is'}`,
+  templateModalSend: (count) => `Enviar para ${count}`,
+  messagesSelected: (count) => `${count} mensagem${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}`,
+  copySelected: 'Copiar',
   composerPlaceholder: 'Responder como atendente…',
   attachFailure: 'Falha ao enviar o arquivo.',
   sendFailure: 'Falha ao enviar a mensagem.',

@@ -16,6 +16,7 @@ import { useConversationList } from '../hooks/useConversationList'
 import { useGlobalRealtime } from '../hooks/useConversationRealtime'
 import { useConversations } from '../providers/ConversationsProvider'
 import { CONVERSATION_WINDOW, windowOf, type ConversationWindow } from '../conversationWindow'
+import { isWindowBlocking } from '../WindowExpiredNotice'
 import {
   CHANNEL_FILTER_ALL,
   DEFAULT_CONVERSATION_CHANNEL,
@@ -36,6 +37,11 @@ export interface UseConversationsInboxParams {
    * tem na frente é ruído que ele não tem como resolver.
    */
   readonly markReadOnOpen?: boolean
+  /**
+   * Pede a página ao servidor em vez de fatiar o que veio. Necessário quando a base é grande — o
+   * padrão traz tudo e pagina no cliente porque nem todo backend pagina a listagem.
+   */
+  readonly serverPaginated?: boolean
   readonly describeFailure?: (error: unknown) => string
 }
 
@@ -49,6 +55,8 @@ export interface UseConversationsInboxResult {
   readonly unreadCount: number
   readonly waitingCount: number
   readonly filteredCount: number
+  /** Selecionadas fora da janela de 24h — as únicas que um template alcança. */
+  readonly expiredSelectedCount: number
   readonly page: number
   readonly pageCount: number
   readonly firstOnPage: number
@@ -67,6 +75,8 @@ export interface UseConversationsInboxResult {
   /** Ausentes quando o host não implementa a capacidade — a UI não desenha a afordância. */
   readonly canTakeover: boolean
   readonly canFinalize: boolean
+  readonly canListTemplates: boolean
+  readonly canMarkAllRead: boolean
   refetch(): Promise<void> | void
   selectConversation(conversationId: string): void
   clearSelection(): void
@@ -79,6 +89,7 @@ export interface UseConversationsInboxResult {
   setSearch(value: string): void
   goToPage(value: number): void
   markSelectedAsRead(): Promise<void>
+  markAllAsRead(): Promise<void>
   takeover(conversationId: string): Promise<void>
   releaseToBot(conversationId: string): Promise<void>
   finalize(conversationId: string): Promise<void>
@@ -115,10 +126,11 @@ export function useConversationsInbox(params: UseConversationsInboxParams = {}):
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [busy, setBusy] = useState(false)
 
-  const { conversations, loading, error, refetch } = useConversationList({
+  const { conversations, total, loading, error, refetch } = useConversationList({
     ...(waitingOnly ? { waitingHuman: true } : {}),
     ...(search ? { search } : {}),
     ...(params.filters ? { filters: params.filters } : {}),
+    ...(params.serverPaginated ? { page, limit: perPage } : {}),
   })
 
   // `data-changed` é o único evento do canal global e vem sem payload: a resposta correta é refazer
@@ -150,9 +162,14 @@ export function useConversationsInbox(params: UseConversationsInboxParams = {}):
     [conversations, windowFilter, channelFilter, now],
   )
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage))
+  // Com paginação no servidor o que veio JÁ é a página: refatiar deixaria a lista vazia da segunda
+  // página em diante, e o total do servidor é quem sabe quantas páginas existem.
+  const totalForPaging = params.serverPaginated ? total : filtered.length
+  const pageCount = Math.max(1, Math.ceil(totalForPaging / perPage))
   const currentPage = Math.min(page, pageCount)
-  const pageConversations = filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
+  const pageConversations = params.serverPaginated
+    ? filtered
+    : filtered.slice((currentPage - 1) * perPage, currentPage * perPage)
 
   // Trocar de filtro com a página 7 ativa deixaria a lista vazia sem explicação.
   useEffect(() => {
@@ -251,11 +268,16 @@ export function useConversationsInbox(params: UseConversationsInboxParams = {}):
     totalCount: conversations.length,
     unreadCount: conversations.reduce((total, conversation) => total + conversation.unread, 0),
     waitingCount: conversations.filter((conversation) => conversation.waitingHuman).length,
-    filteredCount: filtered.length,
+    filteredCount: totalForPaging,
+    expiredSelectedCount: conversations.filter(
+      (conversation) =>
+        selectedIds.has(conversation.id) &&
+        isWindowBlocking(windowOf({ lastInboundAt: conversation.lastInboundAt, now, channel: conversation.channel })),
+    ).length,
     page: currentPage,
     pageCount,
     firstOnPage: (currentPage - 1) * perPage + 1,
-    lastOnPage: Math.min(currentPage * perPage, filtered.length),
+    lastOnPage: Math.min(currentPage * perPage, totalForPaging),
     selectedId,
     selectedIds,
     allOnPageSelected,
@@ -268,6 +290,8 @@ export function useConversationsInbox(params: UseConversationsInboxParams = {}):
     loadFailure: error ? describeFailure(error) : undefined,
     canTakeover: Boolean(api.takeover),
     canFinalize: Boolean(api.finalize),
+    canListTemplates: Boolean(api.listTemplates),
+    canMarkAllRead: Boolean(api.markAllRead),
     refetch,
     selectConversation: setSelectedId,
     clearSelection: () => setSelectedId(undefined),
@@ -280,6 +304,16 @@ export function useConversationsInbox(params: UseConversationsInboxParams = {}):
     setSearch,
     goToPage: setPage,
     markSelectedAsRead: () => runOnSelection((conversationId) => api.markRead(conversationId)),
+    markAllAsRead: async () => {
+      if (!api.markAllRead) return
+      setBusy(true)
+      try {
+        await api.markAllRead()
+        await refetch()
+      } finally {
+        setBusy(false)
+      }
+    },
     takeover: (conversationId) => runConversationAction(api.takeover, conversationId),
     releaseToBot: (conversationId) => runConversationAction(api.release, conversationId),
     finalize: (conversationId) => runConversationAction(api.finalize, conversationId),

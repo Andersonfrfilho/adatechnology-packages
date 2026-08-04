@@ -17,6 +17,7 @@ import type { ConversationContextEntry } from '../ConversationContextPanel'
 import type { ConversationHeaderUtility } from '../ConversationHeader'
 import type { QuickReply } from '../MessageComposer'
 import type { ConversationSummary } from '../providers/types'
+import { BulkTemplateModal } from './BulkTemplateModal'
 import { ConversationPane } from './ConversationPane'
 import { ConversationsInboxList } from './ConversationsInboxList'
 import { DEFAULT_CONVERSATIONS_WORKSPACE_LABELS, type ConversationsWorkspaceLabels } from './labels'
@@ -39,6 +40,8 @@ export interface ConversationsWorkspaceProps {
   readonly filters?: Record<string, string | undefined>
   readonly perPage?: number
   readonly markReadOnOpen?: boolean
+  /** Pede a página ao servidor em vez de fatiar no cliente. */
+  readonly serverPaginated?: boolean
   /** Conversa a abrir na montagem (deep link `?id=`). */
   readonly initialConversationId?: string | undefined
   /** Idem, pelo telefone — é o que costuma vir no link de um alerta ou de um pedido. */
@@ -55,6 +58,10 @@ export interface ConversationsWorkspaceProps {
   readonly onDownload?: (conversation: ConversationSummary) => void
   /** Bloqueia o composer enquanto a conversa estiver com o bot. */
   readonly requireTakeoverToReply?: boolean
+  /** Deixa marcar mensagens no transcript e copiar o trecho. */
+  readonly messageSelection?: boolean
+  /** Texto já no campo ao abrir a conversa (deep link que sugere a resposta). */
+  readonly initialComposerText?: string | undefined
   readonly contextEntriesOf?: (context: Record<string, unknown> | undefined) => readonly ConversationContextEntry[]
   readonly onAttach?: (conversation: ConversationSummary, file: File) => Promise<void>
   readonly extraUtilitiesFor?: (conversation: ConversationSummary) => readonly ConversationHeaderUtility[]
@@ -74,6 +81,7 @@ export function ConversationsWorkspace({
   filters,
   perPage,
   markReadOnOpen,
+  serverPaginated,
   initialConversationId,
   initialWhatsappNumber,
   simulator,
@@ -82,6 +90,8 @@ export function ConversationsWorkspace({
   flowLabelOf,
   onDownload,
   requireTakeoverToReply,
+  messageSelection,
+  initialComposerText,
   contextEntriesOf,
   onAttach,
   extraUtilitiesFor,
@@ -99,8 +109,10 @@ export function ConversationsWorkspace({
     ...(filters ? { filters } : {}),
     ...(perPage ? { perPage } : {}),
     ...(markReadOnOpen === undefined ? {} : { markReadOnOpen }),
+    ...(serverPaginated ? { serverPaginated } : {}),
   })
   const [simulatorOpen, setSimulatorOpen] = useState(false)
+  const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [openedFromLink, setOpenedFromLink] = useState<string | undefined>(undefined)
 
   // Só seleciona depois que a conversa aparece na lista: o hook limpa qualquer seleção que não
@@ -184,6 +196,19 @@ export function ConversationsWorkspace({
             ✓<span className="cv-only-wide"> {labels.markSelectedAsRead}</span>
             {inbox.selectedIds.size > 0 ? ` (${inbox.selectedIds.size})` : ''}
           </button>
+          {/* Só com não lida na tela e só onde o host implementa a rota: sem isso o botão zerava
+              nada e ainda assim ocupava o cabeçalho. */}
+          {inbox.canMarkAllRead && inbox.unreadCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => void inbox.markAllAsRead()}
+              disabled={inbox.busy}
+              title={labels.markAllAsRead}
+              className="cv-workspace-toggle"
+            >
+              ✓✓<span className="cv-only-wide"> {labels.markAllAsRead}</span>
+            </button>
+          ) : null}
           {renderHeaderActions?.(inbox)}
         </div>
       </header>
@@ -220,7 +245,11 @@ export function ConversationsWorkspace({
           {...(renderFilters ? { renderFilters } : {})}
           {...(renderBulkActions ? { renderBulkActions } : {})}
           {...(renderRow ? { renderRow } : {})}
-          {...(onSendTemplateToSelected ? { onSendTemplateToSelected: () => onSendTemplateToSelected(inbox) } : {})}
+          {...(onSendTemplateToSelected
+            ? { onSendTemplateToSelected: () => onSendTemplateToSelected(inbox) }
+            : inbox.canListTemplates
+              ? { onSendTemplateToSelected: () => setTemplateModalOpen(true) }
+              : {})}
         />
 
         {/* `section`, não `main`: o layout do host já provê o `main` da página. */}
@@ -237,6 +266,8 @@ export function ConversationsWorkspace({
               {...(flowLabelOf ? { flowLabel: flowLabelOf(selected) } : {})}
               {...(onDownload ? { onDownload: () => onDownload(selected) } : {})}
               {...(requireTakeoverToReply ? { requireTakeoverToReply } : {})}
+              {...(messageSelection ? { messageSelection } : {})}
+              {...(initialComposerText ? { initialComposerText } : {})}
               onBack={inbox.clearSelection}
               {...(paneUtilities ? { extraUtilities: paneUtilities } : {})}
               {...(contextEntriesOf ? { contextEntriesOf } : {})}
@@ -258,6 +289,18 @@ export function ConversationsWorkspace({
           </div>
         ) : null}
       </div>
+
+      {templateModalOpen ? (
+        <BulkTemplateModal
+          labels={labels}
+          expiredCount={inbox.expiredSelectedCount}
+          sending={inbox.busy}
+          onClose={() => setTemplateModalOpen(false)}
+          onSend={(templateName) => {
+            void inbox.sendTemplateToSelected(templateName).then(() => setTemplateModalOpen(false))
+          }}
+        />
+      ) : null}
     </div>
   )
 }
