@@ -39,11 +39,22 @@ export interface ConversationsWorkspaceProps {
   readonly filters?: Record<string, string | undefined>
   readonly perPage?: number
   readonly markReadOnOpen?: boolean
-  /** Conversa a abrir na montagem (deep link `?number=`). */
+  /** Conversa a abrir na montagem (deep link `?id=`). */
   readonly initialConversationId?: string | undefined
+  /** Idem, pelo telefone — é o que costuma vir no link de um alerta ou de um pedido. */
+  readonly initialWhatsappNumber?: string | undefined
   readonly simulator?: ConversationsWorkspaceSimulator
   readonly quickReplies?: readonly QuickReply[]
-  readonly quickReplyVariablesFor?: (conversation: ConversationSummary) => Record<string, string>
+  readonly quickReplyVariablesFor?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => Record<string, string>
+  /** Etapa do fluxo mostrada no painel de contexto. */
+  readonly flowLabelOf?: (conversation: ConversationSummary) => string | undefined
+  /** Substitui o download local do transcript (ex.: exportação completa pela rota do servidor). */
+  readonly onDownload?: (conversation: ConversationSummary) => void
+  /** Bloqueia o composer enquanto a conversa estiver com o bot. */
+  readonly requireTakeoverToReply?: boolean
   readonly contextEntriesOf?: (context: Record<string, unknown> | undefined) => readonly ConversationContextEntry[]
   readonly onAttach?: (conversation: ConversationSummary, file: File) => Promise<void>
   readonly extraUtilitiesFor?: (conversation: ConversationSummary) => readonly ConversationHeaderUtility[]
@@ -53,6 +64,8 @@ export interface ConversationsWorkspaceProps {
   readonly renderAboveTranscript?: (conversation: ConversationSummary) => ReactNode
   readonly renderHeaderActions?: (inbox: UseConversationsInboxResult) => ReactNode
   readonly onSendTemplateToSelected?: (inbox: UseConversationsInboxResult) => void
+  /** Destino do link de reentrar no painel, mostrado junto do aviso de sessão expirada. */
+  readonly signInHref?: string
   readonly className?: string
 }
 
@@ -62,9 +75,13 @@ export function ConversationsWorkspace({
   perPage,
   markReadOnOpen,
   initialConversationId,
+  initialWhatsappNumber,
   simulator,
   quickReplies,
   quickReplyVariablesFor,
+  flowLabelOf,
+  onDownload,
+  requireTakeoverToReply,
   contextEntriesOf,
   onAttach,
   extraUtilitiesFor,
@@ -74,6 +91,7 @@ export function ConversationsWorkspace({
   renderAboveTranscript,
   renderHeaderActions,
   onSendTemplateToSelected,
+  signInHref,
   className,
 }: ConversationsWorkspaceProps) {
   const labels = { ...DEFAULT_CONVERSATIONS_WORKSPACE_LABELS, ...labelsOverride }
@@ -88,11 +106,16 @@ export function ConversationsWorkspace({
   // Só seleciona depois que a conversa aparece na lista: o hook limpa qualquer seleção que não
   // esteja em `conversations`, e no primeiro render a lista ainda está vazia.
   useEffect(() => {
-    if (!initialConversationId || openedFromLink === initialConversationId) return
-    if (!inbox.conversations.some((conversation) => conversation.id === initialConversationId)) return
-    inbox.selectConversation(initialConversationId)
-    setOpenedFromLink(initialConversationId)
-  }, [initialConversationId, openedFromLink, inbox])
+    const link = initialConversationId ?? initialWhatsappNumber
+    if (!link || openedFromLink === link) return
+    const target = inbox.conversations.find(
+      (conversation) =>
+        conversation.id === initialConversationId || conversation.whatsappNumber === initialWhatsappNumber,
+    )
+    if (!target) return
+    inbox.selectConversation(target.id)
+    setOpenedFromLink(link)
+  }, [initialConversationId, initialWhatsappNumber, openedFromLink, inbox])
 
   const selected = inbox.selectedConversation
   const simulatorEnabled = Boolean(simulator && (simulator.enabled ?? true))
@@ -133,7 +156,7 @@ export function ConversationsWorkspace({
               <span className="cv-only-wide"> {labels.waiting}</span>
             </span>
             <span title={labels.unread}>
-              👥 {inbox.unreadCount}
+              ✉️ {inbox.unreadCount}
               <span className="cv-only-wide"> {labels.unread}</span>
             </span>
           </p>
@@ -170,6 +193,14 @@ export function ConversationsWorkspace({
       {inbox.loadFailure ? (
         <p role="alert" className="cv-workspace-failure">
           {inbox.loadFailure}
+          {signInHref ? (
+            <>
+              {' '}
+              <a href={signInHref} className="cv-workspace-failure__link">
+                {labels.signIn}
+              </a>
+            </>
+          ) : null}
         </p>
       ) : null}
 
@@ -202,11 +233,15 @@ export function ConversationsWorkspace({
               labels={labels}
               {...(inbox.canTakeover ? { onTakeover: () => void inbox.takeover(selected.id) } : {})}
               {...(inbox.canTakeover ? { onReturnToBot: () => void inbox.releaseToBot(selected.id) } : {})}
+              {...(inbox.canFinalize ? { onFinish: () => void inbox.finalize(selected.id) } : {})}
+              {...(flowLabelOf ? { flowLabel: flowLabelOf(selected) } : {})}
+              {...(onDownload ? { onDownload: () => onDownload(selected) } : {})}
+              {...(requireTakeoverToReply ? { requireTakeoverToReply } : {})}
               onBack={inbox.clearSelection}
               {...(paneUtilities ? { extraUtilities: paneUtilities } : {})}
               {...(contextEntriesOf ? { contextEntriesOf } : {})}
               {...(quickReplies ? { quickReplies } : {})}
-              {...(quickReplyVariablesFor ? { quickReplyVariables: quickReplyVariablesFor(selected) } : {})}
+              {...(quickReplyVariablesFor ? { quickReplyVariablesFor } : {})}
               {...(renderAboveTranscript ? { renderAboveTranscript } : {})}
               {...(onAttach ? { onAttach: (file: File) => onAttach(selected, file) } : {})}
             />

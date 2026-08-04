@@ -23,6 +23,8 @@ export interface ConversationsWorkspaceLabels {
   readonly bulkTemplate: string
   readonly composerPlaceholder: string
   readonly attachFailure: string
+  readonly sendFailure: string
+  readonly takeoverToReply: string
   readonly signIn: string
   readonly pageOf: (page: number, pageCount: number) => string
   readonly rangeOf: (first: number, last: number, total: number) => string
@@ -48,6 +50,8 @@ export const DEFAULT_CONVERSATIONS_WORKSPACE_LABELS: ConversationsWorkspaceLabel
   bulkTemplate: 'Enviar template',
   composerPlaceholder: 'Responder como atendente…',
   attachFailure: 'Falha ao enviar o arquivo.',
+  sendFailure: 'Falha ao enviar a mensagem.',
+  takeoverToReply: 'Assuma o atendimento para responder diretamente ao cliente.',
   signIn: 'Entrar no painel',
   pageOf: (page, pageCount) => `${page} / ${pageCount}`,
   rangeOf: (first, last, total) => (total === 0 ? `0 de 0` : `${first}–${last} de ${total}`),

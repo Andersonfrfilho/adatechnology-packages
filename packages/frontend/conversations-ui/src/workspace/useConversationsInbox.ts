@@ -81,6 +81,7 @@ export interface UseConversationsInboxResult {
   markSelectedAsRead(): Promise<void>
   takeover(conversationId: string): Promise<void>
   releaseToBot(conversationId: string): Promise<void>
+  finalize(conversationId: string): Promise<void>
   finalizeSelected(): Promise<void>
   sendTemplateToSelected(templateName?: string): Promise<void>
 }
@@ -281,6 +282,7 @@ export function useConversationsInbox(params: UseConversationsInboxParams = {}):
     markSelectedAsRead: () => runOnSelection((conversationId) => api.markRead(conversationId)),
     takeover: (conversationId) => runConversationAction(api.takeover, conversationId),
     releaseToBot: (conversationId) => runConversationAction(api.release, conversationId),
+    finalize: (conversationId) => runConversationAction(api.finalize, conversationId),
     finalizeSelected: () =>
       runOnSelection(async (conversationId) => {
         await api.finalize?.(conversationId)

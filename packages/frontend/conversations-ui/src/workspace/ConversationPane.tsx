@@ -42,7 +42,26 @@ export interface ConversationPaneProps {
   /** Traduz o contexto cru do produto nas linhas do painel. Ausente, o painel não aparece. */
   readonly contextEntriesOf?: (context: Record<string, unknown> | undefined) => readonly ConversationContextEntry[]
   readonly quickReplies?: readonly QuickReply[]
-  readonly quickReplyVariables?: Record<string, string>
+  /**
+   * Recebe o contexto junto porque o dado que interessa à variável (o nome que o bot perguntou,
+   * por exemplo) vive no contexto do fluxo, não no resumo da listagem.
+   */
+  readonly quickReplyVariablesFor?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => Record<string, string>
+  /** Etapa do fluxo ao lado do contexto (ex.: "Anotando o pedido"). */
+  readonly flowLabel?: string | undefined
+  /**
+   * Substitui o download local do transcript. Existe para o produto que exporta pela rota do
+   * servidor, onde o arquivo sai completo em vez de só com o que a tela carregou.
+   */
+  readonly onDownload?: (() => void) | undefined
+  /**
+   * Bloqueia o composer enquanto a conversa estiver com o bot. Ligado, responder sem assumir
+   * atropelaria o fluxo automático no meio de uma pergunta.
+   */
+  readonly requireTakeoverToReply?: boolean
   /** Peça do produto entre o contexto e o transcript (ex.: ficha do lead, resumo do pedido). */
   readonly renderAboveTranscript?: (conversation: ConversationSummary) => ReactNode
   readonly onAttach?: ((file: File) => Promise<void>) | undefined
@@ -60,7 +79,10 @@ export function ConversationPane({
   extraUtilities,
   contextEntriesOf,
   quickReplies,
-  quickReplyVariables,
+  quickReplyVariablesFor,
+  flowLabel,
+  onDownload,
+  requireTakeoverToReply,
   renderAboveTranscript,
   onAttach,
 }: ConversationPaneProps) {
@@ -73,7 +95,7 @@ export function ConversationPane({
   const { messages, refetch } = useConversationMessages(conversation.id)
   const { context: conversationContext } = useConversationContext(conversation.id)
   const [documentsOpen, setDocumentsOpen] = useState(false)
-  const [attachFailure, setAttachFailure] = useState<string | undefined>(undefined)
+  const [sendFailure, setSendFailure] = useState<string | undefined>(undefined)
 
   // Abrir no topo do histórico obrigava a rolar semanas até a última mensagem — que é sempre o que
   // interessa. O hook salta ao trocar de conversa sem arrastar quem estiver lendo o histórico.
@@ -88,24 +110,27 @@ export function ConversationPane({
     windowOf({ lastInboundAt: conversation.lastInboundAt, now, channel: conversation.channel }),
   )
 
-  async function handleSend(text: string): Promise<void> {
-    await api.sendMessage(conversation.id, text)
-    await refetch()
-  }
-
   /**
-   * Falha vira aviso na tela em vez de exceção silenciosa: o atendente gravou, achou que mandou, e
-   * sem retorno não teria como saber que o cliente não recebeu nada.
+   * Falha vira aviso na tela em vez de exceção silenciosa: o atendente escreveu ou gravou, achou
+   * que mandou, e sem retorno não teria como saber que o cliente não recebeu nada.
    */
-  async function handleAttach(file: File): Promise<void> {
-    if (!onAttach) return
-    setAttachFailure(undefined)
+  async function runSend(action: () => Promise<unknown>, fallback: string): Promise<void> {
+    setSendFailure(undefined)
     try {
-      await onAttach(file)
+      await action()
       await refetch()
     } catch (error: unknown) {
-      setAttachFailure(error instanceof Error ? error.message : labels.attachFailure)
+      setSendFailure(error instanceof Error ? error.message : fallback)
     }
+  }
+
+  async function handleSend(text: string): Promise<void> {
+    await runSend(() => api.sendMessage(conversation.id, text), labels.sendFailure)
+  }
+
+  async function handleAttach(file: File): Promise<void> {
+    if (!onAttach) return
+    await runSend(() => onAttach(file), labels.attachFailure)
   }
 
   function handleDownload(): void {
@@ -120,6 +145,7 @@ export function ConversationPane({
   }
 
   const contextEntries = contextEntriesOf?.(conversationContext)
+  const botOwnsConversation = Boolean(requireTakeoverToReply) && conversation.mode !== 'human'
 
   return (
     <div className="cv-workspace-pane">
@@ -129,14 +155,16 @@ export function ConversationPane({
         {...(onTakeover ? { onTakeover } : {})}
         {...(onReturnToBot ? { onReturnToBot } : {})}
         {...(onFinish ? { onFinish } : {})}
-        onDownload={handleDownload}
+        onDownload={onDownload ?? handleDownload}
         onBack={onBack}
         onOpenDocuments={() => setDocumentsOpen(!documentsOpen)}
         documentsOpen={documentsOpen}
         {...(extraUtilities ? { extraUtilities } : {})}
       />
 
-      {contextEntries && contextEntries.length > 0 ? <ConversationContextPanel entries={contextEntries} /> : null}
+      {(contextEntries && contextEntries.length > 0) || flowLabel ? (
+        <ConversationContextPanel entries={contextEntries ?? []} {...(flowLabel ? { flowLabel } : {})} />
+      ) : null}
       <ConversationDocumentsPanel conversationId={conversation.id} open={documentsOpen} />
 
       {renderAboveTranscript?.(conversation)}
@@ -166,9 +194,9 @@ export function ConversationPane({
         })}
       </ConversationWallpaper>
 
-      {attachFailure ? (
+      {sendFailure ? (
         <p role="alert" className="cv-workspace-alert">
-          {attachFailure}
+          {sendFailure}
         </p>
       ) : null}
 
@@ -177,6 +205,9 @@ export function ConversationPane({
           disabled={busy}
           onSendTemplate={() => void api.sendTemplate(conversation.id, {}).then(() => refetch())}
         />
+      ) : botOwnsConversation ? (
+        // Responder com a conversa no bot atropelaria o fluxo automático no meio de uma pergunta.
+        <p className="cv-workspace-notice">{labels.takeoverToReply}</p>
       ) : (
         <MessageComposer
           onSend={(text) => void handleSend(text)}
@@ -185,7 +216,7 @@ export function ConversationPane({
           {...(onAttach ? { onAttach: (file: File) => void handleAttach(file) } : {})}
           placeholder={labels.composerPlaceholder}
           {...(quickReplies ? { quickReplies } : {})}
-          {...(quickReplyVariables ? { quickReplyVariables } : {})}
+          {...(quickReplyVariablesFor ? { quickReplyVariables: quickReplyVariablesFor(conversation, conversationContext) } : {})}
         />
       )}
     </div>

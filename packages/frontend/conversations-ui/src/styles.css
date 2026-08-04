@@ -414,6 +414,25 @@
   padding: 0.75rem 1rem;
 }
 
+.cv-workspace-failure__link {
+  text-decoration: underline;
+}
+
+.cv-workspace-notice {
+  border-top: 1px solid var(--cv-border, #e5e7eb);
+  background: #f3f4f6;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.dark .cv-workspace-notice {
+  border-top-color: #374151;
+  background: #1f2937;
+  color: #9ca3af;
+}
+
 .cv-workspace-alert {
   border-top: 1px solid rgb(254 202 202);
   background: rgb(254 242 242);
