@@ -19,7 +19,7 @@
  */
 
 import { describe, expect, it } from 'bun:test'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DIST = join(__dirname, '..', 'dist')
@@ -57,12 +57,41 @@ describe('artefato publicado do notification-ui', () => {
     ).toBe(true)
   })
 
-  it('react e react-query ficam externos — duas cópias de React quebram os hooks', () => {
-    const bundle = readBundle('index.js')
+  /**
+   * O segundo bug que o host achou: com `splitting: false`, o tsup inline o código compartilhado em
+   * cada entrypoint, e `NotificationContext` virava DUAS instâncias. Um `<NotificationProvider>`
+   * importado de `.` não alimentava um `useUnreadCount` importado de `/headless` — o hook lançava
+   * "componente usado fora de <NotificationProvider>" estando dentro dele.
+   */
+  it('o contexto vive num chunk compartilhado, não copiado em cada entrypoint', () => {
+    const index = readBundle('index.js')
+    const headless = readBundle('headless.js')
 
-    expect(bundle).toContain('from "react"')
-    expect(bundle).toContain('@tanstack/react-query')
+    expect(index).not.toContain('createContext(')
+    expect(headless).not.toContain('createContext(')
+  })
+
+  it('os dois entrypoints importam do MESMO chunk', () => {
+    const chunkOf = (bundle: string) => bundle.match(/from "\.\/(chunk-[A-Z0-9]+\.js)"/)?.[1]
+
+    const fromIndex = chunkOf(readBundle('index.js'))
+    const fromHeadless = chunkOf(readBundle('headless.js'))
+
+    expect(fromIndex, 'index.js não importa chunk compartilhado').toBeDefined()
+    expect(fromHeadless).toBe(fromIndex)
+  })
+
+  it('react e react-query ficam externos — duas cópias de React quebram os hooks', () => {
+    // Olha o conjunto, e não um arquivo: com `splitting`, os imports migram para o chunk. Fixar em
+    // `index.js` foi o que fez este asserto quebrar ao ligar o splitting, sem nada estar errado.
+    const all = readdirSync(DIST)
+      .filter((file) => file.endsWith('.js'))
+      .map((file) => readBundle(file))
+      .join('\n')
+
+    expect(all).toContain('from "react"')
+    expect(all).toContain('@tanstack/react-query')
     // Sinal de React embutido no bundle em vez de importado.
-    expect(bundle).not.toContain('ReactCurrentOwner')
+    expect(all).not.toContain('ReactCurrentOwner')
   })
 })

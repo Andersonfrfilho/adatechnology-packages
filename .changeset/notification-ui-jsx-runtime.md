@@ -2,7 +2,7 @@
 '@adatechnology/notification-ui': patch
 ---
 
-Fix: the published bundle threw `ReferenceError: React is not defined` on first render
+Fix: two packaging bugs that made the published bundle unusable
 
 `0.1.0-rc.1` was unusable. Every consumer hit the error the moment `NotificationProvider`
 mounted, because the bundle emitted classic-runtime `React.createElement` calls without importing
@@ -19,3 +19,13 @@ runtime. Nothing looked at `dist`. `src/buildOutput.test.ts` now does, and it fa
 bug — verified by reverting the tsconfig and watching 4 of its 5 assertions break.
 
 Found by mounting the package in a real host, which is the only place it could have surfaced.
+
+
+**Second bug, same investigation:** `useUnreadCount` from `/headless` threw "componente usado fora de
+`<NotificationProvider>`" while sitting inside one. With two entrypoints and `splitting: false`, tsup
+inlines shared code into each — so `NotificationContext` existed twice, and a provider imported from
+`.` could never feed a hook imported from `/headless`. `splitting: true` emits a shared chunk.
+
+That one is structural, not incidental: splitting the package into components (`.`) and hooks
+(`/headless`) is precisely what makes shared chunks mandatory. The build test now asserts both
+entrypoints import the *same* chunk.
