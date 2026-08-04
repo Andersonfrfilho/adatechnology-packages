@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/keycloak-admin",
-  "version": "0.0.0",
+  "version": "1.0.0-rc.0",
   "description": "Agnostic Keycloak Admin API client authenticated as a service account (client_credentials)",
   "type": "module",
   "main": "dist/index.js",
@@ -11,13 +11,21 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "check": "tsc --noEmit",
     "test": "bun test"
   },
-  "keywords": ["keycloak", "admin", "client-credentials", "service-account", "identity"],
+  "keywords": [
+    "keycloak",
+    "admin",
+    "client-credentials",
+    "service-account",
+    "identity"
+  ],
   "peerDependencies": {
     "zod": "^3.24.1 || ^4.0.0"
   },

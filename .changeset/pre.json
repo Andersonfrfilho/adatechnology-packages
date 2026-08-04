@@ -41,7 +41,8 @@
     "@adatechnology/notification-module": "0.1.0-rc.0",
     "@adatechnology/push-provider": "0.1.0-rc.0",
     "@adatechnology/notification-client": "0.1.0-rc.0",
-    "@adatechnology/notification-ui": "0.1.0-rc.0"
+    "@adatechnology/notification-ui": "0.1.0-rc.0",
+    "@adatechnology/keycloak-admin": "0.0.0"
   },
   "changesets": [
     "agent-media-enters-document-library",
@@ -74,6 +75,7 @@
     "inbox-components",
     "inbox-operations-and-pagination",
     "interactive-message-formatting",
+    "keycloak-admin-agnostic",
     "lazy-media-button",
     "mdfe-3-00-emissao-encerramento-cancelamento",
     "mdfe-svrs-lotacao-contratante-pagamento",
