@@ -192,3 +192,88 @@
 :where(button:not(:disabled), [role='button']:not(:disabled), summary) {
   cursor: pointer;
 }
+
+/**
+ * Simulador de cliente. Largura fixa porque é painel auxiliar: a thread ao lado é que deve
+ * ganhar o espaço restante quando a janela encolhe.
+ */
+.cv-simulator-panel {
+  display: flex;
+  flex-direction: column;
+  width: 24rem;
+  flex-shrink: 0;
+  border-left: 1px solid rgb(229 231 235);
+  background: #fff;
+}
+
+.cv-simulator-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgb(229 231 235);
+}
+
+.cv-simulator-panel__heading { min-width: 0; }
+
+.cv-simulator-panel__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(17 24 39);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-simulator-panel__subtitle {
+  font-size: 0.75rem;
+  color: rgb(156 163 175);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-simulator-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cv-simulator-panel__close {
+  display: inline-flex;
+  padding: 0.375rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: rgb(156 163 175);
+  transition: color 150ms, background-color 150ms;
+}
+
+.cv-simulator-panel__close:hover {
+  color: rgb(55 65 81);
+  background: rgb(243 244 246);
+}
+
+/* `min-height: 0` para o transcript rolar dentro do painel em vez de esticar o `<aside>`. */
+.cv-simulator-panel__body { flex: 1; min-height: 0; }
+
+.dark .cv-simulator-panel {
+  border-left-color: rgb(31 41 55);
+  background: rgb(17 24 39);
+}
+.dark .cv-simulator-panel__header { border-bottom-color: rgb(31 41 55); }
+.dark .cv-simulator-panel__title { color: rgb(243 244 246); }
+.dark .cv-simulator-panel__subtitle { color: rgb(107 114 128); }
+.dark .cv-simulator-panel__close:hover { color: rgb(229 231 235); background: rgb(31 41 55); }
+
+/* Painel auxiliar não cabe ao lado da thread em tela estreita: vira sobreposição de tela cheia. */
+@media (max-width: 1023px) {
+  .cv-simulator-panel {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    z-index: 40;
+    border-left: 0;
+  }
+}

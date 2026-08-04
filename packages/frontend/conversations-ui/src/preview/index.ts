@@ -25,6 +25,9 @@ export type { CreateMockSSEProviderParams } from './createMockSSEProvider'
 
 export { PREVIEW_CONVERSATIONS, PREVIEW_MESSAGES, PREVIEW_DOCUMENTS } from './previewFixtures'
 
+export { ConversationSimulatorPanel, DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS } from './ConversationSimulatorPanel'
+export type { ConversationSimulatorPanelProps, ConversationSimulatorPanelLabels } from './ConversationSimulatorPanel'
+
 export { ConversationPreview } from './ConversationPreview'
 export { mediaTypeOf } from './ConversationPreview'
 export type { ConversationPreviewProps, PreviewUploadedMedia } from './ConversationPreview'
