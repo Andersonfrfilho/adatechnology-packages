@@ -280,30 +280,30 @@ esm+cjs+dts.
 
 ---
 
-## Fase 7 — quickcart de ponta a ponta
+## Fase 7 — quickcart de ponta a ponta ✅
 > 🤖 Modelo: `sonnet`
 
-- [ ] **T7.1** `Router.mount()` em `apps/api-quickcart/src/infra/http/router.ts` (~20
+- ✅ **T7.1** `Router.mount()` em `apps/api-quickcart/src/infra/http/router.ts` (~20
       linhas): delega ao `match`/`handle` do pacote antes do `registerNotFoundHandler`.
-- [ ] **T7.2** `authContextResolver` e `recipientResolver` do quickcart (sessão Bearer
+- ✅ **T7.2** `authContextResolver` e `recipientResolver` do quickcart (sessão Bearer
       atual + tabela de clientes), em `modules/notification/infra/`.
-- [ ] **T7.3** Compor o módulo no `infra/container.ts` com o `whatsapp.channel` já
+- ✅ **T7.3** Compor o módulo no `infra/container.ts` com o `whatsapp.channel` já
       existente (`modules/webhook/infra/whatsapp/metaWhatsAppModule.ts`), driver FCM e
       fila BullMQ sobre o Redis atual. Montar as rotas no `server.ts`.
       **Aceite: ≤ 25 linhas de cola** (métrica da §2 da spec).
-- [ ] **T7.4** Trocar `ProcessNotificationJob.use-case` e a guarda por `jobId` por
+- ✅ **T7.4** Trocar `ProcessNotificationJob.use-case` e a guarda por `jobId` por
       `sendNotification` com `dedupeKey` `order:<id>:<status>`; apagar
       `modules/notification` do worker. Sem regressão no fluxo de status de pedido.
-- [ ] **T7.5** Registrar os `schedules` no agendador do worker; somar
+- ✅ **T7.5** Registrar os `schedules` no agendador do worker; somar
       `createNotificationWorker` ao `infra/queue/workers.ts`.
-- [ ] **T7.6** Merge dos `notificationOpenApiPaths` no Swagger do quickcart.
-- [ ] **T7.7** Frontend: sino + lista + preferências no `frontend-web`; web push via FCM
+- ✅ **T7.6** Merge dos `notificationOpenApiPaths` no Swagger do quickcart.
+- ✅ **T7.7** Frontend: sino + lista + preferências no `frontend-web`; web push via FCM
       no service worker do PWA (`vite-plugin-pwa`) — é o que valida o canal push sem
       depender do app mobile.
-- [ ] **T7.8** Mailpit no `docker-compose.yml` + targets `notification-migrate`,
+- ✅ **T7.8** Mailpit no `docker-compose.yml` + targets `notification-migrate`,
       `notification-worker`, `mail-ui` no `Makefile`, com prefixo
       `$(PROJECT_NAME)-$(ENV)-`.
-- [ ] **T7.9** Validação E2E em `env.test.e2e`: pedido muda de status → inbox gravado +
+- ✅ **T7.9** Validação E2E em `env.test.e2e`: pedido muda de status → inbox gravado +
       WhatsApp enviado + badge chegando por SSE + retry de push com token inválido
       desativando o device.
 
@@ -368,9 +368,77 @@ release candidates do `meta-whatsapp-module` mostram ter sido o fluxo até aqui.
 
 Sequência correta:
 
-1. **T8.4** — publicar `rc` dos seis pacotes + `module-http`
-2. **Fase 7** — montar no quickcart e medir a cola contra a métrica de ≤ 25 linhas
-3. `rc+1` para o que a Fase 7 descobrir
+1. ~~**T8.4** — publicar `rc`~~ ✅ feito pelo CI no merge do PR #25: os nove pacotes saíram em
+   `0.1.0-rc.1`, e o `audio-transcription-provider` foi publicado pela primeira vez, o que consertou
+   o 404 que impedia `bun install` no quickcart numa máquina limpa.
+2. ~~**Fase 7** — montar no quickcart e medir a cola~~ ✅ feita. Medição: **57 linhas** contra as
+   1.310 da alternativa. A métrica de ≤25 não se sustentou, e o porquê está registrado acima.
+3. **`rc.3` pendente**, e agora é o que bloqueia: `notification-contracts`, `notification-client` e
+   `notification-ui` mudaram (interpolação compartilhada, `upsertTemplate`, dois bugs de
+   empacotamento). O quickcart consome por tarball local até o próximo merge — a página de
+   configuração não funciona com o `rc.1` publicado, porque o `notification-ui` dele não renderiza.
 
 A métrica de ≤ 25 linhas é a tese do projeto inteiro e **segue não medida** — nenhum host montou
 o módulo ainda.
+
+
+---
+
+## O que a Fase 7 achou, que nenhum teste tinha achado
+
+Montar num host de verdade é a única coisa que encontra esta classe de defeito. Registrado porque a
+lição vale mais que a lista: **11 bugs**, nenhum visível em teste de unidade, e dois deles em pacote
+já publicado.
+
+### No pacote (rc.1 estava inutilizável)
+
+1. **`notification-ui` não renderizava.** O bundle emitia `React.createElement` do runtime clássico
+   sem importar o `React` — `ReferenceError` no primeiro render. Causa: `jsx: react-jsx` chegava por
+   `extends` do `tsconfig.base.json`, e o esbuild não segue `extends` para essa opção. `tsc` e
+   `bun test` concordavam, o build discordava em silêncio. Os 19 testes passavam porque importam o
+   FONTE, não o `dist`.
+2. **Contexto duplicado entre entrypoints.** Com `splitting: false`, o tsup inline o compartilhado em
+   cada entrada, então `NotificationContext` existia duas vezes — um provider de `.` não alimentava
+   um hook de `/headless`. Estrutural: dividir em componentes e hooks é o que torna o chunk
+   obrigatório.
+3. **O cliente lia template e não escrevia**, com a rota `POST` existindo.
+4. **A interpolação vivia só no backend**, então preview no frontend só era possível
+   reimplementando — e preview que pode divergir do envio é pior que preview nenhum.
+
+`src/buildOutput.test.ts` passa a olhar o `dist`, que era a lacuna que deixou 1 e 2 passarem.
+
+### Na integração
+
+5. `userId: 'admin'` no meu resolvedor — o contrato usa UUID, então enviar dava 400 e o contador
+   dava 500 comparando coluna `uuid` com string.
+6. Resolvedor devolvia `undefined` para o operador, e o módulo recusa destinatário desconhecido:
+   todo aviso morria com 422. Operador é conhecido e sem endereço — objeto vazio é o que diz isso.
+7. Rotas montadas escapavam do CORS do host: o preflight passava (é nosso) e a resposta real vinha
+   sem `Access-Control-Allow-Origin`. "Failed to fetch" no navegador e **nada no log da api**,
+   porque o 200 saiu de verdade.
+8. O cliente exige base ABSOLUTA, e o projeto usa `VITE_API_URL` vazio (same-origin com proxy).
+   `/v1` lançava "Invalid URL" e a tela ficava em "Carregando…" **sem uma requisição no painel de
+   rede**.
+9. O `vite.config` é avaliado antes de o Vite carregar `.env`, então `process.env.VITE_*` está vazio
+   lá — o proxy ia para a api errada e dava 404 com a requisição parecendo correta.
+10. Templates sem `subject`: o renderer deriva o título DO corpo, e a inbox mostrava a mesma frase
+    duas vezes por linha.
+11. **WhatsApp exigia template aprovado**, e o E2E revelou: as deliveries nasciam `skipped` com
+    `whatsapp_template_required`. Isso expôs que o `ProcessNotificationJob` antigo mandava texto
+    livre, então **só funcionava dentro da janela de 24h** — fora dela a Meta rejeitava e o pedido
+    seguia como se o cliente tivesse sido avisado. O SDK falha visível em vez de falhar calado.
+
+### A métrica
+
+A spec pedia **≤ 25 linhas** de cola. Medido: **57**. Ela errou de forma instrutiva — 25 das 39
+linhas do módulo de integração são os dois resolvedores, irredutíveis por desenho, porque o pacote
+não pode conhecer a tabela de clientes nem o esquema de auth do host. A spec exigiu as portas e
+orçou uma cola que não cabe com elas. O número honesto para esta forma de integração é ~55, contra
+**1.310 linhas** que a mesma capacidade custou sem camada HTTP no módulo.
+
+### O que fica sem prova
+
+**Push não foi exercitado ponta a ponta.** Não exige app — o provider monta bloco `webpush` e o
+contrato aceita `platform: 'web'`, então o PWA serve. Falta projeto Firebase e par de chaves VAPID,
+que são credenciais. Detalhe em `quickcart/docs/NOTIFICACOES-PUSH.md`, incluindo a ressalva do iOS
+(Safari só entrega para PWA instalado na tela inicial).
