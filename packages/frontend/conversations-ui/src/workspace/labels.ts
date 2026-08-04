@@ -34,6 +34,9 @@ export interface ConversationsWorkspaceLabels {
   readonly copySelected: string
   readonly composerPlaceholder: string
   readonly attachFailure: string
+  /** Tira um arquivo da fila antes de enviar. */
+  readonly attachmentRemove: string
+  readonly recordFailure: string
   readonly sendFailure: string
   readonly takeoverToReply: string
   readonly signIn: string
@@ -72,6 +75,8 @@ export const DEFAULT_CONVERSATIONS_WORKSPACE_LABELS: ConversationsWorkspaceLabel
   copySelected: 'Copiar',
   composerPlaceholder: 'Responder como atendente…',
   attachFailure: 'Falha ao enviar o arquivo.',
+  attachmentRemove: 'Remover anexo',
+  recordFailure: 'Falha ao gravar o áudio.',
   sendFailure: 'Falha ao enviar a mensagem.',
   takeoverToReply: 'Assuma o atendimento para responder diretamente ao cliente.',
   signIn: 'Entrar no painel',

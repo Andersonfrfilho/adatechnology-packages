@@ -7,13 +7,15 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 
+import { AudioRecorderButton } from '../AudioRecorderButton'
 import { ConversationContextPanel, type ConversationContextEntry } from '../ConversationContextPanel'
 import { ConversationDocumentsPanel } from '../ConversationDocumentsPanel'
 import { ConversationHeader, type ConversationHeaderUtility } from '../ConversationHeader'
 import { ConversationWallpaper } from '../Wallpaper'
 import { DateDivider } from '../DateDivider'
 import { MessageBubble } from '../MessageBubble'
-import { MessageComposer, type QuickReply } from '../MessageComposer'
+import { MessageComposer, applyQuickReplyVariables, type QuickReply } from '../MessageComposer'
+import { RichMessageComposer, type RichComposerVariable } from '../RichMessageComposer'
 import { WindowExpiredNotice, isWindowBlocking } from '../WindowExpiredNotice'
 import { windowOf } from '../conversationWindow'
 import {
@@ -69,9 +71,34 @@ export interface ConversationPaneProps {
   readonly messageSelection?: boolean
   /** Texto já no campo ao abrir (deep link que sugere a resposta). */
   readonly initialComposerText?: string | undefined
-  /** Peça do produto entre o contexto e o transcript (ex.: ficha do lead, resumo do pedido). */
-  readonly renderAboveTranscript?: (conversation: ConversationSummary) => ReactNode
+  /**
+   * Peça do produto entre o contexto e o transcript (ex.: ficha do lead, resumo do pedido). Recebe o
+   * contexto do fluxo junto: é dele que sai o resumo, e sem isso o host teria de buscá-lo de novo.
+   */
+  readonly renderAboveTranscript?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => ReactNode
   readonly onAttach?: ((file: File) => Promise<void>) | undefined
+  /**
+   * `rich` troca o `textarea` pelo campo com a formatação do WhatsApp desenhada enquanto se escreve.
+   * Vale onde o atendente manda texto longo e formatado; para responder "já vou ver" o campo simples
+   * é menos coisa na tela.
+   */
+  readonly composer?: 'simple' | 'rich'
+  /** Valores que o operador insere sem digitar. Só o composer `rich` os oferece. */
+  readonly composerVariablesFor?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => readonly RichComposerVariable[]
+  /**
+   * Fila de anexos com legenda, como no WhatsApp: os arquivos escolhidos ficam visíveis acima da
+   * barra e saem junto com o texto escrito. Ausente, o clipe manda cada arquivo na hora — o que
+   * perde a legenda, e era a diferença entre as telas.
+   */
+  readonly onSendAttachments?: (files: readonly File[], caption: string) => Promise<void>
+  /** Grava e envia nota de voz. Ausente, o microfone não aparece. */
+  readonly onRecordAudio?: (file: File) => Promise<void>
 }
 
 export function ConversationPane({
@@ -94,6 +121,10 @@ export function ConversationPane({
   initialComposerText,
   renderAboveTranscript,
   onAttach,
+  composer = 'simple',
+  composerVariablesFor,
+  onSendAttachments,
+  onRecordAudio,
 }: ConversationPaneProps) {
   const context = useConversations()
   if (!context) {
@@ -107,12 +138,14 @@ export function ConversationPane({
   const [sendFailure, setSendFailure] = useState<string | undefined>(undefined)
   const [selectedMessageIds, setSelectedMessageIds] = useState<ReadonlySet<string>>(new Set())
   const [draft, setDraft] = useState(initialComposerText ?? '')
+  const [queuedFiles, setQueuedFiles] = useState<readonly File[]>([])
 
   // Trocar de conversa zera as duas coisas: seleção de mensagem e rascunho pertencem à thread, e
   // levá-los adiante faria copiar o trecho errado ou responder ao cliente errado.
   useEffect(() => {
     setSelectedMessageIds(new Set())
     setDraft(initialComposerText ?? '')
+    setQueuedFiles([])
   }, [conversation.id, initialComposerText])
 
   function toggleMessageSelected(messageId: string): void {
@@ -168,6 +201,24 @@ export function ConversationPane({
     await runSend(() => api.sendMessage(conversation.id, text), labels.sendFailure)
   }
 
+  /**
+   * O texto escrito é a legenda do anexo, não uma segunda mensagem: no WhatsApp a foto chega com a
+   * frase embaixo, e mandar as duas separadas invertia a ordem quando a mídia demorava a subir.
+   */
+  async function handleRichSend(): Promise<void> {
+    if (onSendAttachments && queuedFiles.length > 0) {
+      const files = queuedFiles
+      const caption = draft
+      await runSend(() => onSendAttachments(files, caption), labels.attachFailure)
+      setQueuedFiles([])
+      setDraft('')
+      return
+    }
+    if (!draft.trim()) return
+    await handleSend(draft)
+    setDraft('')
+  }
+
   async function handleAttach(file: File): Promise<void> {
     if (!onAttach) return
     await runSend(() => onAttach(file), labels.attachFailure)
@@ -185,6 +236,19 @@ export function ConversationPane({
   }
 
   const contextEntries = contextEntriesOf?.(conversationContext)
+  const composerVariables = composerVariablesFor?.(conversation, conversationContext)
+  /**
+   * As mesmas `quickReplies` do composer simples, com as variáveis já resolvidas — o campo rico
+   * recebe texto pronto. Uma segunda lista, só de formato diferente, é como as telas divergiam.
+   */
+  const richQuickReplies = quickReplies?.map((reply) => ({
+    id: reply.key,
+    label: reply.label,
+    text:
+      typeof reply.text === 'string'
+        ? applyQuickReplyVariables(reply.text, quickReplyVariablesFor?.(conversation, conversationContext) ?? {})
+        : reply.text(quickReplyVariablesFor?.(conversation, conversationContext) ?? {}),
+  }))
   const botOwnsConversation = Boolean(requireTakeoverToReply) && conversation.mode !== 'human'
 
   return (
@@ -207,7 +271,7 @@ export function ConversationPane({
       ) : null}
       <ConversationDocumentsPanel conversationId={conversation.id} open={documentsOpen} />
 
-      {renderAboveTranscript?.(conversation)}
+      {renderAboveTranscript?.(conversation, conversationContext)}
 
       {/* Mesmo wallpaper do preview do cliente: atendente e cliente devem ver a conversa com a
           mesma aparência, senão o preview deixa de ser referência confiável. */}
@@ -269,6 +333,57 @@ export function ConversationPane({
       ) : botOwnsConversation ? (
         // Responder com a conversa no bot atropelaria o fluxo automático no meio de uma pergunta.
         <p className="cv-workspace-notice">{labels.takeoverToReply}</p>
+      ) : composer === 'rich' ? (
+        <RichMessageComposer
+          value={draft}
+          onChange={setDraft}
+          onSend={() => void handleRichSend()}
+          {...(onSendAttachments
+            ? { onAttachFiles: (files: FileList) => setQueuedFiles((current) => [...current, ...Array.from(files)]) }
+            : onAttach
+              ? {
+                  onAttachFiles: (files: FileList) => {
+                    for (const file of Array.from(files)) void handleAttach(file)
+                  },
+                }
+              : {})}
+          placeholder={labels.composerPlaceholder}
+          isSending={busy}
+          {...(onRecordAudio
+            ? {
+                idleAction: (
+                  <AudioRecorderButton
+                    onRecorded={(file) => void runSend(() => onRecordAudio(file), labels.recordFailure)}
+                    onFailure={(failureMessage) => setSendFailure(failureMessage)}
+                  />
+                ),
+              }
+            : {})}
+          {...(queuedFiles.length > 0
+            ? {
+                attachmentsPreview: (
+                  <ul className="cv-workspace-attachments">
+                    {queuedFiles.map((file, index) => (
+                      <li key={`${file.name}-${index}`}>
+                        <span>{file.name}</span>
+                        <button
+                          type="button"
+                          aria-label={labels.attachmentRemove}
+                          onClick={() =>
+                            setQueuedFiles((current) => current.filter((_, position) => position !== index))
+                          }
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ),
+              }
+            : {})}
+          {...(richQuickReplies ? { quickReplies: [...richQuickReplies] } : {})}
+          {...(composerVariables ? { variables: [...composerVariables] } : {})}
+        />
       ) : (
         <MessageComposer
           value={draft}

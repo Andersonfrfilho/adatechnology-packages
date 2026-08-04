@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { ConversationContextEntry } from '../ConversationContextPanel'
 import type { ConversationHeaderUtility } from '../ConversationHeader'
 import type { QuickReply } from '../MessageComposer'
+import type { RichComposerVariable } from '../RichMessageComposer'
 import type { ConversationSummary } from '../providers/types'
 import { BulkTemplateModal } from './BulkTemplateModal'
 import { ConversationPane } from './ConversationPane'
@@ -62,13 +63,31 @@ export interface ConversationsWorkspaceProps {
   readonly messageSelection?: boolean
   /** Texto já no campo ao abrir a conversa (deep link que sugere a resposta). */
   readonly initialComposerText?: string | undefined
+  /** `rich` troca o campo simples pelo texto com a formatação do WhatsApp desenhada ao escrever. */
+  readonly composer?: 'simple' | 'rich'
+  /** Valores que o operador insere sem digitar. Só o composer `rich` os oferece. */
+  readonly composerVariablesFor?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => readonly RichComposerVariable[]
+  /** Fila de anexos com legenda, como no WhatsApp. Ausente, o clipe manda cada arquivo na hora. */
+  readonly onSendAttachments?: (
+    conversation: ConversationSummary,
+    files: readonly File[],
+    caption: string,
+  ) => Promise<void>
+  /** Nota de voz. Ausente, o microfone não aparece. */
+  readonly onRecordAudio?: (conversation: ConversationSummary, file: File) => Promise<void>
   readonly contextEntriesOf?: (context: Record<string, unknown> | undefined) => readonly ConversationContextEntry[]
   readonly onAttach?: (conversation: ConversationSummary, file: File) => Promise<void>
   readonly extraUtilitiesFor?: (conversation: ConversationSummary) => readonly ConversationHeaderUtility[]
   readonly renderFilters?: (inbox: UseConversationsInboxResult) => ReactNode
   readonly renderBulkActions?: (inbox: UseConversationsInboxResult) => ReactNode
   readonly renderRow?: (conversation: ConversationSummary) => ReactNode
-  readonly renderAboveTranscript?: (conversation: ConversationSummary) => ReactNode
+  readonly renderAboveTranscript?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => ReactNode
   readonly renderHeaderActions?: (inbox: UseConversationsInboxResult) => ReactNode
   readonly onSendTemplateToSelected?: (inbox: UseConversationsInboxResult) => void
   /** Destino do link de reentrar no painel, mostrado junto do aviso de sessão expirada. */
@@ -92,6 +111,10 @@ export function ConversationsWorkspace({
   requireTakeoverToReply,
   messageSelection,
   initialComposerText,
+  composer,
+  composerVariablesFor,
+  onSendAttachments,
+  onRecordAudio,
   contextEntriesOf,
   onAttach,
   extraUtilitiesFor,
@@ -268,6 +291,15 @@ export function ConversationsWorkspace({
               {...(requireTakeoverToReply ? { requireTakeoverToReply } : {})}
               {...(messageSelection ? { messageSelection } : {})}
               {...(initialComposerText ? { initialComposerText } : {})}
+              {...(composer ? { composer } : {})}
+              {...(composerVariablesFor ? { composerVariablesFor } : {})}
+              {...(onSendAttachments
+                ? {
+                    onSendAttachments: (files: readonly File[], caption: string) =>
+                      onSendAttachments(selected, files, caption),
+                  }
+                : {})}
+              {...(onRecordAudio ? { onRecordAudio: (file: File) => onRecordAudio(selected, file) } : {})}
               onBack={inbox.clearSelection}
               {...(paneUtilities ? { extraUtilities: paneUtilities } : {})}
               {...(contextEntriesOf ? { contextEntriesOf } : {})}
