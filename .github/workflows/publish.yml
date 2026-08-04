@@ -100,3 +100,21 @@ jobs:
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Quando um nome de pacote muda de dono — a implementação sai para um nome novo e o
+      # nome antigo passa a carregar outra coisa — quem já dependia da linha antiga precisa
+      # ver o aviso no próprio `npm install`. É o único lugar onde a mensagem alcança quem
+      # não lê changelog. O registry guarda o aviso por versão, então repetir o comando a
+      # cada release é inofensivo; `|| true` evita que uma linha ainda não publicada, ou uma
+      # falha de rede no registry, derrube um release que já concluiu a publicação.
+      - name: Deprecate legacy package lines
+        run: |
+          deprecate() {
+            echo "--- $1"
+            npm deprecate "$1" "$2" || true
+          }
+
+          deprecate "@adatechnology/keycloak-admin@<=0.1.16" \
+            "Este nome agora é o cliente agnóstico da Admin API (client_credentials, sem framework). A implementação NestJS mudou para @adatechnology/nestjs-keycloak-admin — troque o nome da dependência, o comportamento é o mesmo."
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
