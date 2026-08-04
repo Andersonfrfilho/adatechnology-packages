@@ -1,8 +1,8 @@
 {
   "name": "@adatechnology/module-http",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0-rc.1",
   "license": "MIT",
-  "description": "Framework-agnostic HTTP layer for pluggable modules \u2014 declarative route table, fetch and uWebSockets adapters, OpenAPI generation",
+  "description": "Framework-agnostic HTTP layer for pluggable modules — declarative route table, fetch and uWebSockets adapters, OpenAPI generation",
   "publishConfig": {
     "access": "public"
   },
