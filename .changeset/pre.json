@@ -105,6 +105,7 @@
     "waiting-notifications-configurable",
     "wallpaper-self-contained",
     "webhook-security-tests",
-    "widen-message-type"
+    "widen-message-type",
+    "workspace-rich-composer"
   ]
 }
