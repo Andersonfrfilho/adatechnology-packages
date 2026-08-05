@@ -53,3 +53,19 @@ export type { FlowPortalNodeData } from './FlowPortalNode'
 export type { FlowPaletteProps, FlowPaletteActionOption, NewNodeSpec } from './FlowPalette'
 export type { FlowNodePanelProps } from './FlowNodePanel'
 export type { FlowWhatsAppPreviewProps } from './FlowWhatsAppPreview'
+
+/**
+ * Operações do EDITOR de fluxo, puras. Vinham soltas dentro da página de 973 linhas do
+ * financiamento; são a base do `FlowsWorkspace` (ADR 0002) e a parte que carrega o risco de perder
+ * trabalho de quem edita.
+ */
+export {
+  applyConnection,
+  isGraphDirty,
+  mergedFlowKeysFrom,
+  namespaceNodeId,
+  parseNamespacedId,
+  removeNodeAndCleanRefs,
+  resolveConnection,
+} from './flowEditorOps'
+export type { ConnectionRequest, ResolvedConnection } from './flowEditorOps'
