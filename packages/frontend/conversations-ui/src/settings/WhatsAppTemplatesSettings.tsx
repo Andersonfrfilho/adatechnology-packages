@@ -13,9 +13,11 @@ import {
   WhatsAppTemplateSettingsForm,
   type WhatsAppTemplateSummary,
   type WhatsAppTemplateVariableSuggestion,
+  type WhatsAppTemplateSettingsFormLabels,
 } from './WhatsAppTemplateSettingsForm'
 import {
   WhatsAppCreateTemplateForm,
+  type WhatsAppCreateTemplateFormLabels,
   type WhatsAppCreateTemplateResult,
   type WhatsAppCreateTemplateState,
 } from './WhatsAppCreateTemplateForm'
@@ -56,12 +58,16 @@ export interface WhatsAppTemplatesSettingsProps {
     onSubmit: (event: FormEvent) => void
     submitting?: boolean
     result?: WhatsAppCreateTemplateResult | null
+    labels?: Partial<WhatsAppCreateTemplateFormLabels>
   }
   labels?: Partial<WhatsAppTemplatesSettingsLabels>
+  /** Vocabulário do formulário de seleção — separado de `labels`, que nomeia só as abas daqui. */
+  settingsLabels?: Partial<WhatsAppTemplateSettingsFormLabels>
 }
 
 export function WhatsAppTemplatesSettings({
   labels: labelsOverride,
+  settingsLabels,
   create,
   ...settingsProps
 }: WhatsAppTemplatesSettingsProps) {
@@ -97,7 +103,7 @@ export function WhatsAppTemplatesSettings({
       </nav>
 
       {tab === TEMPLATE_SETTINGS_TAB.SELECT ? (
-        <WhatsAppTemplateSettingsForm {...settingsProps} />
+        <WhatsAppTemplateSettingsForm {...settingsProps} {...(settingsLabels ? { labels: settingsLabels } : {})} />
       ) : create ? (
         <WhatsAppCreateTemplateForm {...create} />
       ) : null}

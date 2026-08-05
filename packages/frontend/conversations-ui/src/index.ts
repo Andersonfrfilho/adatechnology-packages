@@ -86,6 +86,24 @@ export { WindowExpiredNotice, isWindowBlocking, DEFAULT_WINDOW_EXPIRED_LABELS } 
 export type { WindowExpiredNoticeProps, WindowExpiredNoticeLabels } from './WindowExpiredNotice'
 export { DocumentsLibrary, DEFAULT_DOCUMENTS_LIBRARY_LABELS } from './DocumentsLibrary'
 export type { DocumentsLibraryProps, DocumentsLibraryLabels, DocumentsLibraryClassNames } from './DocumentsLibrary'
+export { DocumentsWorkspace, DEFAULT_DOCUMENTS_WORKSPACE_LABELS } from './documents'
+export type {
+  DocumentsWorkspaceProps,
+  DocumentsWorkspaceLabels,
+  DocumentsWorkspaceClassNames,
+  DocumentsFiltersContext,
+} from './documents'
+export { SortableHead, MultiSelectFilter, BulkActionBar, ListingPagination } from './listing'
+export type {
+  SortableHeadProps,
+  MultiSelectFilterProps,
+  BulkActionBarProps,
+  ListingPaginationProps,
+  FilterOption,
+  SortDirection,
+} from './listing'
+export { useUrlStringState, useUrlNumberState, useUrlArrayState, useDebouncedValue } from './hooks/useUrlFilterState'
+export type { UrlStateOptions } from './hooks/useUrlFilterState'
 export { DOCUMENT_SOURCE_FILTER } from './ConversationDocumentsPanel'
 export type { DocumentSourceFilter } from './ConversationDocumentsPanel'
 export type { ConversationDocumentsPanelClassNames } from './ConversationDocumentsPanel'
@@ -117,6 +135,18 @@ export {
   DEFAULT_TEMPLATES_SETTINGS_LABELS,
 } from './settings/WhatsAppTemplatesSettings'
 export { TopicsForm } from './settings/TopicsForm'
+
+// Tela composta de Mensagens: junta os formulários acima com abas, estado e salvamento, para o
+// host não remontar essa mesma colagem em cada produto (foi assim que eles divergiram).
+export { MessagesWorkspace } from './settings/MessagesWorkspace'
+export type {
+  MessagesWorkspaceProps,
+  MessagesWorkspaceApi,
+  MessagesWorkspaceLabels,
+  BotMessages,
+  TemplateSettings,
+  TranscriptionSettings,
+} from './settings/MessagesWorkspace'
 
 // Camada headless (T6.9) — hooks de dados/ações independentes de qualquer tela, para o
 // produto montar sua própria UI sobre eles. Requerem <ConversationsProvider> como ancestral.

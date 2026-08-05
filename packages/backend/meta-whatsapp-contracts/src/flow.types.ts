@@ -30,6 +30,9 @@ export const crossFlowKey = (target: string): string => target.slice(CROSS_FLOW_
 export type FlowNodeData = {
   id: string
   type: FlowNodeType
+  // Apelido do nó no editor. Só rótulo: o motor do bot ignora, e serve pra distinguir dois nós do
+  // mesmo tipo ("Enviar tabela de juros" x "Enviar contrato") que sem isso ficam idênticos no card.
+  label?: string
   contextKey?: string
   questionType?: FlowQuestionType
   question?: string

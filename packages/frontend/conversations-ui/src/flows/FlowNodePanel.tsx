@@ -80,7 +80,7 @@ export interface FlowNodePanelProps {
    * URL assinada são dele, e o painel não tem como buscar nada. Ausente, o nó continua editável —
    * só não dá para anexar por aqui.
    */
-  renderMediaPicker?: (node: FlowNodeData) => ReactNode
+  renderMediaPicker?: (node: FlowNodeData, graph: FlowGraphData) => ReactNode
 }
 
 // Paridade com financiamento-imobiliario-bot/apps/web/src/components/flows/FlowNodePanel.tsx —
@@ -211,6 +211,19 @@ export function FlowNodePanel({
           </p>
         )}
 
+        <div>
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {labels.nodePanel.nodeName}
+          </label>
+          <input
+            value={draft.label ?? ''}
+            placeholder={labels.nodePanel.nodeNamePlaceholder}
+            onChange={(event) => setDraft((prev) => ({ ...prev, label: event.target.value || undefined }))}
+            className={`w-full mt-1 ${INPUT_CLASSNAME}`}
+          />
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">{labels.nodePanel.nodeNameHint}</p>
+        </div>
+
         {draft.contextKey && (
           <div>
             <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -322,7 +335,7 @@ export function FlowNodePanel({
           <div>
             <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.media}</label>
             <div className="mt-1">
-              {renderMediaPicker?.(node) ?? (
+              {renderMediaPicker?.(node, graph) ?? (
                 <p className="text-xs text-gray-400">{labels.nodePanel.mediaUnavailable}</p>
               )}
             </div>
