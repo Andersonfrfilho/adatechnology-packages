@@ -361,11 +361,10 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  /* Só as peças herdam o palpite por sistema — as telas compostas herdam do host, que é quem sabe. */
   .adn-bell,
   .adn-list,
-  .adn-preferences,
-  .adn-workspace,
-  .adn-settings {
+  .adn-preferences {
     --adn-color-surface: var(--adn-surface, #111827);
     --adn-color-text: var(--adn-text, #f9fafb);
     --adn-color-muted: var(--adn-muted, #9ca3af);
@@ -385,6 +384,15 @@
 /* ---------------------------------------------------------------------------
    Telas compostas.
 
+   SUPERFÍCIE TRANSPARENTE por padrão, e a borda é que delineia o card.
+
+   As peças (`adn-list`, `adn-preferences`) pintavam fundo próprio, e passava porque o host as punha
+   dentro de um `Card` dele — o fundo do host vencia. O workspace É o card, então o fundo do pacote
+   aparece: com o sistema em modo escuro, o pacote pintava escuro enquanto o Tailwind do host
+   renderizava claro. O pacote lê `prefers-color-scheme`, o host lê o tema DELE, e os dois discordam.
+   Herdar é a única resposta que funciona nos dois casos; quem quiser fundo sólido define
+   `--adn-surface`.
+
    Grid mobile-first: uma coluna, e a segunda entra a partir de 1024px. Área de toque de 44px nos
    controles (`web.md` §10) — checkbox nativo mede 13px, e configuração é tela que se ajusta no
    celular tanto quanto no monitor.
@@ -395,7 +403,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--adn-space-4, 16px);
-  color: var(--adn-color-text);
+  /* `inherit` e não o token: a cor de texto do host já está no elemento pai. */
+  color: inherit;
 }
 
 .adn-workspace__header,
@@ -418,6 +427,9 @@
 .adn-workspace__description,
 .adn-settings__description,
 .adn-settings__hint {
+  /* `block` porque o hint é <span> dentro de <label>: inline, ele colava no rótulo e a tela mostrava
+     "TítuloO que aparece na lista". */
+  display: block;
   margin: 2px 0 0;
   font-size: 0.8125rem;
   color: var(--adn-color-muted);
@@ -447,7 +459,7 @@
 
 .adn-button--outline {
   border-color: var(--adn-color-border);
-  background: var(--adn-color-surface);
+  background: var(--adn-surface, transparent);
 }
 
 .adn-workspace__grid,
@@ -480,7 +492,7 @@
 .adn-settings__channels,
 .adn-settings__template-list,
 .adn-settings__editor {
-  background: var(--adn-color-surface);
+  background: var(--adn-surface, transparent);
   border: 1px solid var(--adn-color-border);
   border-radius: var(--adn-radius);
   padding: var(--adn-space-4, 16px);
@@ -621,7 +633,7 @@
   font: inherit;
   font-size: 0.875rem;
   color: inherit;
-  background: var(--adn-color-surface);
+  background: var(--adn-surface, transparent);
   border: 1px solid var(--adn-color-border);
   border-radius: var(--adn-radius);
 }

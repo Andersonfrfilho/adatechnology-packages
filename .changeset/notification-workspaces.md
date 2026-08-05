@@ -34,3 +34,12 @@ uses, so it cannot drift.
 with a radically different layout composes them, which beats forking), no `hasX`, no hardcoded text.
 Verified by mutation — and the mutation found a hole in my own regex, which required the text to be
 glued to the tags while Prettier puts it on its own line.
+
+**Theming: the workspace inherits, it does not impose.** Surfaces default to `transparent` and the
+border draws the card. The pieces used to paint their own background and got away with it because
+hosts wrapped them in their own `Card` — the host's background won. The workspace *is* the card, so
+the package's background showed: with the OS in dark mode, the package painted dark while the host's
+Tailwind rendered light. The package reads `prefers-color-scheme`, the host reads *its own* theme, and
+they disagree. Inheriting is the only answer that works in both; set `--adn-surface` for a solid one.
+
+Found by looking at the screen, not by reading the CSS.
