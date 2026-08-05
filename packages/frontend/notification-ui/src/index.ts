@@ -15,3 +15,16 @@ export type { NotificationItemProps } from './components/NotificationItem'
 
 export { PreferencesPanel } from './components/PreferencesPanel'
 export type { PreferencesPanelProps } from './components/PreferencesPanel'
+
+/**
+ * As telas COMPOSTAS. Consumir estas, não as peças — remontar o grid no produto é o que fez as
+ * telas divergirem antes (`pluggable-module.md` §4).
+ */
+export { NotificationsWorkspace } from './components/NotificationsWorkspace'
+export type { NotificationsWorkspaceProps } from './components/NotificationsWorkspace'
+export { NotificationSettingsWorkspace } from './components/NotificationSettingsWorkspace'
+export type {
+  NotificationSettingsWorkspaceProps,
+  NotificationChannelOption,
+  NotificationCategoryOption,
+} from './components/NotificationSettingsWorkspace'

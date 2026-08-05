@@ -27,3 +27,6 @@ export { NOTIFICATION_QUERY_KEYS } from './hooks/queryKeys'
 
 export { DEFAULT_LOCALE, resolveMessages } from './locales'
 export type { NotificationLocale, NotificationMessages } from './locales'
+
+export { useTemplateEditor } from './hooks/useTemplateEditor'
+export type { TemplateDraft, UseTemplateEditorParams, UseTemplateEditorResult } from './hooks/useTemplateEditor'

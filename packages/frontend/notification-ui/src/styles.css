@@ -8,7 +8,9 @@
 
 .adn-bell,
 .adn-list,
-.adn-preferences {
+.adn-preferences,
+.adn-workspace,
+.adn-settings {
   --adn-color-surface: var(--adn-surface, #ffffff);
   --adn-color-text: var(--adn-text, #111827);
   --adn-color-muted: var(--adn-muted, #6b7280);
@@ -361,7 +363,9 @@
 @media (prefers-color-scheme: dark) {
   .adn-bell,
   .adn-list,
-  .adn-preferences {
+  .adn-preferences,
+  .adn-workspace,
+  .adn-settings {
     --adn-color-surface: var(--adn-surface, #111827);
     --adn-color-text: var(--adn-text, #f9fafb);
     --adn-color-muted: var(--adn-muted, #9ca3af);
@@ -376,4 +380,310 @@
   .adn-list__bulk-action {
     transition: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Telas compostas.
+
+   Grid mobile-first: uma coluna, e a segunda entra a partir de 1024px. Área de toque de 44px nos
+   controles (`web.md` §10) — checkbox nativo mede 13px, e configuração é tela que se ajusta no
+   celular tanto quanto no monitor.
+   --------------------------------------------------------------------------- */
+
+.adn-workspace,
+.adn-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-4, 16px);
+  color: var(--adn-color-text);
+}
+
+.adn-workspace__header,
+.adn-settings__header,
+.adn-settings__editor-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--adn-space-3, 12px);
+}
+
+.adn-workspace__title,
+.adn-settings__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.adn-workspace__description,
+.adn-settings__description,
+.adn-settings__hint {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  color: var(--adn-color-muted);
+}
+
+.adn-workspace__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+  min-height: 44px;
+  padding: 0 var(--adn-space-3, 12px);
+  border-radius: var(--adn-radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.adn-button--outline {
+  border-color: var(--adn-color-border);
+  background: var(--adn-color-surface);
+}
+
+.adn-workspace__grid,
+.adn-settings__templates {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--adn-space-4, 16px);
+}
+
+.adn-workspace__grid--single {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .adn-workspace__grid {
+    grid-template-columns: 2fr 1fr;
+  }
+
+  .adn-settings__templates {
+    grid-template-columns: 2fr 3fr;
+  }
+
+  /* Botão volta ao tamanho de mouse: 44px existe para o dedo. */
+  .adn-button {
+    min-height: 36px;
+  }
+}
+
+.adn-settings__channels,
+.adn-settings__template-list,
+.adn-settings__editor {
+  background: var(--adn-color-surface);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  padding: var(--adn-space-4, 16px);
+}
+
+.adn-settings__section-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.adn-settings__category {
+  margin-top: var(--adn-space-4, 16px);
+}
+
+.adn-settings__category-label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.adn-settings__channel-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--adn-space-2, 8px);
+  margin-top: var(--adn-space-2, 8px);
+}
+
+@media (min-width: 640px) {
+  .adn-settings__channel-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.adn-settings__channel {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--adn-space-2, 8px);
+  padding: var(--adn-space-2, 8px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  cursor: pointer;
+  /* Alvo de toque inteiro na linha, não só no quadradinho. */
+  min-height: 44px;
+}
+
+.adn-settings__channel input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  accent-color: var(--adn-color-accent);
+}
+
+.adn-settings__channel-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.adn-settings__template-list ul {
+  list-style: none;
+  margin: var(--adn-space-3, 12px) 0 0;
+  padding: 0;
+}
+
+.adn-settings__template-list li + li {
+  border-top: 1px solid var(--adn-color-border);
+}
+
+.adn-settings__template-list button {
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--adn-space-2, 8px);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.adn-settings__row--active {
+  background: color-mix(in srgb, var(--adn-color-accent) 8%, transparent);
+}
+
+.adn-settings__row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.adn-settings__row-title,
+.adn-settings__row-body {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adn-settings__row-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.adn-settings__row-body,
+.adn-settings__version {
+  font-size: 0.75rem;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__badge {
+  flex-shrink: 0;
+  padding: 2px var(--adn-space-2, 8px);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--adn-color-accent) 12%, transparent);
+}
+
+.adn-settings__field {
+  display: block;
+  margin-top: var(--adn-space-3, 12px);
+}
+
+.adn-settings__field-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.adn-settings__field input,
+.adn-settings__field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: var(--adn-space-2, 8px);
+  font: inherit;
+  font-size: 0.875rem;
+  color: inherit;
+  background: var(--adn-color-surface);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+}
+
+.adn-settings__preview {
+  margin-top: var(--adn-space-3, 12px);
+  padding: var(--adn-space-3, 12px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: color-mix(in srgb, var(--adn-color-muted) 8%, transparent);
+}
+
+.adn-settings__preview-title {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__preview-subject {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.adn-settings__preview-body {
+  margin: 0;
+  font-size: 0.875rem;
+  /* Quebra de linha do template é conteúdo: o destinatário vê os parágrafos. */
+  white-space: pre-wrap;
+}
+
+.adn-settings__error {
+  margin-top: var(--adn-space-2, 8px);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--adn-color-danger);
+}
+
+.adn-settings__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+  margin-top: var(--adn-space-3, 12px);
+}
+
+.adn-settings__actions button {
+  min-height: 44px;
+  padding: 0 var(--adn-space-4, 16px);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #ffffff;
+  background: var(--adn-color-accent);
+  border: 0;
+  border-radius: var(--adn-radius);
+  cursor: pointer;
+}
+
+.adn-settings__actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
