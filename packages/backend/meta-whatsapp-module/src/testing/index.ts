@@ -11,6 +11,7 @@ export {
   buildInboundTextPayload,
   buildInboundInteractivePayload,
   buildInboundAudioPayload,
+  buildInboundMediaPayload,
   serializeWebhookPayload,
   PREVIEW_PHONE_NUMBER_ID,
   PREVIEW_WABA_ID,
@@ -22,8 +23,13 @@ export type {
   BuildInboundTextPayloadParams,
   BuildInboundInteractivePayloadParams,
   BuildInboundAudioPayloadParams,
+  BuildInboundMediaPayloadParams,
+  InboundMediaType,
   InteractiveReplyOption,
 } from '@adatechnology/meta-whatsapp-contracts/testing'
+
+export { MEDIA_SAMPLES, findMediaSample, readMediaSample } from './mediaSamples'
+export type { MediaSample, MediaSampleName } from './mediaSamples'
 
 export { signWebhookPayload, toSignedWebhookRequest } from './inboundPayloads'
 export type { SignWebhookPayloadParams, SignedWebhookRequest, ToSignedWebhookRequestParams } from './inboundPayloads'

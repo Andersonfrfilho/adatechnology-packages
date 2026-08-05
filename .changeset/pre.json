@@ -57,7 +57,9 @@
     "configurable-product-model",
     "conversation-deletion-and-retention",
     "conversation-documents-data-layer",
+    "conversation-simulator-panel",
     "conversations-ui-labels-extraction",
+    "conversations-workspace",
     "cte-4-00-sefaz-authorization",
     "cte-authorized-xml-and-ide-parameters",
     "cte-cancelamento-proc-evento",
@@ -79,6 +81,7 @@
     "lazy-media-button",
     "mdfe-3-00-emissao-encerramento-cancelamento",
     "mdfe-svrs-lotacao-contratante-pagamento",
+    "media-sample-fixtures",
     "media-types-and-valid-preview-files",
     "message-moderation",
     "meta-whatsapp-trio-rc",
@@ -102,6 +105,7 @@
     "waiting-notifications-configurable",
     "wallpaper-self-contained",
     "webhook-security-tests",
-    "widen-message-type"
+    "widen-message-type",
+    "workspace-rich-composer"
   ]
 }

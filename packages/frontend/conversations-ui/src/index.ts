@@ -209,3 +209,18 @@ export { createMediaUrlResolver } from './lib/createMediaUrlResolver'
 export type { ConversationHeaderUtility } from './ConversationHeader'
 export { applyQuickReplyVariables, resolveQuickReply } from './MessageComposer'
 export type { QuickReply } from './MessageComposer'
+
+// Tela de atendimento completa. Fica no export principal — e não num subpath — porque é a
+// composição padrão do pacote: quem instala conversas quer esta tela, e as peças continuam
+// exportadas ao lado para quem precisar montar outra.
+export { ConversationsWorkspace, ConversationPane, ConversationsInboxList } from './workspace'
+export { useConversationsInbox, CONVERSATIONS_PER_PAGE, DEFAULT_CONVERSATIONS_WORKSPACE_LABELS } from './workspace'
+export type {
+  ConversationsWorkspaceProps,
+  ConversationsWorkspaceSimulator,
+  ConversationsWorkspaceLabels,
+  ConversationPaneProps,
+  ConversationsInboxListProps,
+  UseConversationsInboxParams,
+  UseConversationsInboxResult,
+} from './workspace'

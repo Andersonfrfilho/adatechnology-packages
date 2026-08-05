@@ -36,6 +36,13 @@ function createCapturingFetch(status = 200): { fetchImplementation: typeof fetch
   return { fetchImplementation, captured }
 }
 
+/** `uploadMedia` é opcional no contrato — o cliente do webhook sempre traz, o teste garante isso. */
+function uploadMediaOf(client: { uploadMedia?: (file: File) => Promise<unknown> }) {
+  const upload = client.uploadMedia
+  if (!upload) throw new Error('createPreviewWebhookClient deveria expor uploadMedia')
+  return upload
+}
+
 describe('createPreviewWebhookClient', () => {
   it('assina com o mesmo HMAC que o servidor calcula em node:crypto', async () => {
     const { fetchImplementation, captured } = createCapturingFetch()
@@ -144,7 +151,7 @@ describe('createPreviewWebhookClient.uploadMedia', () => {
       fetchImplementation,
     })
 
-    const uploaded = await client.uploadMedia(audioFile())
+    const uploaded = (await uploadMediaOf(client)(audioFile())) as { mediaId: string; mimeType?: string }
 
     expect(calls[0]?.url).toBe('http://localhost:3000/v1/preview/media')
     expect(uploaded.mediaId).toBe(`${PREVIEW_MEDIA_ID_PREFIX}upl_123`)
@@ -160,7 +167,7 @@ describe('createPreviewWebhookClient.uploadMedia', () => {
       fetchImplementation,
     })
 
-    await client.uploadMedia(audioFile())
+    await uploadMediaOf(client)(audioFile())
 
     const expected = `sha256=${createHmac('sha256', APP_SECRET).update('audio/ogg').digest('hex')}`
     expect(calls[0]?.signature).toBe(expected)
@@ -175,7 +182,7 @@ describe('createPreviewWebhookClient.uploadMedia', () => {
       fetchImplementation,
     })
 
-    await client.uploadMedia(audioFile())
+    await uploadMediaOf(client)(audioFile())
 
     expect(calls[0]?.url).toBe('/v1/preview/media')
   })
@@ -189,6 +196,6 @@ describe('createPreviewWebhookClient.uploadMedia', () => {
       fetchImplementation,
     })
 
-    await expect(client.uploadMedia(audioFile())).rejects.toBeInstanceOf(PreviewMediaUploadRejectedError)
+    await expect(uploadMediaOf(client)(audioFile())).rejects.toBeInstanceOf(PreviewMediaUploadRejectedError)
   })
 })
