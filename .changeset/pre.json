@@ -75,6 +75,7 @@
     "fix-correlation",
     "flow-graph-cache",
     "flow-send-media-node",
+    "flows-media-slot-graph",
     "inbox-components",
     "inbox-operations-and-pagination",
     "interactive-message-formatting",
