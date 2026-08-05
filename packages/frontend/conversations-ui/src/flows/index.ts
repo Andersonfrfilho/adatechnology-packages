@@ -9,6 +9,7 @@ export { FlowPortalNode, flowPortalNodeTypes } from './FlowPortalNode'
 export { FlowPalette } from './FlowPalette'
 export { FlowNodePanel } from './FlowNodePanel'
 export { FlowWhatsAppPreview } from './FlowWhatsAppPreview'
+export { FlowsWorkspace } from './FlowsWorkspace'
 
 export { DEFAULT_FLOW_EDITOR_LABELS, mergeFlowEditorLabels } from './labels'
 
@@ -43,7 +44,8 @@ export type {
   CollectionChain,
 } from './flowGraph'
 
-export type { FlowEditorLabels } from './labels'
+export type { FlowEditorLabels, FlowValidationLabels } from './labels'
+export type { FlowsWorkspaceProps, FlowsWorkspaceApi, FlowLivePosition, CreateFlowInput } from './FlowsWorkspace'
 export type { FlowNodeCardData } from './FlowNodeCard'
 export type { FlowMapNodeData } from './FlowMapNode'
 export type { FlowMapCanvasProps } from './FlowMapCanvas'

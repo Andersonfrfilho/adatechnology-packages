@@ -43,6 +43,9 @@ const DEFAULT_ACTION_KIND_ICON: Record<string, LucideIcon> = {
 // que só faz sentido para quem escreveu o interpretador do fluxo, não para quem está editando.
 export function nodeLabel(node: FlowNodeData | undefined, labels: FlowEditorLabels): string {
   if (!node) return '—'
+  // Apelido dado no editor manda sobre qualquer texto derivado: dois nós de mesma ação ficam
+  // idênticos no card sem ele, e é exatamente para desempatá-los que o campo existe.
+  if (node.label) return node.label
   if (node.type === 'action') {
     const actionKindLabel = node.actionKind ? labels.actionKindLabels[node.actionKind] : undefined
     // Sempre retorna string: um actionKind futuro sem label mapeado cai no próprio valor bruto
@@ -62,6 +65,12 @@ export type FlowNodeCardData = {
   liveCount: number
   isStart: boolean
   isSelected: boolean
+  /**
+   * Nó sem nenhuma ligação de entrada — o bot nunca chega nele. Contorno tracejado e pulso: sem
+   * isso, desconectar um fio ou criar um card solto passa despercebido até o fluxo quebrar em
+   * produção.
+   */
+  isDetached?: boolean
   issues: GraphIssue[]
   labels: FlowEditorLabels
   actionKindIcons?: Record<string, LucideIcon>
@@ -112,7 +121,7 @@ function SourceRow({ label, isDefault, handleId }: { label: string; isDefault: b
 }
 
 export function FlowNodeCard({ data }: NodeProps) {
-  const { node, liveCount, isStart, isSelected, issues, labels, actionKindIcons, onSelect } =
+  const { node, liveCount, isStart, isSelected, isDetached, issues, labels, actionKindIcons, onSelect } =
     data as unknown as FlowNodeCardData
   const label = nodeLabel(node, labels)
   const iconMap = { ...DEFAULT_ACTION_KIND_ICON, ...actionKindIcons }
@@ -126,8 +135,8 @@ export function FlowNodeCard({ data }: NodeProps) {
 
   return (
     <div
-      title={label}
-      className={`relative rounded-lg border-2 px-3 py-2 w-60 cursor-pointer shadow-sm hover:shadow-md transition-shadow ${NODE_TYPE_COLOR[node.type]} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''}`}
+      title={isDetached ? labels.detachedNodeTooltip : label}
+      className={`relative rounded-lg border-2 px-3 py-2 w-60 cursor-pointer shadow-sm hover:shadow-md transition-shadow ${NODE_TYPE_COLOR[node.type]} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''} ${isDetached ? 'border-dashed !border-amber-400 animate-pulse' : ''}`}
       onClick={() => onSelect(node.id)}
     >
       <Handle type="target" position={Position.Top} id="target" className="!bg-gray-400 dark:!bg-gray-500" />

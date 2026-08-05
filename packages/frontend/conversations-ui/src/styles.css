@@ -772,3 +772,73 @@
 .dark .cv-workspace-attachments li {
   border-color: rgb(51 65 85);
 }
+
+/* Peças de listagem (documentos, mensagens): tabela com filtros, seleção em lote e paginação. */
+.cv-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  background: rgb(37 99 235);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+.cv-filter-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  margin-top: 0.25rem;
+  min-width: 12rem;
+  padding: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+.dark .cv-filter-menu { background: rgb(30 41 59); border-color: rgb(71 85 105); }
+.cv-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.cv-filter-option:hover { background: rgb(241 245 249); }
+.dark .cv-filter-option:hover { background: rgb(51 65 85); }
+.cv-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(191 219 254);
+  border-radius: 0.5rem;
+  background: rgb(239 246 255);
+}
+.dark .cv-bulk-bar { background: rgb(30 58 138 / 0.25); border-color: rgb(30 64 175); }
+.cv-listing-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgb(241 245 249);
+}
+.dark .cv-listing-pagination { border-color: rgb(30 41 59); }
+.cv-listing-perpage {
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.375rem;
+  background: transparent;
+  font-size: 0.75rem;
+}
+.dark .cv-listing-perpage { border-color: rgb(71 85 105); }
