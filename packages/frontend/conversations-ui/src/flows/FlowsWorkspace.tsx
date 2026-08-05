@@ -104,7 +104,9 @@ export interface FlowsWorkspaceProps {
   /** Kinds de ação do produto oferecidos na paleta (`trigger_simulation`, `abrir_comanda`…). */
   readonly actionOptions?: readonly FlowPaletteActionOption[]
   /** Seletor de arquivos do nó `send_media` — a biblioteca é do host, então entra por slot. */
-  readonly renderMediaPicker?: (node: FlowNodeData) => ReactNode
+  // Recebe o grafo junto do nó: com fluxos fundidos, o nó em edição pode pertencer a um fluxo que
+  // não é o raiz, e o seletor do host precisa da chave dele para saber onde gravar.
+  readonly renderMediaPicker?: (node: FlowNodeData, graph: FlowGraphData) => ReactNode
   /** Intervalo do polling de posições vivas. Só tem efeito com `getLivePositions`. */
   readonly livePollIntervalMs?: number
   readonly className?: string
