@@ -11,12 +11,13 @@
  */
 
 // Os TIPOS do grafo vêm do meta-whatsapp-contracts, fonte única da verdade do trio
-// (`pluggable-module.md` §2) — mesmo motivo documentado em `flowGraph.ts`. `import type` puro:
-// nenhum runtime do contracts entra no bundle do frontend.
-import { CROSS_FLOW_PREFIX } from '@adatechnology/meta-whatsapp-contracts'
+// (`pluggable-module.md` §2) — mesmo motivo documentado em `flowGraph.ts`. `import type` puro: nada
+// do contracts entra por aqui em tempo de execução.
 import type { FlowGraphData, FlowNodeData, FlowNodeNext } from '@adatechnology/meta-whatsapp-contracts'
 
-import { crossFlowTargetsOf } from './flowGraph'
+// A constante vem do `flowGraph`, que já a define, e não do contracts: duas fontes do mesmo prefixo
+// divergem em silêncio, e o sintoma seria salto entre fluxos que o motor do bot não reconhece.
+import { CROSS_FLOW_PREFIX, crossFlowTargetsOf } from './flowGraph'
 
 const NAMESPACE_SEPARATOR = '::'
 
