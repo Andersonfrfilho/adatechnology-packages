@@ -41,13 +41,11 @@ export type FlowsWorkspaceProps = {
    * não dá para anexar arquivo por aqui.
    */
   readonly renderMediaPicker?: ((node: FlowNodeData, graph: FlowGraphData) => ReactNode) | undefined
-  /** Ausente, a tela não oferece excluir fluxo — produto só-leitura não desenha o botão. */
-  readonly deletableFlowKeys?: readonly string[] | undefined
   readonly className?: string
 }
 
 export function FlowsWorkspace(props: FlowsWorkspaceProps) {
-  const { api, rootFlowKey, actionOptions, renderMediaPicker, deletableFlowKeys, className } = props
+  const { api, rootFlowKey, actionOptions, renderMediaPicker, className } = props
   const labels = useMemo(() => mergeFlowEditorLabels(props.labels), [props.labels])
 
   const editor = useFlowsEditor({ api, rootFlowKey, labels })
@@ -58,12 +56,9 @@ export function FlowsWorkspace(props: FlowsWorkspaceProps) {
   const { primaryGraph, primaryFlowKey, errorCount, warningCount, isDirty, saveState } = editor
   const isDetail = viewMode === 'detail'
 
-  // O fluxo raiz nunca é excluível: sem ele o bot não tem por onde começar a conversa. Sem a lista, a
-  // regra é essa; com ela, o produto decide.
-  const canDeletePrimary =
-    primaryGraph !== undefined &&
-    primaryFlowKey !== rootFlowKey &&
-    (deletableFlowKeys === undefined || deletableFlowKeys.includes(primaryFlowKey))
+  // O fluxo raiz nunca é excluível: sem ele o bot não tem por onde começar a conversa, e o erro só
+  // apareceria para o cliente na próxima mensagem.
+  const canDeletePrimary = primaryGraph !== undefined && primaryFlowKey !== rootFlowKey
 
   return (
     <div className={cn('cv-flows', className)}>

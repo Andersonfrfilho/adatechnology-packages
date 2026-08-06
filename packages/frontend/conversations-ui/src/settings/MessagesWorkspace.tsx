@@ -8,7 +8,7 @@
  * financiamento tinha 300 linhas de página para compor peças que já existiam aqui.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 
 import { cn } from '../lib/cn'
 import { TopicsForm, type TopicsFormLabels } from './TopicsForm'
@@ -47,19 +47,35 @@ export type MessagesWorkspaceProps = {
   readonly labels?: Partial<MessagesWorkspaceLabels>
   /** Variáveis que o bot deste produto resolve na mensagem — o pacote não conhece nenhuma. */
   readonly availableVariables?: readonly WhatsAppTemplateVariableSuggestion[]
+  /** Marcadores que o produto substitui na mensagem, oferecidos como atalho ao lado do campo. */
+  readonly welcomePlaceholders?: readonly string[]
+  readonly farewellPlaceholders?: readonly string[]
+  /**
+   * Aviso acima da área de templates.
+   *
+   * Slot porque o motivo é sempre do produto: um deles ainda não tem a rota que consulta a Graph API,
+   * e sem explicação o seletor vazio se lê como defeito do pacote.
+   */
+  readonly renderTemplatesNotice?: (() => ReactNode) | undefined
   readonly className?: string
 }
 
 export function MessagesWorkspace(props: MessagesWorkspaceProps) {
-  const { api, availableVariables, className } = props
+  const { api, availableVariables, welcomePlaceholders, farewellPlaceholders, renderTemplatesNotice, className } = props
   const labels = useMemo<MessagesWorkspaceLabels>(() => ({ ...DEFAULT_LABELS, ...props.labels }), [props.labels])
 
   const editor = useMessagesEditor(api)
   const [tab, setTab] = useState<MessagesTab>(MESSAGES_TAB.bot)
 
-  // Aba de templates por AUSÊNCIA de `listTemplates`: um produto que não manda WhatsApp não vê a
-  // área, e não existe flag dizendo a mesma coisa por outro caminho.
-  const hasTemplates = api.listTemplates !== undefined
+  /**
+   * A aba de templates segue `getTemplateSettings`, não `listTemplates`.
+   *
+   * São capacidades diferentes: salvar QUAL template usar não depende de conseguir listar os
+   * aprovados na Meta. Amarrar a aba à listagem tirava de um produto real a única forma de configurar
+   * o envio, só porque a rota de listagem ainda não existe lá.
+   */
+  const hasTemplates = api.getTemplateSettings !== undefined
+  const hasTopics = api.getTopics !== undefined && editor.topics.length > 0
 
   return (
     <div className={cn('cv-messages', className)}>
@@ -102,12 +118,14 @@ export function MessagesWorkspace(props: MessagesWorkspaceProps) {
             saving={editor.messagesSave.saving}
             saveSuccess={editor.messagesSave.success}
             labels={labels.welcomeFarewell}
+            {...(welcomePlaceholders === undefined ? {} : { welcomePlaceholders })}
+            {...(farewellPlaceholders === undefined ? {} : { farewellPlaceholders })}
           />
           {editor.messagesSave.failure && <p className="cv-workspace-failure">{editor.messagesSave.failure}</p>}
 
-          {/* Tópicos só aparecem quando o produto tem algum: lista vazia desenharia uma seção sem
-              nada dentro, que se lê como tela quebrada. */}
-          {editor.topics.length > 0 && (
+          {/* Tópicos só aparecem quando o produto tem a rota E devolveu algum: seção vazia se lê como
+              tela quebrada, e um produto sem assuntos intermediários não deve nem ver a área. */}
+          {hasTopics && (
             <>
               <TopicsForm
                 topics={[...editor.topics]}
@@ -126,6 +144,7 @@ export function MessagesWorkspace(props: MessagesWorkspaceProps) {
 
       {!editor.loading && hasTemplates && tab === MESSAGES_TAB.templates && (
         <div className="cv-messages-sections">
+          {renderTemplatesNotice?.()}
           <WhatsAppTemplatesSettings
             templates={[...editor.templates]}
             loadingTemplates={editor.templatesLoading}

@@ -19,20 +19,36 @@ const SOURCE = `${import.meta.dir}/MessagesWorkspace.tsx`
 
 const VARIABLES: WhatsAppTemplateVariableSuggestion[] = [{ token: '{clientName}', label: 'Nome do cliente' }]
 
-/** A api mínima: sem WhatsApp nenhum. É o que prova que a aba de templates é opcional de verdade. */
-const BOT_ONLY_API: MessagesWorkspaceApi = {
+/** O mínimo absoluto: só boas-vindas e encerramento. Sem tópicos, sem WhatsApp. */
+const MINIMAL_API: MessagesWorkspaceApi = {
   getMessages: async () => ({ welcomeMessage: '', farewellMessage: '' }),
   saveMessages: async () => undefined,
-  getTopics: async () => [],
-  saveTopics: async () => undefined,
+}
+
+/**
+ * Templates SEM listagem — a combinação do quickcart.
+ *
+ * Salvar qual template usar não depende de conseguir listar os aprovados na Meta, e amarrar as duas
+ * coisas tirava desse produto a única forma de configurar o envio.
+ */
+const TEMPLATES_WITHOUT_LISTING_API: MessagesWorkspaceApi = {
+  ...MINIMAL_API,
   getTemplateSettings: async () => ({ templateName: '', templateLanguage: 'pt_BR', variables: [] }),
   saveTemplateSettings: async () => undefined,
 }
 
-const FULL_API: MessagesWorkspaceApi = {
-  ...BOT_ONLY_API,
+/** Templates completos e sem tópicos — a combinação do sakura-bot. */
+const NO_TOPICS_API: MessagesWorkspaceApi = {
+  ...TEMPLATES_WITHOUT_LISTING_API,
   listTemplates: async () => [],
   createTemplate: async () => ({ ok: true, message: 'criado' }),
+}
+
+/** Tudo — a combinação do financiamento. */
+const FULL_API: MessagesWorkspaceApi = {
+  ...NO_TOPICS_API,
+  getTopics: async () => [],
+  saveTopics: async () => undefined,
 }
 
 const PROPS: MessagesWorkspaceProps = {
@@ -46,6 +62,8 @@ const PROPS: MessagesWorkspaceProps = {
     topics: { sectionTitle: 'Tópicos', saveButton: 'Salvar' },
   },
   availableVariables: VARIABLES,
+  welcomePlaceholders: ['{empresa}'],
+  renderTemplatesNotice: () => 'A listagem de aprovados ainda não existe neste produto.',
   className: 'max-w-2xl pb-8',
 }
 
@@ -76,12 +94,19 @@ describe('contrato de customização', () => {
     expect(content).toContain('className?: string')
   })
 
-  it('sem `listTemplates` a api segue válida, e sem `createTemplate` também', () => {
-    expect(BOT_ONLY_API.listTemplates).toBeUndefined()
-    expect(BOT_ONLY_API.createTemplate).toBeUndefined()
-    // Ler templates sem saber criar é combinação real: produto que usa template aprovado por fora.
-    const readOnly: MessagesWorkspaceApi = { ...BOT_ONLY_API, listTemplates: async () => [] }
-    expect(readOnly.createTemplate).toBeUndefined()
+  it('as três combinações reais dos produtos de hoje são válidas', () => {
+    // Cada uma existe num produto. Se o contrato exigir algo que um deles não tem, o tsc reprova aqui
+    // — que é o que faltou quando as três páginas foram escritas contra uma api ainda em desenho.
+    expect(MINIMAL_API.getTopics).toBeUndefined()
+    expect(MINIMAL_API.getTemplateSettings).toBeUndefined()
+
+    expect(TEMPLATES_WITHOUT_LISTING_API.getTemplateSettings).toBeDefined()
+    expect(TEMPLATES_WITHOUT_LISTING_API.listTemplates).toBeUndefined()
+
+    expect(NO_TOPICS_API.getTopics).toBeUndefined()
+    expect(NO_TOPICS_API.createTemplate).toBeDefined()
+
+    expect(FULL_API.getTopics).toBeDefined()
   })
 
   it('nenhum texto visível escrito no componente — tudo passa por labels', async () => {

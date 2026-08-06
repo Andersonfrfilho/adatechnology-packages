@@ -38,15 +38,29 @@ export type TemplateSettings = {
   readonly variables: readonly string[]
 }
 
-/** Só o que a tela precisa do servidor. Nenhuma rota assumida — cada produto tem as suas. */
+/**
+ * Só o que a tela precisa do servidor. Nenhuma rota assumida — cada produto tem as suas.
+ *
+ * Boas-vindas e encerramento são o mínimo; o resto é capacidade, e capacidade é por AUSÊNCIA. Os três
+ * produtos de hoje já exercitam três combinações diferentes: um sem tópicos, um sem listagem de
+ * templates aprovados, um com tudo.
+ */
 export type MessagesWorkspaceApi = {
   getMessages: () => Promise<CompanyMessages>
   saveMessages: (input: CompanyMessages) => Promise<void>
-  getTopics: () => Promise<readonly TopicItem[]>
-  saveTopics: (topics: readonly TopicItem[]) => Promise<void>
-  getTemplateSettings: () => Promise<TemplateSettings>
-  saveTemplateSettings: (input: TemplateSettings) => Promise<void>
-  /** Ausente, a aba de templates não aparece — o produto que não usa WhatsApp não vê a área. */
+  /** Ausentes, a seção de tópicos não aparece — o produto não tem assuntos intermediários. */
+  getTopics?: (() => Promise<readonly TopicItem[]>) | undefined
+  saveTopics?: ((topics: readonly TopicItem[]) => Promise<void>) | undefined
+  /** Ausentes, a aba de templates não aparece: o produto não manda WhatsApp fora da janela de 24h. */
+  getTemplateSettings?: (() => Promise<TemplateSettings>) | undefined
+  saveTemplateSettings?: ((input: TemplateSettings) => Promise<void>) | undefined
+  /**
+   * Ausente, o seletor nasce vazio — e NÃO esconde a aba.
+   *
+   * Listar templates aprovados exige uma rota que consulte a Graph API da Meta, e um produto pode
+   * salvar o nome do template escolhido sem ter essa rota ainda. Esconder a aba nesse caso tiraria
+   * dele a única forma de configurar o envio.
+   */
   listTemplates?: (() => Promise<readonly WhatsAppTemplateSummary[]>) | undefined
   /** Ausente, a aba de criação não aparece: o produto lê templates mas não sabe criar. */
   createTemplate?: ((input: WhatsAppCreateTemplateState) => Promise<WhatsAppCreateTemplateResult>) | undefined
@@ -92,8 +106,11 @@ export function useMessagesEditor(api: MessagesWorkspaceApi) {
   apiRef.current = api
 
   const messagesResource = useAsyncResource(() => apiRef.current.getMessages(), [])
-  const topicsResource = useAsyncResource(() => apiRef.current.getTopics(), [])
-  const templateResource = useAsyncResource(() => apiRef.current.getTemplateSettings(), [])
+  const topicsResource = useAsyncResource(() => apiRef.current.getTopics?.() ?? Promise.resolve([]), [])
+  const templateResource = useAsyncResource(
+    () => apiRef.current.getTemplateSettings?.() ?? Promise.resolve(undefined),
+    [],
+  )
   const templatesResource = useAsyncResource(() => apiRef.current.listTemplates?.() ?? Promise.resolve([]), [])
 
   const [messages, setMessages] = useState<CompanyMessages>({ welcomeMessage: '', farewellMessage: '' })
@@ -136,7 +153,9 @@ export function useMessagesEditor(api: MessagesWorkspaceApi) {
   const submitTopics = useCallback(
     (event: FormEvent) => {
       event.preventDefault()
-      void topicsSave.run(() => apiRef.current.saveTopics(topics))
+      const save = apiRef.current.saveTopics
+      if (!save) return
+      void topicsSave.run(() => save(topics))
     },
     [topics, topicsSave],
   )
@@ -144,7 +163,9 @@ export function useMessagesEditor(api: MessagesWorkspaceApi) {
   const submitTemplate = useCallback(
     (event: FormEvent) => {
       event.preventDefault()
-      void templateSave.run(() => apiRef.current.saveTemplateSettings(template))
+      const save = apiRef.current.saveTemplateSettings
+      if (!save) return
+      void templateSave.run(() => save(template))
     },
     [template, templateSave],
   )
