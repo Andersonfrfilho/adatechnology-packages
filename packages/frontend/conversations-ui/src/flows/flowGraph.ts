@@ -372,7 +372,7 @@ export function findCollectionChains(graph: FlowGraphData): CollectionChain[] {
 }
 
 // Gera um id de nó único e legível a partir do rótulo (ex.: "Qual sua renda?" → "qual_sua_renda").
-export function slugifyNodeId(label: string, existing: Set<string>): string {
+export function slugifyNodeId(label: string, existing: ReadonlySet<string>): string {
   const base =
     label
       .toLowerCase()

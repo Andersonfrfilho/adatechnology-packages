@@ -62,6 +62,8 @@ export type FlowNodeCardData = {
   liveCount: number
   isStart: boolean
   isSelected: boolean
+  /** Nenhum caminho chega até este nó — o contorno tracejado cobra a ligação que falta. */
+  isDetached?: boolean
   issues: GraphIssue[]
   labels: FlowEditorLabels
   actionKindIcons?: Record<string, LucideIcon>
@@ -112,7 +114,7 @@ function SourceRow({ label, isDefault, handleId }: { label: string; isDefault: b
 }
 
 export function FlowNodeCard({ data }: NodeProps) {
-  const { node, liveCount, isStart, isSelected, issues, labels, actionKindIcons, onSelect } =
+  const { node, liveCount, isStart, isSelected, isDetached, issues, labels, actionKindIcons, onSelect } =
     data as unknown as FlowNodeCardData
   const label = nodeLabel(node, labels)
   const iconMap = { ...DEFAULT_ACTION_KIND_ICON, ...actionKindIcons }
@@ -126,8 +128,8 @@ export function FlowNodeCard({ data }: NodeProps) {
 
   return (
     <div
-      title={label}
-      className={`relative rounded-lg border-2 px-3 py-2 w-60 cursor-pointer shadow-sm hover:shadow-md transition-shadow ${NODE_TYPE_COLOR[node.type]} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''}`}
+      title={isDetached ? labels.detachedNodeTooltip : label}
+      className={`relative rounded-lg border-2 px-3 py-2 w-60 cursor-pointer shadow-sm hover:shadow-md transition-shadow ${NODE_TYPE_COLOR[node.type]} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''} ${isDetached ? 'border-dashed animate-pulse' : ''}`}
       onClick={() => onSelect(node.id)}
     >
       <Handle type="target" position={Position.Top} id="target" className="!bg-gray-400 dark:!bg-gray-500" />

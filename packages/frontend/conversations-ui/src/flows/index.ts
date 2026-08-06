@@ -59,6 +59,33 @@ export type { FlowWhatsAppPreviewProps } from './FlowWhatsAppPreview'
  * financiamento; são a base do `FlowsWorkspace` (ADR 0002) e a parte que carrega o risco de perder
  * trabalho de quem edita.
  */
+/**
+ * A TELA INTEIRA (ADR 0002). É o que um produto deve consumir — as peças acima existem para quem
+ * tenha layout radicalmente diferente, e forkar a tela é o que fez os produtos divergirem antes.
+ */
+export { FlowsWorkspace } from './FlowsWorkspace'
+export type { FlowsWorkspaceProps } from './FlowsWorkspace'
+export { FlowEditorCanvas } from './FlowEditorCanvas'
+export type { FlowEditorCanvasProps } from './FlowEditorCanvas'
+export { CreateFlowDialog, DeleteFlowDialog } from './FlowManagerDialogs'
+
+/** Camada headless: o produto que quiser outro visual reusa o estado e desenha por conta. */
+export { useFlowsEditor } from './useFlowsEditor'
+export type { FlowsWorkspaceApi, FlowsEditor, FlowNodeRef, SaveState } from './useFlowsEditor'
+
+export {
+  buildFlowEdges,
+  chainFrameBounds,
+  chainFrameNodeId,
+  computeMergedLayout,
+  countLiveByNode,
+  detachedNodeIds,
+  newNodeFromSpec,
+  portalNodeId,
+  GROUP_HEADER_NODE_ID,
+} from './flowCanvasModel'
+export type { FlowEdgeKind, FlowEdgeSpec, FlowLivePosition, FlowNodePosition } from './flowCanvasModel'
+
 export {
   applyConnection,
   isGraphDirty,
