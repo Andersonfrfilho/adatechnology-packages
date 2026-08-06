@@ -11,6 +11,7 @@ import type {
   NotificationPreference,
   NotificationSummary,
   NotificationTemplate,
+  UpsertTemplateBody,
 } from '@adatechnology/notification-contracts'
 
 export type NotificationClientConfig = {
@@ -75,6 +76,14 @@ export type NotificationClient = {
   getPreferences(): Promise<readonly NotificationPreference[]>
   updatePreferences(preferences: readonly NotificationPreference[]): Promise<readonly NotificationPreference[]>
   listTemplates(): Promise<readonly NotificationTemplate[]>
+  /**
+   * Cria uma VERSÃO nova do template, não edita a atual.
+   *
+   * O módulo versiona por `key`+`channel`+`locale`: a versão anterior fica legível para auditoria, e
+   * a leitura só devolve a ativa mais alta. Então "editar a copy" e "reverter" são a mesma operação
+   * — o que a tela de configuração precisa para alguém corrigir um texto sem medo.
+   */
+  upsertTemplate(input: UpsertTemplateBody): Promise<NotificationTemplate>
   /** Base + headers, para o assinante de SSE reaproveitar a mesma configuração. */
   resolveStreamRequest(): Promise<{ url: string; headers: Record<string, string> }>
 }
@@ -191,6 +200,18 @@ export function createNotificationClient(config: NotificationClientConfig): Noti
         path: '/notification-templates',
       })
       return payload?.data ?? []
+    },
+
+    async upsertTemplate(input: UpsertTemplateBody): Promise<NotificationTemplate> {
+      const payload = await request<{ data: NotificationTemplate }>({
+        method: 'POST',
+        path: '/notification-templates',
+        body: input,
+      })
+      // Sem fallback: a rota responde 201 com o template criado, e devolver `undefined as never`
+      // aqui esconderia uma mudança de contrato até estourar na tela.
+      if (!payload?.data) throw new Error('notification-client: upsertTemplate não devolveu o template')
+      return payload.data
     },
 
     async resolveStreamRequest(): Promise<{ url: string; headers: Record<string, string> }> {

@@ -24,6 +24,16 @@ import { FlowNodePanel } from './FlowNodePanel'
 import { FlowPalette, type FlowPaletteActionOption, type NewNodeSpec } from './FlowPalette'
 import { FlowMapCanvas } from './FlowMapCanvas'
 import { mergeFlowEditorLabels, type FlowEditorLabels } from './labels'
+// Operações puras do grafo, com teste próprio. As decisões que elas tomam não dão erro quando estão
+// erradas: dão aresta apontando para nó apagado, ou salto que o motor do bot ignora.
+import {
+  applyConnection,
+  mergedFlowKeysFrom,
+  namespaceNodeId,
+  parseNamespacedId,
+  removeNodeAndCleanRefs,
+  resolveConnection,
+} from './flowEditorOps'
 import {
   computeAutoLayout,
   slugifyNodeId,
@@ -119,20 +129,6 @@ function portalNodeId(sourceId: string, target: string): string {
   return `__portal__${sourceId}__${target}`
 }
 
-// Namespacing de ids: com fusão editável, nós de fluxos diferentes convivem no mesmo canvas
-// React Flow, que exige ids únicos globalmente — "flowKey::nodeId" evita colisão entre fluxos
-// que reutilizem o mesmo id de nó (ex.: vários fluxos com um nó "root").
-function ns(flowKey: string, nodeId: string): string {
-  return `${flowKey}${NS_SEP}${nodeId}`
-}
-
-function parseNs(id: string): { flowKey: string; nodeId: string } {
-  const index = id.indexOf(NS_SEP)
-  return index === -1
-    ? { flowKey: '', nodeId: id }
-    : { flowKey: id.slice(0, index), nodeId: id.slice(index + NS_SEP.length) }
-}
-
 // Um fluxo aberto no canvas de detalhe — o primeiro da lista é o "primário" (dono da paleta,
 // organizar, publicar e excluir-fluxo); os demais chegaram por fusão editável (clique num portal)
 // e ficam com um cabeçalho flutuante pra focar neles sozinhos ou fechar.
@@ -142,17 +138,9 @@ type OpenFlow = { key: string; offset: { x: number; y: number } }
 // fluxo já traz junto tudo que ele referencia (e o que essas referências referenciam), sem
 // precisar clicar em cada portal manualmente.
 function autoMergeAll(rootKey: string, graphsSource: Record<string, FlowGraphData>): OpenFlow[] {
-  const visited = new Set<string>()
-  const queue = [rootKey]
-  while (queue.length > 0) {
-    const key = queue.shift()!
-    if (visited.has(key) || !graphsSource[key]) continue
-    visited.add(key)
-    for (const target of crossFlowTargetsOf(graphsSource[key]!)) {
-      if (!visited.has(target) && graphsSource[target]) queue.push(target)
-    }
-  }
-  return [...visited].map((key) => ({ key, offset: { x: 0, y: 0 } }))
+  // O fecho em si vem de `flowEditorOps`, que é onde ele tem teste — inclusive para o caso mais banal
+  // que existe, o fluxo que volta a si mesmo.
+  return mergedFlowKeysFrom(rootKey, graphsSource).map((key) => ({ key, offset: { x: 0, y: 0 } }))
 }
 
 // Layout único pra TODOS os nós de TODOS os fluxos abertos juntos — ao contrário de posicionar
@@ -171,7 +159,7 @@ function computeMergedLayout(
   for (const { key } of openFlows) {
     const graph = workingGraphs[key]
     if (!graph) continue
-    for (const node of Object.values(graph.nodes)) nodeByNsId.set(ns(key, node.id), node)
+    for (const node of Object.values(graph.nodes)) nodeByNsId.set(namespaceNodeId(key, node.id), node)
   }
 
   function forwardEdges(flowKey: string, node: FlowNodeData): string[] {
@@ -180,9 +168,9 @@ function computeMergedLayout(
       if (isCrossFlowTarget(target)) {
         const targetFlowKey = crossFlowKey(target)
         const targetGraph = openKeys.has(targetFlowKey) ? workingGraphs[targetFlowKey] : undefined
-        if (targetGraph) result.push(ns(targetFlowKey, targetGraph.startNodeId))
+        if (targetGraph) result.push(namespaceNodeId(targetFlowKey, targetGraph.startNodeId))
       } else if (workingGraphs[flowKey]?.nodes[target]) {
-        result.push(ns(flowKey, target))
+        result.push(namespaceNodeId(flowKey, target))
       }
     }
     return result
@@ -190,7 +178,7 @@ function computeMergedLayout(
 
   const rank = new Map<string, number>()
   const primaryGraph = workingGraphs[primaryFlowKey]
-  const rootId = primaryGraph ? ns(primaryFlowKey, primaryGraph.startNodeId) : undefined
+  const rootId = primaryGraph ? namespaceNodeId(primaryFlowKey, primaryGraph.startNodeId) : undefined
   if (rootId && nodeByNsId.has(rootId)) {
     rank.set(rootId, 0)
     const queue = [rootId]
@@ -198,7 +186,7 @@ function computeMergedLayout(
       const id = queue.shift()!
       const node = nodeByNsId.get(id)
       if (!node) continue
-      for (const nextId of forwardEdges(parseNs(id).flowKey, node)) {
+      for (const nextId of forwardEdges(parseNamespacedId(id).flowKey, node)) {
         if (!rank.has(nextId)) {
           rank.set(nextId, rank.get(id)! + 1)
           queue.push(nextId)
@@ -270,6 +258,12 @@ function buildAllEdges(
     for (const [id, node] of Object.entries(graph.nodes)) {
       const isLive = (liveCounts[id] ?? 0) > 0
       for (const { target, optionId, isDefault } of targetsOf(node)) {
+        // Destino vazio é estado NORMAL, não anomalia: apagar um nó zera quem apontava para ele, e
+        // `targetsOf` devolve o `default` mesmo em branco. Sem esta linha a aresta ia para um nó que
+        // não existe, o React Flow a descartava em silêncio, e a opção parecia ligada sem estar — a
+        // conversa do cliente para ali e quem editou não vê nada de errado.
+        if (!target) continue
+
         const crossFlow = isCrossFlowTarget(target)
         let targetFlowKey = flowKey
         let rawTargetId = target
@@ -283,8 +277,8 @@ function buildAllEdges(
             rawTargetId = portalNodeId(id, target)
           }
         }
-        const source = ns(flowKey, id)
-        const edgeTarget = ns(targetFlowKey, rawTargetId)
+        const source = namespaceNodeId(flowKey, id)
+        const edgeTarget = namespaceNodeId(targetFlowKey, rawTargetId)
 
         if (optionId === undefined && !isDefault) {
           const color = crossFlow ? EDGE_COLOR_CROSS_FLOW : isLive ? EDGE_COLOR_LIVE : EDGE_COLOR_LINEAR
@@ -356,35 +350,6 @@ function newNodeFromSpec(spec: NewNodeSpec, existingIds: Set<string>): FlowNodeD
   }
   const id = slugifyNodeId('nova_acao', existingIds)
   return { id, type: 'action', actionKind: spec.actionKind }
-}
-
-// Remove referências ao nó excluído: destinos apontando para ele viram '' (destino vazio),
-// para a validação sinalizar claramente em vez de manter uma string órfã silenciosa.
-function removeNodeAndCleanRefs(
-  nodes: Record<string, FlowNodeData>,
-  nodeId: string,
-): Record<string, FlowNodeData> {
-  const { [nodeId]: _removed, ...rest } = nodes
-  return Object.fromEntries(
-    Object.entries(rest).map(([id, node]) => {
-      if (!node.next) return [id, node]
-      if (typeof node.next === 'string') {
-        return [id, node.next === nodeId ? { ...node, next: undefined } : node]
-      }
-      return [
-        id,
-        {
-          ...node,
-          next: {
-            byAnswer: Object.fromEntries(
-              Object.entries(node.next.byAnswer).map(([key, value]) => [key, value === nodeId ? '' : value]),
-            ),
-            default: node.next.default === nodeId ? '' : node.next.default,
-          },
-        },
-      ]
-    }),
-  )
 }
 
 function extractErrorMessage(error: unknown): string | undefined {
@@ -638,7 +603,7 @@ export function FlowsWorkspace({
 
       function resolvePosition(nodeId: string): { x: number; y: number } {
         if (mergedPositions) {
-          const nsId = ns(flowKey, nodeId)
+          const nsId = namespaceNodeId(flowKey, nodeId)
           return renderedPositionsRef.current.get(nsId) ?? mergedPositions.get(nsId) ?? { x: 0, y: 0 }
         }
         const local = graph!.nodes[nodeId]?.position ?? fallbackPositions[nodeId] ?? { x: 0, y: 0 }
@@ -648,7 +613,7 @@ export function FlowsWorkspace({
       for (const node of Object.values(graph.nodes)) {
         const position = resolvePosition(node.id)
         allNodes.push({
-          id: ns(flowKey, node.id),
+          id: namespaceNodeId(flowKey, node.id),
           type: 'flowNode',
           position,
           draggable: true,
@@ -673,7 +638,7 @@ export function FlowsWorkspace({
           const targetFlowKey = crossFlowKey(target)
           if (openFlows.some((flow) => flow.key === targetFlowKey)) return
           allNodes.push({
-            id: ns(flowKey, portalNodeId(node.id, target)),
+            id: namespaceNodeId(flowKey, portalNodeId(node.id, target)),
             type: 'flowPortal',
             draggable: false,
             selectable: false,
@@ -697,7 +662,7 @@ export function FlowsWorkspace({
         const minY = Math.min(...positions.map((point) => point.y))
         const maxY = Math.max(...positions.map((point) => point.y)) + estimateNodeHeight(graph.nodes[chain.actionNodeId]!)
         allNodes.push({
-          id: ns(flowKey, `__chain__${chain.actionNodeId}`),
+          id: namespaceNodeId(flowKey, `__chain__${chain.actionNodeId}`),
           type: 'flowGroupFrame',
           draggable: false,
           selectable: false,
@@ -718,7 +683,7 @@ export function FlowsWorkspace({
       if (!isPrimary) {
         const startPosition = resolvePosition(graph.startNodeId)
         allNodes.push({
-          id: ns(flowKey, '__group_header__'),
+          id: namespaceNodeId(flowKey, '__group_header__'),
           type: 'flowGroupHeader',
           draggable: false,
           selectable: false,
@@ -778,10 +743,21 @@ export function FlowsWorkspace({
   const onNodeDragStop = useCallback(
     (_event: unknown, node: Node) => {
       renderedPositionsRef.current.set(node.id, node.position)
-      const { flowKey, nodeId } = parseNs(node.id)
+      const { flowKey, nodeId } = parseNamespacedId(node.id)
       const openFlow = openFlows.find((flow) => flow.key === flowKey)
       if (!openFlow) return
-      const localPosition = { x: node.position.x - openFlow.offset.x, y: node.position.y - openFlow.offset.y }
+
+      /**
+       * O deslocamento só entra na conta quando ele foi usado para DESENHAR.
+       *
+       * Com mais de um fluxo aberto o layout mesclado posiciona tudo em coordenadas absolutas e
+       * ignora `offset` — subtrair aqui gravava no grafo uma posição que nunca foi a do card. O
+       * sintoma aparecia só depois: recarregar a tela e achar o nó deslocado sozinho.
+       */
+      const drawnWithOffset = openFlows.length === 1
+      const localPosition = drawnWithOffset
+        ? { x: node.position.x - openFlow.offset.x, y: node.position.y - openFlow.offset.y }
+        : node.position
       updateFlow(flowKey, (graph) =>
         graph.nodes[nodeId]
           ? { ...graph, nodes: { ...graph.nodes, [nodeId]: { ...graph.nodes[nodeId]!, position: localPosition } } }
@@ -793,36 +769,18 @@ export function FlowsWorkspace({
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      const { source, sourceHandle, target } = connection
-      if (!source || !target || source === target) return
-      const sourceRef = parseNs(source)
-      const targetRef = parseNs(target)
+      // Traduzir o arraste e aplicar no nó são as duas decisões que mandam a conversa do cliente
+      // para o lugar certo ou errado, sem erro no meio — por isso vivem em `flowEditorOps`, testadas.
+      const resolved = resolveConnection({
+        connection: { source: connection.source, target: connection.target, sourceHandle: connection.sourceHandle },
+        graphs: workingGraphs,
+      })
+      if (!resolved) return
 
-      // Conectar num nó de outro fluxo só faz sentido se for o nó inicial dele — vira um salto
-      // "flow:<key>" (o motor do bot não sabe pular pra um nó específico de outro fluxo, só
-      // pro início). Conectar num nó do meio de outro fluxo é ignorado silenciosamente.
-      let targetValue: string
-      if (targetRef.flowKey === sourceRef.flowKey) {
-        targetValue = targetRef.nodeId
-      } else {
-        const targetGraph = workingGraphs[targetRef.flowKey]
-        if (!targetGraph || targetGraph.startNodeId !== targetRef.nodeId) return
-        targetValue = `${CROSS_FLOW_PREFIX}${targetRef.flowKey}`
-      }
-
-      updateFlow(sourceRef.flowKey, (graph) => {
-        const node = graph.nodes[sourceRef.nodeId]
+      updateFlow(resolved.flowKey, (graph) => {
+        const node = graph.nodes[resolved.nodeId]
         if (!node) return graph
-        const handle = sourceHandle ?? 'next'
-        const currentByAnswer = typeof node.next === 'object' && node.next ? node.next.byAnswer : {}
-        const currentDefault = typeof node.next === 'object' && node.next ? node.next.default : ''
-        const updatedNode: FlowNodeData =
-          handle === 'next'
-            ? { ...node, next: targetValue }
-            : handle === '__default'
-              ? { ...node, next: { byAnswer: currentByAnswer, default: targetValue } }
-              : { ...node, next: { byAnswer: { ...currentByAnswer, [handle]: targetValue }, default: currentDefault } }
-        return { ...graph, nodes: { ...graph.nodes, [sourceRef.nodeId]: updatedNode } }
+        return { ...graph, nodes: { ...graph.nodes, [resolved.nodeId]: applyConnection(node, resolved) } }
       })
     },
     [workingGraphs, updateFlow],
@@ -835,7 +793,7 @@ export function FlowsWorkspace({
     newNode.position = { x: 0, y: maxY + 170 }
     updateFlow(primaryFlowKey, (graph) => ({ ...graph, nodes: { ...graph.nodes, [newNode.id]: newNode } }))
     setEditingRef({ flowKey: primaryFlowKey, nodeId: newNode.id })
-    setPendingFocusNodeId(ns(primaryFlowKey, newNode.id))
+    setPendingFocusNodeId(namespaceNodeId(primaryFlowKey, newNode.id))
   }
 
   function handleNodePanelChange(updated: FlowNodeData) {
@@ -863,7 +821,7 @@ export function FlowsWorkspace({
           ...graph,
           nodes: Object.fromEntries(
             Object.entries(graph.nodes).map(([id, node]) => {
-              const position = positions.get(ns(key, id))
+              const position = positions.get(namespaceNodeId(key, id))
               return [
                 id,
                 position ? { ...node, position: { x: position.x - offset.x, y: position.y - offset.y } } : node,

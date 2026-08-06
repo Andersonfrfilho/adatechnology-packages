@@ -21,9 +21,12 @@ export type { UseNotificationsOptions } from './hooks/useNotifications'
 export { useNotificationStream } from './hooks/useNotificationStream'
 export type { UseNotificationStreamOptions } from './hooks/useNotificationStream'
 
-export { usePreferences, useUpdatePreferences, useTemplates } from './hooks/usePreferences'
+export { usePreferences, useUpdatePreferences, useTemplates, useUpsertTemplate } from './hooks/usePreferences'
 
 export { NOTIFICATION_QUERY_KEYS } from './hooks/queryKeys'
 
 export { DEFAULT_LOCALE, resolveMessages } from './locales'
 export type { NotificationLocale, NotificationMessages } from './locales'
+
+export { useTemplateEditor } from './hooks/useTemplateEditor'
+export type { TemplateDraft, UseTemplateEditorParams, UseTemplateEditorResult } from './hooks/useTemplateEditor'
