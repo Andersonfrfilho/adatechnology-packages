@@ -118,6 +118,20 @@ export {
 } from './settings/WhatsAppTemplatesSettings'
 export { TopicsForm } from './settings/TopicsForm'
 
+/**
+ * A TELA INTEIRA de mensagens. É o que um produto deve consumir — os formulários acima são as peças,
+ * e cada produto remontando abas e estado em cima delas é o que fez as telas divergirem antes.
+ */
+export { MessagesWorkspace } from './settings/MessagesWorkspace'
+export type { MessagesWorkspaceProps, MessagesWorkspaceLabels } from './settings/MessagesWorkspace'
+export { useMessagesEditor } from './settings/useMessagesEditor'
+export type {
+  MessagesWorkspaceApi,
+  MessagesEditor,
+  CompanyMessages,
+  TemplateSettings,
+} from './settings/useMessagesEditor'
+
 // Camada headless (T6.9) — hooks de dados/ações independentes de qualquer tela, para o
 // produto montar sua própria UI sobre eles. Requerem <ConversationsProvider> como ancestral.
 export { useConversationMessages } from './hooks/useConversationMessages'

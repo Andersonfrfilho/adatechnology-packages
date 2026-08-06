@@ -864,3 +864,30 @@
   gap: 0.5rem;
   font-size: 0.875rem;
 }
+
+/* ── Mensagens do bot (MessagesWorkspace) ─────────────────────────────────────────────────────── */
+.cv-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.cv-messages-header {
+  border-bottom: none;
+  padding: 0;
+}
+.cv-messages-header h2 { font-size: 1.25rem; font-weight: 700; }
+.cv-messages-header p { margin-top: 0.125rem; font-size: 0.875rem; color: rgb(107 114 128); }
+.dark .cv-messages-header p { color: rgb(148 163 184); }
+
+.cv-messages-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid rgb(229 231 235);
+}
+.dark .cv-messages-tabs { border-color: rgb(55 65 81); }
+
+.cv-messages-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
