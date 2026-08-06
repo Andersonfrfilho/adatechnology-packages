@@ -65,3 +65,25 @@ Passe próprio, em três etapas, na ordem do risco:
 Extrair a casca antes do hook testado. A tentação é grande porque a casca é a parte visível, mas é o
 estado que carrega o risco — e sem teste, a primeira coisa que se descobre é um usuário dizendo que
 perdeu o fluxo.
+
+## Resultado
+
+Os passos 2 e 3 foram feitos em paralelo, na #30, enquanto o passo 1 (as operações puras) era escrito
+aqui. A casca da #30 ficou — ela é mais completa e é a que os três produtos consomem desde a `rc.26`.
+
+O passo 1 sobreviveu e foi ligado nela: `flowEditorOps`, com 23 testes, é o que o `FlowsWorkspace`
+agora usa para resolver e aplicar conexão, apagar nó e calcular o fecho transitivo dos fluxos abertos.
+Duas decisões estavam erradas, e as duas do jeito previsto neste ADR — sem erro, sem log, com o
+sintoma aparecendo longe de quem editou:
+
+- aresta emitida para destino vazio, que faz a opção parecer ligada sem estar;
+- posição gravada com um deslocamento que o layout mesclado já havia ignorado.
+
+O aviso do "o que NÃO fazer" se confirmou pelo avesso: a casca saiu primeiro, e o que estava errado
+era exatamente o estado. O que ela não tem ainda é decomposição — são 1254 linhas num arquivo, e o
+canvas (arestas, layout mesclado, contagem ao vivo) segue sem teste porque essas três funções estão
+acopladas ao `offset` por fluxo aberto, cuja remoção exige reescrever o componente.
+
+**Passo que resta:** tirar o canvas do componente, com o mesmo tratamento das operações — teste antes,
+e nada de exportar módulo que a tela não consuma, porque teste verde sobre código morto é garantia
+falsa.
