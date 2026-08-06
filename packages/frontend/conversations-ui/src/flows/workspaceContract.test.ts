@@ -27,17 +27,15 @@ describe('superfície composta', () => {
   it('exporta as peças também — quem precisa de layout próprio não fica sem saída', () => {
     // Workspace é o caminho recomendado, não uma prisão: um produto com layout radicalmente
     // diferente compõe as peças, e isso é melhor que forkar o pacote.
-    for (const piece of ['FlowMapCanvas', 'FlowPalette', 'FlowNodePanel', 'FlowEditorCanvas', 'FlowWhatsAppPreview']) {
+    for (const piece of ['FlowMapCanvas', 'FlowPalette', 'FlowNodePanel', 'FlowWhatsAppPreview']) {
       expect(typeof (flows as Record<string, unknown>)[piece], piece).toBe('function')
     }
   })
 
-  it('expõe o estado headless, para o produto trocar só o visual', () => {
-    expect(typeof flows.useFlowsEditor).toBe('function')
-  })
-
   it('as operações de grafo saem puras, sem passar pela tela', () => {
-    for (const operation of ['resolveConnection', 'applyConnection', 'removeNodeAndCleanRefs', 'buildFlowEdges']) {
+    // São as que a tela consome de verdade (ver os imports em `FlowsWorkspace.tsx`). Exportá-las sem
+    // usá-las seria pior que não ter teste: teste verde sobre código que não roda em produção.
+    for (const operation of ['resolveConnection', 'applyConnection', 'removeNodeAndCleanRefs', 'mergedFlowKeysFrom']) {
       expect(typeof (flows as Record<string, unknown>)[operation], operation).toBe('function')
     }
   })

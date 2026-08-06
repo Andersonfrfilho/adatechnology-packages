@@ -1,40 +1,27 @@
 ---
-'@adatechnology/conversations-ui': minor
+'@adatechnology/conversations-ui': patch
 ---
 
-As duas últimas áreas 🔴 passam a ter tela composta: `FlowsWorkspace` e `MessagesWorkspace`.
+Editor de fluxos: dois defeitos silenciosos, e as operações de grafo passam a ter teste.
 
-O pacote exportava só as peças dessas áreas, e o resultado foi cada produto montando a tela por
-conta: o editor de fluxos era uma página de 973 linhas dentro do financiamento mais um fork local dos
-componentes, que já estava atrás do pacote. Para o quickcart ter a mesma tela, teria que copiar o
-arquivo — a divergência que `pluggable-module.md` §4 proíbe.
+A tela composta chegou na #30. O que faltava era prova: a área de maior risco do pacote — as decisões
+que dizem para onde a conversa do cliente vai — não tinha nenhum teste, e duas delas estavam erradas.
 
-**Novo em `/flows`:** `FlowsWorkspace` (a tela), `useFlowsEditor` (o estado, headless),
-`FlowEditorCanvas`, `CreateFlowDialog`/`DeleteFlowDialog` e o modelo puro do canvas
-(`buildFlowEdges`, `computeMergedLayout`, `countLiveByNode`, `detachedNodeIds`, `newNodeFromSpec`).
+**Aresta para destino vazio.** Apagar um nó zera o destino de quem apontava para ele, e `targetsOf`
+devolve o `default` mesmo em branco. A tela emitia a aresta, o React Flow a descartava em silêncio, e
+a opção **parecia ligada sem estar** — a conversa para ali e quem editou não vê nada de errado.
 
-**Novo na raiz:** `MessagesWorkspace` e `useMessagesEditor`.
+**Posição gravada errada ao arrastar.** Com mais de um fluxo aberto o layout mesclado posiciona tudo
+em coordenadas absolutas e ignora o `offset`, mas o fim do arraste subtraía ele de qualquer forma. O
+grafo recebia uma posição que nunca foi a do card, e o sintoma só aparecia ao recarregar: nó deslocado
+sozinho.
 
-**Labels novos em `FlowEditorLabels`:** `workspace`, `flowManager`, `validation`, `collectionChain`,
-`detachedNodeTooltip` e `flowMap.toggleToMap`/`toggleToDetail`. Todos entram no merge profundo, então
-um produto que sobrescreva um texto não perde os irmãos dele.
+**As operações agora vêm de `flowEditorOps`, com 23 testes.** `resolveConnection` (traduzir o arraste,
+e recusar salto para o meio de outro fluxo, que o motor do bot ignora), `applyConnection`,
+`removeNodeAndCleanRefs`, `mergedFlowKeysFrom` (fecho transitivo por BFS — fluxo que volta a si mesmo é
+o caso mais comum que existe) e os ids do canvas mesclado. Saíram do corpo da tela, onde não davam
+para testar sem navegador. Três asserções foram validadas por mutação.
 
-Três defeitos da página original corrigidos na mudança:
-
-- Aresta para destino vazio. `targetsOf` devolve o `default` mesmo em branco, e apagar um nó zera quem
-  apontava para ele — a aresta ia para um nó inexistente, o React Flow a descartava em silêncio, e a
-  opção parecia ligada sem estar.
-- O `offset` por fluxo aberto era ignorado pelo layout mesclado e ainda assim subtraído no fim do
-  arraste, gravando posição errada no grafo.
-- "Publicado" ficava na barra para sempre, deixando de significar que algo acabou de ser publicado.
-
-`FlowNodeCard` ganhou `isDetached`: card que ninguém aponta fica com contorno tracejado e explica por
-quê. Existia só no fork do financiamento.
-
-Também corrigido: `flowEditorOps` importava `CROSS_FLOW_PREFIX` do `meta-whatsapp-contracts` em tempo
-de execução quando o próprio `flowGraph` já define a constante. Duas fontes do mesmo prefixo divergem
-em silêncio, e o sintoma seria salto entre fluxos que o motor do bot não reconhece.
-
-E o build passou a usar `--clean`: sem isso, `chunk-*.js` de um build anterior sobreviviam no `dist` —
-um módulo removido continuaria sendo publicado, e o teste que confere o `dist` passava por artefato
-velho.
+Também: `--clean` no build. Sem isso, `chunk-*.js` de um build anterior sobreviviam no `dist` — um
+módulo removido continuaria sendo publicado. Achado por `buildOutput.test.ts`, o único teste que lê o
+`dist`, que existe porque um pacote irmão já saiu com 19 testes verdes e sem renderizar.

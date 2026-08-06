@@ -773,121 +773,72 @@
   border-color: rgb(51 65 85);
 }
 
-/* ── Editor de fluxos (FlowsWorkspace) ─────────────────────────────────────────────────────────
-   A tela ocupa a altura toda porque o canvas precisa de área: sem `height: 100%` aqui, o
-   React Flow colapsa para zero e a tela fica em branco sem erro nenhum no console. */
-.cv-flows {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  height: 100%;
-  min-height: 0;
+/* Peças de listagem (documentos, mensagens): tabela com filtros, seleção em lote e paginação. */
+.cv-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  background: rgb(37 99 235);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
 }
-.cv-flows-header {
-  border-bottom: none;
-  padding: 0;
-  flex-wrap: wrap;
-  align-items: flex-start;
+.cv-filter-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  margin-top: 0.25rem;
+  min-width: 12rem;
+  padding: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
-.cv-flows-header h2 { font-size: 1.25rem; font-weight: 700; }
-.cv-flows-header p { margin-top: 0.125rem; font-size: 0.875rem; color: rgb(107 114 128); }
-.dark .cv-flows-header p { color: rgb(148 163 184); }
-
-.cv-flows-actions,
-.cv-flows-tools {
+.dark .cv-filter-menu { background: rgb(30 41 59); border-color: rgb(71 85 105); }
+.cv-filter-option {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  cursor: pointer;
 }
-.cv-flows-actions .cv-header-action,
-.cv-flows-tools .cv-header-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.cv-flows-tabs {
+.cv-filter-option:hover { background: rgb(241 245 249); }
+.dark .cv-filter-option:hover { background: rgb(51 65 85); }
+.cv-bulk-bar {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(191 219 254);
+  border-radius: 0.5rem;
+  background: rgb(239 246 255);
+}
+.dark .cv-bulk-bar { background: rgb(30 58 138 / 0.25); border-color: rgb(30 64 175); }
+.cv-listing-pagination {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgb(241 245 249);
 }
-.cv-flows-chip--new {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  border-style: dashed;
-}
-
-/* `min-height: 0` junto de `flex: 1`: sem ele o filho de altura 100% empurra o container e a
-   página inteira passa a rolar em vez de o canvas rolar por dentro. */
-.cv-flows-canvas {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  border: 1px solid rgb(229 231 235);
-  border-radius: 0.75rem;
-  overflow: hidden;
-}
-.dark .cv-flows-canvas { border-color: rgb(55 65 81); }
-.cv-flows-minimap { background: white; }
-.dark .cv-flows-minimap { background: rgb(31 41 55); }
-
-.cv-flows-dialog-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  overflow-y: auto;
-  padding: 1rem 1.25rem;
-}
-.cv-flows-dialog-text { font-size: 0.875rem; color: rgb(75 85 99); }
-.dark .cv-flows-dialog-text { color: rgb(203 213 225); }
-.cv-flows-footer--danger button:last-child { background: rgb(239 68 68); }
-
-.cv-flows-field { display: flex; flex-direction: column; gap: 0.25rem; }
-.cv-flows-field > span { font-size: 0.75rem; font-weight: 500; color: rgb(107 114 128); }
-.dark .cv-flows-field > span { color: rgb(148 163 184); }
-.cv-flows-field input {
-  border: 1px solid rgb(203 213 225);
+.dark .cv-listing-pagination { border-color: rgb(30 41 59); }
+.cv-listing-perpage {
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid rgb(226 232 240);
   border-radius: 0.375rem;
-  padding: 0.375rem 0.5rem;
-  font-size: 0.875rem;
   background: transparent;
+  font-size: 0.75rem;
 }
-.dark .cv-flows-field input { border-color: rgb(71 85 105); color: rgb(226 232 240); }
-.cv-flows-field small { font-size: 0.6875rem; color: rgb(156 163 175); }
-.cv-flows-check {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-}
-
-/* ── Mensagens do bot (MessagesWorkspace) ─────────────────────────────────────────────────────── */
-.cv-messages {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-.cv-messages-header {
-  border-bottom: none;
-  padding: 0;
-}
-.cv-messages-header h2 { font-size: 1.25rem; font-weight: 700; }
-.cv-messages-header p { margin-top: 0.125rem; font-size: 0.875rem; color: rgb(107 114 128); }
-.dark .cv-messages-header p { color: rgb(148 163 184); }
-
-.cv-messages-tabs {
-  display: flex;
-  gap: 0.25rem;
-  border-bottom: 1px solid rgb(229 231 235);
-}
-.dark .cv-messages-tabs { border-color: rgb(55 65 81); }
-
-.cv-messages-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
+.dark .cv-listing-perpage { border-color: rgb(71 85 105); }

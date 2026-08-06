@@ -60,13 +60,13 @@ describe('telas compostas chegam ao pacote publicado', () => {
     expect(await distText('flows/index.d.ts')).toContain('FlowsWorkspace')
   })
 
-  it('o CSS publicado traz as classes das duas telas', async () => {
+  it('o CSS publicado traz as classes que as telas consomem', async () => {
     const css = await distText('styles.css')
 
-    // A tela consome `cv-flows-canvas` para ter altura: sem a classe no CSS publicado o React Flow
-    // colapsa para zero e a tela fica em branco, sem erro no console.
-    expect(css).toContain('.cv-flows-canvas')
-    expect(css).toContain('.cv-messages')
+    // A inbox depende destas classes do pacote (o editor de fluxos e a tela de mensagens estilizam por
+    // utilitários do host). Publicar sem elas deixa a tela montada e sem layout — e nada falha.
+    expect(css).toContain('.cv-workspace')
+    expect(css).toContain('.cv-workspace-modal')
   })
 })
 

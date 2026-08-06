@@ -86,6 +86,24 @@ export { WindowExpiredNotice, isWindowBlocking, DEFAULT_WINDOW_EXPIRED_LABELS } 
 export type { WindowExpiredNoticeProps, WindowExpiredNoticeLabels } from './WindowExpiredNotice'
 export { DocumentsLibrary, DEFAULT_DOCUMENTS_LIBRARY_LABELS } from './DocumentsLibrary'
 export type { DocumentsLibraryProps, DocumentsLibraryLabels, DocumentsLibraryClassNames } from './DocumentsLibrary'
+export { DocumentsWorkspace, DEFAULT_DOCUMENTS_WORKSPACE_LABELS } from './documents'
+export type {
+  DocumentsWorkspaceProps,
+  DocumentsWorkspaceLabels,
+  DocumentsWorkspaceClassNames,
+  DocumentsFiltersContext,
+} from './documents'
+export { SortableHead, MultiSelectFilter, BulkActionBar, ListingPagination } from './listing'
+export type {
+  SortableHeadProps,
+  MultiSelectFilterProps,
+  BulkActionBarProps,
+  ListingPaginationProps,
+  FilterOption,
+  SortDirection,
+} from './listing'
+export { useUrlStringState, useUrlNumberState, useUrlArrayState, useDebouncedValue } from './hooks/useUrlFilterState'
+export type { UrlStateOptions } from './hooks/useUrlFilterState'
 export { DOCUMENT_SOURCE_FILTER } from './ConversationDocumentsPanel'
 export type { DocumentSourceFilter } from './ConversationDocumentsPanel'
 export type { ConversationDocumentsPanelClassNames } from './ConversationDocumentsPanel'
@@ -118,19 +136,17 @@ export {
 } from './settings/WhatsAppTemplatesSettings'
 export { TopicsForm } from './settings/TopicsForm'
 
-/**
- * A TELA INTEIRA de mensagens. É o que um produto deve consumir — os formulários acima são as peças,
- * e cada produto remontando abas e estado em cima delas é o que fez as telas divergirem antes.
- */
+// Tela composta de Mensagens: junta os formulários acima com abas, estado e salvamento, para o
+// host não remontar essa mesma colagem em cada produto (foi assim que eles divergiram).
 export { MessagesWorkspace } from './settings/MessagesWorkspace'
-export type { MessagesWorkspaceProps, MessagesWorkspaceLabels } from './settings/MessagesWorkspace'
-export { useMessagesEditor } from './settings/useMessagesEditor'
 export type {
+  MessagesWorkspaceProps,
   MessagesWorkspaceApi,
-  MessagesEditor,
-  CompanyMessages,
+  MessagesWorkspaceLabels,
+  BotMessages,
   TemplateSettings,
-} from './settings/useMessagesEditor'
+  TranscriptionSettings,
+} from './settings/MessagesWorkspace'
 
 // Camada headless (T6.9) — hooks de dados/ações independentes de qualquer tela, para o
 // produto montar sua própria UI sobre eles. Requerem <ConversationsProvider> como ancestral.

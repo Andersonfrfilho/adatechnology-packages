@@ -31,14 +31,38 @@ export interface ListDocumentsParams {
   page?: number
   /** Tamanho da página. Sem ele, `page` sozinho não define fatia nenhuma. */
   limit?: number
-  /** Origem do arquivo (`customer`, `agent`, `bot`…). O vocabulário é do host. */
+  /**
+   * Origem do arquivo (`customer`, `agent`, `bot`…). O vocabulário é do host.
+   *
+   * Seleção múltipla viaja como lista separada por vírgula em vez de virar `string[]`: mudar o
+   * tipo quebraria em compile-time toda implementação de host que já repassa este campo adiante,
+   * e o ganho seria nenhum — quem recebe faz `split(',')`.
+   */
   source?: string
+  /** Categoria do arquivo (`document`, `image`, `audio`, `video`…), mesma convenção de lista. */
+  fileCategory?: string
+  /** Recorte por data de recebimento, em `YYYY-MM-DD`. */
+  startDate?: string
+  endDate?: string
   sortDirection?: 'asc' | 'desc'
+  /** Coluna ordenada. Ausente, o host ordena pela data — é o padrão de toda listagem de arquivo. */
+  sortField?: string
+  /**
+   * Filtros que só existem no produto (`clientId`, `unidade`…). O pacote não os interpreta: passa
+   * adiante o que o host injetou pelo slot de filtros. É a porta que evita um fork da tela por
+   * causa de um `<select>`.
+   */
+  extra?: Readonly<Record<string, string | number>>
 }
 
 /** Arquivo na biblioteca da empresa: o mesmo da conversa, mais de qual conversa veio. */
 export interface CompanyDocument extends ConversationDocument {
   conversationId: string
+  /**
+   * Nome de quem enviou, quando o host o conhece. Opcional porque a biblioteca sempre tem o
+   * telefone e nem todo produto tem cadastro por trás dele — ausente, a coluna cai para o número.
+   */
+  contactName?: string | null
 }
 
 export interface CompanyDocumentPage {
@@ -110,6 +134,17 @@ export interface ConversationsApi {
    * componente de biblioteca simplesmente não é usável — melhor que uma tela que sempre erra.
    */
   getAllDocuments?(params?: ListDocumentsParams): Promise<CompanyDocumentPage>
+  /**
+   * Remove um arquivo da biblioteca. **Opcional por capacidade:** apagar anexo trocado com o
+   * cliente é decisão de retenção do produto — instalação que precisa guardar tudo por obrigação
+   * legal não implementa, e a tela simplesmente não desenha a lixeira.
+   */
+  deleteDocument?(uploadId: string): Promise<void>
+  /**
+   * Zip de arquivos avulsos da biblioteca, sem conversa de origem única — irmão do
+   * `downloadDocumentsArchive`, que é por conversa. Ausente, a seleção em lote não oferece o botão.
+   */
+  downloadDocumentsArchiveByIds?(uploadIds: readonly string[]): Promise<Blob>
   getMediaProxyUrl(mediaId: string): Promise<{ mimeType: string; data: string }>
 
   /**

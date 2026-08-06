@@ -3,6 +3,7 @@ import type { FlowConditionOperator, FlowNodeType, FlowQuestionType } from './fl
 export interface FlowEditorLabels {
   legend: Record<FlowNodeType, string>
   startNodeTooltip: string
+  detachedNodeTooltip: string
   liveCountTooltip: (count: number) => string
   edgeFallbackLabel: string
   // Rótulo por `actionKind` — o host estende esse mapa para registrar seus próprios kinds
@@ -13,6 +14,9 @@ export interface FlowEditorLabels {
   nodePanel: {
     title: string
     contextKey: string
+    nodeName: string
+    nodeNamePlaceholder: string
+    nodeNameHint: string
     questionType: string
     question: string
     options: string
@@ -72,50 +76,16 @@ export interface FlowEditorLabels {
     tooltip: string
     goesTo: (label: string) => string
   }
-  /** Card que ninguém aponta: o contorno tracejado precisa dizer por que está piscando. */
-  detachedNodeTooltip: string
   collectionChain: {
-    feeds: (actionLabel: string) => string
-  }
-  flowManager: {
-    newFlow: string
-    deleteFlow: string
-    createTitle: string
-    label: string
-    key: string
-    keyHint: string
-    keyInvalid: string
-    showInMenu: string
-    menuOptionLabel: string
-    create: string
-    creating: string
-    createError: string
-    deleteConfirm: (label: string) => string
-    deleteError: string
+    feeds: (label: string) => string
   }
   /**
-   * Texto dos problemas do grafo. Mesma forma que `validateGraph` já aceita — o workspace repassa
-   * este grupo direto para lá, em vez de o produto chamar a validação por fora.
+   * Texto dos problemas encontrados por `validateGraph`. Vive aqui, e não no host, porque a tela
+   * composta é quem valida — deixar de fora obrigaria todo produto a repassar o mesmo mapa de
+   * funções só para a barra de erros aparecer.
    */
-  validation: {
-    title: string
-    errors: (count: number) => string
-    warnings: (count: number) => string
-    noStart: string
-    brokenRef: (from: string, to: string) => string
-    choiceWithoutOptions: (id: string) => string
-    duplicatedOptionId: (id: string, optionId: string) => string
-    optionWithoutTarget: (id: string, optionLabel: string) => string
-    tooManyOptions: (id: string, count: number) => string
-    buttonTitleTooLong: (id: string, label: string) => string
-    listTitleTooLong: (id: string, label: string) => string
-    bodyTooLong: (id: string) => string
-    unreachable: (id: string) => string
-    deadEndQuestion: (id: string) => string
-    conditionIncomplete: (id: string) => string
-    conditionBranchMissing: (id: string, branch: string) => string
-  }
-  /** Moldura da tela inteira: título, estados de carga e as ações da barra de cima. */
+  validation: FlowValidationLabels
+  /** Barra de cima, estados de carregamento e ações do editor inteiro. */
   workspace: {
     title: string
     subtitle: string
@@ -132,6 +102,41 @@ export interface FlowEditorLabels {
     discardConfirm: string
     unsavedChangesConfirm: string
   }
+  flowManager: {
+    newFlow: string
+    createTitle: string
+    key: string
+    keyHint: string
+    keyInvalid: string
+    label: string
+    showInMenu: string
+    menuOptionLabel: string
+    create: string
+    creating: string
+    deleteFlow: string
+    deleteConfirm: (label: string) => string
+    createError: string
+    deleteError: string
+  }
+}
+
+export interface FlowValidationLabels {
+  title: string
+  errors: (count: number) => string
+  warnings: (count: number) => string
+  noStart: string
+  brokenRef: (from: string, to: string) => string
+  choiceWithoutOptions: (id: string) => string
+  duplicatedOptionId: (id: string, optionId: string) => string
+  optionWithoutTarget: (id: string, optionLabel: string) => string
+  tooManyOptions: (id: string, count: number) => string
+  buttonTitleTooLong: (id: string, label: string) => string
+  listTitleTooLong: (id: string, label: string) => string
+  bodyTooLong: (id: string) => string
+  unreachable: (id: string) => string
+  deadEndQuestion: (id: string) => string
+  conditionIncomplete: (id: string) => string
+  conditionBranchMissing: (id: string, branch: string) => string
 }
 
 // Paridade de texto com financiamento-imobiliario-bot/apps/web/src/locales/modules/flows.ts —
@@ -145,6 +150,7 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     condition: 'Condição',
   },
   startNodeTooltip: 'Início do fluxo',
+  detachedNodeTooltip: 'Sem ligação de entrada — o bot não chega neste nó. Puxe um fio de outro card até ele.',
   liveCountTooltip: (count) => `${count} conversa(s) ativa(s) aqui agora`,
   edgeFallbackLabel: 'outro',
   actionKindLabels: {
@@ -173,6 +179,9 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
   nodePanel: {
     title: 'Editar nó',
     contextKey: 'Chave (contexto)',
+    nodeName: 'Nome do nó (opcional)',
+    nodeNamePlaceholder: 'Ex.: Enviar tabela de preços',
+    nodeNameHint: 'Só aparece no editor — o cliente não vê.',
     questionType: 'Tipo de resposta',
     question: 'Texto da pergunta',
     options: 'Opções (choice)',
@@ -222,8 +231,8 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
   flowMap: {
     nodeCount: (count) => `${count} nó(s)`,
     openFlow: 'Abrir fluxo',
-    toggleToMap: 'Ver mapa',
-    toggleToDetail: 'Ver fluxo',
+    toggleToMap: 'Mapa de fluxos',
+    toggleToDetail: 'Voltar ao editor',
   },
   flowGroup: {
     focus: 'Focar neste fluxo',
@@ -233,59 +242,60 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     tooltip: 'Clique para abrir esse fluxo aqui do lado, ligado ao ponto de onde ele é chamado',
     goesTo: (label) => `↪ Vai para: ${label}`,
   },
-  detachedNodeTooltip: 'Nenhum caminho leva até aqui — falta ligar este card',
   collectionChain: {
-    feeds: (actionLabel) => `Coleta para: ${actionLabel}`,
+    feeds: (label) => `Alimenta: ${label}`,
+  },
+  validation: {
+    title: 'Antes de publicar',
+    errors: (count) => `${count} erro(s) — corrija antes de salvar`,
+    warnings: (count) => `${count} aviso(s)`,
+    noStart: 'O fluxo precisa de um nó inicial válido.',
+    brokenRef: (from, to) => `Nó "${from}": ligação aponta para "${to}", que não existe.`,
+    choiceWithoutOptions: (id) => `Nó "${id}": escolha sem nenhuma opção.`,
+    duplicatedOptionId: (id, optionId) => `Nó "${id}": valor de opção "${optionId}" duplicado.`,
+    optionWithoutTarget: (id, label) => `Nó "${id}": opção "${label}" não tem destino definido.`,
+    tooManyOptions: (id, count) => `Nó "${id}": ${count} opções — o WhatsApp aceita no máximo 10 em lista.`,
+    buttonTitleTooLong: (id, label) => `Nó "${id}": botão "${label}" passa de 20 caracteres.`,
+    listTitleTooLong: (id, label) => `Nó "${id}": item de lista "${label}" passa de 24 caracteres.`,
+    bodyTooLong: (id) => `Nó "${id}": texto passa de 1024 caracteres.`,
+    unreachable: (id) => `Nó "${id}" é inalcançável a partir do início do fluxo.`,
+    deadEndQuestion: (id) => `Nó "${id}": pergunta sem próximo passo definido.`,
+    conditionIncomplete: (id) => `Nó "${id}": condição incompleta — defina variável, operador e valor.`,
+    conditionBranchMissing: (id, branch) =>
+      `Nó "${id}": ramo "${branch === 'true' ? 'Verdadeiro' : 'Falso'}" sem destino definido.`,
+  },
+  workspace: {
+    title: 'Fluxos do Bot',
+    subtitle: 'Blueprint visual dos fluxos de conversa, sincronizado com o que está em produção.',
+    loading: 'Carregando fluxos…',
+    loadError: 'Não foi possível carregar os fluxos.',
+    saveGraph: 'Publicar alterações',
+    saving: 'Publicando…',
+    saveSuccess: 'Fluxo publicado! O bot já está usando a versão nova.',
+    saveError: 'Não foi possível salvar — verifique se todos os destinos apontam para nós existentes.',
+    organize: 'Organizar',
+    organizeTooltip: 'Reorganiza os nós automaticamente e salva as novas posições',
+    discardChanges: 'Desfazer alterações',
+    discardTooltip: 'Devolve os fluxos abertos ao que está publicado, descartando o que não foi salvo',
+    discardConfirm: 'Descartar todas as alterações não publicadas e voltar ao fluxo que está no ar?',
+    unsavedChangesConfirm:
+      'Você tem alterações não publicadas neste fluxo. Trocar de fluxo agora descarta essas edições. Continuar?',
   },
   flowManager: {
     newFlow: 'Novo fluxo',
-    deleteFlow: 'Excluir fluxo',
-    createTitle: 'Criar fluxo',
-    label: 'Nome',
-    key: 'Identificador',
-    keyHint: 'Letras minúsculas, números e _ — de 2 a 40 caracteres',
+    createTitle: 'Criar novo fluxo',
+    key: 'Identificador único',
+    keyHint: 'letras minúsculas, números e _ (ex.: promocoes_semana)',
     keyInvalid: 'Use apenas letras minúsculas, números e _ (2 a 40 caracteres)',
-    showInMenu: 'Oferecer este fluxo no menu principal',
+    label: 'Nome exibido',
+    showInMenu: 'Exibir como opção no menu principal do bot',
     menuOptionLabel: 'Texto da opção no menu',
-    create: 'Criar',
+    create: 'Criar fluxo',
     creating: 'Criando…',
-    createError: 'Não foi possível criar o fluxo',
+    deleteFlow: 'Excluir fluxo',
     deleteConfirm: (label) => `Excluir o fluxo "${label}"? Esta ação não pode ser desfeita.`,
-    deleteError: 'Não foi possível excluir o fluxo',
-  },
-  validation: {
-    title: 'Validação',
-    errors: (count) => `${count} erro(s)`,
-    warnings: (count) => `${count} aviso(s)`,
-    noStart: 'O fluxo não tem nó inicial',
-    brokenRef: (from, to) => `"${from}" aponta para "${to}", que não existe`,
-    choiceWithoutOptions: (id) => `"${id}" é uma escolha sem opções`,
-    duplicatedOptionId: (id, optionId) => `"${id}" repete a opção "${optionId}"`,
-    optionWithoutTarget: (id, optionLabel) => `A opção "${optionLabel}" de "${id}" não leva a nenhum nó`,
-    tooManyOptions: (id, count) => `"${id}" tem ${count} opções — o WhatsApp aceita no máximo 10`,
-    buttonTitleTooLong: (id, label) => `O botão "${label}" de "${id}" passa do limite do WhatsApp`,
-    listTitleTooLong: (id, label) => `O item "${label}" de "${id}" passa do limite do WhatsApp`,
-    bodyTooLong: (id) => `A mensagem de "${id}" passa do limite do WhatsApp`,
-    unreachable: (id) => `Nenhum caminho chega até "${id}"`,
-    deadEndQuestion: (id) => `"${id}" pergunta e não continua para nenhum nó`,
-    conditionIncomplete: (id) => `A condição "${id}" está incompleta`,
-    conditionBranchMissing: (id, branch) => `A condição "${id}" não define o caminho "${branch}"`,
-  },
-  workspace: {
-    title: 'Fluxos',
-    subtitle: 'Desenhe o caminho da conversa e publique quando estiver pronto',
-    loading: 'Carregando fluxos…',
-    loadError: 'Não foi possível carregar os fluxos',
-    saveGraph: 'Publicar',
-    saving: 'Publicando…',
-    saveSuccess: 'Publicado',
-    saveError: 'Não foi possível publicar',
-    organize: 'Organizar',
-    organizeTooltip: 'Recalcula a posição de todos os cards',
-    discardChanges: 'Descartar',
-    discardTooltip: 'Volta ao que está publicado, perdendo as alterações desta sessão',
-    discardConfirm: 'Descartar as alterações não publicadas?',
-    unsavedChangesConfirm: 'Há alterações não publicadas. Continuar e perdê-las?',
+    createError: 'Não foi possível criar o fluxo.',
+    deleteError: 'Não foi possível excluir o fluxo.',
   },
 }
 
@@ -307,8 +317,8 @@ export function mergeFlowEditorLabels(override?: Partial<FlowEditorLabels>): Flo
     flowGroup: { ...DEFAULT_FLOW_EDITOR_LABELS.flowGroup, ...override.flowGroup },
     crossFlowPortal: { ...DEFAULT_FLOW_EDITOR_LABELS.crossFlowPortal, ...override.crossFlowPortal },
     collectionChain: { ...DEFAULT_FLOW_EDITOR_LABELS.collectionChain, ...override.collectionChain },
-    flowManager: { ...DEFAULT_FLOW_EDITOR_LABELS.flowManager, ...override.flowManager },
     validation: { ...DEFAULT_FLOW_EDITOR_LABELS.validation, ...override.validation },
     workspace: { ...DEFAULT_FLOW_EDITOR_LABELS.workspace, ...override.workspace },
+    flowManager: { ...DEFAULT_FLOW_EDITOR_LABELS.flowManager, ...override.flowManager },
   }
 }
