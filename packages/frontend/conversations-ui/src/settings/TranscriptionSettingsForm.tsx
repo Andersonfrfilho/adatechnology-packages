@@ -132,6 +132,7 @@ export function TranscriptionSettingsForm({
 
         <div className="flex justify-end">
           <button
+            data-cv-tooltip={saving ? labels.saving : labels.save} aria-label={saving ? labels.saving : labels.save}
             type="submit"
             disabled={saving || !isAvailable}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"

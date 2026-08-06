@@ -42,10 +42,11 @@ export function SimpleEmojiPicker({ onSelect, label = 'Emojis', pickerWidth = '2
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 dark:text-gray-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
-        title={label}
+        className="w-9 h-9 flex items-center justify-center rounded-full text-gray-400 dark:text-gray-500 hover:text-teal-600 dark:hover:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/30 transition-colors"
+        data-cv-tooltip={label}
+        aria-label={label}
       >
-        <Smile size={15} />
+        <Smile size={18} />
       </button>
 
       {open && (
@@ -56,6 +57,7 @@ export function SimpleEmojiPicker({ onSelect, label = 'Emojis', pickerWidth = '2
           >
             {EMOJIS.map((emoji) => (
               <button
+                data-cv-tooltip={emoji} aria-label={emoji}
                 key={emoji}
                 type="button"
                 onClick={() => { onSelect(emoji); setOpen(false) }}

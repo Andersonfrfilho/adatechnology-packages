@@ -26,6 +26,8 @@ export const toast = {
   },
 }
 
+const TOAST_CLOSE_LABEL = 'Fechar aviso'
+
 const typeStyles: Record<ToastType, string> = {
   success: 'bg-green-600',
   error: 'bg-red-600',
@@ -77,6 +79,8 @@ function ToastItemComponent({ item, onRemove }: { item: ToastItem; onRemove: (id
           setExiting(true)
           setTimeout(() => onRemove(item.id), 300)
         }}
+        data-cv-tooltip={TOAST_CLOSE_LABEL}
+        aria-label={TOAST_CLOSE_LABEL}
         className="flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

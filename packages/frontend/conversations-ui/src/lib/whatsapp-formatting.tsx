@@ -90,9 +90,15 @@ function parseInlineTokens(text: string): FormatToken[] {
       if (remaining) result.push({ type: 'text', content: remaining })
       break
     }
-    if (nextSpecial > 0) {
-      result.push({ type: 'text', content: remaining.slice(0, nextSpecial) })
+    // Marcador sem par — o `_` de `IMG_2026.jpg` é o caso comum. Nenhuma das regras casou e o
+    // marcador está na posição zero: sem consumir esse caractere o laço reprocessa a mesma string
+    // para sempre e trava a aba inteira, porque isto roda no render de cada mensagem.
+    if (nextSpecial === 0) {
+      result.push({ type: 'text', content: remaining.slice(0, 1) })
+      remaining = remaining.slice(1)
+      continue
     }
+    result.push({ type: 'text', content: remaining.slice(0, nextSpecial) })
     remaining = remaining.slice(nextSpecial)
   }
 
@@ -137,6 +143,15 @@ function unescapeHtml(text: string): string {
 const CODE_TOKEN_MARK = String.fromCharCode(0xe000)
 const CODE_TOKEN_REGEX = new RegExp(`${CODE_TOKEN_MARK}(\\d+)${CODE_TOKEN_MARK}`, 'g')
 
+/**
+ * Âncora invisível que o campo rico usa para pôr o cursor dentro (ou fora) de um `<code>` — não
+ * existe comando de navegador para monoespaçado, e o cursor sozinho não fica onde não há texto.
+ * Ela é do editor, nunca da mensagem: sai toda aqui, na conversão de volta.
+ */
+export const ZERO_WIDTH_SPACE = String.fromCharCode(0x200b)
+const EMPTY_CODE_REGEX = new RegExp(`<code[^>]*>[${ZERO_WIDTH_SPACE}\\s]*</code>`, 'gi')
+const ZERO_WIDTH_SPACE_REGEX = new RegExp(ZERO_WIDTH_SPACE, 'g')
+
 // waToHTML/htmlToWA formam um par round-trip: todo texto que sai de waToHTML deve
 // reconstruir exatamente o original ao passar por htmlToWA (inclusive blocos de
 // código multi-linha, que exigem distinguir ``` de ` via atributo data-wa).
@@ -156,7 +171,10 @@ export function waToHTML(text: string): string {
   let html = escapeHtml(working)
   html = html.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>')
   html = html.replace(/_([^_\n]+)_/g, '<em>$1</em>')
-  html = html.replace(/~([^~\n]+)~/g, '<del>$1</del>')
+  // `<s>` e não `<del>`: o navegador se recusa a tirar o tachado de um `<del>` — o botão acendia,
+  // o clique não fazia nada e o texto continuava riscado. Com `<s>` a alternância funciona, e a
+  // linha na tela é a mesma. `<del>` continua certo na exibição da mensagem, que não é editável.
+  html = html.replace(/~([^~\n]+)~/g, '<s>$1</s>')
   html = html.replace(/\n/g, '<br>')
 
   html = html.replace(CODE_TOKEN_REGEX, (_match, indexStr: string) => {
@@ -175,6 +193,9 @@ export function htmlToWA(html: string): string {
   if (!html) return ''
 
   let text = html
+  // O `<code>` que o cursor abre nasce só com a âncora de largura zero. Sem nada digitado dentro,
+  // ele viraria um par de crases vazias no texto enviado.
+  text = text.replace(EMPTY_CODE_REGEX, '')
   text = text.replace(/<code data-wa="block"[^>]*>([\s\S]*?)<\/code>/gi, (_match, inner: string) => (
     `\`\`\`${unescapeHtml(inner.replace(/<br\s*\/?>/gi, '\n'))}\`\`\``
   ))
@@ -195,11 +216,15 @@ export function htmlToWA(html: string): string {
   text = text.replace(/<i>(.*?)<\/i>/gi, '_$1_')
   text = text.replace(/<del>(.*?)<\/del>/gi, '~$1~')
   text = text.replace(/<s>(.*?)<\/s>/gi, '~$1~')
+  // O `strikeThrough` do navegador escreve `<strike>`, que não é o que geramos mas chega no campo.
+  text = text.replace(/<strike>(.*?)<\/strike>/gi, '~$1~')
   // Compat: HTML sem os marcadores data-wa (ex: vindo de outro editor) ainda vira código inline.
   text = text.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
 
   text = text.replace(/<[^>]+>/g, '')
   text = unescapeHtml(text)
+  // A âncora do cursor sobrevive dentro do `<code>` que ganhou texto; ela é do editor, não da mensagem.
+  text = text.replace(ZERO_WIDTH_SPACE_REGEX, '')
   return text.trim()
 }
 

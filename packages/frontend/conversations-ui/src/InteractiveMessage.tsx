@@ -86,6 +86,7 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
         <div className="mt-1 flex flex-col gap-1 border-t border-gray-200 pt-1 dark:border-gray-700">
           {buttons.map((button) => (
             <button
+              data-cv-tooltip={button.title} aria-label={button.title}
               key={button.id}
               type="button"
               disabled={!isInteractable}
@@ -101,6 +102,7 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
       {hasRows ? (
         <div className="mt-1 border-t border-gray-200 pt-1 dark:border-gray-700">
           <button
+            data-cv-tooltip={payload.action?.button ?? openListLabel} aria-label={payload.action?.button ?? openListLabel}
             type="button"
             onClick={() => setIsListOpen((open) => !open)}
             aria-expanded={isListOpen}
@@ -120,6 +122,7 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
                   ) : null}
                   {(section.rows ?? []).map((row) => (
                     <button
+                      data-cv-tooltip={row.title} aria-label={row.title}
                       key={row.id}
                       type="button"
                       disabled={!isInteractable}

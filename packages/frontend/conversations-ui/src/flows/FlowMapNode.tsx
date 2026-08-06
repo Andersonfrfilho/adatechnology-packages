@@ -22,11 +22,12 @@ export function FlowMapNode({ data }: NodeProps) {
         <GitBranch size={14} />
         <span className="text-sm font-semibold truncate">{label}</span>
         {isRoot && (
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" title={labels.startNodeTooltip} />
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" data-cv-tooltip={labels.startNodeTooltip} />
         )}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{labels.flowMap.nodeCount(nodeCount)}</p>
       <button
+        data-cv-tooltip={labels.flowMap.openFlow} aria-label={labels.flowMap.openFlow}
         type="button"
         onClick={onOpen}
         className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"

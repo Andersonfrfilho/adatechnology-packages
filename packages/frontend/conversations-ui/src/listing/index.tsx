@@ -29,6 +29,7 @@ export function SortableHead({ label, field, activeField, direction, onSort, cla
   return (
     <th scope="col" className={cn('px-3 py-2 text-left text-xs font-medium', className)}>
       <button
+        data-cv-tooltip={label}
         type="button"
         onClick={() => onSort(field)}
         aria-label={label}
@@ -64,6 +65,7 @@ export function MultiSelectFilter({ label, options, selected, onChange, classNam
   return (
     <div className={cn('relative', className)}>
       <button
+        data-cv-tooltip={label} aria-label={label}
         type="button"
         onClick={() => setOpen((current) => !current)}
         className="cv-header-action inline-flex items-center gap-1"
@@ -112,7 +114,7 @@ export function BulkActionBar({ selectedCount, selectedLabel, clearLabel, onClea
     <div className="cv-bulk-bar" role="toolbar" aria-label={selectedLabel(selectedCount)}>
       <span className="text-xs font-medium">{selectedLabel(selectedCount)}</span>
       {children}
-      <button type="button" onClick={onClear} className="cv-header-action ml-auto inline-flex items-center gap-1">
+      <button data-cv-tooltip={clearLabel} aria-label={clearLabel} type="button" onClick={onClear} className="cv-header-action ml-auto inline-flex items-center gap-1">
         <X size={12} aria-hidden="true" />
         {clearLabel}
       </button>
@@ -174,6 +176,7 @@ export function ListingPagination({
 
       <div className="flex items-center gap-2">
         <button
+          data-cv-tooltip={labels.previous}
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
@@ -184,6 +187,7 @@ export function ListingPagination({
         </button>
         <span className="text-xs text-gray-500">{labels.page(page, lastPage)}</span>
         <button
+          data-cv-tooltip={labels.next}
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= lastPage}

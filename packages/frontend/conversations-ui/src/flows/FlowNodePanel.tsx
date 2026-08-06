@@ -181,7 +181,7 @@ export function FlowNodePanel({
     <div className="fixed inset-y-0 right-0 w-96 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 shadow-xl z-50 flex flex-col">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{labels.nodePanel.title}</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <button data-cv-tooltip={labels.nodePanel.close} aria-label={labels.nodePanel.close} onClick={onClose} className="text-gray-400 hover:text-gray-600">
           <X size={18} />
         </button>
       </div>
@@ -358,7 +358,7 @@ export function FlowNodePanel({
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.options}</label>
-              <button onClick={addOption} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              <button data-cv-tooltip={labels.nodePanel.addOption} aria-label={labels.nodePanel.addOption} onClick={addOption} className="text-xs text-blue-600 hover:underline flex items-center gap-1">
                 <Plus size={12} /> {labels.nodePanel.addOption}
               </button>
             </div>
@@ -377,7 +377,7 @@ export function FlowNodePanel({
                     placeholder={labels.nodePanel.optionLabel}
                     className={`flex-1 ${INPUT_CLASSNAME}`}
                   />
-                  <button onClick={() => removeOption(i)} className="text-gray-400 hover:text-red-600">
+                  <button data-cv-tooltip={labels.nodePanel.removeOption} aria-label={labels.nodePanel.removeOption} onClick={() => removeOption(i)} className="text-gray-400 hover:text-red-600">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -441,6 +441,7 @@ export function FlowNodePanel({
 
       <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex gap-2">
         <button
+          data-cv-tooltip={labels.nodePanel.save} aria-label={labels.nodePanel.save}
           onClick={() => onChange(draft)}
           className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
@@ -451,13 +452,13 @@ export function FlowNodePanel({
             onClick={() => {
               if (window.confirm(labels.nodePanel.deleteConfirm)) onDelete(node.id)
             }}
-            title={labels.nodePanel.delete}
+            data-cv-tooltip={labels.nodePanel.delete} aria-label={labels.nodePanel.delete}
             className="px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
           >
             <Trash2 size={14} />
           </button>
         )}
-        <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:underline">
+        <button data-cv-tooltip={labels.nodePanel.cancel} aria-label={labels.nodePanel.cancel} onClick={onClose} className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:underline">
           {labels.nodePanel.cancel}
         </button>
       </div>

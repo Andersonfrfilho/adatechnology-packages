@@ -117,13 +117,13 @@ export function WhatsAppMessageEditor({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5 mb-2">
-        <button type="button" onClick={() => wrapSelection('*')} className={toolbarButtonClass} title={editorLabels.boldHint} aria-label={editorLabels.bold}>
+        <button type="button" onClick={() => wrapSelection('*')} className={toolbarButtonClass} data-cv-tooltip={editorLabels.boldHint} aria-label={editorLabels.bold}>
           <Bold size={15} />
         </button>
-        <button type="button" onClick={() => wrapSelection('_')} className={toolbarButtonClass} title={editorLabels.italicHint} aria-label={editorLabels.italic}>
+        <button type="button" onClick={() => wrapSelection('_')} className={toolbarButtonClass} data-cv-tooltip={editorLabels.italicHint} aria-label={editorLabels.italic}>
           <Italic size={15} />
         </button>
-        <button type="button" onClick={() => wrapSelection('~')} className={toolbarButtonClass} title={editorLabels.strikethroughHint} aria-label={editorLabels.strikethrough}>
+        <button type="button" onClick={() => wrapSelection('~')} className={toolbarButtonClass} data-cv-tooltip={editorLabels.strikethroughHint} aria-label={editorLabels.strikethrough}>
           <Strikethrough size={15} />
         </button>
         {placeholders.length > 0 && (
@@ -135,7 +135,7 @@ export function WhatsAppMessageEditor({
                 type="button"
                 onClick={() => insertAtCursor(token)}
                 className="inline-flex items-center h-8 px-2 rounded-lg border border-gray-200 dark:border-gray-600 text-xs text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors"
-                title={editorLabels.insertPlaceholder(token)}
+                data-cv-tooltip={editorLabels.insertPlaceholder(token)} aria-label={editorLabels.insertPlaceholder(token)}
               >
                 {token}
               </button>

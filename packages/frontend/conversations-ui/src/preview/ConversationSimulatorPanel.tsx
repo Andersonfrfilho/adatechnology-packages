@@ -72,7 +72,7 @@ export function ConversationSimulatorPanel({
         </div>
         <div className="cv-simulator-panel__actions">
           {headerActions}
-          <button type="button" onClick={onClose} title={text.close} aria-label={text.close} className="cv-simulator-panel__close">
+          <button type="button" onClick={onClose} data-cv-tooltip={text.close} aria-label={text.close} className="cv-simulator-panel__close">
             {/* SVG inline em vez de lucide-react: o pacote não impõe biblioteca de ícone ao host. */}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" />

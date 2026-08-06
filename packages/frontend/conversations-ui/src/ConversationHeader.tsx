@@ -6,13 +6,28 @@
  * papel do pacote saber a rota de cada host. Quem passa os handlers é o produto.
  */
 
-import { useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { ArrowLeft, Bot, Download, FileText, Headset, MoreVertical, UserRound, X } from 'lucide-react'
 
 import type { ConversationSummary } from './providers/types'
 import { capabilitiesOf, contactFlag, formatContactHandle } from './conversationChannel'
 import { cn } from './lib/cn'
+import { ICON_SIZE_ACTION, ICON_SIZE_INLINE } from './icon.constant'
+import { useContainerWidth } from './hooks/useContainerWidth'
 import { Avatar } from './Avatar'
 import { ChannelIcon } from './ChannelIcon'
+
+/**
+ * Larguras do próprio cabeçalho (em px) que decidem o quanto ele recolhe. São da faixa, não da
+ * janela: com a prévia do simulador aberta a coluna fica com metade da tela, e pelo breakpoint da
+ * janela o cabeçalho continuava desenhando tudo — sobrava uma letra do nome do cliente.
+ *
+ * Abaixo da primeira, os utilitários (ícones de consulta) viram itens do menu ⋮ e o telefone volta a
+ * caber; abaixo da segunda, até as ações escritas entram no menu, porque nem elas cabem sem comer o
+ * nome. Quem identifica a conversa é o nome — ele é o último a ceder espaço.
+ */
+const HEADER_UTILITIES_MIN_WIDTH = 720
+const HEADER_ACTIONS_MIN_WIDTH = 600
 
 export interface ConversationHeaderLabels {
   botMode: string
@@ -27,8 +42,10 @@ export interface ConversationHeaderLabels {
 }
 
 export const DEFAULT_CONVERSATION_HEADER_LABELS: ConversationHeaderLabels = {
-  botMode: '🤖 atendimento automático',
-  humanMode: '🧑‍💼 atendimento humano',
+  // Sem emoji no rótulo: quem desenha o modo é o ícone ao lado, e o emoji embutido no texto voltava
+  // a aparecer no tooltip e no leitor de tela como um caractere sem nome.
+  botMode: 'atendimento automático',
+  humanMode: 'atendimento humano',
   returnToBot: 'Devolver ao bot',
   finish: 'Finalizar',
   takeover: 'Assumir atendimento',
@@ -59,11 +76,24 @@ export interface ConversationHeaderClassNames {
  */
 export interface ConversationHeaderUtility {
   key: string
-  /** Emoji, para casar com os utilitários nativos do cabeçalho. */
-  icon: string
+  /** Ícone da biblioteca (lucide), no tamanho dos utilitários nativos: `<Play size={16} />`. */
+  icon: ReactNode
   label: string
   run: () => void
   active?: boolean
+}
+
+/** Utilitário já resolvido para desenho: o `active` opcional do contrato vira estado explícito. */
+type ResolvedUtility = ConversationHeaderUtility & { active: boolean }
+
+/** Ação de atendimento pronta para virar botão na faixa ou item do menu ⋮. */
+type HeaderAction = {
+  key: string
+  icon: ReactNode
+  label: string
+  hint: string
+  run: () => void
+  className: string
 }
 
 export interface ConversationHeaderProps {
@@ -105,42 +135,92 @@ export function ConversationHeader({
   const flag = contactFlag({ handle, channel: conversation.channel })
   const capabilities = capabilitiesOf(conversation.channel)
   const [menuOpen, setMenuOpen] = useState(false)
+  const headerRef = useRef<HTMLElement>(null)
+  const headerWidth = useContainerWidth(headerRef)
+
+  // Sem medida ainda (SSR, primeiro render) o cabeçalho nasce completo: é o layout correto na maior
+  // parte dos casos, e recolher depois não tira nada do lugar de quem já estava lendo.
+  const showsUtilitiesInline = headerWidth === undefined || headerWidth >= HEADER_UTILITIES_MIN_WIDTH
+  const showsActionsInline = headerWidth === undefined || headerWidth >= HEADER_ACTIONS_MIN_WIDTH
 
   // Utilitários: ícone no desktop, item de menu no celular. Três ícones lado a lado em 375px não
   // caberiam com área de toque decente, e nenhum deles é a ação principal do atendimento.
-  const utilities = [
+  const utilityCandidates: readonly (ResolvedUtility | undefined)[] = [
     onOpenDocuments
-      ? { key: 'documents', icon: '📄', label: labels.documents, run: onOpenDocuments, active: documentsOpen }
+      ? {
+          key: 'documents',
+          icon: <FileText size={ICON_SIZE_ACTION} />,
+          label: labels.documents,
+          run: onOpenDocuments,
+          active: documentsOpen,
+        }
       : undefined,
-    onDownload ? { key: 'download', icon: '⬇️', label: labels.download, run: onDownload, active: false } : undefined,
+    onDownload
+      ? {
+          key: 'download',
+          icon: <Download size={ICON_SIZE_ACTION} />,
+          label: labels.download,
+          run: onDownload,
+          active: false,
+        }
+      : undefined,
     ...(extraUtilities ?? []).map((utility) => ({ ...utility, active: utility.active ?? false })),
-  ].filter(
-    (utility): utility is { key: string; icon: string; label: string; run: () => void; active: boolean } =>
-      Boolean(utility),
-  )
+  ]
+  const utilities = utilityCandidates.filter((utility): utility is ResolvedUtility => Boolean(utility))
 
   // Lista única de ações: alimenta os botões do desktop e o menu do celular, para as duas
   // superfícies nunca divergirem sobre o que está disponível.
-  const actions = [
+  // `hint` existe separado do `label` porque o host pode traduzir o rótulo com prefixo ou contagem:
+  // no tooltip isso vira ruído, e é o texto limpo que descreve a ação.
+  const actionCandidates: readonly (HeaderAction | undefined)[] = [
     !isHuman && onTakeover
-      ? { key: 'takeover', label: labels.takeover, run: onTakeover, className: 'cv-header-action--primary' }
+      ? {
+          key: 'takeover',
+          icon: <Headset size={ICON_SIZE_ACTION} />,
+          label: labels.takeover,
+          hint: labels.takeover,
+          run: onTakeover,
+          className: 'cv-header-action--primary',
+        }
       : undefined,
-    isHuman && onReturnToBot ? { key: 'release', label: labels.returnToBot, run: onReturnToBot, className: '' } : undefined,
+    isHuman && onReturnToBot
+      ? {
+          key: 'release',
+          icon: <Bot size={ICON_SIZE_ACTION} />,
+          label: labels.returnToBot,
+          hint: labels.returnToBot,
+          run: onReturnToBot,
+          className: '',
+        }
+      : undefined,
     isHuman && onFinish
-      ? { key: 'finish', label: `✕ ${labels.finish}`, run: onFinish, className: 'cv-header-action--danger' }
+      ? {
+          key: 'finish',
+          icon: <X size={ICON_SIZE_ACTION} />,
+          label: labels.finish,
+          hint: labels.finish,
+          run: onFinish,
+          className: 'cv-header-action--danger',
+        }
       : undefined,
-  ].filter((action): action is { key: string; label: string; run: () => void; className: string } => Boolean(action))
+  ]
+  const actions = actionCandidates.filter((action): action is HeaderAction => Boolean(action))
 
-  // No celular utilitários e ações moram no mesmo menu: utilitários primeiro, porque são consulta e
-  // não alteram estado da conversa.
+  // O menu recebe só o que não coube na faixa: utilitários primeiro, porque são consulta e não
+  // alteram estado da conversa. Nada aparece nos dois lugares — item duplicado é o operador achando
+  // que são duas coisas diferentes.
   const menuItems = [
-    ...utilities.map((utility) => ({
-      key: utility.key,
-      label: `${utility.icon} ${utility.label}`,
-      run: utility.run,
-      className: '',
-    })),
-    ...actions,
+    ...(showsUtilitiesInline
+      ? []
+      : utilities.map((utility) => ({
+          key: utility.key,
+          icon: utility.icon,
+          label: utility.label,
+          hint: utility.label,
+          run: utility.run,
+          className: '',
+        }))),
+    ...(showsActionsInline ? [] : actions),
   ]
 
   // `flex-nowrap` no cabeçalho: com wrap, o nome do cliente ocupava a largura toda em 375px e
@@ -148,6 +228,7 @@ export function ConversationHeader({
   // fora da tela. O bloco de identificação encurta (truncate) em vez de empurrar.
   return (
     <header
+      ref={headerRef}
       className={cn(
         'flex flex-nowrap items-center justify-between gap-3 border-b px-4 py-3',
         classNames?.root,
@@ -158,76 +239,93 @@ export function ConversationHeader({
         {/* Voltar existe só em tela estreita, onde lista e conversa não cabem juntas: sem ele, abrir
             uma conversa no celular é um beco sem saída. A classe some acima de 1024px. */}
         {onBack ? (
-          <button type="button" onClick={onBack} className="cv-back cv-touch" aria-label={labels.back} title={labels.back}>
-            ←
+          <button type="button" onClick={onBack} className="cv-back cv-touch" aria-label={labels.back} data-cv-tooltip={labels.back}>
+            <ArrowLeft size={ICON_SIZE_ACTION} aria-hidden="true" />
           </button>
         ) : null}
         {/* Sem nome, o Avatar cai na silhueta — melhor que dois dígitos do telefone como iniciais. */}
         <Avatar name={conversation.clientName} size="md" />
         <div className="min-w-0">
           <p className={cn('truncate font-medium', classNames?.name)}>{conversation.clientName ?? displayHandle}</p>
-          <p className={cn('truncate text-xs text-gray-500', classNames?.meta)}>
+          {/* Flex com `items-center`, não texto corrido: ícone de canal e emoji de modo têm altura
+              maior que a fonte, e como elementos inline cada um assentava na própria baseline —
+              telefone, canal e modo saíam em três alturas diferentes. O gap substitui as margens. */}
+          <p className={cn('flex min-w-0 flex-nowrap items-center gap-2 overflow-hidden text-xs text-gray-500', classNames?.meta)}>
             {/* Bandeira derivada do DDI e só quando o identificador é telefone. Estava fixa em 🇧🇷,
                 o que rotulava qualquer contato como brasileiro. */}
-            {flag ? `${flag} ` : ''}
-            {displayHandle}
-            {/* Em tela estreita sobra o ícone do canal e o emoji do modo: o rótulo escrito empurra o
-                telefone para fora e não diz nada que o ícone já não diga. */}
-            <span className="ml-2 inline-flex items-center gap-1">
-              <ChannelIcon channel={conversation.channel} />
-              <span className="cv-only-wide">{capabilities.label}</span>
+            <span className="truncate">
+              {flag ? `${flag} ` : ''}
+              {displayHandle}
             </span>
-            <span className="ml-2 cv-only-wide">{isHuman ? labels.humanMode : labels.botMode}</span>
-            <span className="ml-1 cv-only-narrow" title={isHuman ? labels.humanMode : labels.botMode}>
-              {isHuman ? '🧑‍💼' : '🤖'}
+            {/* Em faixa estreita sobra só o ícone do canal e o do modo: o rótulo escrito empurra o
+                telefone para fora e não diz nada que o ícone já não diga. */}
+            <span className="inline-flex flex-shrink-0 items-center gap-1">
+              <ChannelIcon channel={conversation.channel} />
+              {showsUtilitiesInline ? <span>{capabilities.label}</span> : null}
+            </span>
+            <span
+              className="inline-flex flex-shrink-0 items-center gap-1"
+              // Sem o rótulo escrito, o ícone sozinho não diria nada ao leitor de tela.
+              {...(showsUtilitiesInline
+                ? {}
+                : { role: 'img', 'aria-label': isHuman ? labels.humanMode : labels.botMode, 'data-cv-tooltip': isHuman ? labels.humanMode : labels.botMode })}
+            >
+              {isHuman ? (
+                <UserRound size={ICON_SIZE_INLINE} aria-hidden="true" />
+              ) : (
+                <Bot size={ICON_SIZE_INLINE} aria-hidden="true" />
+              )}
+              {showsUtilitiesInline ? <span>{isHuman ? labels.humanMode : labels.botMode}</span> : null}
             </span>
           </p>
         </div>
       </div>
 
       <div className={cn('flex shrink-0 items-center gap-2', classNames?.actions)}>
-        {/* Desktop: utilitários como ícone e ações como botão, tudo visível de uma vez. */}
-        <div className={cn('hidden items-center gap-2 lg:flex', classNames?.desktopActions)}>
-          {utilities.map((utility) => (
+        {/* Faixa larga: utilitários como ícone e ações como botão, tudo visível de uma vez. */}
+        <div className={cn('flex items-center gap-2', classNames?.desktopActions)}>
+          {(showsUtilitiesInline ? utilities : []).map((utility) => (
             <button
               key={utility.key}
               type="button"
               onClick={utility.run}
               disabled={busy}
               aria-pressed={utility.active}
-              title={utility.label}
+              data-cv-tooltip={utility.label}
               aria-label={utility.label}
               className={`cv-header-icon ${utility.active ? 'cv-header-icon--active' : ''}`}
             >
               {utility.icon}
             </button>
           ))}
-          {actions.map((action) => (
+          {(showsActionsInline ? actions : []).map((action) => (
             <button
               key={action.key}
               type="button"
               onClick={action.run}
               disabled={busy}
+              data-cv-tooltip={action.hint} aria-label={action.hint}
               className={`cv-header-action ${action.className}`}
             >
+              {action.icon}
               {action.label}
             </button>
           ))}
         </div>
 
-        {/* Celular: um único ⋮ com tudo dentro. Três ícones de 30px lado a lado violavam o mínimo
-            de 44px de área de toque e disputavam espaço com o nome do cliente. */}
+        {/* Faixa estreita: um único ⋮ com o que não coube. Ícones de 30px lado a lado violavam o
+            mínimo de 44px de área de toque e disputavam espaço com o nome do cliente. */}
         {menuItems.length > 0 ? (
-          <div className={cn('cv-menu lg:hidden', classNames?.mobileMenu)}>
+          <div className={cn('cv-menu', classNames?.mobileMenu)}>
             <button
               type="button"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-expanded={menuOpen}
               aria-label={labels.moreActions}
-              title={labels.moreActions}
+              data-cv-tooltip={labels.moreActions}
               className="cv-header-icon cv-touch"
             >
-              ⋮
+              <MoreVertical size={ICON_SIZE_ACTION} aria-hidden="true" />
             </button>
 
             {menuOpen ? (
@@ -242,8 +340,10 @@ export function ConversationHeader({
                       item.run()
                     }}
                     disabled={busy}
+                    data-cv-tooltip={item.hint} aria-label={item.hint}
                     className={`cv-header-action cv-touch ${item.className}`}
                   >
+                    {item.icon}
                     {item.label}
                   </button>
                 ))}

@@ -14,6 +14,7 @@ import { WINDOW_FILTERS } from '../conversationWindow'
 import type { ConversationSummary } from '../providers/types'
 import type { ConversationsWorkspaceLabels } from './labels'
 import type { UseConversationsInboxResult } from './useConversationsInbox'
+import { PAGINATION_LABELS } from '../pagination.constant'
 
 export interface ConversationsInboxListProps {
   readonly inbox: UseConversationsInboxResult
@@ -44,16 +45,17 @@ export function ConversationsInboxList({
         <div className="cv-workspace-bulk">
           <span className="cv-workspace-bulk__count">{labels.bulkSelected(inbox.selectedIds.size)}</span>
           <div className="cv-workspace-bulk__actions">
-            <button type="button" onClick={inbox.clearBulkSelection}>
+            <button data-cv-tooltip={labels.bulkClear} aria-label={labels.bulkClear} type="button" onClick={inbox.clearBulkSelection}>
               {labels.bulkClear}
             </button>
             {onSendTemplateToSelected ? (
-              <button type="button" onClick={onSendTemplateToSelected} disabled={inbox.busy}>
+              <button data-cv-tooltip={labels.bulkTemplate} aria-label={labels.bulkTemplate} type="button" onClick={onSendTemplateToSelected} disabled={inbox.busy}>
                 {labels.bulkTemplate}
               </button>
             ) : null}
             {inbox.canFinalize ? (
               <button
+                data-cv-tooltip={labels.bulkFinalize} aria-label={labels.bulkFinalize}
                 type="button"
                 disabled={inbox.busy}
                 onClick={() => {
@@ -89,9 +91,15 @@ export function ConversationsInboxList({
               type="button"
               onClick={() => inbox.setWindowFilter(filter.value)}
               aria-pressed={inbox.windowFilter === filter.value}
-              className={`cv-workspace-chip${inbox.windowFilter === filter.value ? ' cv-workspace-chip--on' : ''}`}
+              data-cv-tooltip={filter.label} aria-label={filter.label}
+              className={[
+                'cv-workspace-chip',
+                filter.tone ? `cv-workspace-chip--${filter.tone}` : '',
+                inbox.windowFilter === filter.value ? 'cv-workspace-chip--on' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
-              {filter.dotClass ? <span className={`cv-workspace-dot ${filter.dotClass}`} /> : null}
               {filter.label}
             </button>
           ))}
@@ -103,6 +111,7 @@ export function ConversationsInboxList({
             <span className="cv-workspace-chips__legend">{labels.channelLegend}</span>
             {inbox.channelFilters.map((filter) => (
               <button
+                data-cv-tooltip={filter.label} aria-label={filter.label}
                 key={filter.value}
                 type="button"
                 onClick={() => inbox.setChannelFilter(filter.value)}
@@ -150,14 +159,14 @@ export function ConversationsInboxList({
       <div className="cv-workspace-pager">
         <span>{labels.rangeOf(inbox.firstOnPage, inbox.lastOnPage, inbox.filteredCount)}</span>
         <div className="cv-workspace-pager__buttons">
-          <button type="button" onClick={() => inbox.goToPage(1)} disabled={inbox.page === 1} aria-label="Primeira página">
+          <button type="button" onClick={() => inbox.goToPage(1)} disabled={inbox.page === 1} aria-label={PAGINATION_LABELS.first} data-cv-tooltip={PAGINATION_LABELS.first}>
             «
           </button>
           <button
             type="button"
             onClick={() => inbox.goToPage(inbox.page - 1)}
             disabled={inbox.page === 1}
-            aria-label="Página anterior"
+            aria-label={PAGINATION_LABELS.previous} data-cv-tooltip={PAGINATION_LABELS.previous}
           >
             ‹
           </button>
@@ -166,7 +175,7 @@ export function ConversationsInboxList({
             type="button"
             onClick={() => inbox.goToPage(inbox.page + 1)}
             disabled={inbox.page === inbox.pageCount}
-            aria-label="Próxima página"
+            aria-label={PAGINATION_LABELS.next} data-cv-tooltip={PAGINATION_LABELS.next}
           >
             ›
           </button>
@@ -174,7 +183,7 @@ export function ConversationsInboxList({
             type="button"
             onClick={() => inbox.goToPage(inbox.pageCount)}
             disabled={inbox.page === inbox.pageCount}
-            aria-label="Última página"
+            aria-label={PAGINATION_LABELS.last} data-cv-tooltip={PAGINATION_LABELS.last}
           >
             »
           </button>

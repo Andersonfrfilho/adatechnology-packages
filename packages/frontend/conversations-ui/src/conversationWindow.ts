@@ -22,12 +22,14 @@ export const CONVERSATION_WINDOW = {
 } as const
 export type ConversationWindow = (typeof CONVERSATION_WINDOW)[keyof typeof CONVERSATION_WINDOW]
 
+// O tom pinta o próprio chip, em vez de uma bolinha ao lado do rótulo: a bolinha somava ~14px por
+// filtro e era o que fazia a fila de cinco quebrar em duas linhas na coluna da lista.
 export const WINDOW_FILTERS = [
-  { value: CONVERSATION_WINDOW.ALL, label: 'Todas', dotClass: '' },
-  { value: CONVERSATION_WINDOW.FRESH, label: '<12h', dotClass: 'bg-green-500' },
-  { value: CONVERSATION_WINDOW.WARNING, label: '12-21h', dotClass: 'bg-yellow-500' },
-  { value: CONVERSATION_WINDOW.CRITICAL, label: '21-24h', dotClass: 'bg-red-500' },
-  { value: CONVERSATION_WINDOW.EXPIRED, label: '>24h', dotClass: 'bg-gray-400' },
+  { value: CONVERSATION_WINDOW.ALL, label: 'Todas', tone: '' },
+  { value: CONVERSATION_WINDOW.FRESH, label: '<12h', tone: 'fresh' },
+  { value: CONVERSATION_WINDOW.WARNING, label: '12-21h', tone: 'warning' },
+  { value: CONVERSATION_WINDOW.CRITICAL, label: '21-24h', tone: 'critical' },
+  { value: CONVERSATION_WINDOW.EXPIRED, label: '>24h', tone: 'expired' },
 ] as const
 
 // Proporções da janela: 12h e 21h numa janela de 24h, mas expressas como fração para acompanharem

@@ -13,6 +13,7 @@ import { useConversations } from './providers/ConversationsProvider'
 import { DOCUMENT_SOURCE_FILTER, type DocumentSourceFilter } from './ConversationDocumentsPanel'
 import { FileIcon } from './FileIcon'
 import { cn } from './lib/cn'
+import { PAGINATION_LABELS } from './pagination.constant'
 import { formatDateTime, formatFileSize } from './lib/format'
 import { formatPhone } from './lib/phone'
 import type { CompanyDocument } from './providers/types'
@@ -181,6 +182,7 @@ export function DocumentsLibrary({
         </select>
 
         <button
+          data-cv-tooltip={sortDirection === 'desc' ? labels.sortMostRecent : labels.sortOldest} aria-label={sortDirection === 'desc' ? labels.sortMostRecent : labels.sortOldest}
           type="button"
           onClick={() => applyFilter(() => setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc'))}
           className={cn('cv-header-action inline-flex items-center gap-1', classNames?.sortButton)}
@@ -191,6 +193,7 @@ export function DocumentsLibrary({
 
         {hasFilters ? (
           <button
+            data-cv-tooltip={labels.clearFilters} aria-label={labels.clearFilters}
             type="button"
             onClick={() =>
               applyFilter(() => {
@@ -234,7 +237,7 @@ export function DocumentsLibrary({
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <FileIcon filename={document.filename} mimeType={document.mimeType} />
                 <div className="min-w-0 flex-1">
-                  <div className={cn('truncate text-sm font-medium', classNames?.filename)} title={document.filename}>
+                  <div className={cn('truncate text-sm font-medium', classNames?.filename)} data-cv-tooltip={document.filename}>
                     {document.filename}
                   </div>
                   <div className={cn('flex flex-wrap items-center gap-x-2 text-xs text-gray-500', classNames?.meta)}>
@@ -256,7 +259,7 @@ export function DocumentsLibrary({
                 <button
                   type="button"
                   onClick={() => onOpenConversation(document.conversationId)}
-                  title={labels.openConversation}
+                  data-cv-tooltip={labels.openConversation} aria-label={labels.openConversation}
                   className={cn('cv-header-action inline-flex shrink-0 items-center gap-1', classNames?.conversationLink)}
                 >
                   <MessageSquare size={12} />
@@ -272,7 +275,7 @@ export function DocumentsLibrary({
                 <button
                   type="button"
                   onClick={() => void handleOpen(document.id, 'inline')}
-                  title={labels.view}
+                  data-cv-tooltip={labels.view}
                   aria-label={`${labels.view}: ${document.filename}`}
                   className="cv-header-icon"
                 >
@@ -281,7 +284,7 @@ export function DocumentsLibrary({
                 <button
                   type="button"
                   onClick={() => void handleOpen(document.id, 'attachment')}
-                  title={labels.download}
+                  data-cv-tooltip={labels.download}
                   aria-label={`${labels.download}: ${document.filename}`}
                   className="cv-header-icon"
                 >
@@ -298,6 +301,7 @@ export function DocumentsLibrary({
           <span className="text-gray-400">{labels.total(total)}</span>
           <div className="flex items-center gap-2">
             <button
+              data-cv-tooltip={PAGINATION_LABELS.previous} aria-label={PAGINATION_LABELS.previous}
               type="button"
               onClick={() => setPage(page - 1)}
               disabled={page <= 1}
@@ -307,6 +311,7 @@ export function DocumentsLibrary({
             </button>
             <span className="text-gray-500">{labels.page(page, lastPage)}</span>
             <button
+              data-cv-tooltip={PAGINATION_LABELS.next} aria-label={PAGINATION_LABELS.next}
               type="button"
               onClick={() => setPage(page + 1)}
               disabled={page >= lastPage}

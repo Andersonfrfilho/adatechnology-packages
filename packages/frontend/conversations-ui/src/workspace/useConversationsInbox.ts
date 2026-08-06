@@ -265,8 +265,11 @@ export function useConversationsInbox(params: UseConversationsInboxParams = {}):
     selectedConversation: conversations.find((conversation) => conversation.id === selectedId),
     loading,
     now,
-    totalCount: conversations.length,
-    unreadCount: conversations.reduce((total, conversation) => total + conversation.unread, 0),
+    // Com paginação no servidor `conversations` é só a página, então contar o array mostrava o
+    // tamanho da página no lugar do tamanho da base. Não lidas e aguardando seguem sendo da página:
+    // somar a base inteira exige agregado do servidor, que a listagem não devolve.
+    totalCount: params.serverPaginated ? total : conversations.length,
+    unreadCount: conversations.reduce((sum, conversation) => sum + conversation.unread, 0),
     waitingCount: conversations.filter((conversation) => conversation.waitingHuman).length,
     filteredCount: totalForPaging,
     expiredSelectedCount: conversations.filter(

@@ -21,6 +21,8 @@ export interface FlowEditorLabels {
     question: string
     options: string
     addOption: string
+    removeOption: string
+    close: string
     optionId: string
     optionLabel: string
     next: string
@@ -186,6 +188,8 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     question: 'Texto da pergunta',
     options: 'Opções (choice)',
     addOption: 'Adicionar opção',
+    removeOption: 'Remover opção',
+    close: 'Fechar painel',
     optionId: 'Valor',
     optionLabel: 'Texto exibido',
     next: 'Próximo nó',

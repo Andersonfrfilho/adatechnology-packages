@@ -28,6 +28,7 @@ export { DateDivider } from './DateDivider'
 export { Avatar, DEFAULT_AVATAR_LABELS } from './Avatar'
 export { ConversationListItem, DEFAULT_CONVERSATION_LIST_ITEM_LABELS } from './ConversationListItem'
 export { ToastProvider, useToast, toast } from './Toast'
+export { TooltipLayer, TOOLTIP_ATTRIBUTE } from './Tooltip'
 
 export { StatusTicks } from './StatusTicks'
 export { Lightbox, DEFAULT_LIGHTBOX_LABELS } from './Lightbox'

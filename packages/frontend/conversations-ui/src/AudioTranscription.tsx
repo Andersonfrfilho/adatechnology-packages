@@ -136,7 +136,7 @@ export function AudioTranscription({ transcription, onTranscribe, isMine = false
         {hasText && (
           <button
             onClick={handleCopy}
-            title={locales.copy}
+            data-cv-tooltip={locales.copy}
             aria-label={hasCopied ? locales.copied : locales.copy}
             className="ml-auto flex flex-shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200"
           >
@@ -182,6 +182,7 @@ export function AudioTranscription({ transcription, onTranscribe, isMine = false
               tela, não sobre o que o operador cola no sistema interno. */}
           {isLong && (
             <button
+              data-cv-tooltip={isExpanded ? locales.showLess : locales.showMore} aria-label={isExpanded ? locales.showLess : locales.showMore}
               onClick={() => setIsExpanded((current) => !current)}
               className="mt-1 text-[11px] font-medium text-gray-500 underline decoration-dotted hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
@@ -194,6 +195,7 @@ export function AudioTranscription({ transcription, onTranscribe, isMine = false
       {/* Retranscrever fica escondido atrás do hover do balão: é ação rara e paga cota de engine. */}
       {onTranscribe && (
         <button
+          data-cv-tooltip={isTranscribing ? locales.transcribing : locales.retry} aria-label={isTranscribing ? locales.transcribing : locales.retry}
           onClick={handleTranscribe}
           disabled={isTranscribing}
           className="mt-1 flex items-center gap-1 text-[11px] text-gray-400 opacity-0 transition-opacity hover:text-gray-600 focus:opacity-100 group-hover:opacity-100 disabled:opacity-50 dark:text-gray-500 dark:hover:text-gray-300"
@@ -234,6 +236,7 @@ function TranscribeButton({
 }) {
   return (
     <button
+      data-cv-tooltip={label} aria-label={label}
       onClick={onClick}
       disabled={isBusy || isDisabled}
       className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-700 disabled:opacity-60 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200"

@@ -16,7 +16,7 @@ export function FlowPortalNode({ data }: NodeProps) {
   return (
     <button
       type="button"
-      title={labels.crossFlowPortal.tooltip}
+      data-cv-tooltip={labels.crossFlowPortal.tooltip} aria-label={labels.crossFlowPortal.tooltip}
       onClick={onNavigate}
       className="relative flex items-center gap-1.5 rounded-full border-2 border-dashed border-cyan-400 dark:border-cyan-600 bg-cyan-50 dark:bg-cyan-950/40 px-3 py-1.5 text-xs font-medium text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-950/70 transition-colors cursor-pointer"
     >

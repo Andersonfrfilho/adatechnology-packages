@@ -40,6 +40,7 @@ import {
   type FlowNodeData,
   type GraphIssue,
 } from './flowGraph'
+import { TooltipLayer } from '../Tooltip'
 
 const RF_NODE_TYPES = {
   ...flowNodeTypes,
@@ -966,6 +967,7 @@ export function FlowsWorkspace({
 
   return (
     <div className={`space-y-4 h-full flex flex-col ${className ?? ''}`}>
+      <TooltipLayer />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{labels.workspace.title}</h2>
@@ -977,6 +979,7 @@ export function FlowsWorkspace({
             <span className="text-sm text-red-600">{saveErrorMessage ?? labels.workspace.saveError}</span>
           )}
           <button
+            data-cv-tooltip={viewMode === 'map' ? labels.flowMap.toggleToDetail : labels.flowMap.toggleToMap} aria-label={viewMode === 'map' ? labels.flowMap.toggleToDetail : labels.flowMap.toggleToMap}
             type="button"
             onClick={() => setViewMode((mode) => (mode === 'map' ? 'detail' : 'map'))}
             className={OUTLINE_BUTTON}
@@ -990,7 +993,7 @@ export function FlowsWorkspace({
                 type="button"
                 onClick={handleOrganize}
                 className={OUTLINE_BUTTON}
-                title={labels.workspace.organizeTooltip}
+                data-cv-tooltip={labels.workspace.organizeTooltip} aria-label={labels.workspace.organizeTooltip}
                 disabled={!primaryGraph}
               >
                 <LayoutGrid size={14} aria-hidden="true" /> {labels.workspace.organize}
@@ -999,12 +1002,13 @@ export function FlowsWorkspace({
                 type="button"
                 onClick={handleDiscardChanges}
                 className={OUTLINE_BUTTON}
-                title={labels.workspace.discardTooltip}
+                data-cv-tooltip={labels.workspace.discardTooltip} aria-label={labels.workspace.discardTooltip}
                 disabled={!isDirty || saveState === 'saving'}
               >
                 <Undo2 size={14} aria-hidden="true" /> {labels.workspace.discardChanges}
               </button>
               <button
+                data-cv-tooltip={labels.workspace.saveGraph} aria-label={labels.workspace.saveGraph}
                 type="button"
                 onClick={() => void handlePublish()}
                 className={PRIMARY_BUTTON}
@@ -1024,6 +1028,7 @@ export function FlowsWorkspace({
             {graphs &&
               Object.values(graphs).map((graph) => (
                 <button
+                  data-cv-tooltip={graph.label} aria-label={graph.label}
                   key={graph.key}
                   type="button"
                   onClick={() => focusFlow(graph.key)}
@@ -1038,6 +1043,7 @@ export function FlowsWorkspace({
               ))}
             {canCreateFlow && (
               <button
+                data-cv-tooltip={labels.flowManager.newFlow} aria-label={labels.flowManager.newFlow}
                 type="button"
                 onClick={() => {
                   setFlowMutationState({ pending: false })
@@ -1059,6 +1065,7 @@ export function FlowsWorkspace({
             )}
             {primaryGraph && canDeleteFlow && (
               <button
+                data-cv-tooltip={labels.flowManager.deleteFlow} aria-label={labels.flowManager.deleteFlow}
                 type="button"
                 onClick={() => {
                   setFlowMutationState({ pending: false })
@@ -1186,10 +1193,11 @@ export function FlowsWorkspace({
             {flowMutationState.error && <p className="text-xs text-red-600">{flowMutationState.error}</p>}
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button type="button" className={OUTLINE_BUTTON} onClick={() => setShowCreateDialog(false)}>
+            <button data-cv-tooltip={labels.nodePanel.cancel} aria-label={labels.nodePanel.cancel} type="button" className={OUTLINE_BUTTON} onClick={() => setShowCreateDialog(false)}>
               {labels.nodePanel.cancel}
             </button>
             <button
+              data-cv-tooltip={labels.flowManager.create} aria-label={labels.flowManager.create}
               type="button"
               className={PRIMARY_BUTTON}
               onClick={() => void handleCreateFlow()}
@@ -1208,10 +1216,11 @@ export function FlowsWorkspace({
           </p>
           {flowMutationState.error && <p className="text-xs text-red-600 mt-2">{flowMutationState.error}</p>}
           <div className="flex justify-end gap-2 mt-4">
-            <button type="button" className={OUTLINE_BUTTON} onClick={() => setShowDeleteDialog(false)}>
+            <button data-cv-tooltip={labels.nodePanel.cancel} aria-label={labels.nodePanel.cancel} type="button" className={OUTLINE_BUTTON} onClick={() => setShowDeleteDialog(false)}>
               {labels.nodePanel.cancel}
             </button>
             <button
+              data-cv-tooltip={labels.flowManager.deleteFlow} aria-label={labels.flowManager.deleteFlow}
               type="button"
               className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-40"
               onClick={() => void handleDeleteFlow()}

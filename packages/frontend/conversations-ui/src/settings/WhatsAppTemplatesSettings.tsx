@@ -78,6 +78,7 @@ export function WhatsAppTemplatesSettings({
     <div className="space-y-4">
       <nav className="flex gap-1 border-b" role="tablist">
         <button
+          data-cv-tooltip={labels.selectTab} aria-label={labels.selectTab}
           type="button"
           role="tab"
           aria-selected={tab === TEMPLATE_SETTINGS_TAB.SELECT}
@@ -91,6 +92,7 @@ export function WhatsAppTemplatesSettings({
             que não leva a nada. */}
         {create ? (
           <button
+            data-cv-tooltip={labels.createTab} aria-label={labels.createTab}
             type="button"
             role="tab"
             aria-selected={tab === TEMPLATE_SETTINGS_TAB.CREATE}

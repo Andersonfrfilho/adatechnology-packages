@@ -21,7 +21,7 @@ export function FlowGroupHeader({ data }: NodeProps) {
       <button
         type="button"
         onClick={onFocus}
-        title={labels.flowGroup.focus}
+        data-cv-tooltip={labels.flowGroup.focus} aria-label={labels.flowGroup.focus}
         className="hover:text-blue-600 dark:hover:text-blue-400"
       >
         <Maximize2 size={12} />
@@ -29,7 +29,7 @@ export function FlowGroupHeader({ data }: NodeProps) {
       <button
         type="button"
         onClick={onClose}
-        title={labels.flowGroup.close}
+        data-cv-tooltip={labels.flowGroup.close} aria-label={labels.flowGroup.close}
         className="hover:text-red-600 dark:hover:text-red-400"
       >
         <X size={12} />

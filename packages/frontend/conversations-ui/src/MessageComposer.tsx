@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, type KeyboardEvent, type ChangeEvent, ty
 import { AudioRecorderButton } from './AudioRecorderButton'
 import type { ConversationsFeatures } from './types'
 import { cn } from './lib/cn'
+import { COMPOSER_BAR_CLASS, QUICK_REPLY_PILL_CLASS } from './composer.constant'
 import { EmojiPicker } from './EmojiPicker'
 
 /**
@@ -42,12 +43,14 @@ export interface MessageComposerLabels {
   emoji: string
   attach: string
   send: string
+  removeAttachment: string
 }
 
 export const DEFAULT_MESSAGE_COMPOSER_LABELS: MessageComposerLabels = {
   emoji: 'Emoji',
   attach: 'Anexar',
   send: 'Enviar',
+  removeAttachment: 'Remover anexo',
 }
 
 export interface MessageComposerProps {
@@ -123,6 +126,7 @@ export const MessageComposer = ({
   const emojiLabel = labels?.emoji ?? DEFAULT_MESSAGE_COMPOSER_LABELS.emoji
   const attachLabel = labels?.attach ?? DEFAULT_MESSAGE_COMPOSER_LABELS.attach
   const sendLabel = labels?.send ?? DEFAULT_MESSAGE_COMPOSER_LABELS.send
+  const removeAttachmentLabel = labels?.removeAttachment ?? DEFAULT_MESSAGE_COMPOSER_LABELS.removeAttachment
   const [internalText, setInternalText] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [attachments, setAttachments] = useState<FilePreview[]>([])
@@ -245,7 +249,7 @@ export const MessageComposer = ({
     /* A barra é a superfície (cinza, largura cheia, sem raio) e o campo dentro é que arredonda —
        ordem do WhatsApp. Invertido, o pill arredondado ia até a borda da tela e os cantos
        descobriam o fundo branco da página, que lia como defeito. */
-    <div className={cn('bg-[#f0f2f5] px-2 py-2', className)}>
+    <div className={cn(COMPOSER_BAR_CLASS, className)}>
       {/* Uma linha com scroll no celular e wrap no desktop: em 375px seis chips em wrap empurrariam
           o campo para fora da tela, e o campo é a razão de a barra existir. */}
       {quickReplies && quickReplies.length > 0 && (
@@ -257,6 +261,7 @@ export const MessageComposer = ({
         >
           {quickReplies.map((quickReply) => (
             <button
+              data-cv-tooltip={quickReply.label} aria-label={quickReply.label}
               key={quickReply.key}
               type="button"
               // Preenche o campo em vez de enviar: mensagem pronta é ponto de partida, e quem
@@ -266,10 +271,7 @@ export const MessageComposer = ({
                 setText(resolveQuickReply(quickReply, quickReplyVariables))
                 textareaRef.current?.focus()
               }}
-              className={cn(
-                'whitespace-nowrap rounded-full border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 transition-colors hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400',
-                classNames?.quickReply,
-              )}
+              className={cn(QUICK_REPLY_PILL_CLASS, classNames?.quickReply)}
             >
               {quickReply.label}
             </button>
@@ -288,7 +290,7 @@ export const MessageComposer = ({
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 </div>
               )}
-              <button onClick={() => removeAttachment(i)} className="absolute -top-2 -right-2 w-5 h-5 bg-gray-600 text-white rounded-full flex items-center justify-center hover:bg-gray-800 text-xs">✕</button>
+              <button data-cv-tooltip={removeAttachmentLabel} aria-label={removeAttachmentLabel} onClick={() => removeAttachment(i)} className="absolute -top-2 -right-2 w-5 h-5 bg-gray-600 text-white rounded-full flex items-center justify-center hover:bg-gray-800 text-xs">✕</button>
             </div>
           ))}
         </div>
@@ -297,7 +299,7 @@ export const MessageComposer = ({
       <div className={cn('flex items-end gap-1.5 rounded-xl bg-white px-3 py-2', classNames?.field)}>
         {showEmojiButton && (
           <div className="relative flex-shrink-0">
-            <button onClick={() => setShowEmoji(v => !v)} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 transition-colors" aria-label={emojiLabel}>
+            <button data-cv-tooltip={emojiLabel} onClick={() => setShowEmoji(v => !v)} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 transition-colors" aria-label={emojiLabel}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="0.5" fill="currentColor"/><circle cx="15" cy="9" r="0.5" fill="currentColor"/></svg>
             </button>
             {showEmoji && (
@@ -323,7 +325,7 @@ export const MessageComposer = ({
         {showAttachButton && (
           <>
             <input ref={fileInputRef} type="file" multiple accept={acceptedFileTypes} onChange={handleFileChange} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors" aria-label={attachLabel}>
+            <button data-cv-tooltip={attachLabel} onClick={() => fileInputRef.current?.click()} className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors" aria-label={attachLabel}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
             </button>
           </>
@@ -333,6 +335,7 @@ export const MessageComposer = ({
           <div className="flex-shrink-0">{effectiveIdleAction}</div>
         ) : (
           <button
+            data-cv-tooltip={sendLabel}
             onClick={sendMessage}
             disabled={!canSend || disabled}
             className={`w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0 transition-all ${

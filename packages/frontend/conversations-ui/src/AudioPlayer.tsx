@@ -15,6 +15,13 @@ const BARS = Array.from({ length: 30 }, (_, i) => {
   return heights[i % heights.length]
 })
 
+// O player não recebe bag de rótulos do host: são duas palavras, e criar um contrato de labels só
+// para elas custaria mais do que resolve.
+const AUDIO_PLAYER_LABELS = {
+  play: 'Reproduzir',
+  pause: 'Pausar',
+} as const
+
 function fmt(sec: number): string {
   if (!isFinite(sec)) return '0:00'
   const m = Math.floor(sec / 60)
@@ -77,6 +84,7 @@ export function AudioPlayer({ src, isMine = false }: AudioPlayerProps) {
       <audio ref={audioRef} src={src} preload="metadata" />
 
       <button
+        data-cv-tooltip={playing ? AUDIO_PLAYER_LABELS.pause : AUDIO_PLAYER_LABELS.play} aria-label={playing ? AUDIO_PLAYER_LABELS.pause : AUDIO_PLAYER_LABELS.play}
         onClick={toggle}
         className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-colors ${playBtn}`}
       >

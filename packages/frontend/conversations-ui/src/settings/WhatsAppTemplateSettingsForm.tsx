@@ -132,6 +132,7 @@ export function WhatsAppTemplateSettingsForm({
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{labels.templateLabel}</label>
             <button
+              data-cv-tooltip={labels.refreshList} aria-label={labels.refreshList}
               type="button"
               onClick={onRefreshTemplates}
               disabled={loadingTemplates}
@@ -180,6 +181,7 @@ export function WhatsAppTemplateSettingsForm({
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{labels.variablesLabel}</label>
             <button
+              data-cv-tooltip={labels.addVariable} aria-label={labels.addVariable}
               type="button"
               onClick={() => onVariablesChange([...variables, ''])}
               className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
@@ -198,7 +200,7 @@ export function WhatsAppTemplateSettingsForm({
                     key={available.token}
                     type="button"
                     onClick={() => insertVariable(available.token)}
-                    title={`Inserir ${available.token}`}
+                    data-cv-tooltip={`Inserir ${available.token}`} aria-label={`Inserir ${available.token}`}
                     className="inline-flex items-center gap-1 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs hover:border-blue-400 dark:hover:border-blue-500 transition-colors"
                   >
                     <code className="text-blue-600 dark:text-blue-300">{available.token}</code>
@@ -233,7 +235,7 @@ export function WhatsAppTemplateSettingsForm({
                   type="button"
                   onClick={() => removeVariable(index)}
                   className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex-shrink-0"
-                  title={labels.removeVariable}
+                  data-cv-tooltip={labels.removeVariable} aria-label={labels.removeVariable}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -250,6 +252,7 @@ export function WhatsAppTemplateSettingsForm({
 
         <div className="flex justify-end">
           <button
+            data-cv-tooltip={saving ? labels.saving : labels.save} aria-label={saving ? labels.saving : labels.save}
             type="submit"
             disabled={saving || !selectedTemplateName.trim()}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"

@@ -12,7 +12,9 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Check, CheckCheck, FlaskConical, Hourglass, Mail, MessagesSquare } from 'lucide-react'
 
+import { ICON_SIZE_ACTION, ICON_SIZE_INLINE } from '../icon.constant'
 import type { ConversationContextEntry } from '../ConversationContextPanel'
 import type { ConversationHeaderUtility } from '../ConversationHeader'
 import type { QuickReply } from '../MessageComposer'
@@ -23,6 +25,7 @@ import { ConversationPane } from './ConversationPane'
 import { ConversationsInboxList } from './ConversationsInboxList'
 import { DEFAULT_CONVERSATIONS_WORKSPACE_LABELS, type ConversationsWorkspaceLabels } from './labels'
 import { useConversationsInbox, type UseConversationsInboxResult } from './useConversationsInbox'
+import { TooltipLayer } from '../Tooltip'
 
 export interface ConversationsWorkspaceSimulator {
   /**
@@ -32,7 +35,8 @@ export interface ConversationsWorkspaceSimulator {
   render(params: { conversationId: string; close: () => void }): ReactNode
   /** Ausente = ligado. Serve para esconder fora de desenvolvimento sem condicionar o JSX. */
   readonly enabled?: boolean
-  readonly icon?: string
+  /** Ícone da biblioteca (lucide) no utilitário do cabeçalho. Ausente, entra o frasco de teste. */
+  readonly icon?: ReactNode
   readonly label?: string
 }
 
@@ -166,7 +170,7 @@ export function ConversationsWorkspace({
       ...fromProduct,
       {
         key: 'simulator',
-        icon: simulator?.icon ?? '🧪',
+        icon: simulator?.icon ?? <FlaskConical size={ICON_SIZE_ACTION} />,
         label: simulator?.label ?? 'Simular cliente',
         active: simulatorOpen,
         run: () => setSimulatorOpen((open) => !open),
@@ -176,22 +180,23 @@ export function ConversationsWorkspace({
 
   return (
     <div className={`cv-workspace${className ? ` ${className}` : ''}`}>
+      <TooltipLayer />
       {/* Cabeçalho denso em tela estreita: ícone + número. O rótulo escrito ocupava três linhas em
           375px e empurrava a lista para fora da tela. */}
       <header className="cv-workspace-header">
         <div className="cv-workspace-header__titles">
           <h1>{labels.title}</h1>
           <p>
-            <span title={labels.conversations}>
-              💬 {inbox.totalCount}
+            <span data-cv-tooltip={labels.conversations} className="cv-stat">
+              <MessagesSquare size={ICON_SIZE_INLINE} aria-hidden="true" /> {inbox.totalCount}
               <span className="cv-only-wide"> {labels.conversations}</span>
             </span>
-            <span title={labels.waiting} className="cv-workspace-header__waiting">
-              ⏳ {inbox.waitingCount}
+            <span data-cv-tooltip={labels.waiting} className="cv-stat cv-workspace-header__waiting">
+              <Hourglass size={ICON_SIZE_INLINE} aria-hidden="true" /> {inbox.waitingCount}
               <span className="cv-only-wide"> {labels.waiting}</span>
             </span>
-            <span title={labels.unread}>
-              ✉️ {inbox.unreadCount}
+            <span data-cv-tooltip={labels.unread} className="cv-stat">
+              <Mail size={ICON_SIZE_INLINE} aria-hidden="true" /> {inbox.unreadCount}
               <span className="cv-only-wide"> {labels.unread}</span>
             </span>
           </p>
@@ -202,22 +207,24 @@ export function ConversationsWorkspace({
             type="button"
             onClick={() => inbox.setWaitingOnly(!inbox.waitingOnly)}
             aria-pressed={inbox.waitingOnly}
-            title={labels.waitingOnly}
+            data-cv-tooltip={labels.waitingOnly} aria-label={labels.waitingOnly}
             className={inbox.waitingOnly ? 'cv-workspace-toggle cv-workspace-toggle--on' : 'cv-workspace-toggle'}
           >
-            ⏳<span className="cv-only-wide"> {labels.waitingOnly}</span>
+            <Hourglass size={ICON_SIZE_ACTION} aria-hidden="true" />
+            <span className="cv-only-wide">{labels.waitingOnly}</span>
           </button>
           {/* O contador só aparece com seleção: " (0)" era texto morto ao lado do ícone. */}
           <button
             type="button"
             onClick={() => void inbox.markSelectedAsRead()}
             disabled={inbox.selectedIds.size === 0 || inbox.busy}
-            title={labels.markSelectedAsRead}
+            data-cv-tooltip={labels.markSelectedAsRead}
             aria-label={labels.markSelectedAsRead}
             className="cv-workspace-toggle"
           >
-            ✓<span className="cv-only-wide"> {labels.markSelectedAsRead}</span>
-            {inbox.selectedIds.size > 0 ? ` (${inbox.selectedIds.size})` : ''}
+            <Check size={ICON_SIZE_ACTION} aria-hidden="true" />
+            <span className="cv-only-wide">{labels.markSelectedAsRead}</span>
+            {inbox.selectedIds.size > 0 ? <span>({inbox.selectedIds.size})</span> : null}
           </button>
           {/* Só com não lida na tela e só onde o host implementa a rota: sem isso o botão zerava
               nada e ainda assim ocupava o cabeçalho. */}
@@ -226,10 +233,11 @@ export function ConversationsWorkspace({
               type="button"
               onClick={() => void inbox.markAllAsRead()}
               disabled={inbox.busy}
-              title={labels.markAllAsRead}
+              data-cv-tooltip={labels.markAllAsRead} aria-label={labels.markAllAsRead}
               className="cv-workspace-toggle"
             >
-              ✓✓<span className="cv-only-wide"> {labels.markAllAsRead}</span>
+              <CheckCheck size={ICON_SIZE_ACTION} aria-hidden="true" />
+              <span className="cv-only-wide">{labels.markAllAsRead}</span>
             </button>
           ) : null}
           {renderHeaderActions?.(inbox)}
@@ -283,7 +291,7 @@ export function ConversationsWorkspace({
               now={inbox.now}
               busy={inbox.busy}
               labels={labels}
-              {...(inbox.canTakeover ? { onTakeover: () => void inbox.takeover(selected.id) } : {})}
+              {...(inbox.canTakeover ? { onTakeover: () => inbox.takeover(selected.id) } : {})}
               {...(inbox.canTakeover ? { onReturnToBot: () => void inbox.releaseToBot(selected.id) } : {})}
               {...(inbox.canFinalize ? { onFinish: () => void inbox.finalize(selected.id) } : {})}
               {...(flowLabelOf ? { flowLabel: flowLabelOf(selected) } : {})}

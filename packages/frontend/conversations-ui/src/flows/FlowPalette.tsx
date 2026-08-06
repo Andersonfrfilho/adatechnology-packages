@@ -58,6 +58,7 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
   return (
     <div ref={containerRef} className="relative">
       <button
+        data-cv-tooltip={labels.palette.title} aria-label={labels.palette.title}
         onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
       >
@@ -68,6 +69,7 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
         <div className="absolute left-0 top-full mt-1.5 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-1">
           <div className="relative">
             <button
+              data-cv-tooltip={labels.palette.question} aria-label={labels.palette.question}
               onMouseEnter={() => setSubmenu('question')}
               onClick={() => setSubmenu(submenu === 'question' ? null : 'question')}
               className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -81,6 +83,7 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
               <div className="absolute left-full top-0 ml-1 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
                 {QUESTION_TYPES.map((qt) => (
                   <button
+                    data-cv-tooltip={labels.questionTypeLabels[qt]} aria-label={labels.questionTypeLabels[qt]}
                     key={qt}
                     onClick={() => select({ kind: 'question', questionType: qt })}
                     className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -93,6 +96,7 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
           </div>
 
           <button
+            data-cv-tooltip={labels.palette.decision} aria-label={labels.palette.decision}
             onMouseEnter={() => setSubmenu(null)}
             onClick={() => select({ kind: 'decision' })}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -104,13 +108,14 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
             onMouseEnter={() => setSubmenu(null)}
             onClick={() => select({ kind: 'condition' })}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-            title={labels.palette.conditionHint}
+            data-cv-tooltip={labels.palette.conditionHint} aria-label={labels.palette.conditionHint}
           >
             <Diamond size={15} className="text-cyan-500" /> {labels.palette.condition}
           </button>
 
           <div className="relative">
             <button
+              data-cv-tooltip={labels.palette.action} aria-label={labels.palette.action}
               onMouseEnter={() => setSubmenu('action')}
               onClick={() => setSubmenu(submenu === 'action' ? null : 'action')}
               className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -124,6 +129,7 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
               <div className="absolute left-full top-0 ml-1 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
                 {resolvedActionOptions.map((option) => (
                   <button
+                    data-cv-tooltip={option.label} aria-label={option.label}
                     key={option.actionKind}
                     onClick={() => select({ kind: 'action', actionKind: option.actionKind })}
                     className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"

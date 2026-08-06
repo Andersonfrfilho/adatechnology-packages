@@ -70,7 +70,7 @@ export function BulkTemplateModal({
             <h3>{labels.templateModalTitle}</h3>
             <p>{labels.templateModalAvailable(templates.length)}</p>
           </div>
-          <button type="button" onClick={onClose} aria-label={labels.templateModalCancel}>
+          <button data-cv-tooltip={labels.templateModalCancel} type="button" onClick={onClose} aria-label={labels.templateModalCancel}>
             ✕
           </button>
         </header>
@@ -89,6 +89,7 @@ export function BulkTemplateModal({
           {filtered.length === 0 ? <p className="cv-workspace-empty">{labels.templateModalEmpty}</p> : null}
           {filtered.map((template) => (
             <button
+              data-cv-tooltip={template.name} aria-label={template.name}
               key={template.name}
               type="button"
               // Reclicar desmarca: sem isso não havia como voltar ao template padrão depois de
@@ -113,10 +114,11 @@ export function BulkTemplateModal({
         ) : null}
 
         <footer className="cv-workspace-modal__footer">
-          <button type="button" onClick={onClose}>
+          <button data-cv-tooltip={labels.templateModalCancel} aria-label={labels.templateModalCancel} type="button" onClick={onClose}>
             {labels.templateModalCancel}
           </button>
           <button
+            data-cv-tooltip={sending ? labels.templateModalSending : labels.templateModalSend(expiredCount)} aria-label={sending ? labels.templateModalSending : labels.templateModalSend(expiredCount)}
             type="button"
             disabled={sending || expiredCount === 0}
             onClick={() => onSend(selected || undefined)}

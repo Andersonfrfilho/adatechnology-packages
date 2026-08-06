@@ -5,7 +5,7 @@
  * última mensagem, outro engolia falha de anexo, outro não abria a biblioteca de arquivos.
  */
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { AudioRecorderButton } from '../AudioRecorderButton'
 import { ConversationContextPanel, type ConversationContextEntry } from '../ConversationContextPanel'
@@ -36,7 +36,8 @@ export interface ConversationPaneProps {
   readonly now: number
   readonly busy: boolean
   readonly labels: ConversationsWorkspaceLabels
-  readonly onTakeover?: (() => void) | undefined
+  /** Devolve a promessa quando o host a tem: o envio de template espera a tomada antes de sair. */
+  readonly onTakeover?: (() => void | Promise<void>) | undefined
   readonly onReturnToBot?: (() => void) | undefined
   readonly onFinish?: (() => void) | undefined
   readonly onBack: () => void
@@ -139,6 +140,9 @@ export function ConversationPane({
   const [selectedMessageIds, setSelectedMessageIds] = useState<ReadonlySet<string>>(new Set())
   const [draft, setDraft] = useState(initialComposerText ?? '')
   const [queuedFiles, setQueuedFiles] = useState<readonly File[]>([])
+  const [isSendingDraft, setIsSendingDraft] = useState(false)
+  /** Ref, não estado: entre dois cliques seguidos o React ainda não teria repintado a trava. */
+  const sendInFlightRef = useRef(false)
 
   // Trocar de conversa zera as duas coisas: seleção de mensagem e rascunho pertencem à thread, e
   // levá-los adiante faria copiar o trecho errado ou responder ao cliente errado.
@@ -187,18 +191,31 @@ export function ConversationPane({
    * Falha vira aviso na tela em vez de exceção silenciosa: o atendente escreveu ou gravou, achou
    * que mandou, e sem retorno não teria como saber que o cliente não recebeu nada.
    */
-  async function runSend(action: () => Promise<unknown>, fallback: string): Promise<void> {
+  /** Devolve se o envio passou: limpar o rascunho depois de uma falha apagaria o texto do operador. */
+  async function runSend(action: () => Promise<unknown>, fallback: string): Promise<boolean> {
     setSendFailure(undefined)
     try {
       await action()
       await refetch()
+      return true
     } catch (error: unknown) {
       setSendFailure(error instanceof Error ? error.message : fallback)
+      return false
     }
   }
 
-  async function handleSend(text: string): Promise<void> {
-    await runSend(() => api.sendMessage(conversation.id, text), labels.sendFailure)
+  async function handleSend(text: string): Promise<boolean> {
+    return runSend(() => api.sendMessage(conversation.id, text), labels.sendFailure)
+  }
+
+  /**
+   * Reabrir a janela é ato de atendente: quem manda o template quer conversar. A tomada vai antes do
+   * envio — se ficasse depois, a resposta do cliente chegaria com a conversa ainda no bot e o fluxo
+   * automático responderia por cima de quem acabou de reabri-la.
+   */
+  async function handleSendTemplate(): Promise<void> {
+    if (conversation.mode !== 'human' && onTakeover) await onTakeover()
+    await runSend(() => api.sendTemplate(conversation.id, {}), labels.sendFailure)
   }
 
   /**
@@ -206,17 +223,28 @@ export function ConversationPane({
    * frase embaixo, e mandar as duas separadas invertia a ordem quando a mídia demorava a subir.
    */
   async function handleRichSend(): Promise<void> {
-    if (onSendAttachments && queuedFiles.length > 0) {
-      const files = queuedFiles
-      const caption = draft
-      await runSend(() => onSendAttachments(files, caption), labels.attachFailure)
-      setQueuedFiles([])
-      setDraft('')
-      return
+    // O upload da mídia demora e não dá retorno na tela; sem esta trava o segundo clique — ou o
+    // Enter impaciente — mandava o mesmo arquivo outra vez.
+    if (sendInFlightRef.current) return
+    sendInFlightRef.current = true
+    setIsSendingDraft(true)
+    try {
+      if (onSendAttachments && queuedFiles.length > 0) {
+        const files = queuedFiles
+        const caption = draft
+        const didSend = await runSend(() => onSendAttachments(files, caption), labels.attachFailure)
+        if (didSend) {
+          setQueuedFiles([])
+          setDraft('')
+        }
+        return
+      }
+      if (!draft.trim()) return
+      if (await handleSend(draft)) setDraft('')
+    } finally {
+      sendInFlightRef.current = false
+      setIsSendingDraft(false)
     }
-    if (!draft.trim()) return
-    await handleSend(draft)
-    setDraft('')
   }
 
   async function handleAttach(file: File): Promise<void> {
@@ -309,10 +337,10 @@ export function ConversationPane({
         <div className="cv-workspace-selection">
           <span>{labels.messagesSelected(selectedMessageIds.size)}</span>
           <div className="cv-workspace-selection__actions">
-            <button type="button" onClick={() => setSelectedMessageIds(new Set())}>
+            <button data-cv-tooltip={labels.bulkClear} aria-label={labels.bulkClear} type="button" onClick={() => setSelectedMessageIds(new Set())}>
               {labels.bulkClear}
             </button>
-            <button type="button" onClick={copySelectedMessages}>
+            <button data-cv-tooltip={labels.copySelected} aria-label={labels.copySelected} type="button" onClick={copySelectedMessages}>
               {labels.copySelected}
             </button>
           </div>
@@ -328,7 +356,7 @@ export function ConversationPane({
       {blocked ? (
         <WindowExpiredNotice
           disabled={busy}
-          onSendTemplate={() => void api.sendTemplate(conversation.id, {}).then(() => refetch())}
+          onSendTemplate={() => void handleSendTemplate()}
         />
       ) : botOwnsConversation ? (
         // Responder com a conversa no bot atropelaria o fluxo automático no meio de uma pergunta.
@@ -348,7 +376,8 @@ export function ConversationPane({
                 }
               : {})}
           placeholder={labels.composerPlaceholder}
-          isSending={busy}
+          isSending={busy || isSendingDraft}
+          hasQueuedAttachments={queuedFiles.length > 0}
           {...(onRecordAudio
             ? {
                 idleAction: (
@@ -367,6 +396,7 @@ export function ConversationPane({
                       <li key={`${file.name}-${index}`}>
                         <span>{file.name}</span>
                         <button
+                          data-cv-tooltip={labels.attachmentRemove}
                           type="button"
                           aria-label={labels.attachmentRemove}
                           onClick={() =>

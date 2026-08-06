@@ -205,7 +205,7 @@ export function AudioRecorderButton({
           <button
             type="button"
             onClick={discard}
-            title={labelOf('discard')}
+            data-cv-tooltip={labelOf('discard')}
             aria-label={labelOf('discard')}
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-700"
           >
@@ -214,7 +214,7 @@ export function AudioRecorderButton({
           <button
             type="button"
             onClick={confirm}
-            title={labelOf('send')}
+            data-cv-tooltip={labelOf('send')}
             aria-label={labelOf('send')}
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition-colors hover:bg-emerald-600"
           >
@@ -226,7 +226,7 @@ export function AudioRecorderButton({
         type="button"
         disabled={disabled || pending !== undefined}
         onClick={() => (isRecording ? stop() : void start())}
-        title={toggleLabel}
+        data-cv-tooltip={toggleLabel}
         aria-label={toggleLabel}
         aria-pressed={isRecording}
         /* Mesma caixa do botão de enviar: o microfone ocupa o lugar dele enquanto o campo está

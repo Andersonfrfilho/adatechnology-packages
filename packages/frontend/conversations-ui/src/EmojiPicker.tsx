@@ -55,6 +55,7 @@ export const EmojiPicker = ({ onSelect, labels, className = '' }: EmojiPickerPro
         <div className="flex border-b border-gray-200 overflow-x-auto">
           {EMOJI_CATEGORIES.map((category, index) => (
             <button
+              data-cv-tooltip={category.name} aria-label={category.name}
               key={category.name}
               onClick={() => setActiveCategory(index)}
               className={`px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
@@ -79,7 +80,7 @@ export const EmojiPicker = ({ onSelect, labels, className = '' }: EmojiPickerPro
               onClick={() => handleSelect(entry.emoji)}
               className="w-8 h-8 flex items-center justify-center text-lg hover:bg-gray-100 rounded transition-colors cursor-pointer"
               aria-label={entry.emoji}
-              title={entry.keywords[0]}
+              data-cv-tooltip={entry.keywords[0]}
             >
               {entry.emoji}
             </button>

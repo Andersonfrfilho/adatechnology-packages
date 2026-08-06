@@ -13,6 +13,7 @@ import { useConversationDocuments } from './hooks/useConversationDocuments'
 import { useConversations } from './providers/ConversationsProvider'
 import { FileIcon } from './FileIcon'
 import { cn } from './lib/cn'
+import { PAGINATION_LABELS } from './pagination.constant'
 import { formatDateTime, formatFileSize } from './lib/format'
 
 /** Origens que o filtro oferece. `all` não é origem — é a ausência de filtro. */
@@ -239,6 +240,7 @@ export function ConversationDocumentsPanel({
           </select>
 
           <button
+            data-cv-tooltip={sortDirection === 'desc' ? labels.sortMostRecent : labels.sortOldest} aria-label={sortDirection === 'desc' ? labels.sortMostRecent : labels.sortOldest}
             type="button"
             onClick={() => applyFilter(() => setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc'))}
             className={cn('cv-header-action inline-flex items-center gap-1', classNames?.sortButton)}
@@ -250,6 +252,7 @@ export function ConversationDocumentsPanel({
           {/* Só aparece com filtro ativo: botão que não faz nada visível é ruído. */}
           {hasFilters ? (
             <button
+              data-cv-tooltip={labels.clearFilters} aria-label={labels.clearFilters}
               type="button"
               onClick={() =>
                 applyFilter(() => {
@@ -291,7 +294,7 @@ export function ConversationDocumentsPanel({
               {labels.selectAll}
             </label>
             {selectedIds.length > 0 ? (
-              <button type="button" onClick={() => void handleDownloadSelected()} className="cv-header-action">
+              <button data-cv-tooltip={labels.downloadSelected(selectedIds.length)} aria-label={labels.downloadSelected(selectedIds.length)} type="button" onClick={() => void handleDownloadSelected()} className="cv-header-action">
                 {labels.downloadSelected(selectedIds.length)}
               </button>
             ) : null}
@@ -347,7 +350,7 @@ export function ConversationDocumentsPanel({
                     {/* `title` no nome: truncado, o atendente não tem outro jeito de ler inteiro. */}
                     <div
                       className={cn('truncate text-sm font-medium', classNames?.filename)}
-                      title={document.filename}
+                      data-cv-tooltip={document.filename}
                     >
                       {document.filename}
                     </div>
@@ -366,7 +369,7 @@ export function ConversationDocumentsPanel({
                   <button
                     type="button"
                     onClick={() => void handleOpen(document.id, 'inline')}
-                    title={labels.view}
+                    data-cv-tooltip={labels.view}
                     aria-label={`${labels.view}: ${document.filename}`}
                     className={cn('cv-header-icon', classNames?.viewButton)}
                   >
@@ -375,7 +378,7 @@ export function ConversationDocumentsPanel({
                   <button
                     type="button"
                     onClick={() => void handleOpen(document.id, 'attachment')}
-                    title={labels.download}
+                    data-cv-tooltip={labels.download}
                     aria-label={`${labels.download}: ${document.filename}`}
                     className={cn('cv-header-icon', classNames?.downloadButton)}
                   >
@@ -401,7 +404,8 @@ export function ConversationDocumentsPanel({
                 type="button"
                 onClick={() => setPage(page - 1)}
                 disabled={page <= 1}
-                aria-label={labels.sortOldest}
+                aria-label={PAGINATION_LABELS.previous}
+              data-cv-tooltip={PAGINATION_LABELS.previous}
                 className="cv-header-icon disabled:opacity-40"
               >
                 ‹
@@ -411,7 +415,8 @@ export function ConversationDocumentsPanel({
                 type="button"
                 onClick={() => setPage(page + 1)}
                 disabled={page >= lastPage}
-                aria-label={labels.sortMostRecent}
+                aria-label={PAGINATION_LABELS.next}
+              data-cv-tooltip={PAGINATION_LABELS.next}
                 className="cv-header-icon disabled:opacity-40"
               >
                 ›

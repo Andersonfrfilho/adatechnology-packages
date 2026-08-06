@@ -7,8 +7,11 @@
  * como se opera uma fila de atendimento no WhatsApp.
  */
 
+import { AlarmClock, Bot, Hourglass, Play, UserRound } from 'lucide-react'
+
 import { ConversationListItem } from './ConversationListItem'
 import { capabilitiesOf } from './conversationChannel'
+import { ICON_SIZE_ACTION, ICON_SIZE_PILL } from './icon.constant'
 import { cn } from './lib/cn'
 import { ChannelIcon } from './ChannelIcon'
 import type { ConversationSummary } from './providers/types'
@@ -30,6 +33,8 @@ const WINDOW_TITLE: Record<ConversationWindow, string> = {
 
 // Abaixo disto a conversa é recente e o aviso de "parada" só faria ruído.
 const STALLED_THRESHOLD_MS = 60 * 60 * 1000
+
+const TAKEOVER_LABEL = 'Continuar Atendimento'
 
 const WINDOW_BAR_CLASS: Record<ConversationWindow, string> = {
   [CONVERSATION_WINDOW.ALL]: 'bg-transparent',
@@ -85,7 +90,7 @@ export function ConversationRow({
           duplica as bolinhas que o próprio ConversationListItem já desenha. */}
       <span
         className={cn('w-1 shrink-0', WINDOW_BAR_CLASS[window], classNames?.windowBar)}
-        title={WINDOW_TITLE[window]}
+        data-cv-tooltip={WINDOW_TITLE[window]}
         aria-label={WINDOW_TITLE[window]}
       />
 
@@ -118,16 +123,35 @@ export function ConversationRow({
             <ChannelIcon channel={conversation.channel} /> {capabilities.label}
           </span>
           {conversation.mode === 'human' ? (
-            <span className="cv-pill cv-pill--success">🧑‍💼 em atendimento</span>
-          ) : null}
-          {isWaiting ? <span className="cv-pill cv-pill--warning">⏳ aguardando atendimento</span> : null}
-          {!isWaiting && conversation.mode === 'bot' ? <span className="cv-pill">🤖 bot ativo</span> : null}
-          {isStalled ? (
-            <span className="cv-pill cv-pill--danger">⏱️ parada há {formatStalledFor(conversation.lastAt, now)}</span>
+            <span className="cv-pill cv-pill--success">
+              <UserRound size={ICON_SIZE_PILL} aria-hidden="true" /> em atendimento
+            </span>
           ) : null}
           {isWaiting ? (
-            <button type="button" onClick={onTakeover} disabled={busy} className="cv-header-action">
-              ▶️ Continuar Atendimento
+            <span className="cv-pill cv-pill--warning">
+              <Hourglass size={ICON_SIZE_PILL} aria-hidden="true" /> aguardando atendimento
+            </span>
+          ) : null}
+          {!isWaiting && conversation.mode === 'bot' ? (
+            <span className="cv-pill">
+              <Bot size={ICON_SIZE_PILL} aria-hidden="true" /> bot ativo
+            </span>
+          ) : null}
+          {isStalled ? (
+            <span className="cv-pill cv-pill--danger">
+              <AlarmClock size={ICON_SIZE_PILL} aria-hidden="true" /> parada há{' '}
+              {formatStalledFor(conversation.lastAt, now)}
+            </span>
+          ) : null}
+          {isWaiting ? (
+            <button
+              type="button"
+              onClick={onTakeover}
+              disabled={busy}
+              data-cv-tooltip={TAKEOVER_LABEL} aria-label={TAKEOVER_LABEL}
+              className="cv-header-action"
+            >
+              <Play size={ICON_SIZE_ACTION} aria-hidden="true" /> {TAKEOVER_LABEL}
             </button>
           ) : null}
         </div>

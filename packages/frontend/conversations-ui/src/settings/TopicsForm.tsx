@@ -66,6 +66,7 @@ export function TopicsForm({
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{topic.label}</p>
               </div>
               <button
+                data-cv-tooltip={topic.label} aria-label={topic.label}
                 type="button"
                 onClick={() => onToggle(topic.key)}
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -94,6 +95,7 @@ export function TopicsForm({
 
         <div className="flex items-center gap-3">
           <button
+            data-cv-tooltip={labels.saveButton} aria-label={labels.saveButton}
             type="submit"
             disabled={saving}
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"

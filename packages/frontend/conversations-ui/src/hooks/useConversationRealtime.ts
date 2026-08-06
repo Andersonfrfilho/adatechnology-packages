@@ -10,14 +10,16 @@ export function useConversationRealtime(
   conversationId: string | undefined,
   onEvent: ConversationRealtimeHandler,
 ): void {
-  const context = useConversations()
+  const sse = useConversations()?.sse
   const onEventRef = useRef(onEvent)
   onEventRef.current = onEvent
 
+  // Depende da porta SSE, não do objeto de contexto inteiro: reabrir o stream é caro (um ticket por
+  // abertura) e o contexto é o que mais muda de identidade quando o host renderiza.
   useEffect(() => {
-    if (!context || !conversationId) return
+    if (!sse || !conversationId) return
 
-    const source = context.sse.connectConversationStream(conversationId)
+    const source = sse.connectConversationStream(conversationId)
     const handler = (event: MessageEvent) => onEventRef.current(event)
     source.addEventListener('message', handler)
 
@@ -25,20 +27,20 @@ export function useConversationRealtime(
       source.removeEventListener('message', handler)
       source.close()
     }
-  }, [context, conversationId])
+  }, [sse, conversationId])
 }
 
 // Assina o stream global (ex: novas conversas entrando na fila, notificações cross-conversa)
 // — mesma porta SSEProvider, sem conversationId.
 export function useGlobalRealtime(onEvent: ConversationRealtimeHandler): void {
-  const context = useConversations()
+  const sse = useConversations()?.sse
   const onEventRef = useRef(onEvent)
   onEventRef.current = onEvent
 
   useEffect(() => {
-    if (!context) return
+    if (!sse) return
 
-    const source = context.sse.connectGlobalStream()
+    const source = sse.connectGlobalStream()
     const handler = (event: MessageEvent) => onEventRef.current(event)
     source.addEventListener('message', handler)
 
@@ -46,5 +48,5 @@ export function useGlobalRealtime(onEvent: ConversationRealtimeHandler): void {
       source.removeEventListener('message', handler)
       source.close()
     }
-  }, [context])
+  }, [sse])
 }

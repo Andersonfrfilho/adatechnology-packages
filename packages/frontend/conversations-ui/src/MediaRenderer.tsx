@@ -106,6 +106,7 @@ export function MediaRenderer({
   function LazyMediaButton({ icon, label }: { icon: ReactNode; label: string }) {
     return (
       <button
+        data-cv-tooltip={label} aria-label={label}
         onClick={lazy.load}
         disabled={lazy.loading}
         className="flex min-w-[180px] items-center gap-2 rounded-lg bg-black/5 px-2 py-1.5 text-left transition-colors hover:bg-black/10 disabled:opacity-60 dark:bg-white/10 dark:hover:bg-white/15"
@@ -214,6 +215,7 @@ export function MediaRenderer({
             </a>
           ) : canLazyLoad ? (
             <button
+              data-cv-tooltip={bubble.downloadFile}
               onClick={lazy.load}
               disabled={lazy.loading}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 flex-shrink-0 transition-colors disabled:opacity-50"

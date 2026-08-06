@@ -89,6 +89,18 @@ export function MessageBubble({
   const isMedia = MEDIA_TYPES.has(message.type)
   const isTemplate = message.type === 'template'
   const isInteractive = message.type === 'interactive'
+
+  /**
+   * A legenda chega em `caption` quando o cliente manda, e em `content` quando somos nós — é lá que
+   * a API grava o texto do envio. Sem legenda a API repete o nome do arquivo em `content`, que não
+   * é conteúdo e não deve aparecer sob a mídia.
+   */
+  const mediaCaption = isMedia
+    ? [message.caption, message.content].find((text) => {
+        const trimmed = text?.trim()
+        return trimmed && trimmed !== message.filename
+      })
+    : undefined
   const displayName = message.sender === 'agent' && senderName ? senderName : bubble[message.sender] ?? message.sender
 
   const tooltipText = message.status === 'read' && message.readAt
@@ -104,7 +116,7 @@ export function MessageBubble({
   const checkbox = (
     <button
       onClick={(e) => { e.stopPropagation(); onToggleSelect?.() }}
-      title={selection.select}
+      data-cv-tooltip={selection.select} aria-label={selection.select}
       className={`
         flex-shrink-0 self-end mb-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
         ${isSelected ? 'bg-teal-600 border-teal-600' : 'bg-white/80 dark:bg-black/40 border-black/20 dark:border-white/30'}
@@ -148,7 +160,7 @@ export function MessageBubble({
         {message.moderation?.isOffensive && (
           <div
             className="mb-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
-            title={message.moderation.terms.length > 0 ? message.moderation.terms.join(', ') : undefined}
+            data-cv-tooltip={message.moderation.terms.length > 0 ? message.moderation.terms.join(', ') : undefined}
           >
             <span aria-hidden>⚠️</span>
             <span>{bubble.moderationFlagged}</span>
@@ -156,12 +168,19 @@ export function MessageBubble({
         )}
 
         {isMedia ? (
-          <MediaRenderer
-            message={message}
-            onLightbox={setLightboxSrc}
-            onResolveUrl={resolveMediaUrl}
-            {...(requestTranscription ? { onTranscribeAudio: requestTranscription } : {})}
-          />
+          <>
+            <MediaRenderer
+              message={message}
+              onLightbox={setLightboxSrc}
+              onResolveUrl={resolveMediaUrl}
+              {...(requestTranscription ? { onTranscribeAudio: requestTranscription } : {})}
+            />
+            {mediaCaption ? (
+              <div className="mt-1 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words leading-[19px]">
+                {parseWhatsAppFormatting(mediaCaption)}
+              </div>
+            ) : null}
+          </>
         ) : isInteractive && message.payload ? (
           // O texto da mensagem interativa mora dentro do payload (`body.text`), e `content` guarda
           // só uma cópia achatada para busca — renderizar `content` aqui duplicaria o corpo.

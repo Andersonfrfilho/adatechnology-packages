@@ -32,7 +32,7 @@ export function StatusTicks({ status, title }: StatusTicksProps) {
   const colorClass = STATUS_COLOR_CLASS[status] ?? STATUS_COLOR_CLASS.sent
 
   return (
-    <span className={`cursor-help leading-none flex items-center ${colorClass}`} title={title}>
+    <span className={`cursor-help leading-none flex items-center ${colorClass}`} data-cv-tooltip={title}>
       {status === 'failed' ? <AlertTriangle size={11} /> : <Ticks double={status !== 'sent'} />}
     </span>
   )

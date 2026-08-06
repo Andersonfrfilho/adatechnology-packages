@@ -135,7 +135,7 @@ export function FlowNodeCard({ data }: NodeProps) {
 
   return (
     <div
-      title={isDetached ? labels.detachedNodeTooltip : label}
+      data-cv-tooltip={isDetached ? labels.detachedNodeTooltip : label}
       className={`relative rounded-lg border-2 px-3 py-2 w-60 cursor-pointer shadow-sm hover:shadow-md transition-shadow ${NODE_TYPE_COLOR[node.type]} ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900' : ''} ${isDetached ? 'border-dashed !border-amber-400 animate-pulse' : ''}`}
       onClick={() => onSelect(node.id)}
     >
@@ -144,7 +144,7 @@ export function FlowNodeCard({ data }: NodeProps) {
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400 text-xs">
           <Icon size={12} strokeWidth={2.5} />
-          {isStart && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" title={labels.startNodeTooltip} />}
+          {isStart && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" data-cv-tooltip={labels.startNodeTooltip} />}
           {labels.legend[node.type]}
         </span>
         <div className="flex items-center gap-1">
@@ -152,7 +152,7 @@ export function FlowNodeCard({ data }: NodeProps) {
           {hasWarning && <AlertTriangle size={13} className="text-amber-500 dark:text-amber-400" />}
           {liveCount > 0 && (
             <span
-              title={labels.liveCountTooltip(liveCount)}
+              data-cv-tooltip={labels.liveCountTooltip(liveCount)}
               className="font-bold bg-blue-600 text-white rounded-full px-1.5 py-0.5 text-xs"
             >
               {liveCount}

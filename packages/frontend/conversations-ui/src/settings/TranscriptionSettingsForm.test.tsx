@@ -76,6 +76,6 @@ describe('TranscriptionSettingsForm', () => {
     const markup = render({ saving: true })
 
     expect(markup).toContain('Salvando...')
-    expect(findTag(markup, /<button type="submit"[^>]*>/g, 'type="submit"')).toContain('disabled')
+    expect(findTag(markup, /<button[^>]*>/g, 'type="submit"')).toContain('disabled')
   })
 })

@@ -128,6 +128,7 @@ export const ConversationListItem = ({
 
   return (
     <button
+      data-cv-tooltip={name} aria-label={name}
       onClick={handleClick}
       className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${highlightActive ? "hover:bg-[#f0f2f5]" : ""} ${showDivider ? "border-b border-[#e9edef]" : ""}`}
       style={{
@@ -150,10 +151,10 @@ export const ConversationListItem = ({
             {!conversation.clientName && flag ? <span aria-hidden>{flag}</span> : null}
             <span className="text-[16px] text-[#111b21] truncate">{name}</span>
             {windowStatus && windowStatus.label === 'expired' && (
-              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title={expiredWindowLabel} />
+              <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" data-cv-tooltip={expiredWindowLabel} />
             )}
             {windowStatus && windowStatus.label === 'warning' && (
-              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" title={warningWindowLabel} />
+              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" data-cv-tooltip={warningWindowLabel} />
             )}
           </div>
           {timestamp && (

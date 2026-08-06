@@ -297,6 +297,7 @@ export function WhatsAppCreateTemplateForm({
 
         <div className="flex justify-end">
           <button
+            data-cv-tooltip={submitting ? labels.sending : labels.sendForApproval} aria-label={submitting ? labels.sending : labels.sendForApproval}
             type="submit"
             disabled={submitting || !value.name || !value.bodyText}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm"

@@ -81,7 +81,7 @@ export function Avatar({ name, avatarUrl, size = 'md', className = '', labels }:
   return (
     <div
       className={`${sizeClass} ${bgColor} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 ${className}`}
-      title={name}
+      data-cv-tooltip={name}
     >
       {getInitials(name)}
     </div>

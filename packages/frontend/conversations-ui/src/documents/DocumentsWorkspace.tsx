@@ -28,6 +28,7 @@ import {
 import { useDebouncedValue, useUrlArrayState, useUrlNumberState, useUrlStringState } from '../hooks/useUrlFilterState'
 import type { CompanyDocument } from '../providers/types'
 import { DEFAULT_DOCUMENTS_WORKSPACE_LABELS, type DocumentsWorkspaceLabels } from './labels'
+import { TooltipLayer } from '../Tooltip'
 
 const DEFAULT_PER_PAGE = 20
 const DEFAULT_PER_PAGE_OPTIONS = [10, 20, 50, 100] as const
@@ -249,6 +250,7 @@ export function DocumentsWorkspace({
 
   return (
     <div className={cn('space-y-4', classNames?.root, className)}>
+      <TooltipLayer />
       <header className={cn('space-y-0.5', classNames?.header)}>
         <h2 className="text-lg font-semibold">{labels.title}</h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">{labels.subtitle(total)}</p>
@@ -297,7 +299,7 @@ export function DocumentsWorkspace({
         {renderFilters?.({ extra, setExtra })}
 
         {hasFilters ? (
-          <button type="button" onClick={clearFilters} className="cv-header-action inline-flex items-center gap-1">
+          <button data-cv-tooltip={labels.clearFilters} aria-label={labels.clearFilters} type="button" onClick={clearFilters} className="cv-header-action inline-flex items-center gap-1">
             <X size={12} aria-hidden="true" />
             {labels.clearFilters}
           </button>
@@ -313,6 +315,7 @@ export function DocumentsWorkspace({
         >
           {downloadArchive ? (
             <button
+              data-cv-tooltip={labels.bulkDownloadZip} aria-label={labels.bulkDownloadZip}
               type="button"
               onClick={() => void handleDownloadArchive()}
               disabled={busy}
@@ -324,6 +327,7 @@ export function DocumentsWorkspace({
           ) : null}
           {removeDocument ? (
             <button
+              data-cv-tooltip={labels.bulkRemove(selectedIds.size)} aria-label={labels.bulkRemove(selectedIds.size)}
               type="button"
               onClick={() => {
                 if (window.confirm(labels.bulkRemoveConfirm(selectedIds.size))) void handleRemove(Array.from(selectedIds))
@@ -389,7 +393,7 @@ export function DocumentsWorkspace({
                 <td className="max-w-xs px-3 py-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <FileIcon filename={document.filename} mimeType={document.mimeType} />
-                    <span className="truncate font-medium" title={document.filename}>
+                    <span className="truncate font-medium" data-cv-tooltip={document.filename}>
                       {document.filename}
                     </span>
                   </div>
@@ -402,7 +406,7 @@ export function DocumentsWorkspace({
                     <button
                       type="button"
                       onClick={() => onOpenConversation(document.conversationId)}
-                      title={labels.openConversation}
+                      data-cv-tooltip={labels.openConversation} aria-label={labels.openConversation}
                       className="cv-header-action inline-flex items-center gap-1"
                     >
                       <MessageSquare size={12} aria-hidden="true" />
@@ -425,7 +429,7 @@ export function DocumentsWorkspace({
                     <button
                       type="button"
                       onClick={() => void handleOpen(document.id, 'inline')}
-                      title={labels.view}
+                      data-cv-tooltip={labels.view}
                       aria-label={`${labels.view}: ${document.filename}`}
                       className="cv-header-icon"
                     >
@@ -434,7 +438,7 @@ export function DocumentsWorkspace({
                     <button
                       type="button"
                       onClick={() => void handleOpen(document.id, 'attachment')}
-                      title={labels.download}
+                      data-cv-tooltip={labels.download}
                       aria-label={`${labels.download}: ${document.filename}`}
                       className="cv-header-icon"
                     >
@@ -447,7 +451,7 @@ export function DocumentsWorkspace({
                           if (window.confirm(labels.removeConfirm(document.filename))) void handleRemove([document.id])
                         }}
                         disabled={busy}
-                        title={labels.remove}
+                        data-cv-tooltip={labels.remove}
                         aria-label={`${labels.remove}: ${document.filename}`}
                         className="cv-header-icon disabled:opacity-40"
                       >

@@ -33,6 +33,7 @@ import {
   type TranscriptionSettingsFormLabels,
 } from './TranscriptionSettingsForm'
 import type { TranscriptionMode } from '../types'
+import { TooltipLayer } from '../Tooltip'
 
 export interface BotMessages {
   welcomeMessage: string
@@ -345,6 +346,7 @@ export function MessagesWorkspace({
 
   return (
     <div className={`space-y-6 p-4 lg:p-0 ${className ?? ''}`}>
+      <TooltipLayer />
       <header>
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{labels.title}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">{labels.subtitle}</p>
@@ -355,6 +357,7 @@ export function MessagesWorkspace({
         <nav className="flex gap-1 border-b border-gray-200 dark:border-gray-700" role="tablist">
           {tabs.map((item) => (
             <button
+              data-cv-tooltip={item.label} aria-label={item.label}
               key={item.id}
               type="button"
               role="tab"
