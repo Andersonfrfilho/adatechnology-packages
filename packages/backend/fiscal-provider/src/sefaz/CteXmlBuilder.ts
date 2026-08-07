@@ -43,11 +43,16 @@ function buildChaveCte(params: {
 
 // ─── Endereço ─────────────────────────────────────────────────────────────────
 
+// Sem país declarado o participante é tratado como nacional, como em todo o resto do provider
+const PAIS_PADRAO_CODIGO = '1058'
+const PAIS_PADRAO_NOME = 'Brasil'
+
 // Depois de UF o endereço só aceita cPais e xPais: fone e email são filhos do participante
 function buildEnderecoTag(tag: string, p: CteParticipante): string {
   const cep = p.cep ? `<CEP>${p.cep.replace(/\D/g, '')}</CEP>` : ''
   const cpl = p.xCpl ? `<xCpl>${escapeXml(p.xCpl)}</xCpl>` : ''
-  return `<${tag}><xLgr>${escapeXml(p.xLgr)}</xLgr><nro>${escapeXml(p.nro)}</nro>${cpl}<xBairro>${escapeXml(p.xBairro)}</xBairro><cMun>${p.cMun}</cMun><xMun>${escapeXml(p.xMun)}</xMun>${cep}<UF>${p.uf}</UF></${tag}>`
+  const pais = `<cPais>${p.cPais ?? PAIS_PADRAO_CODIGO}</cPais><xPais>${escapeXml(p.xPais ?? PAIS_PADRAO_NOME)}</xPais>`
+  return `<${tag}><xLgr>${escapeXml(p.xLgr)}</xLgr><nro>${escapeXml(p.nro)}</nro>${cpl}<xBairro>${escapeXml(p.xBairro)}</xBairro><cMun>${p.cMun}</cMun><xMun>${escapeXml(p.xMun)}</xMun>${cep}<UF>${p.uf}</UF>${pais}</${tag}>`
 }
 
 // ─── Participante ─────────────────────────────────────────────────────────────
@@ -253,7 +258,8 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   const indIEToma = data.indIEToma ?? '9'
 
   // Emitente
-  const emit = `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${tpAmb === '2' ? 'CT-E EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : escapeXml(config.razaoSocial)}</xNome><enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''}</enderEmit><CRT>${config.crt}</CRT></emit>`
+  const xFantEmit = config.nomeFantasia ? `<xFant>${escapeXml(config.nomeFantasia)}</xFant>` : ''
+  const emit = `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${tpAmb === '2' ? 'CT-E EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : escapeXml(config.razaoSocial)}</xNome>${xFantEmit}<enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''}</enderEmit><CRT>${config.crt}</CRT></emit>`
 
   // Rem / Dest / expedidor / recebedor
   // Rejeições 646/647/648/649: em homologação a SEFAZ exige esta razão social exata nas partes
@@ -289,9 +295,10 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   const infModal = `<infModal versaoModal="4.00">${buildModal(data.modal)}</infModal>`
   const infCTeNorm = `<infCTeNorm>${infCarga}${infDoc}${infModal}</infCTeNorm>`
 
-  const obsGer = data.informacoesAdicionais
-    ? `<compl><xObs>${escapeXml(data.informacoesAdicionais)}</xObs></compl>`
-    : ''
+  // Dentro de compl o leiaute põe xEmi antes de xObs
+  const xEmi = data.funcionarioEmissor ? `<xEmi>${escapeXml(data.funcionarioEmissor)}</xEmi>` : ''
+  const xObs = data.informacoesAdicionais ? `<xObs>${escapeXml(data.informacoesAdicionais)}</xObs>` : ''
+  const obsGer = xEmi || xObs ? `<compl>${xEmi}${xObs}</compl>` : ''
   const infAdic = data.observacoes ? `<infAdic><infCpl>${escapeXml(data.observacoes)}</infCpl></infAdic>` : ''
 
   // NT 2018.005: infRespTec fecha o infCte e identifica a software house, não o transportador
