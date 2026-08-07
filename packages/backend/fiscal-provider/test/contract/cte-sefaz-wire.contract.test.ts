@@ -69,6 +69,49 @@ describe('CT-e 4.00 schema element names', () => {
     expect(xml.includes('<enderReceb>')).toBe(true)
   })
 
+  /**
+   * O leiaute põe fone antes do bloco de endereço e email depois, ambos como filhos do participante.
+   * Emitir os dois dentro de enderReme/enderDest fez a SEFAZ devolver "215 Falha no schema XML":
+   * depois de UF o endereço só aceita cPais e xPais.
+   */
+  test('places contact fields outside the party address group', () => {
+    const data = buildCteData()
+    const { xml } = buildCteXml(buildCteConfig('unused'), {
+      ...data,
+      remetente: {
+        ...data.remetente,
+        xFant: 'REMETENTE FANTASIA',
+        fone: '(24) 3076-8250',
+        email: 'remetente@exemplo.com.br',
+      },
+      destinatario: {
+        ...data.destinatario,
+        fone: '1633443613',
+        email: 'destinatario@exemplo.com.br',
+      },
+    })
+
+    expect(xml.includes('<xFant>REMETENTE FANTASIA</xFant><fone>2430768250</fone><enderReme>')).toBe(true)
+    expect(xml.includes('</enderReme><email>remetente@exemplo.com.br</email></rem>')).toBe(true)
+    expect(xml.includes('<fone>1633443613</fone><enderDest>')).toBe(true)
+    expect(xml.includes('</enderDest><email>destinatario@exemplo.com.br</email></dest>')).toBe(true)
+  })
+
+  /** O grupo dest não tem xFant no leiaute: emitir o nome fantasia ali derruba o schema. */
+  test('omits xFant outside the remetente group', () => {
+    const data = buildCteData()
+    const { xml } = buildCteXml(buildCteConfig('unused'), {
+      ...data,
+      destinatario: { ...data.destinatario, xFant: 'DESTINATARIO FANTASIA' },
+      expedidor: { ...data.remetente, xFant: 'EXPEDIDOR FANTASIA' },
+      recebedor: { ...data.destinatario, xFant: 'RECEBEDOR FANTASIA' },
+    })
+
+    expect(xml.includes('DESTINATARIO FANTASIA')).toBe(false)
+    expect(xml.includes('EXPEDIDOR FANTASIA')).toBe(false)
+    expect(xml.includes('RECEBEDOR FANTASIA')).toBe(false)
+  })
+
   test('carries the modal version on infModal as versaoModal', () => {
     const { xml } = buildCteXml(buildCteConfig('unused'), buildCteData())
 
