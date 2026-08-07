@@ -84,6 +84,9 @@ era exatamente o estado. O que ela não tem ainda é decomposição — são 125
 canvas (arestas, layout mesclado, contagem ao vivo) segue sem teste porque essas três funções estão
 acopladas ao `offset` por fluxo aberto, cuja remoção exige reescrever o componente.
 
-**Passo que resta:** tirar o canvas do componente, com o mesmo tratamento das operações — teste antes,
-e nada de exportar módulo que a tela não consuma, porque teste verde sobre código morto é garantia
-falsa.
+**Feito.** O canvas saiu para `flowCanvasModel`, com 24 testes e três asserções validadas por
+mutação. O que o prendia era o `offset` por fluxo aberto: um valor que o layout mesclado ignorava ao
+desenhar e que ainda era subtraído ao gravar, então a posição que ia para o grafo nunca tinha sido a
+do card. Removê-lo destravou a extração e corrigiu o defeito no mesmo movimento.
+
+O componente ficou com 1006 linhas. A regra valeu: nada foi exportado sem a tela consumir.

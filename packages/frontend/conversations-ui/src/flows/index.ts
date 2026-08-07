@@ -71,3 +71,24 @@ export {
   resolveConnection,
 } from './flowEditorOps'
 export type { ConnectionRequest, ResolvedConnection } from './flowEditorOps'
+
+/**
+ * Modelo do canvas: posições, arestas, contagem ao vivo e o nó novo da paleta.
+ *
+ * Exportado porque é consumido pelo `FlowsWorkspace` e tem teste próprio — as decisões daqui não dão
+ * erro quando erram, dão conversa parada e card fora da tela.
+ */
+export {
+  buildFlowEdges,
+  chainFrameBounds,
+  chainFrameNodeId,
+  computeMergedLayout,
+  countLiveByNode,
+  detachedNodeIds,
+  newNodeFromSpec,
+  portalNodeId,
+  GROUP_HEADER_NODE_ID,
+} from './flowCanvasModel'
+// `FlowLivePosition` já sai pelo `FlowsWorkspace`, que é onde o produto a encontra ao implementar a
+// api — exportar de novo aqui daria dois caminhos para o mesmo tipo.
+export type { FlowEdgeKind, FlowEdgeSpec, FlowNodePosition } from './flowCanvasModel'
