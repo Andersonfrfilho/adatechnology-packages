@@ -7,8 +7,8 @@
  * clicável. Sem essa referência, uma lista global de anexos não responde nenhuma pergunta.
  */
 
-import { useEffect, useState } from 'react'
-import { ArrowUpDown, Bot, Download, Eye, MessageSquare, Users } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowUpDown, Bot, Download, Eye, MessageSquare, Upload, Users } from 'lucide-react'
 import { useConversations } from './providers/ConversationsProvider'
 import { DOCUMENT_SOURCE_FILTER, type DocumentSourceFilter } from './ConversationDocumentsPanel'
 import { FileIcon } from './FileIcon'
@@ -34,6 +34,8 @@ export interface DocumentsLibraryLabels {
   sortMostRecent: string
   sortOldest: string
   clearFilters: string
+  upload: string
+  uploadError: string
   total: (count: number) => string
   page: (current: number, last: number) => string
 }
@@ -54,6 +56,8 @@ export const DEFAULT_DOCUMENTS_LIBRARY_LABELS: DocumentsLibraryLabels = {
   sortMostRecent: 'Mais recentes',
   sortOldest: 'Mais antigos',
   clearFilters: 'Limpar filtros',
+  upload: 'Enviar documento',
+  uploadError: 'Não foi possível enviar o arquivo.',
   total: (count: number) => `${count} arquivo${count === 1 ? '' : 's'}`,
   page: (current: number, last: number) => `${current} / ${last}`,
 }
@@ -106,9 +110,15 @@ export function DocumentsLibrary({
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
 
+  const [uploading, setUploading] = useState(false)
+  const [uploadFailed, setUploadFailed] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const hasFilters = search !== '' || sourceFilter !== DOCUMENT_SOURCE_FILTER.ALL || sortDirection !== 'desc'
   const lastPage = Math.max(1, Math.ceil(total / perPage))
   const fetchAll = context?.api.getAllDocuments
+  const uploadDocument = context?.api.uploadDocument
 
   useEffect(() => {
     if (!fetchAll) return
@@ -140,7 +150,7 @@ export function DocumentsLibrary({
     return () => {
       active = false
     }
-  }, [fetchAll, search, sourceFilter, sortDirection, page, perPage])
+  }, [fetchAll, search, sourceFilter, sortDirection, page, perPage, reloadToken])
 
   function applyFilter(change: () => void): void {
     change()
@@ -150,6 +160,20 @@ export function DocumentsLibrary({
   async function handleOpen(uploadId: string, disposition: 'inline' | 'attachment'): Promise<void> {
     const url = await context?.api.getDocumentUrl(uploadId, disposition)
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  async function handleUpload(file: File): Promise<void> {
+    if (!uploadDocument) return
+    setUploading(true)
+    setUploadFailed(false)
+    try {
+      await uploadDocument(file)
+      setReloadToken((token) => token + 1)
+    } catch {
+      setUploadFailed(true)
+    } finally {
+      setUploading(false)
+    }
   }
 
   // Host sem `getAllDocuments` não tem o que mostrar aqui — some, em vez de renderizar vazio para
@@ -207,12 +231,43 @@ export function DocumentsLibrary({
             {labels.clearFilters}
           </button>
         ) : null}
+
+        {uploadDocument ? (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file) void handleUpload(file)
+              }}
+            />
+            <button
+              data-cv-tooltip={labels.upload}
+              aria-label={labels.upload}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="cv-header-action ml-auto inline-flex items-center gap-1 disabled:opacity-40"
+            >
+              <Upload size={14} aria-hidden="true" />
+              {labels.upload}
+            </button>
+          </>
+        ) : null}
       </div>
 
       {loading ? <p className={cn('text-sm text-gray-500', classNames?.status)}>{labels.loading}</p> : null}
       {failed ? (
         <p role="alert" className={cn('text-sm text-red-600 dark:text-red-400', classNames?.status)}>
           {labels.failure}
+        </p>
+      ) : null}
+      {uploadFailed ? (
+        <p role="alert" className={cn('text-sm text-red-600 dark:text-red-400', classNames?.status)}>
+          {labels.uploadError}
         </p>
       ) : null}
       {!loading && !failed && documents.length === 0 ? (

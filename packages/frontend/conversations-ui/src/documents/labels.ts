@@ -28,6 +28,8 @@ export interface DocumentsWorkspaceLabels {
   readonly bulkDownloadZip: string
   readonly bulkRemove: (count: number) => string
   readonly bulkRemoveConfirm: (count: number) => string
+  readonly upload: string
+  readonly uploadError: string
   readonly columnFilename: string
   readonly columnContact: string
   readonly columnType: string
@@ -70,6 +72,8 @@ export const DEFAULT_DOCUMENTS_WORKSPACE_LABELS: DocumentsWorkspaceLabels = {
   bulkDownloadZip: 'Baixar em zip',
   bulkRemove: (count) => `Excluir ${count}`,
   bulkRemoveConfirm: (count) => `Excluir ${count} arquivo${count === 1 ? '' : 's'}?`,
+  upload: 'Enviar documento',
+  uploadError: 'Não foi possível enviar o arquivo.',
   columnFilename: 'Arquivo',
   columnContact: 'Contato',
   columnType: 'Tipo',

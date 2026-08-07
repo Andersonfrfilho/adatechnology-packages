@@ -145,6 +145,17 @@ export interface ConversationsApi {
    * `downloadDocumentsArchive`, que é por conversa. Ausente, a seleção em lote não oferece o botão.
    */
   downloadDocumentsArchiveByIds?(uploadIds: readonly string[]): Promise<Blob>
+  /**
+   * Envia um arquivo avulso direto pra biblioteca, fora do fluxo de uma conversa. **Opcional por
+   * capacidade:** cada host tem seu próprio contrato de upload (base64, multipart, presigned URL) —
+   * o pacote não escolhe um formato de payload, só entrega o `File` do input e deixa o host montar
+   * a chamada do jeito que seu backend espera. Ausente, a tela de biblioteca não desenha o botão de
+   * enviar, em vez de oferecer uma ação que sempre falha.
+   *
+   * `extra` é o mesmo vocabulário livre do produto que já viaja em `renderFilters` — cliente,
+   * unidade, campanha — pra associar o arquivo enviado ao contexto que a tela estava filtrando.
+   */
+  uploadDocument?(file: File, extra?: Readonly<Record<string, string | number>>): Promise<ConversationDocument>
   getMediaProxyUrl(mediaId: string): Promise<{ mimeType: string; data: string }>
 
   /**

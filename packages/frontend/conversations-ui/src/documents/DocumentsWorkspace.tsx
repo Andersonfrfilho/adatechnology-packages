@@ -9,8 +9,8 @@
  * remontasse isso à mão voltaria a divergir dos outros — foi o que aconteceu antes desta tela existir.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Download, Eye, MessageSquare, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Download, Eye, MessageSquare, Trash2, Upload, X } from 'lucide-react'
 
 import { useConversations } from '../providers/ConversationsProvider'
 import { FileIcon } from '../FileIcon'
@@ -106,11 +106,15 @@ export function DocumentsWorkspace({
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
   const [reloadToken, setReloadToken] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadFailed, setUploadFailed] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const debouncedSearch = useDebouncedValue(search)
   const fetchAll = context?.api.getAllDocuments
   const removeDocument = context?.api.deleteDocument
   const downloadArchive = context?.api.downloadDocumentsArchiveByIds
+  const uploadDocument = context?.api.uploadDocument
   const extraKey = JSON.stringify(extra)
 
   const sourceOptions = useMemo<readonly FilterOption[]>(
@@ -224,6 +228,20 @@ export function DocumentsWorkspace({
     }
   }
 
+  async function handleUpload(file: File): Promise<void> {
+    if (!uploadDocument) return
+    setUploading(true)
+    setUploadFailed(false)
+    try {
+      await uploadDocument(file, Object.keys(extra).length > 0 ? extra : undefined)
+      setReloadToken((token) => token + 1)
+    } catch {
+      setUploadFailed(true)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function handleDownloadArchive(): Promise<void> {
     if (!downloadArchive) return
     setBusy(true)
@@ -304,7 +322,39 @@ export function DocumentsWorkspace({
             {labels.clearFilters}
           </button>
         ) : null}
+
+        {uploadDocument ? (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file) void handleUpload(file)
+              }}
+            />
+            <button
+              data-cv-tooltip={labels.upload}
+              aria-label={labels.upload}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="cv-header-action ml-auto inline-flex items-center gap-1 disabled:opacity-40"
+            >
+              <Upload size={12} aria-hidden="true" />
+              {labels.upload}
+            </button>
+          </>
+        ) : null}
       </div>
+
+      {uploadFailed ? (
+        <p role="alert" className={cn('text-sm text-red-600 dark:text-red-400', classNames?.status)}>
+          {labels.uploadError}
+        </p>
+      ) : null}
 
       {canSelect ? (
         <BulkActionBar
