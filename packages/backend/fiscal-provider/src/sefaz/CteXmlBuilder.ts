@@ -43,12 +43,11 @@ function buildChaveCte(params: {
 
 // ─── Endereço ─────────────────────────────────────────────────────────────────
 
+// Depois de UF o endereço só aceita cPais e xPais: fone e email são filhos do participante
 function buildEnderecoTag(tag: string, p: CteParticipante): string {
-  const fone = p.fone ? `<fone>${p.fone.replace(/\D/g, '')}</fone>` : ''
-  const email = p.email ? `<email>${escapeXml(p.email)}</email>` : ''
   const cep = p.cep ? `<CEP>${p.cep.replace(/\D/g, '')}</CEP>` : ''
   const cpl = p.xCpl ? `<xCpl>${escapeXml(p.xCpl)}</xCpl>` : ''
-  return `<${tag}><xLgr>${escapeXml(p.xLgr)}</xLgr><nro>${escapeXml(p.nro)}</nro>${cpl}<xBairro>${escapeXml(p.xBairro)}</xBairro><cMun>${p.cMun}</cMun><xMun>${escapeXml(p.xMun)}</xMun>${cep}<UF>${p.uf}</UF>${fone}${email}</${tag}>`
+  return `<${tag}><xLgr>${escapeXml(p.xLgr)}</xLgr><nro>${escapeXml(p.nro)}</nro>${cpl}<xBairro>${escapeXml(p.xBairro)}</xBairro><cMun>${p.cMun}</cMun><xMun>${escapeXml(p.xMun)}</xMun>${cep}<UF>${p.uf}</UF></${tag}>`
 }
 
 // ─── Participante ─────────────────────────────────────────────────────────────
@@ -63,11 +62,16 @@ const ENDERECO_TAG_POR_PARTICIPANTE: Record<string, string> = {
 
 const HOMOLOGACAO_XNOME_PARTICIPANTE = 'CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL'
 
+// Só o remetente tem nome fantasia no leiaute; nos demais grupos o elemento não existe
+const PARTICIPANTE_COM_NOME_FANTASIA = 'rem'
+
 function buildParticipante(tag: string, p: CteParticipante): string {
   const doc = p.cnpj ? `<CNPJ>${p.cnpj.replace(/\D/g, '')}</CNPJ>` : `<CPF>${p.cpf!.replace(/\D/g, '')}</CPF>`
-  const xFant = p.xFant ? `<xFant>${escapeXml(p.xFant)}</xFant>` : ''
+  const xFant = p.xFant && tag === PARTICIPANTE_COM_NOME_FANTASIA ? `<xFant>${escapeXml(p.xFant)}</xFant>` : ''
+  const fone = p.fone ? `<fone>${p.fone.replace(/\D/g, '')}</fone>` : ''
+  const email = p.email ? `<email>${escapeXml(p.email)}</email>` : ''
   const enderecoTag = ENDERECO_TAG_POR_PARTICIPANTE[tag] ?? `ender${tag.charAt(0).toUpperCase()}${tag.slice(1)}`
-  return `<${tag}>${doc}<IE>${p.ie ?? 'ISENTO'}</IE><xNome>${escapeXml(p.xNome)}</xNome>${xFant}${buildEnderecoTag(enderecoTag, p)}</${tag}>`
+  return `<${tag}>${doc}<IE>${p.ie ?? 'ISENTO'}</IE><xNome>${escapeXml(p.xNome)}</xNome>${xFant}${fone}${buildEnderecoTag(enderecoTag, p)}${email}</${tag}>`
 }
 
 // ─── ICMS ─────────────────────────────────────────────────────────────────────
