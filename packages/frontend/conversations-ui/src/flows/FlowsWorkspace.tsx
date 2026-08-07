@@ -27,6 +27,18 @@ import { mergeFlowEditorLabels, type FlowEditorLabels } from './labels'
 // Operações puras do grafo, com teste próprio. As decisões que elas tomam não dão erro quando estão
 // erradas: dão aresta apontando para nó apagado, ou salto que o motor do bot ignora.
 import {
+  buildFlowEdges,
+  chainFrameBounds,
+  chainFrameNodeId,
+  computeMergedLayout,
+  countLiveByNode,
+  newNodeFromSpec,
+  portalNodeId,
+  GROUP_HEADER_NODE_ID,
+  type FlowEdgeSpec,
+  type FlowLivePosition,
+} from './flowCanvasModel'
+import {
   applyConnection,
   mergedFlowKeysFrom,
   namespaceNodeId,
@@ -36,16 +48,13 @@ import {
 } from './flowEditorOps'
 import {
   computeAutoLayout,
-  slugifyNodeId,
   targetsOf,
   validateGraph,
   isCrossFlowTarget,
   crossFlowKey,
-  crossFlowTargetsOf,
   findCollectionChains,
   estimateNodeHeight,
   NODE_CARD_WIDTH,
-  CROSS_FLOW_PREFIX,
   type FlowGraphData,
   type FlowNodeData,
   type GraphIssue,
@@ -60,9 +69,6 @@ const RF_NODE_TYPES = {
 }
 
 const CHAIN_FRAME_PADDING = 36
-const COLUMN_GAP = 360
-const ROW_GAP = 40
-const NS_SEP = '::'
 const FLOW_KEY_PATTERN = /^[a-z0-9_]{2,40}$/
 
 const EDGE_COLOR_LINEAR = '#94a3b8'
@@ -73,13 +79,9 @@ const EDGE_COLOR_CROSS_FLOW = '#06b6d4'
 const BACKGROUND_COLOR_LIGHT = '#cbd5e1'
 const BACKGROUND_COLOR_DARK = '#334155'
 
-/** Onde cada conversa viva está parada agora, para o card pulsar com a contagem. */
-export interface FlowLivePosition {
-  currentState: string
-  flow: string | null
-  nodeId: string | null
-  menuNodeId: string | null
-}
+// `FlowLivePosition` mora no modelo, que é quem conta — e é reexportado aqui porque faz parte da api
+// que o produto implementa. Declarar nos dois lugares faria as duas formas divergirem em silêncio.
+export type { FlowLivePosition } from './flowCanvasModel'
 
 export interface CreateFlowInput {
   key: string
@@ -123,234 +125,43 @@ export interface FlowsWorkspaceProps {
   readonly className?: string
 }
 
-// Um portal por (nó de origem, fluxo alvo) — se duas opções do mesmo nó apontarem pro mesmo
-// fluxo, compartilham um único portal (menos poluição visual, ainda uma ligação por opção).
-function portalNodeId(sourceId: string, target: string): string {
-  return `__portal__${sourceId}__${target}`
+/**
+ * Traduz o papel da aresta em traço, cor e seta.
+ *
+ * O estilo fica aqui e a topologia fica no modelo, de propósito: destino errado é invisível até a
+ * conversa do cliente parar; cor errada aparece na primeira olhada.
+ */
+function styleEdge(spec: FlowEdgeSpec): Edge {
+  const color = spec.crossFlow
+    ? EDGE_COLOR_CROSS_FLOW
+    : spec.kind === 'fallback'
+      ? EDGE_COLOR_FALLBACK
+      : spec.live
+        ? EDGE_COLOR_LIVE
+        : spec.kind === 'branch'
+          ? EDGE_COLOR_BRANCH
+          : EDGE_COLOR_LINEAR
+  const baseWidth = spec.kind === 'branch' ? 1.75 : 1.5
+  const dash = spec.crossFlow ? '3 3' : spec.kind === 'fallback' ? '5 4' : undefined
+  const markerSize = spec.kind === 'fallback' ? 16 : 18
+
+  return {
+    id: spec.id,
+    source: spec.source,
+    target: spec.target,
+    ...(spec.sourceHandle === undefined ? {} : { sourceHandle: spec.sourceHandle }),
+    type: 'bezier',
+    animated: spec.live,
+    style: {
+      stroke: color,
+      strokeWidth: spec.live && !spec.crossFlow ? 2.5 : baseWidth,
+      ...(dash === undefined ? {} : { strokeDasharray: dash }),
+    },
+    markerEnd: { type: MarkerType.ArrowClosed, color, width: markerSize, height: markerSize },
+  }
 }
 
-// Um fluxo aberto no canvas de detalhe — o primeiro da lista é o "primário" (dono da paleta,
-// organizar, publicar e excluir-fluxo); os demais chegaram por fusão editável (clique num portal)
-// e ficam com um cabeçalho flutuante pra focar neles sozinhos ou fechar.
-type OpenFlow = { key: string; offset: { x: number; y: number } }
 
-// Fecho transitivo de saltos flow:<key> a partir de rootKey — "o fluxo completo": abrir um
-// fluxo já traz junto tudo que ele referencia (e o que essas referências referenciam), sem
-// precisar clicar em cada portal manualmente.
-function autoMergeAll(rootKey: string, graphsSource: Record<string, FlowGraphData>): OpenFlow[] {
-  // O fecho em si vem de `flowEditorOps`, que é onde ele tem teste — inclusive para o caso mais banal
-  // que existe, o fluxo que volta a si mesmo.
-  return mergedFlowKeysFrom(rootKey, graphsSource).map((key) => ({ key, offset: { x: 0, y: 0 } }))
-}
-
-// Layout único pra TODOS os nós de TODOS os fluxos abertos juntos — ao contrário de posicionar
-// cada fluxo independente e só deslocar (que não evita sobreposição entre fluxos nem considera a
-// altura real de cada card), aqui o ranqueamento por BFS roda sobre o grafo mesclado inteiro,
-// usando ligações reais (inclusive saltos flow:<key> já resolvidos pro nó inicial do fluxo
-// alvo). Mesma orientação do computeAutoLayout: da esquerda para a direita, um rank por coluna.
-function computeMergedLayout(
-  openFlows: readonly OpenFlow[],
-  workingGraphs: Record<string, FlowGraphData>,
-  primaryFlowKey: string,
-): Map<string, { x: number; y: number }> {
-  const openKeys = new Set(openFlows.map((flow) => flow.key))
-
-  const nodeByNsId = new Map<string, FlowNodeData>()
-  for (const { key } of openFlows) {
-    const graph = workingGraphs[key]
-    if (!graph) continue
-    for (const node of Object.values(graph.nodes)) nodeByNsId.set(namespaceNodeId(key, node.id), node)
-  }
-
-  function forwardEdges(flowKey: string, node: FlowNodeData): string[] {
-    const result: string[] = []
-    for (const { target } of targetsOf(node)) {
-      if (isCrossFlowTarget(target)) {
-        const targetFlowKey = crossFlowKey(target)
-        const targetGraph = openKeys.has(targetFlowKey) ? workingGraphs[targetFlowKey] : undefined
-        if (targetGraph) result.push(namespaceNodeId(targetFlowKey, targetGraph.startNodeId))
-      } else if (workingGraphs[flowKey]?.nodes[target]) {
-        result.push(namespaceNodeId(flowKey, target))
-      }
-    }
-    return result
-  }
-
-  const rank = new Map<string, number>()
-  const primaryGraph = workingGraphs[primaryFlowKey]
-  const rootId = primaryGraph ? namespaceNodeId(primaryFlowKey, primaryGraph.startNodeId) : undefined
-  if (rootId && nodeByNsId.has(rootId)) {
-    rank.set(rootId, 0)
-    const queue = [rootId]
-    while (queue.length > 0) {
-      const id = queue.shift()!
-      const node = nodeByNsId.get(id)
-      if (!node) continue
-      for (const nextId of forwardEdges(parseNamespacedId(id).flowKey, node)) {
-        if (!rank.has(nextId)) {
-          rank.set(nextId, rank.get(id)! + 1)
-          queue.push(nextId)
-        }
-      }
-    }
-  }
-
-  // Nós não alcançados a partir do início do fluxo primário (outro fluxo mesclado sem ligação
-  // de volta pro primário, ou nó órfão) vão TODOS numa única camada extra abaixo de tudo — uma
-  // camada por órfão empurrava cada um para uma linha própria, cada vez mais longe da área
-  // visível, e desligar um fio dava a impressão de ter apagado o card.
-  const strayRank = Math.max(0, ...rank.values()) + 1
-  for (const nsId of nodeByNsId.keys()) {
-    if (!rank.has(nsId)) rank.set(nsId, strayRank)
-  }
-
-  const layers = new Map<number, string[]>()
-  for (const [nsId, nodeRank] of rank) {
-    if (!layers.has(nodeRank)) layers.set(nodeRank, [])
-    layers.get(nodeRank)!.push(nsId)
-  }
-
-  const positions = new Map<string, { x: number; y: number }>()
-  for (const nodeRank of [...layers.keys()].sort((a, b) => a - b)) {
-    // Alinhado pelo topo pelo mesmo motivo de `computeAutoLayout`: coluna centralizada saltava
-    // inteira a cada nó a mais num ramo.
-    let cursorY = 0
-    for (const nsId of layers.get(nodeRank)!) {
-      positions.set(nsId, { x: nodeRank * COLUMN_GAP, y: cursorY })
-      cursorY += estimateNodeHeight(nodeByNsId.get(nsId)!) + ROW_GAP
-    }
-  }
-  return positions
-}
-
-function computeLiveCounts(
-  flowKey: string,
-  rootFlowKey: string,
-  livePositions: readonly FlowLivePosition[] | undefined,
-): Record<string, number> {
-  const counts: Record<string, number> = {}
-  for (const position of livePositions ?? []) {
-    if (position.flow !== flowKey && flowKey !== rootFlowKey) continue
-    const nodeId = flowKey === rootFlowKey ? position.menuNodeId : position.nodeId
-    if (!nodeId) continue
-    counts[nodeId] = (counts[nodeId] ?? 0) + 1
-  }
-  return counts
-}
-
-// Constrói as ligações de TODOS os fluxos abertos juntos. Um salto "flow:<key>" vira ligação
-// real até o nó inicial do fluxo alvo quando esse fluxo já está mesclado no canvas; caso
-// contrário, continua indo até o portal (pseudo-nó) daquele fluxo, como antes da fusão.
-function buildAllEdges(
-  openFlows: readonly OpenFlow[],
-  workingGraphs: Record<string, FlowGraphData>,
-  rootFlowKey: string,
-  livePositions: readonly FlowLivePosition[] | undefined,
-): Edge[] {
-  const openKeys = new Set(openFlows.map((flow) => flow.key))
-  const edges: Edge[] = []
-
-  for (const { key: flowKey } of openFlows) {
-    const graph = workingGraphs[flowKey]
-    if (!graph) continue
-    const liveCounts = computeLiveCounts(flowKey, rootFlowKey, livePositions)
-
-    for (const [id, node] of Object.entries(graph.nodes)) {
-      const isLive = (liveCounts[id] ?? 0) > 0
-      for (const { target, optionId, isDefault } of targetsOf(node)) {
-        // Destino vazio é estado NORMAL, não anomalia: apagar um nó zera quem apontava para ele, e
-        // `targetsOf` devolve o `default` mesmo em branco. Sem esta linha a aresta ia para um nó que
-        // não existe, o React Flow a descartava em silêncio, e a opção parecia ligada sem estar — a
-        // conversa do cliente para ali e quem editou não vê nada de errado.
-        if (!target) continue
-
-        const crossFlow = isCrossFlowTarget(target)
-        let targetFlowKey = flowKey
-        let rawTargetId = target
-        if (crossFlow) {
-          const wantedKey = crossFlowKey(target)
-          const targetGraph = openKeys.has(wantedKey) ? workingGraphs[wantedKey] : undefined
-          if (targetGraph) {
-            targetFlowKey = wantedKey
-            rawTargetId = targetGraph.startNodeId
-          } else {
-            rawTargetId = portalNodeId(id, target)
-          }
-        }
-        const source = namespaceNodeId(flowKey, id)
-        const edgeTarget = namespaceNodeId(targetFlowKey, rawTargetId)
-
-        if (optionId === undefined && !isDefault) {
-          const color = crossFlow ? EDGE_COLOR_CROSS_FLOW : isLive ? EDGE_COLOR_LIVE : EDGE_COLOR_LINEAR
-          edges.push({
-            id: `${source}->${edgeTarget}`,
-            source,
-            target: edgeTarget,
-            type: 'bezier',
-            animated: isLive,
-            style: crossFlow
-              ? { stroke: color, strokeWidth: 1.5, strokeDasharray: '3 3' }
-              : { stroke: color, strokeWidth: isLive ? 2.5 : 1.5 },
-            markerEnd: { type: MarkerType.ArrowClosed, color, width: 18, height: 18 },
-          })
-        } else if (isDefault) {
-          const color = crossFlow ? EDGE_COLOR_CROSS_FLOW : EDGE_COLOR_FALLBACK
-          edges.push({
-            id: `${source}->${edgeTarget}-default`,
-            source,
-            sourceHandle: '__default',
-            target: edgeTarget,
-            type: 'bezier',
-            style: { stroke: color, strokeWidth: 1.5, strokeDasharray: '5 4' },
-            markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
-          })
-        } else {
-          const color = crossFlow ? EDGE_COLOR_CROSS_FLOW : isLive ? EDGE_COLOR_LIVE : EDGE_COLOR_BRANCH
-          edges.push({
-            id: `${source}->${edgeTarget}-${optionId}`,
-            source,
-            sourceHandle: optionId,
-            target: edgeTarget,
-            type: 'bezier',
-            animated: isLive,
-            style: crossFlow
-              ? { stroke: color, strokeWidth: 1.75, strokeDasharray: '3 3' }
-              : { stroke: color, strokeWidth: isLive ? 2.5 : 1.75 },
-            markerEnd: { type: MarkerType.ArrowClosed, color, width: 18, height: 18 },
-          })
-        }
-      }
-    }
-  }
-  return edges
-}
-
-function newNodeFromSpec(spec: NewNodeSpec, existingIds: Set<string>): FlowNodeData {
-  if (spec.kind === 'question') {
-    const id = slugifyNodeId('nova_pergunta', existingIds)
-    return { id, type: 'question', questionType: spec.questionType, contextKey: id, question: '' }
-  }
-  if (spec.kind === 'decision') {
-    const id = slugifyNodeId('nova_decisao', existingIds)
-    return {
-      id,
-      type: 'question',
-      questionType: 'choice',
-      contextKey: id,
-      question: '',
-      options: [
-        ['1', 'Opção 1'],
-        ['2', 'Opção 2'],
-      ],
-    }
-  }
-  if (spec.kind === 'condition') {
-    const id = slugifyNodeId('nova_condicao', existingIds)
-    return { id, type: 'condition', conditionOperator: '>' }
-  }
-  const id = slugifyNodeId('nova_acao', existingIds)
-  return { id, type: 'action', actionKind: spec.actionKind }
-}
 
 function extractErrorMessage(error: unknown): string | undefined {
   if (error instanceof Error) return error.message
@@ -388,7 +199,7 @@ export function FlowsWorkspace({
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [livePositions, setLivePositions] = useState<FlowLivePosition[] | undefined>(undefined)
   const [viewMode, setViewMode] = useState<'detail' | 'map'>('detail')
-  const [openFlows, setOpenFlows] = useState<OpenFlow[]>([{ key: rootFlowKey, offset: { x: 0, y: 0 } }])
+  const [openFlowKeys, setOpenFlowKeys] = useState<readonly string[]>([rootFlowKey])
   const [hasAutoMerged, setHasAutoMerged] = useState(false)
   const [workingGraphs, setWorkingGraphs] = useState<Record<string, FlowGraphData>>({})
   const [editingRef, setEditingRef] = useState<{ flowKey: string; nodeId: string } | null>(null)
@@ -440,7 +251,7 @@ export function FlowsWorkspace({
     }
   }, [api, livePollIntervalMs])
 
-  const primaryFlowKey = openFlows[0]?.key ?? rootFlowKey
+  const primaryFlowKey = openFlowKeys[0] ?? rootFlowKey
   const primaryGraph = workingGraphs[primaryFlowKey]
 
   // Assim que os fluxos carregam pela primeira vez, mescla automaticamente todo o fecho
@@ -449,7 +260,7 @@ export function FlowsWorkspace({
   // fica inteiramente sob controle do usuário.
   useEffect(() => {
     if (!graphs || hasAutoMerged) return
-    setOpenFlows(autoMergeAll(rootFlowKey, graphs))
+    setOpenFlowKeys(mergedFlowKeysFrom(rootFlowKey, graphs))
     setHasAutoMerged(true)
   }, [graphs, hasAutoMerged, rootFlowKey])
 
@@ -461,7 +272,7 @@ export function FlowsWorkspace({
     setWorkingGraphs((prev) => {
       let changed = false
       const next = { ...prev }
-      for (const { key } of openFlows) {
+      for (const key of openFlowKeys) {
         if (!next[key] && graphs[key]) {
           next[key] = graphs[key]
           changed = true
@@ -469,7 +280,7 @@ export function FlowsWorkspace({
       }
       return changed ? next : prev
     })
-  }, [graphs, openFlows])
+  }, [graphs, openFlowKeys])
 
   const isFlowDirty = useCallback(
     (key: string): boolean => {
@@ -483,12 +294,12 @@ export function FlowsWorkspace({
 
   const issuesByFlow = useMemo<Record<string, GraphIssue[]>>(() => {
     const map: Record<string, GraphIssue[]> = {}
-    for (const { key } of openFlows) {
+    for (const key of openFlowKeys) {
       const graph = workingGraphs[key]
       if (graph) map[key] = validateGraph(graph, labels.validation)
     }
     return map
-  }, [openFlows, workingGraphs, labels])
+  }, [openFlowKeys, workingGraphs, labels])
 
   const errorCount = Object.values(issuesByFlow).reduce(
     (sum, list) => sum + list.filter((issue) => issue.severity === 'error').length,
@@ -498,7 +309,7 @@ export function FlowsWorkspace({
     (sum, list) => sum + list.filter((issue) => issue.severity === 'warning').length,
     0,
   )
-  const dirtyKeys = openFlows.map((flow) => flow.key).filter(isFlowDirty)
+  const dirtyKeys = openFlowKeys.filter(isFlowDirty)
   const isDirty = dirtyKeys.length > 0
 
   const updateFlow = useCallback((flowKey: string, updater: (graph: FlowGraphData) => FlowGraphData) => {
@@ -514,19 +325,19 @@ export function FlowsWorkspace({
   // agora é sempre mostrar tudo que está conectado.
   const focusFlow = useCallback(
     (key: string) => {
-      const others = openFlows.filter((flow) => flow.key !== key)
-      if (others.some((flow) => isFlowDirty(flow.key)) && !window.confirm(labels.workspace.unsavedChangesConfirm)) return
-      setOpenFlows(graphs ? autoMergeAll(key, graphs) : [{ key, offset: { x: 0, y: 0 } }])
+      const others = openFlowKeys.filter((each) => each !== key)
+      if (others.some(isFlowDirty) && !window.confirm(labels.workspace.unsavedChangesConfirm)) return
+      setOpenFlowKeys(graphs ? mergedFlowKeysFrom(key, graphs) : [key])
       if (editingRef && editingRef.flowKey !== key) setEditingRef(null)
     },
-    [openFlows, isFlowDirty, editingRef, graphs, labels],
+    [openFlowKeys, isFlowDirty, editingRef, graphs, labels],
   )
 
   // "Fechar": remove um fluxo mesclado sem trocar o foco do primário.
   const closeFlow = useCallback(
     (key: string) => {
       if (isFlowDirty(key) && !window.confirm(labels.workspace.unsavedChangesConfirm)) return
-      setOpenFlows((prev) => prev.filter((flow) => flow.key !== key))
+      setOpenFlowKeys((prev) => prev.filter((each) => each !== key))
       setWorkingGraphs((prev) => {
         const { [key]: _removed, ...rest } = prev
         return rest
@@ -536,40 +347,24 @@ export function FlowsWorkspace({
     [isFlowDirty, editingRef, labels],
   )
 
-  // Fusão editável: mescla o fluxo alvo no mesmo canvas, posicionado à direita do nó de
-  // origem que o referenciou, com os nós de verdade (editáveis ali mesmo) em vez de um portal.
-  const mergeFlow = useCallback(
-    (targetFlowKey: string, source: { flowKey: string; nodeId: string }) => {
-      setOpenFlows((prev) => {
-        if (prev.some((flow) => flow.key === targetFlowKey)) return prev
-        const sourceOpen = prev.find((flow) => flow.key === source.flowKey)
-        const sourceGraph = workingGraphs[source.flowKey]
-        const sourceLocalPosition =
-          sourceGraph?.nodes[source.nodeId]?.position ??
-          (sourceGraph ? computeAutoLayout(sourceGraph)[source.nodeId] : undefined) ?? { x: 0, y: 0 }
-        const baseOffset = sourceOpen?.offset ?? { x: 0, y: 0 }
-        return [
-          ...prev,
-          {
-            key: targetFlowKey,
-            offset: {
-              x: baseOffset.x + sourceLocalPosition.x + 400,
-              y: baseOffset.y + sourceLocalPosition.y,
-            },
-          },
-        ]
-      })
-    },
-    [workingGraphs],
-  )
+  /**
+   * Fusão editável: traz os nós de verdade do fluxo alvo para o mesmo canvas, no lugar do portal.
+   *
+   * Não calcula posição. Abrir um segundo fluxo liga o layout mesclado, que posiciona TODOS os nós
+   * junto e em coordenadas absolutas — um deslocamento calculado aqui seria descartado no desenho e
+   * ainda assim subtraído ao gravar, que era como a posição do card ia parar errada no grafo.
+   */
+  const mergeFlow = useCallback((targetFlowKey: string) => {
+    setOpenFlowKeys((prev) => (prev.includes(targetFlowKey) ? prev : [...prev, targetFlowKey]))
+  }, [])
 
   // Mais de um fluxo aberto = layout global (ignora node.position individual, recalcula tudo
   // junto pra nunca sobrepor); um só fluxo aberto = comportamento de sempre (respeita posição
   // salva/arrastada, com fallback pro auto-layout daquele fluxo isolado).
-  const isMerged = openFlows.length > 1
+  const isMerged = openFlowKeys.length > 1
   const mergedPositions = useMemo(
-    () => (isMerged ? computeMergedLayout(openFlows, workingGraphs, primaryFlowKey) : null),
-    [isMerged, openFlows, workingGraphs, primaryFlowKey],
+    () => (isMerged ? computeMergedLayout({ openKeys: openFlowKeys, graphs: workingGraphs, primaryFlowKey }) : null),
+    [isMerged, openFlowKeys, workingGraphs, primaryFlowKey],
   )
 
   // Última posição em que cada nó foi desenhado, e ela manda sobre o layout calculado.
@@ -583,11 +378,11 @@ export function FlowsWorkspace({
 
   const derivedNodes = useMemo<Node[]>(() => {
     const allNodes: Node[] = []
-    for (const { key: flowKey, offset } of openFlows) {
+    for (const flowKey of openFlowKeys) {
       const graph = workingGraphs[flowKey]
       if (!graph) continue
       const fallbackPositions = mergedPositions ? {} : computeAutoLayout(graph)
-      const liveCounts = computeLiveCounts(flowKey, rootFlowKey, livePositions)
+      const liveCounts = countLiveByNode({ flowKey, rootFlowKey, positions: livePositions })
       const flowIssues = issuesByFlow[flowKey] ?? []
       const isPrimary = flowKey === primaryFlowKey
 
@@ -606,8 +401,8 @@ export function FlowsWorkspace({
           const nsId = namespaceNodeId(flowKey, nodeId)
           return renderedPositionsRef.current.get(nsId) ?? mergedPositions.get(nsId) ?? { x: 0, y: 0 }
         }
-        const local = graph!.nodes[nodeId]?.position ?? fallbackPositions[nodeId] ?? { x: 0, y: 0 }
-        return { x: local.x + offset.x, y: local.y + offset.y }
+        // Fluxo sozinho no canvas: a posição salva no grafo é a do card, sem tradução no meio.
+        return graph!.nodes[nodeId]?.position ?? fallbackPositions[nodeId] ?? { x: 0, y: 0 }
       }
 
       for (const node of Object.values(graph.nodes)) {
@@ -636,7 +431,7 @@ export function FlowsWorkspace({
         const crossFlowTargets = [...new Set(targetsOf(node).map((edge) => edge.target).filter(isCrossFlowTarget))]
         crossFlowTargets.forEach((target, index) => {
           const targetFlowKey = crossFlowKey(target)
-          if (openFlows.some((flow) => flow.key === targetFlowKey)) return
+          if (openFlowKeys.includes(targetFlowKey)) return
           allNodes.push({
             id: namespaceNodeId(flowKey, portalNodeId(node.id, target)),
             type: 'flowPortal',
@@ -645,7 +440,7 @@ export function FlowsWorkspace({
             position: { x: position.x + 320, y: position.y + index * 70 },
             data: {
               label: graphs?.[targetFlowKey]?.label ?? targetFlowKey,
-              onNavigate: () => mergeFlow(targetFlowKey, { flowKey, nodeId: node.id }),
+              onNavigate: () => mergeFlow(targetFlowKey),
             } satisfies FlowPortalNodeData,
           })
         })
@@ -698,7 +493,7 @@ export function FlowsWorkspace({
     }
     return allNodes
   }, [
-    openFlows,
+    openFlowKeys,
     workingGraphs,
     mergedPositions,
     livePositions,
@@ -714,8 +509,9 @@ export function FlowsWorkspace({
   ])
 
   const edges = useMemo(
-    () => buildAllEdges(openFlows, workingGraphs, rootFlowKey, livePositions),
-    [openFlows, workingGraphs, rootFlowKey, livePositions],
+    () =>
+      buildFlowEdges({ openKeys: openFlowKeys, graphs: workingGraphs, rootFlowKey, livePositions }).map(styleEdge),
+    [openFlowKeys, workingGraphs, rootFlowKey, livePositions],
   )
 
   useEffect(() => {
@@ -744,27 +540,16 @@ export function FlowsWorkspace({
     (_event: unknown, node: Node) => {
       renderedPositionsRef.current.set(node.id, node.position)
       const { flowKey, nodeId } = parseNamespacedId(node.id)
-      const openFlow = openFlows.find((flow) => flow.key === flowKey)
-      if (!openFlow) return
+      if (!openFlowKeys.includes(flowKey)) return
 
-      /**
-       * O deslocamento só entra na conta quando ele foi usado para DESENHAR.
-       *
-       * Com mais de um fluxo aberto o layout mesclado posiciona tudo em coordenadas absolutas e
-       * ignora `offset` — subtrair aqui gravava no grafo uma posição que nunca foi a do card. O
-       * sintoma aparecia só depois: recarregar a tela e achar o nó deslocado sozinho.
-       */
-      const drawnWithOffset = openFlows.length === 1
-      const localPosition = drawnWithOffset
-        ? { x: node.position.x - openFlow.offset.x, y: node.position.y - openFlow.offset.y }
-        : node.position
+      // A posição do card É a posição do grafo: não há mais deslocamento por fluxo a desfazer aqui.
       updateFlow(flowKey, (graph) =>
         graph.nodes[nodeId]
-          ? { ...graph, nodes: { ...graph.nodes, [nodeId]: { ...graph.nodes[nodeId]!, position: localPosition } } }
+          ? { ...graph, nodes: { ...graph.nodes, [nodeId]: { ...graph.nodes[nodeId]!, position: node.position } } }
           : graph,
       )
     },
-    [openFlows, updateFlow],
+    [openFlowKeys, updateFlow],
   )
 
   const onConnect = useCallback(
@@ -815,17 +600,14 @@ export function FlowsWorkspace({
     renderedPositionsRef.current.clear()
 
     if (isMerged) {
-      const positions = computeMergedLayout(openFlows, workingGraphs, primaryFlowKey)
-      for (const { key, offset } of openFlows) {
+      const positions = computeMergedLayout({ openKeys: openFlowKeys, graphs: workingGraphs, primaryFlowKey })
+      for (const key of openFlowKeys) {
         updateFlow(key, (graph) => ({
           ...graph,
           nodes: Object.fromEntries(
             Object.entries(graph.nodes).map(([id, node]) => {
               const position = positions.get(namespaceNodeId(key, id))
-              return [
-                id,
-                position ? { ...node, position: { x: position.x - offset.x, y: position.y - offset.y } } : node,
-              ]
+              return [id, position ? { ...node, position } : node]
             }),
           ),
         }))
@@ -886,7 +668,7 @@ export function FlowsWorkspace({
         ...(newFlow.showInMenu ? { menuOptionLabel: newFlow.menuOptionLabel || newFlow.label } : {}),
       })
       await reloadGraphs()
-      setOpenFlows([{ key: newFlow.key, offset: { x: 0, y: 0 } }])
+      setOpenFlowKeys([newFlow.key])
       setShowCreateDialog(false)
       setNewFlow({ key: '', label: '', showInMenu: false, menuOptionLabel: '' })
       setFlowMutationState({ pending: false })
@@ -902,7 +684,7 @@ export function FlowsWorkspace({
     try {
       await deleteFlow(primaryGraph.key)
       const reloaded = await reloadGraphs()
-      setOpenFlows(reloaded ? autoMergeAll(rootFlowKey, reloaded) : [{ key: rootFlowKey, offset: { x: 0, y: 0 } }])
+      setOpenFlowKeys(reloaded ? mergedFlowKeysFrom(rootFlowKey, reloaded) : [rootFlowKey])
       setShowDeleteDialog(false)
       setFlowMutationState({ pending: false })
     } catch (error) {
