@@ -188,6 +188,34 @@ describe('CT-e 4.00 schema element names', () => {
     expect(xml.includes('&amp;tpAmb=1</qrCodCTe>')).toBe(true)
   })
 
+  test('leaves infRespTec out when no responsavel tecnico is configured', () => {
+    const { xml } = buildCteXml(buildCteConfig('unused'), buildCteData())
+
+    expect(xml.includes('<infRespTec>')).toBe(false)
+  })
+
+  test('closes infCte with infRespTec when the responsavel tecnico is configured', () => {
+    const { xml } = buildCteXml(
+      {
+        ...buildCteConfig('unused'),
+        responsavelTecnico: {
+          cnpj: '11.222.333/0001-81',
+          email: 'fiscal@exemplo.com.br',
+          fone: '(11) 4000-0000',
+          xContato: 'Suporte Fiscal',
+        },
+      },
+      buildCteData(),
+    )
+
+    expect(
+      xml.includes(
+        '<infRespTec><CNPJ>11222333000181</CNPJ><xContato>Suporte Fiscal</xContato><email>fiscal@exemplo.com.br</email><fone>1140000000</fone></infRespTec></infCte>',
+      ),
+    ).toBe(true)
+    expect(xml.indexOf('<infRespTec>')).toBeGreaterThan(xml.indexOf('</infCTeNorm>'))
+  })
+
   test('places the signature after infCTeSupl', () => {
     const certificateFixture = createCertificateFixture()
     const certData = loadCertificate(certificateFixture.pfxBase64, CERTIFICATE_PASSWORD)

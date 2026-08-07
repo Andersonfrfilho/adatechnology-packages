@@ -478,6 +478,20 @@ export type CteData = {
   readonly observacoes?: string
 }
 
+/**
+ * infRespTec (NT 2018.005) — responsável técnico pelo **sistema emissor**, ou seja, a
+ * software house que desenvolveu o emissor, não o transportador que assina o CT-e.
+ */
+export type CteResponsavelTecnico = {
+  /** CNPJ do desenvolvedor do sistema emissor — com ou sem máscara */
+  readonly cnpj: string
+  /** Nome da pessoa de contato técnico */
+  readonly xContato: string
+  readonly email: string
+  /** Telefone do contato técnico — com ou sem máscara */
+  readonly fone: string
+}
+
 export type CteConfig = FiscalConfigBase & {
   readonly model: 'cte'
   readonly certificadoBase64: string
@@ -488,6 +502,8 @@ export type CteConfig = FiscalConfigBase & {
   /** RNTRC — Registro Nacional de Transportadores Rodoviários de Cargas */
   readonly rntrc: string
   readonly telefone?: string
+  /** Deixe indefinido para emitir sem o grupo infRespTec. */
+  readonly responsavelTecnico?: CteResponsavelTecnico
 }
 
 // ─── MDF-e — Manifesto Eletrônico de Documentos Fiscais (modelo 58) ───────────

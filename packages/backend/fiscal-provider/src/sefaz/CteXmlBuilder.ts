@@ -290,11 +290,17 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
     : ''
   const infAdic = data.observacoes ? `<infAdic><infCpl>${escapeXml(data.observacoes)}</infCpl></infAdic>` : ''
 
+  // NT 2018.005: infRespTec fecha o infCte e identifica a software house, não o transportador
+  const respTec = config.responsavelTecnico
+  const infRespTec = respTec
+    ? `<infRespTec><CNPJ>${respTec.cnpj.replace(/\D/g, '')}</CNPJ><xContato>${escapeXml(respTec.xContato)}</xContato><email>${escapeXml(respTec.email)}</email><fone>${respTec.fone.replace(/\D/g, '')}</fone></infRespTec>`
+    : ''
+
   const infCteId = `CTe${chave}`
   // Rejeição 850: o CT-e 4.00 exige o QR Code de consulta em infCTeSupl, entre infCte e a assinatura
   const qrCodCTe = `${getCteQrCodeUrl(config.uf, tpAmb === '1' ? 'producao' : 'homologacao')}?chCTe=${chave}&amp;tpAmb=${tpAmb}`
   const infCTeSupl = `<infCTeSupl><qrCodCTe>${qrCodCTe}</qrCodCTe></infCTeSupl>`
-  const xml = `<?xml version="1.0" encoding="UTF-8"?><CTe xmlns="${CTE_NS}"><infCte versao="4.00" Id="${infCteId}"><ide><cUF>${cUF}</cUF><cCT>${cCT}</cCT><CFOP>${data.cfop}</CFOP><natOp>${escapeXml(data.naturezaOperacao)}</natOp><mod>57</mod><serie>${serie}</serie><nCT>${nCT}</nCT><dhEmi>${dhEmi}</dhEmi><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${cDV}</cDV><tpAmb>${tpAmb}</tpAmb><tpCTe>0</tpCTe><procEmi>0</procEmi><verProc>fiscal-provider@1.0</verProc><cMunEnv>${config.codigoMunicipio}</cMunEnv><xMunEnv>${escapeXml(config.municipio)}</xMunEnv><UFEnv>${config.uf}</UFEnv><modal>${data.modal.modal}</modal><tpServ>${tpServ}</tpServ><cMunIni>${data.municipioOrigem.codigo}</cMunIni><xMunIni>${escapeXml(data.municipioOrigem.nome)}</xMunIni><UFIni>${data.municipioOrigem.uf}</UFIni><cMunFim>${data.municipioDestino.codigo}</cMunFim><xMunFim>${escapeXml(data.municipioDestino.nome)}</xMunFim><UFFim>${data.municipioDestino.uf}</UFFim><retira>${retira}</retira>${xDetRetira}<indIEToma>${indIEToma}</indIEToma>${toma}</ide>${obsGer}${emit}${rem}${exped}${receb}${dest}${vPrest}${imp}${infCTeNorm}${infAdic}</infCte>${infCTeSupl}</CTe>`
+  const xml = `<?xml version="1.0" encoding="UTF-8"?><CTe xmlns="${CTE_NS}"><infCte versao="4.00" Id="${infCteId}"><ide><cUF>${cUF}</cUF><cCT>${cCT}</cCT><CFOP>${data.cfop}</CFOP><natOp>${escapeXml(data.naturezaOperacao)}</natOp><mod>57</mod><serie>${serie}</serie><nCT>${nCT}</nCT><dhEmi>${dhEmi}</dhEmi><tpImp>1</tpImp><tpEmis>1</tpEmis><cDV>${cDV}</cDV><tpAmb>${tpAmb}</tpAmb><tpCTe>0</tpCTe><procEmi>0</procEmi><verProc>fiscal-provider@1.0</verProc><cMunEnv>${config.codigoMunicipio}</cMunEnv><xMunEnv>${escapeXml(config.municipio)}</xMunEnv><UFEnv>${config.uf}</UFEnv><modal>${data.modal.modal}</modal><tpServ>${tpServ}</tpServ><cMunIni>${data.municipioOrigem.codigo}</cMunIni><xMunIni>${escapeXml(data.municipioOrigem.nome)}</xMunIni><UFIni>${data.municipioOrigem.uf}</UFIni><cMunFim>${data.municipioDestino.codigo}</cMunFim><xMunFim>${escapeXml(data.municipioDestino.nome)}</xMunFim><UFFim>${data.municipioDestino.uf}</UFFim><retira>${retira}</retira>${xDetRetira}<indIEToma>${indIEToma}</indIEToma>${toma}</ide>${obsGer}${emit}${rem}${exped}${receb}${dest}${vPrest}${imp}${infCTeNorm}${infAdic}${infRespTec}</infCte>${infCTeSupl}</CTe>`
 
   return { xml, chaveAcesso: chave, cCT }
 }
