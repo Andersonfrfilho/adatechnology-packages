@@ -112,6 +112,75 @@ describe('CT-e 4.00 schema element names', () => {
     expect(xml.includes('RECEBEDOR FANTASIA')).toBe(false)
   })
 
+  /** O leiaute do emitente aceita xFant logo depois de xNome, antes do bloco de endereço. */
+  test('emits the issuer trade name between the corporate name and the address', () => {
+    const { xml } = buildCteXml({ ...buildCteConfig('unused'), nomeFantasia: 'ADA TRANSPORTES' }, buildCteData())
+
+    expect(xml.includes('</xNome><xFant>ADA TRANSPORTES</xFant><enderEmit>')).toBe(true)
+  })
+
+  test('omits the issuer trade name when it is not configured', () => {
+    const { xml } = buildCteXml(buildCteConfig('unused'), buildCteData())
+
+    expect(xml.includes('<xFant>')).toBe(false)
+  })
+
+  /**
+   * Depois de UF o endereço do participante fecha com cPais e xPais. Ausentes, o CT-e é aceito,
+   * mas fica fora de paridade com o que a SEFAZ devolve na consulta e com o DACTE.
+   */
+  test('closes every party address with the country code and name', () => {
+    const data = buildCteData()
+    const { xml } = buildCteXml(buildCteConfig('unused'), {
+      ...data,
+      expedidor: data.remetente,
+      recebedor: data.destinatario,
+    })
+
+    expect(xml.includes('<UF>SP</UF><cPais>1058</cPais><xPais>Brasil</xPais></enderReme>')).toBe(true)
+    expect(xml.includes('<UF>RJ</UF><cPais>1058</cPais><xPais>Brasil</xPais></enderDest>')).toBe(true)
+    expect(xml.includes('<cPais>1058</cPais><xPais>Brasil</xPais></enderExped>')).toBe(true)
+    expect(xml.includes('<cPais>1058</cPais><xPais>Brasil</xPais></enderReceb>')).toBe(true)
+  })
+
+  test('honours an explicit country on the party address', () => {
+    const data = buildCteData()
+    const { xml } = buildCteXml(buildCteConfig('unused'), {
+      ...data,
+      remetente: { ...data.remetente, cPais: '0639', xPais: 'Paraguai' },
+    })
+
+    expect(xml.includes('<cPais>0639</cPais><xPais>Paraguai</xPais></enderReme>')).toBe(true)
+  })
+
+  /** No grupo compl o operador que emitiu (xEmi) vem antes das observações (xObs). */
+  test('emits the issuing operator before the observations inside compl', () => {
+    const { xml } = buildCteXml(buildCteConfig('unused'), {
+      ...buildCteData(),
+      funcionarioEmissor: 'operador.teste',
+      informacoesAdicionais: 'EMPRESA OPTANTE PELO SIMPLES NACIONAL',
+    })
+
+    expect(
+      xml.includes('<compl><xEmi>operador.teste</xEmi><xObs>EMPRESA OPTANTE PELO SIMPLES NACIONAL</xObs></compl>'),
+    ).toBe(true)
+  })
+
+  test('opens compl for the issuing operator even without observations', () => {
+    const { xml } = buildCteXml(buildCteConfig('unused'), {
+      ...buildCteData(),
+      funcionarioEmissor: 'operador.teste',
+    })
+
+    expect(xml.includes('<compl><xEmi>operador.teste</xEmi></compl>')).toBe(true)
+  })
+
+  test('omits compl when neither the operator nor the observations are present', () => {
+    const { xml } = buildCteXml(buildCteConfig('unused'), buildCteData())
+
+    expect(xml.includes('<compl>')).toBe(false)
+  })
+
   test('carries the modal version on infModal as versaoModal', () => {
     const { xml } = buildCteXml(buildCteConfig('unused'), buildCteData())
 

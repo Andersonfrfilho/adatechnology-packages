@@ -297,6 +297,10 @@ export type CteParticipante = {
   readonly xMun: string
   readonly uf: string
   readonly cep?: string
+  /** Código BACEN do país — padrão '1058' (Brasil) */
+  readonly cPais?: string
+  /** Nome do país — padrão 'Brasil' */
+  readonly xPais?: string
   readonly fone?: string
   readonly email?: string
 }
@@ -474,6 +478,8 @@ export type CteData = {
   readonly xDetRetira?: string
   /** Indicador de inscrição estadual do tomador: '1'=contribuinte, '2'=isento, '9'=não contribuinte (padrão) */
   readonly indIEToma?: '1' | '2' | '9'
+  /** xEmi — identificação do operador que emitiu o CT-e, dentro do grupo compl */
+  readonly funcionarioEmissor?: string
   readonly informacoesAdicionais?: string
   readonly observacoes?: string
 }
@@ -499,6 +505,8 @@ export type CteConfig = FiscalConfigBase & {
   readonly serie: string
   readonly numeroCte: number
   readonly codigoMunicipio: string
+  /** Nome fantasia do emitente — xFant, opcional no leiaute */
+  readonly nomeFantasia?: string
   /** RNTRC — Registro Nacional de Transportadores Rodoviários de Cargas */
   readonly rntrc: string
   readonly telefone?: string
