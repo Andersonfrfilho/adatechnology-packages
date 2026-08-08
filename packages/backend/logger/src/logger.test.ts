@@ -27,6 +27,63 @@ describe('logger', () => {
   })
 })
 
+describe('logger — redação de PII antes de sair', () => {
+  it('não vaza PII nem no console nem no transporte HTTP, e deixa identificador opaco intacto', async () => {
+    const cpf = '52998224725'
+    const email = 'cliente@transportadora.com.br'
+    const companyId = '9f1c2b3a-4d5e-6f70-8a9b-0c1d2e3f4a5b'
+
+    const capturedConsole: string[] = []
+    const originalLog = console.log
+    console.log = (message: string) => {
+      capturedConsole.push(message)
+    }
+
+    const receivedBodies: string[] = []
+    const server = Bun.serve({
+      port: 0,
+      async fetch(request) {
+        receivedBodies.push(await request.text())
+        return new Response(null, { status: 204 })
+      },
+    })
+
+    const logger = createLogger({
+      projectName: 'test',
+      version: '0.0.1',
+      sinkUrl: `http://localhost:${server.port}/ingest`,
+    })
+
+    try {
+      logger.info('cliente contatado', { cpf, email, companyId })
+      await logger.flush()
+    } finally {
+      console.log = originalLog
+      logger.stop()
+      server.stop(true)
+    }
+
+    const consoleOutput = capturedConsole.join('\n')
+    expect(consoleOutput).not.toContain(cpf)
+    expect(consoleOutput).not.toContain(email)
+    expect(consoleOutput).toContain(companyId)
+
+    const transportOutput = receivedBodies.join('\n')
+    expect(transportOutput).not.toContain(cpf)
+    expect(transportOutput).not.toContain(email)
+    expect(transportOutput).toContain(companyId)
+  })
+
+  it('sem sinkUrl o transporte fica desligado e flush() não lança', async () => {
+    const logger = createLogger({ projectName: 'test', version: '0.0.1' })
+
+    logger.info('sem transporte configurado')
+
+    await expect(logger.flush()).resolves.toBeUndefined()
+    expect(() => logger.stop()).not.toThrow()
+  })
+})
+
 describe('context', () => {
   it('creates context with defaults', () => {
     const ctx = createContext({ requestId: 'req-123' })

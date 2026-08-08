@@ -4,5 +4,7 @@ export { pushToTraceStack, popFromTraceStack, getTraceStack, buildPrefix, should
 export { Logger, createLogger } from './logger'
 export { redact, redactMeta, DEFAULT_REDACTED_KEYS } from './redact'
 export type { RedactOptions } from './redact'
+export { HttpTransport } from './http-transport'
+export type { HttpTransportConfig } from './http-transport'
 export { createUwsMiddleware, createHttpHandler } from './middleware'
 export type { UwsRequest } from './middleware'

@@ -16,4 +16,5 @@ export interface LoggerConfig {
   logLevel?: LogLevel
   pretty?: boolean
   fileTransport?: string
+  sinkUrl?: string
 }
