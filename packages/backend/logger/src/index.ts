@@ -2,5 +2,7 @@ export { getContext, getContextOrThrow, runWithContext, createContext } from './
 export type { Context, LoggerConfig, LogLevel } from './types'
 export { pushToTraceStack, popFromTraceStack, getTraceStack, buildPrefix, shouldLog, traceMethod } from './trace-stack'
 export { Logger, createLogger } from './logger'
+export { redact, redactMeta, DEFAULT_REDACTED_KEYS } from './redact'
+export type { RedactOptions } from './redact'
 export { createUwsMiddleware, createHttpHandler } from './middleware'
 export type { UwsRequest } from './middleware'
