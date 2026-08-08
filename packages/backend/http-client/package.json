@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/http-client",
-  "version": "0.0.1",
+  "version": "1.0.0-rc.0",
   "description": "HTTP client with retry, timeout, and automatic tracing headers via @adatechnology/logger context",
   "type": "module",
   "main": "dist/index.js",
@@ -20,7 +20,13 @@
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
-  "keywords": ["http", "fetch", "retry", "tracing", "bun"],
+  "keywords": [
+    "http",
+    "fetch",
+    "retry",
+    "tracing",
+    "bun"
+  ],
   "license": "MIT",
   "publishConfig": {
     "access": "public"
