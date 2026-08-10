@@ -14,6 +14,7 @@ import { Download, Eye, MessageSquare, Trash2, Upload, X } from 'lucide-react'
 
 import { useConversations } from '../providers/ConversationsProvider'
 import { FileIcon } from '../FileIcon'
+import { documentTypeLabel } from '../MediaRenderer'
 import { cn } from '../lib/cn'
 import { formatDateTime, formatFileSize } from '../lib/format'
 import { formatPhone } from '../lib/phone'
@@ -281,7 +282,7 @@ export function DocumentsWorkspace({
           onChange={(event) => setSearch(event.target.value)}
           placeholder={labels.searchPlaceholder}
           aria-label={labels.searchPlaceholder}
-          className="w-full rounded-md border px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 sm:w-64"
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 sm:w-64"
         />
 
         <MultiSelectFilter label={labels.sourceFilter} options={sourceOptions} selected={source} onChange={setSource} />
@@ -302,14 +303,14 @@ export function DocumentsWorkspace({
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
               aria-label={labels.startDate}
-              className="rounded-md border px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
+              className="rounded-md border border-gray-300 px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
             />
             <input
               type="date"
               value={endDate}
               onChange={(event) => setEndDate(event.target.value)}
               aria-label={labels.endDate}
-              className="rounded-md border px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
+              className="rounded-md border border-gray-300 px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
             />
           </>
         ) : null}
@@ -399,9 +400,9 @@ export function DocumentsWorkspace({
         </p>
       ) : null}
 
-      <div className={cn('overflow-x-auto rounded-xl border dark:border-gray-700', classNames?.table)}>
-        <table className="w-full text-sm">
-          <thead className="border-b text-gray-500 dark:border-gray-700 dark:text-gray-400">
+      <div className={cn('cv-table-card', classNames?.table)}>
+        <table className="cv-table">
+          <thead>
             <tr>
               {canSelect ? (
                 <th scope="col" className="w-10 px-3 py-2">
@@ -427,7 +428,7 @@ export function DocumentsWorkspace({
           </thead>
           <tbody>
             {documents.map((document) => (
-              <tr key={`${document.conversationId}:${document.id}`} className={cn('border-b last:border-0 dark:border-gray-800', classNames?.row)}>
+              <tr key={`${document.conversationId}:${document.id}`} className={classNames?.row}>
                 {canSelect ? (
                   <td className="w-10 px-3 py-2">
                     <input
@@ -467,12 +468,18 @@ export function DocumentsWorkspace({
                   )}
                 </td>
 
-                <td className="hidden px-3 py-2 font-mono text-xs md:table-cell">{document.mimeType}</td>
-                <td className="hidden px-3 py-2 text-xs lg:table-cell">{formatFileSize(document.sizeBytes)}</td>
-                <td className="hidden px-3 py-2 text-xs lg:table-cell">
+                {/* O tipo curto, não o MIME cru: `.docx` responde
+                    `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, que numa
+                    célula sem quebra esticava a coluna a 556px e espremia todas as outras. O MIME
+                    inteiro continua na dica. */}
+                <td className="hidden px-3 py-2 md:table-cell" data-cv-tooltip={document.mimeType}>
+                  <span className="cv-type-tag">{documentTypeLabel(document.filename, document.mimeType)}</span>
+                </td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-xs lg:table-cell">{formatFileSize(document.sizeBytes)}</td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-xs lg:table-cell">
                   {labels.sourceLabels[document.source] ?? document.source}
                 </td>
-                <td className="hidden px-3 py-2 text-xs xl:table-cell">{formatDateTime(document.linkedAt)}</td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-xs xl:table-cell">{formatDateTime(document.linkedAt)}</td>
 
                 <td className="px-3 py-2">
                   <div className="flex gap-1">

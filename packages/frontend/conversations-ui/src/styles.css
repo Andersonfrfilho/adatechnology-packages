@@ -888,6 +888,85 @@
 }
 .dark .cv-listing-perpage { border-color: rgb(71 85 105); }
 
+/**
+ * Cor padrão de borda para as classes `border` sem cor ao lado.
+ *
+ * O Tailwind v4 trocou o padrão de `gray-200` por `currentColor`, e os componentes daqui foram
+ * escritos no v3. Em produto que traz a base do shadcn nada aparece — ela já redefine isto; em
+ * produto sem shadcn, cada `border` sai na cor do texto, e a tabela de documentos vinha com régua
+ * azul-quase-preta em vez de cinza. Fica na camada `base`, então qualquer `border-*` do host ou
+ * daqui continua ganhando, e a variável deixa o produto escolher outra cor sem editar o pacote.
+ */
+:root { --cv-border-color: rgb(229 231 235); }
+.dark { --cv-border-color: rgb(51 65 85); }
+
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--cv-border-color);
+  }
+}
+
+/* Tabela de listagem: a moldura, o cabeçalho e a zebra que `web.md` §7 exige, no stylesheet pelo
+   mesmo motivo do resto — host que não varre `node_modules` com `@source` não compila utilitário
+   nenhum do pacote, e a tabela sairia crua. */
+.cv-table-card {
+  overflow-x: auto;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.dark .cv-table-card { border-color: rgb(51 65 85); background: rgb(17 24 39); }
+
+/* `collapse` porque a régua de baixo mora no `tr`: com o `separate` padrão o navegador ignora borda
+   de linha e a tabela ficava sem separação nenhuma entre os registros. */
+.cv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.cv-table thead {
+  background: rgb(248 250 252);
+  color: rgb(100 116 139);
+}
+.dark .cv-table thead { background: rgb(30 41 59 / 60%); color: rgb(148 163 184); }
+
+.cv-table thead th {
+  border-bottom: 1px solid rgb(226 232 240);
+  white-space: nowrap;
+}
+.dark .cv-table thead th { border-bottom-color: rgb(51 65 85); }
+
+.cv-table tbody tr { border-bottom: 1px solid rgb(241 245 249); }
+.dark .cv-table tbody tr { border-bottom-color: rgb(30 41 59); }
+.cv-table tbody tr:last-child { border-bottom: 0; }
+
+/* A alternada é o que leva o olho do nome do arquivo até a coluna de ações; em tela larga a régua
+   sozinha não segura a linha. */
+.cv-table tbody tr:nth-child(even) { background: rgb(248 250 252 / 70%); }
+.dark .cv-table tbody tr:nth-child(even) { background: rgb(30 41 59 / 35%); }
+
+.cv-table tbody tr:hover { background: rgb(239 246 255); }
+.dark .cv-table tbody tr:hover { background: rgb(30 58 138 / 25%); }
+
+/* Extensão do arquivo como etiqueta: `PDF` e `DOCX` têm larguras parecidas e a coluna para de dançar
+   a cada linha, o que o MIME cru não permitia. */
+.cv-type-tag {
+  display: inline-block;
+  border-radius: 0.25rem;
+  background: rgb(241 245 249);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(71 85 105);
+}
+.dark .cv-type-tag { background: rgb(51 65 85); color: rgb(203 213 225); }
+
 /* Dica de ação (ver `Tooltip.tsx`). Impressa em `document.body`, então a posição é da janela e o
    `z-index` fica acima de qualquer painel do produto. */
 .cv-tooltip {
