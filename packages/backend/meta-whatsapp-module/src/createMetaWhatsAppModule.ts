@@ -207,6 +207,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
 
   const receiveWebhook = new ReceiveWebhookUseCase({
     appSecret: config.appSecret,
+    phoneNumberId: config.phoneNumberId,
     nonceStore,
     sessionRepository,
     messageRepository,

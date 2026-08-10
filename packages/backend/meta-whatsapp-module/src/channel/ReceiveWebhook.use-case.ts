@@ -26,6 +26,9 @@ export type ReceiveWebhookResult = {
   duplicate: boolean
   messagesProcessed: number
   statusesProcessed: number
+  // Eventos de outro número da mesma WABA. Contados em vez de silenciados: um filtro que descarta
+  // sem deixar rastro é indistinguível de um webhook que parou de chegar.
+  ignoredForeignNumber: number
 }
 
 function toSessionContract(row: SessionRow): ConversationSession {
@@ -91,6 +94,7 @@ export class ReceiveWebhookUseCase {
   constructor(
     private readonly params: {
       appSecret: string
+      phoneNumberId: string
       nonceStore: NonceStoreInterface
       sessionRepository: SessionRepository
       messageRepository: MessageRepository
@@ -112,16 +116,28 @@ export class ReceiveWebhookUseCase {
       nonceStore: this.params.nonceStore,
       signatureHeader: input.signatureHeader!,
     })
-    if (!claimed) return { duplicate: true, messagesProcessed: 0, statusesProcessed: 0 }
+    if (!claimed) return { duplicate: true, messagesProcessed: 0, statusesProcessed: 0, ignoredForeignNumber: 0 }
 
     const rawText = typeof input.rawBody === 'string' ? input.rawBody : input.rawBody.toString('utf8')
     const payload = whatsAppWebhookPayloadSchema.parse(JSON.parse(rawText))
 
     let messagesProcessed = 0
     let statusesProcessed = 0
+    let ignoredForeignNumber = 0
 
     for (const entry of payload.entry) {
       for (const change of entry.changes) {
+        // Uma WABA comporta vários números, e a Meta entrega os eventos de TODOS eles para cada app
+        // inscrito na conta — a inscrição é por WABA, não por número. Sem este filtro, uma instância
+        // responde o cliente de um número que não é dela e grava esse contato na própria base.
+        // Metadata ausente segue processando: só a Meta preenche esse campo, e não há como decidir
+        // pertencimento sem ele.
+        const targetNumber = change.value.metadata?.phone_number_id
+        if (targetNumber && targetNumber !== this.params.phoneNumberId) {
+          ignoredForeignNumber++
+          continue
+        }
+
         for (const message of change.value.messages ?? []) {
           await this.handleMessage(input.companyId, message)
           messagesProcessed++
@@ -133,7 +149,7 @@ export class ReceiveWebhookUseCase {
       }
     }
 
-    return { duplicate: false, messagesProcessed, statusesProcessed }
+    return { duplicate: false, messagesProcessed, statusesProcessed, ignoredForeignNumber }
   }
 
   private async handleMessage(companyId: string, message: WhatsAppMessage): Promise<void> {
