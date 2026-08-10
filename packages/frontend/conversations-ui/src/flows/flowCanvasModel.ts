@@ -30,12 +30,31 @@ const CHAIN_LABEL_ROOM = 24
 
 export type FlowNodePosition = { readonly x: number; readonly y: number }
 
-/** Onde cada conversa viva está parada agora. */
+/** Onde cada conversa viva está parada agora — uma linha por sessão. */
 export type FlowLivePosition = {
   readonly currentState: string
   readonly flow: string | null
   readonly nodeId: string | null
   readonly menuNodeId: string | null
+}
+
+/**
+ * Quantas conversas estão paradas num nó — o formato que o servidor já agrega.
+ *
+ * `meta-whatsapp-module` responde `GROUP BY (flowKey, currentNodeId)`, e trazer uma linha por
+ * sessão só para o editor recontar em memória seria pior em toda base grande. Os dois formatos
+ * valem porque produto que já implementou o de sessão não deve quebrar numa release de correção.
+ */
+export type FlowLiveNodeCount = {
+  readonly flowKey: string
+  readonly nodeId: string
+  readonly count: number
+}
+
+export type FlowLivePositionInput = FlowLivePosition | FlowLiveNodeCount
+
+function isNodeCount(position: FlowLivePositionInput): position is FlowLiveNodeCount {
+  return typeof (position as FlowLiveNodeCount).count === 'number'
 }
 
 /**
@@ -57,20 +76,27 @@ export const GROUP_HEADER_NODE_ID = '__group_header__'
 /**
  * Quantas conversas estão paradas em cada nó de um fluxo.
  *
- * A raiz é caso à parte: o servidor guarda o passo do menu em `menuNodeId`, num campo próprio, e uma
- * conversa no menu não carrega `flow`. Ler `nodeId` ali daria contagem zero na tela mais visitada do
- * editor.
+ * A raiz é caso à parte no formato por sessão: o servidor guarda o passo do menu em `menuNodeId`,
+ * num campo próprio, e uma conversa no menu não carrega `flow`. Ler `nodeId` ali daria contagem
+ * zero na tela mais visitada do editor. No formato agregado a chave do fluxo já vem na linha,
+ * então a raiz não tem exceção.
  */
 export function countLiveByNode(params: {
   readonly flowKey: string
   readonly rootFlowKey: string
-  readonly positions: readonly FlowLivePosition[] | undefined
+  readonly positions: readonly FlowLivePositionInput[] | undefined
 }): Record<string, number> {
   const { flowKey, rootFlowKey, positions } = params
   const isRoot = flowKey === rootFlowKey
   const counts: Record<string, number> = {}
 
   for (const position of positions ?? []) {
+    if (isNodeCount(position)) {
+      if (position.flowKey !== flowKey) continue
+      counts[position.nodeId] = (counts[position.nodeId] ?? 0) + position.count
+      continue
+    }
+
     if (position.flow !== flowKey && !isRoot) continue
     const nodeId = isRoot ? position.menuNodeId : position.nodeId
     if (!nodeId) continue
@@ -191,7 +217,7 @@ export function buildFlowEdges(params: {
   readonly openKeys: readonly string[]
   readonly graphs: Readonly<Record<string, FlowGraphData>>
   readonly rootFlowKey: string
-  readonly livePositions?: readonly FlowLivePosition[] | undefined
+  readonly livePositions?: readonly FlowLivePositionInput[] | undefined
 }): FlowEdgeSpec[] {
   const { openKeys, graphs, rootFlowKey, livePositions } = params
   const open = new Set(openKeys)

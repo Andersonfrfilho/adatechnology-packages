@@ -36,7 +36,7 @@ import {
   portalNodeId,
   GROUP_HEADER_NODE_ID,
   type FlowEdgeSpec,
-  type FlowLivePosition,
+  type FlowLivePositionInput,
 } from './flowCanvasModel'
 import {
   applyConnection,
@@ -79,9 +79,10 @@ const EDGE_COLOR_CROSS_FLOW = '#06b6d4'
 const BACKGROUND_COLOR_LIGHT = '#cbd5e1'
 const BACKGROUND_COLOR_DARK = '#334155'
 
-// `FlowLivePosition` mora no modelo, que é quem conta — e é reexportado aqui porque faz parte da api
-// que o produto implementa. Declarar nos dois lugares faria as duas formas divergirem em silêncio.
-export type { FlowLivePosition } from './flowCanvasModel'
+// Os formatos de posição viva moram no modelo, que é quem conta — e são reexportados aqui porque
+// fazem parte da api que o produto implementa. Declarar nos dois lugares faria as duas formas
+// divergirem em silêncio.
+export type { FlowLivePosition, FlowLiveNodeCount, FlowLivePositionInput } from './flowCanvasModel'
 
 export interface CreateFlowInput {
   key: string
@@ -105,8 +106,13 @@ export interface FlowsWorkspaceApi {
    */
   createFlow?(input: CreateFlowInput): Promise<void>
   deleteFlow?(key: string): Promise<void>
-  /** Contagem de conversas vivas por nó. Ausente, os cards não pulsam e nada é consultado. */
-  getLivePositions?(): Promise<FlowLivePosition[]>
+  /**
+   * Onde estão as conversas vivas. Ausente, os cards não pulsam e nada é consultado.
+   *
+   * Aceita a linha por sessão e a linha já agregada por nó — `meta-whatsapp-module` responde a
+   * segunda, e exigir a primeira deixava os cards parados em todo produto que usa o módulo.
+   */
+  getLivePositions?(): Promise<readonly FlowLivePositionInput[]>
 }
 
 export interface FlowsWorkspaceProps {
@@ -122,6 +128,14 @@ export interface FlowsWorkspaceProps {
   readonly renderMediaPicker?: (node: FlowNodeData, graph: FlowGraphData) => ReactNode
   /** Intervalo do polling de posições vivas. Só tem efeito com `getLivePositions`. */
   readonly livePollIntervalMs?: number
+  /**
+   * Título e subtítulo do editor. `false` deixa só a barra de ações.
+   *
+   * Produto cuja navegação já nomeia a tela mostrava o nome duas vezes, em dois tamanhos, porque a
+   * tipografia daqui é do pacote e a de lá é do host. Esconder é a única saída que não força o
+   * pacote a adivinhar a escala tipográfica de cada produto.
+   */
+  readonly showHeader?: boolean
   readonly className?: string
 }
 
@@ -190,6 +204,7 @@ export function FlowsWorkspace({
   actionOptions,
   renderMediaPicker,
   livePollIntervalMs = 5000,
+  showHeader = true,
   className,
 }: FlowsWorkspaceProps) {
   const labels = useMemo(() => mergeFlowEditorLabels(labelsOverride), [labelsOverride])
@@ -197,7 +212,7 @@ export function FlowsWorkspace({
 
   const [graphs, setGraphs] = useState<Record<string, FlowGraphData> | undefined>(undefined)
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [livePositions, setLivePositions] = useState<FlowLivePosition[] | undefined>(undefined)
+  const [livePositions, setLivePositions] = useState<readonly FlowLivePositionInput[] | undefined>(undefined)
   const [viewMode, setViewMode] = useState<'detail' | 'map'>('detail')
   const [openFlowKeys, setOpenFlowKeys] = useState<readonly string[]>([rootFlowKey])
   const [hasAutoMerged, setHasAutoMerged] = useState(false)
@@ -709,11 +724,16 @@ export function FlowsWorkspace({
     <div className={`space-y-4 h-full flex flex-col ${className ?? ''}`}>
       <TooltipLayer />
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{labels.workspace.title}</h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{labels.workspace.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-3">
+        {showHeader && (
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{labels.workspace.title}</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">{labels.workspace.subtitle}</p>
+          </div>
+        )}
+        {/* Quatro botões passam de 580px e a tela mais estreita é de 375px: sem `flex-wrap` a barra
+            empurrava a página inteira para o lado. `ml-auto` mantém tudo à direita mesmo sem o
+            título ao lado, que é o caso de `showHeader={false}`. */}
+        <div className="flex flex-wrap items-center justify-end gap-3 ml-auto">
           {saveState === 'success' && <span className="text-sm text-green-600">{labels.workspace.saveSuccess}</span>}
           {saveState === 'error' && (
             <span className="text-sm text-red-600">{saveErrorMessage ?? labels.workspace.saveError}</span>

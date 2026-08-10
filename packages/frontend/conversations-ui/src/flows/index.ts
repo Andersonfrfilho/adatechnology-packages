@@ -45,7 +45,14 @@ export type {
 } from './flowGraph'
 
 export type { FlowEditorLabels, FlowValidationLabels } from './labels'
-export type { FlowsWorkspaceProps, FlowsWorkspaceApi, FlowLivePosition, CreateFlowInput } from './FlowsWorkspace'
+export type {
+  FlowsWorkspaceProps,
+  FlowsWorkspaceApi,
+  FlowLivePosition,
+  FlowLiveNodeCount,
+  FlowLivePositionInput,
+  CreateFlowInput,
+} from './FlowsWorkspace'
 export type { FlowNodeCardData } from './FlowNodeCard'
 export type { FlowMapNodeData } from './FlowMapNode'
 export type { FlowMapCanvasProps } from './FlowMapCanvas'
@@ -89,6 +96,6 @@ export {
   portalNodeId,
   GROUP_HEADER_NODE_ID,
 } from './flowCanvasModel'
-// `FlowLivePosition` já sai pelo `FlowsWorkspace`, que é onde o produto a encontra ao implementar a
-// api — exportar de novo aqui daria dois caminhos para o mesmo tipo.
+// Os formatos de posição viva já saem pelo `FlowsWorkspace`, que é onde o produto os encontra ao
+// implementar a api — exportar de novo aqui daria dois caminhos para o mesmo tipo.
 export type { FlowEdgeKind, FlowEdgeSpec, FlowNodePosition } from './flowCanvasModel'

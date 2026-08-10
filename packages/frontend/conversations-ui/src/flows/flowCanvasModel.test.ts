@@ -171,6 +171,25 @@ describe('contagem ao vivo', () => {
   it('sem posições devolve vazio, em vez de estourar', () => {
     expect(countLiveByNode({ flowKey: ROOT, rootFlowKey: ROOT, positions: undefined })).toEqual({})
   })
+
+  it('linha já agregada pelo servidor soma pelo count, inclusive na raiz', () => {
+    // `meta-whatsapp-module` responde `GROUP BY (flowKey, currentNodeId)`. Contando como uma sessão
+    // por linha, dez conversas paradas no mesmo nó apareciam como uma — ou como nenhuma, porque a
+    // linha agregada não tem `menuNodeId` para a raiz ler.
+    const positions = [
+      { flowKey: ROOT, nodeId: 'saudacao', count: 7 },
+      { flowKey: 'sim', nodeId: 'renda', count: 3 },
+    ]
+
+    expect(countLiveByNode({ flowKey: ROOT, rootFlowKey: ROOT, positions })).toEqual({ saudacao: 7 })
+    expect(countLiveByNode({ flowKey: 'sim', rootFlowKey: ROOT, positions })).toEqual({ renda: 3 })
+  })
+
+  it('os dois formatos convivem na mesma resposta', () => {
+    const positions = [live({ flow: 'sim', nodeId: 'renda' }), { flowKey: 'sim', nodeId: 'renda', count: 2 }]
+
+    expect(countLiveByNode({ flowKey: 'sim', rootFlowKey: ROOT, positions })).toEqual({ renda: 3 })
+  })
 })
 
 describe('layout mesclado', () => {
