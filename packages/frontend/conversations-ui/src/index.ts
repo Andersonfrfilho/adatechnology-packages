@@ -114,6 +114,8 @@ export { buildTranscriptText, buildTranscriptFilename, downloadTextFile } from '
 export type { BuildTranscriptTextParams } from './conversationTranscript'
 
 export { useDarkMode, useIsDarkTheme } from './useDarkMode'
+export { DarkModeToggle, DEFAULT_DARK_MODE_TOGGLE_LABELS } from './DarkModeToggle'
+export type { DarkModeToggleProps, DarkModeToggleLabels } from './DarkModeToggle'
 export { useIsNarrow, NARROW_MAX_WIDTH_PX } from './useIsNarrow'
 export { useWaitingNotifications } from './useWaitingNotifications'
 export type {
