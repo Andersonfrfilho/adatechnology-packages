@@ -7,6 +7,7 @@
  */
 
 import { MESSAGE_MAX_LENGTH } from './widget.constant'
+import { applyIcon } from './widget.icon'
 import { buildMascot } from './widget.mascot'
 import { applyWidgetStyle } from './widget.style'
 import { buildTranscriptNodes } from './widget.transcript'
@@ -23,6 +24,7 @@ import type { WidgetViewHandlers, WidgetViewState } from './types/widget.types'
 export class WidgetView {
   readonly #handlers: WidgetViewHandlers
   readonly #launcher = document.createElement('button')
+  readonly #badge = document.createElement('span')
   readonly #panel = document.createElement('section')
   readonly #transcript = document.createElement('div')
   readonly #typing = document.createElement('div')
@@ -50,7 +52,10 @@ export class WidgetView {
     const label = document.createElement('span')
     label.textContent = locale.launcher.open
 
-    this.#launcher.append(buildMascot('mascot mascot-launcher'), label)
+    this.#badge.className = 'badge'
+    this.#badge.hidden = true
+
+    this.#launcher.append(buildMascot('mascot mascot-launcher'), label, this.#badge)
     this.#launcher.addEventListener('click', this.#handlers.onToggle)
   }
 
@@ -120,7 +125,7 @@ export class WidgetView {
 
     this.#send.className = 'icon-button send'
     this.#send.type = 'submit'
-    this.#send.textContent = '➤'
+    applyIcon(this.#send, 'send')
     this.#send.setAttribute('aria-label', locale.composer.send)
 
     composer.addEventListener('submit', (event) => {
@@ -141,7 +146,7 @@ export class WidgetView {
   #buildMicrophone(): HTMLElement {
     this.#mic.className = 'icon-button mic'
     this.#mic.type = 'button'
-    this.#mic.textContent = '🎤'
+    applyIcon(this.#mic, 'microphone')
     this.#mic.hidden = this.#handlers.onToggleRecording === undefined
     this.#mic.addEventListener('click', () => this.#handlers.onToggleRecording?.())
 
@@ -155,6 +160,11 @@ export class WidgetView {
   render(state: WidgetViewState): void {
     this.#launcher.hidden = state.isOpen
     this.#panel.hidden = !state.isOpen
+
+    this.#badge.hidden = state.unreadCount === 0
+    this.#badge.textContent = String(state.unreadCount)
+    this.#badge.setAttribute('aria-label', `${state.unreadCount} ${locale.launcherBadge}`)
+
     this.#send.disabled = state.isBusy
     this.#typing.hidden = !state.isBusy
 

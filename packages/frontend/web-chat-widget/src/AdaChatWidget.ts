@@ -7,9 +7,16 @@
  */
 
 import { WidgetApi } from './widget.api'
-import { API_BASE_ATTRIBUTE, DEFAULT_INPUT_HINT, HANDOFF_OUTCOME, SESSION_STORAGE_KEY } from './widget.constant'
+import {
+  API_BASE_ATTRIBUTE,
+  DEFAULT_INPUT_HINT,
+  HANDOFF_OUTCOME,
+  MESSAGE_DIRECTION,
+  SESSION_STORAGE_KEY,
+} from './widget.constant'
 import { toAudioFailureMessage } from './widget.failure'
 import locale from './widget.locale.json'
+import { WidgetNotifier } from './widget.notify'
 import { AudioRecorder, isRecordingSupported } from './widget.recorder'
 import { WidgetView } from './widget.view'
 import type { WidgetTranscript } from './types/widget.types'
@@ -26,6 +33,7 @@ export class AdaChatWidget extends HTMLElement {
   #api?: WidgetApi
   #view?: WidgetView
   readonly #recorder = new AudioRecorder()
+  readonly #notifier = new WidgetNotifier()
   #unsubscribe: (() => void) | undefined
   #sessionId = ''
   #isOpen = false
@@ -33,6 +41,8 @@ export class AdaChatWidget extends HTMLElement {
   #isRecording = false
   #status = ''
   #hasFailed = false
+  #unreadCount = 0
+  #lastSeenBotMessageId = ''
   #transcript: WidgetTranscript = EMPTY_TRANSCRIPT
 
   connectedCallback(): void {
@@ -48,12 +58,22 @@ export class AdaChatWidget extends HTMLElement {
       ...(isRecordingSupported() ? { onToggleRecording: () => void this.#toggleRecording() } : {}),
     })
 
+    document.addEventListener('visibilitychange', this.#handleVisibilityChange)
     this.#render()
   }
 
   disconnectedCallback(): void {
+    document.removeEventListener('visibilitychange', this.#handleVisibilityChange)
     this.#unsubscribe?.()
     this.#unsubscribe = undefined
+  }
+
+  /** Voltar para a aba com o painel aberto e ter lido: o badge nao pode sobreviver a isso. */
+  readonly #handleVisibilityChange = (): void => {
+    if (document.hidden || !this.#isOpen || this.#unreadCount === 0) return
+
+    this.#markAsRead()
+    this.#render()
   }
 
   #render(): void {
@@ -63,6 +83,7 @@ export class AdaChatWidget extends HTMLElement {
       isRecording: this.#isRecording,
       status: this.#status,
       hasFailed: this.#hasFailed,
+      unreadCount: this.#unreadCount,
       transcript: this.#transcript,
     })
   }
@@ -79,6 +100,9 @@ export class AdaChatWidget extends HTMLElement {
 
     if (!this.#isOpen) return
 
+    // Clique do usuario: e a unica janela em que o navegador aceita ligar audio e pedir permissao.
+    this.#notifier.unlock()
+    this.#markAsRead()
     this.#view?.focusInput()
     await this.#start()
   }
@@ -121,7 +145,42 @@ export class AdaChatWidget extends HTMLElement {
     if (!this.#api || !this.#sessionId) return
 
     this.#transcript = await this.#api.listMessages(this.#sessionId)
+    this.#trackUnread()
     this.#render()
+  }
+
+  /**
+   * Conta fala nova do bot desde a ultima vez que o visitante realmente olhou.
+   *
+   * O corte e por id da ultima mensagem vista, e nao por diferenca de tamanho da lista: a mesma
+   * conversa e recarregada inteira a cada evento, e comparar contagem marcaria tudo como novo
+   * sempre que o `refresh` rodasse por outro motivo.
+   *
+   * Painel aberto com a aba visivel nao gera aviso — a pessoa esta lendo. Com a aba escondida
+   * gera, porque ela pode estar em outra janela esperando a resposta.
+   */
+  #trackUnread(): void {
+    const botMessages = this.#transcript.messages.filter((message) => message.direction === MESSAGE_DIRECTION.OUTBOUND)
+    const latest = botMessages.at(-1)
+    if (!latest) return
+
+    if (!this.#lastSeenBotMessageId) return this.#markAsRead()
+    if (latest.id === this.#lastSeenBotMessageId) return
+
+    if (this.#isOpen && !document.hidden) return this.#markAsRead()
+
+    const seenIndex = botMessages.findIndex((message) => message.id === this.#lastSeenBotMessageId)
+    this.#unreadCount = seenIndex === -1 ? botMessages.length : botMessages.length - 1 - seenIndex
+    this.#notifier.notify()
+  }
+
+  #markAsRead(): void {
+    const latest = this.#transcript.messages
+      .filter((message) => message.direction === MESSAGE_DIRECTION.OUTBOUND)
+      .at(-1)
+
+    this.#lastSeenBotMessageId = latest?.id ?? this.#lastSeenBotMessageId
+    this.#unreadCount = 0
   }
 
   #listen(): void {

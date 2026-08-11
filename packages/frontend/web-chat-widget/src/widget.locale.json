@@ -17,6 +17,11 @@
     "record": "Gravar áudio",
     "stopRecording": "Parar gravação"
   },
+  "notification": {
+    "title": "Ada Technology",
+    "body": "Você tem uma nova mensagem na conversa."
+  },
+  "launcherBadge": "mensagens não lidas",
   "status": {
     "starting": "Abrindo conversa…",
     "startFailed": "Não foi possível abrir a conversa. Tente de novo em instantes.",

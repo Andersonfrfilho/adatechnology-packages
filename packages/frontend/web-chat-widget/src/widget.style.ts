@@ -13,9 +13,22 @@
  * ficam em `:host` de proposito: sao a superficie de customizacao do host, que sobrescreve a variavel
  * sem tocar em nada aqui dentro.
  *
- * O tema escuro segue o sistema do visitante, e nao o do site: quem embute o widget nao tem como
- * avisar qual tema esta ativo, e uma bolha branca dentro de uma pagina escura e o que se ve hoje.
+ * O tema escuro segue o sistema do visitante por padrao. Quando o host tem interruptor proprio, ele
+ * declara `theme="dark"` ou `theme="light"` no elemento e passa a mandar — sem isso, apagar a luz no
+ * site deixava o chat aceso, que e o defeito que se ve.
  */
+const DARK_TOKENS = `
+  --ada-navy: #0a1430;
+  --ada-surface: #131c33;
+  --ada-bg: #0d1526;
+  --ada-bubble-bot: #1b2743;
+  --ada-bubble-visitor: #1e4bb8;
+  --ada-text: #e8eeff;
+  --ada-muted: #93a4c8;
+  --ada-danger: #ff9d94;
+  --ada-border: #223055;
+`
+
 export const WIDGET_STYLE = `
 :host {
   --ada-navy: #0d1b3e;
@@ -42,19 +55,12 @@ export const WIDGET_STYLE = `
   color: var(--ada-text);
 }
 
+/* Sem escolha do host, quem manda e o sistema — e theme="light" precisa vencer o sistema escuro. */
 @media (prefers-color-scheme: dark) {
-  :host {
-    --ada-navy: #0a1430;
-    --ada-surface: #131c33;
-    --ada-bg: #0d1526;
-    --ada-bubble-bot: #1b2743;
-    --ada-bubble-visitor: #1e4bb8;
-    --ada-text: #e8eeff;
-    --ada-muted: #93a4c8;
-    --ada-danger: #ff9d94;
-    --ada-border: #223055;
-  }
+  :host(:not([theme="light"])) { ${DARK_TOKENS} }
 }
+
+:host([theme="dark"]) { ${DARK_TOKENS} }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -77,7 +83,35 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.launcher { position: relative; }
 .launcher:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(13, 27, 62, 0.34); }
+
+/* Contador de nao lidas: o launcher fechado e o unico lugar onde a resposta do bot pode se perder. */
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 2px solid var(--ada-surface);
+  background: var(--ada-danger);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  animation: ada-badge-pop 0.28s ease-out;
+}
+
+.badge[hidden] { display: none; }
+
+@keyframes ada-badge-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
 .launcher:focus-visible { outline: 3px solid var(--ada-navy); outline-offset: 3px; }
 .launcher[hidden] { display: none; }
 
@@ -91,31 +125,19 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .mascot-header {
   width: 38px; height: 38px; flex: none; color: #ffffff; --ada-mascot-accent: #a5f3fc;
 }
-.mascot-bubble { width: 26px; height: 26px; align-self: flex-end; flex: none; }
+/* No topo, e nao no rodape: alinhado ao inicio da primeira fala do bloco, nao ao fim dela. */
+.mascot-bubble { width: 26px; height: 26px; align-self: flex-start; margin-top: 4px; flex: none; }
 
 /* A 26px as diagonais internas viram borrao: ao lado do balao fica so o triangulo com os nos. */
 .mascot-bubble .mascot-mesh { display: none; }
 
-/*
- * A rede respira: os nos pulsam em cascata e o nucleo bate junto, como sinal percorrendo a malha.
- * So no launcher e no cabecalho — ao lado de cada balao seria movimento disputando com o texto.
- */
-.mascot-launcher .mascot-node, .mascot-header .mascot-node,
-.mascot-launcher .mascot-core, .mascot-header .mascot-core {
-  transform-box: fill-box;
-  transform-origin: center;
-}
+/* A rede respira: os nos pulsam em cascata e o nucleo bate junto, como sinal percorrendo a malha. */
+.mascot-node, .mascot-core { transform-box: fill-box; transform-origin: center; }
+.mascot-node { animation: ada-node-pulse 3.2s ease-in-out infinite; }
+.mascot-core { animation: ada-core-beat 3.2s ease-in-out infinite; }
 
-.mascot-launcher .mascot-node, .mascot-header .mascot-node {
-  animation: ada-node-pulse 3.2s ease-in-out infinite;
-}
-
-.mascot-launcher .node-b, .mascot-header .node-b { animation-delay: 0.45s; }
-.mascot-launcher .node-c, .mascot-header .node-c { animation-delay: 0.9s; }
-
-.mascot-launcher .mascot-core, .mascot-header .mascot-core {
-  animation: ada-core-beat 3.2s ease-in-out infinite;
-}
+.node-b { animation-delay: 0.45s; }
+.node-c { animation-delay: 0.9s; }
 
 @keyframes ada-node-pulse {
   0%, 100% { transform: scale(1); opacity: 0.7; }

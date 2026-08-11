@@ -71,6 +71,7 @@ export type WidgetViewState = {
   readonly isRecording: boolean
   readonly status: string
   readonly hasFailed: boolean
+  readonly unreadCount: number
   readonly transcript: WidgetTranscript
 }
 
