@@ -320,13 +320,13 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .options[hidden] { display: none; }
 
 .option {
-  min-height: 38px;
-  padding: 0 14px;
+  min-height: 32px;
+  padding: 0 12px;
   border-radius: 999px;
   border: 1px solid var(--ada-blue);
   color: var(--ada-blue);
   background: var(--ada-surface);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 500;
 }
 
@@ -381,6 +381,10 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 1.05rem;
 }
 
+/* O botao continua com 44px de area de toque; o desenho e que nao pode ocupa-la inteira — SVG sem
+   dimensao herda 100% da caixa e sai do tamanho de um icone para o de um botao. */
+.icon-button svg { width: 20px; height: 20px; }
+
 .mic { color: var(--ada-muted); }
 .mic:hover { background: var(--ada-bg); color: var(--ada-blue); }
 .mic[hidden] { display: none; }
@@ -400,6 +404,11 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 @media (min-width: 640px) {
   :host { right: 20px; bottom: 20px; left: auto; }
   .panel { width: 390px; height: min(580px, calc(100vh - 120px)); }
+
+  /* Os 44px sao a area de toque do dedo; no desktop o ponteiro e preciso e o par de circulos
+     grandes desequilibra a barra ao lado de um campo de texto estreito. */
+  .icon-button { width: 38px; height: 38px; }
+  .icon-button svg { width: 18px; height: 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
