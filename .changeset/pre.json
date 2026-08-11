@@ -42,7 +42,8 @@
     "@adatechnology/push-provider": "0.1.0-rc.0",
     "@adatechnology/notification-client": "0.1.0-rc.0",
     "@adatechnology/notification-ui": "0.1.0-rc.0",
-    "@adatechnology/keycloak-admin": "0.0.0"
+    "@adatechnology/keycloak-admin": "0.0.0",
+    "@adatechnology/web-chat-widget": "0.0.0"
   },
   "changesets": [
     "agent-media-enters-document-library",
@@ -124,6 +125,7 @@
     "transcription-long-collapsible",
     "waiting-notifications-configurable",
     "wallpaper-self-contained",
+    "web-chat-widget-inicial",
     "webhook-phone-number-isolation",
     "webhook-security-tests",
     "whatsapp-reply-buttons",
