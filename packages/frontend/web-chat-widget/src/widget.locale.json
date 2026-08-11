@@ -1,0 +1,32 @@
+{
+  "launcher": {
+    "open": "Falar com a Ada",
+    "close": "Fechar conversa"
+  },
+  "header": {
+    "title": "Ada Technology",
+    "subtitle": "online agora"
+  },
+  "transcript": {
+    "today": "hoje",
+    "yesterday": "ontem"
+  },
+  "composer": {
+    "placeholder": "Mensagem",
+    "send": "Enviar mensagem",
+    "record": "Gravar áudio",
+    "stopRecording": "Parar gravação"
+  },
+  "status": {
+    "starting": "Abrindo conversa…",
+    "startFailed": "Não foi possível abrir a conversa. Tente de novo em instantes.",
+    "sendFailed": "Sua mensagem não foi enviada. Tente de novo.",
+    "handedOff": "Um atendente foi chamado e responde por aqui.",
+    "recording": "Gravando… toque no microfone para enviar.",
+    "transcribing": "Transcrevendo seu áudio…",
+    "audioFailed": "Não consegui entender o áudio. Pode escrever?",
+    "audioBusy": "Muitos áudios ao mesmo tempo por aqui. Tente de novo em {seconds}s — ou escreva sua mensagem, que eu respondo agora.",
+    "audioUnavailable": "O áudio está fora do ar no momento. Escreva sua mensagem aqui que eu sigo com você.",
+    "microphoneDenied": "Sem acesso ao microfone. Você pode escrever aqui."
+  }
+}
