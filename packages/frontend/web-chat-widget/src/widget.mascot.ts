@@ -9,22 +9,39 @@
 /**
  * A Ada — o mascote que fala pelo bot.
  *
+ * E a propria marca em movimento: a rede triangular do logo, com o nucleo hexagonal no centro.
+ * Um robozinho generico seria simpatico e de ninguem; a malha de nos e o que a pessoa ja viu no
+ * cabecalho do site, entao o chat nasce reconhecido em vez de parecer um plugin de terceiro.
+ *
  * Desenhada em SVG inline, e nao em arquivo: o widget e um bundle unico embutido em pagina de
- * terceiro, e uma imagem externa dependeria de `img-src` liberado no CSP do host. Como SVG, ela
- * herda `currentColor` no contorno e acompanha o tema claro/escuro sem segunda arte.
+ * terceiro, e uma imagem externa dependeria de `img-src` liberado no CSP do host. Como SVG, a
+ * malha herda `currentColor` e o acento vem de `--ada-mascot-accent`, que cada contexto redefine
+ * — sobre o gradiente azul do launcher o ciano do logo sumiria.
  */
 const MASCOT_SVG = `
 <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
-  <path d="M24 4v5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-  <circle cx="24" cy="3.5" r="2.5" fill="var(--ada-cyan)" />
-  <rect x="6" y="9" width="36" height="30" rx="12" fill="currentColor" />
-  <rect x="12" y="16" width="24" height="14" rx="7" fill="var(--ada-visor)" />
-  <circle class="mascot-eye" cx="19" cy="23" r="2.6" fill="var(--ada-cyan)" />
-  <circle class="mascot-eye" cx="29" cy="23" r="2.6" fill="var(--ada-cyan)" />
-  <path d="M20.5 33.5c2.2 1.6 4.8 1.6 7 0" stroke="var(--ada-visor)" stroke-width="2"
-    stroke-linecap="round" />
-  <rect x="1" y="19" width="4" height="10" rx="2" fill="currentColor" opacity=".7" />
-  <rect x="43" y="19" width="4" height="10" rx="2" fill="currentColor" opacity=".7" />
+  <g stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M24 5 6 41h36L24 5Z" />
+    <path d="M15 23h18" opacity=".7" />
+    <g class="mascot-mesh" opacity=".5">
+      <path d="M24 5v36" />
+      <path d="M6 41 33 23" />
+      <path d="M42 41 15 23" />
+    </g>
+  </g>
+  <g class="mascot-core">
+    <path d="M24 21.2l5.2 3v6l-5.2 3-5.2-3v-6l5.2-3Z" stroke="var(--ada-mascot-accent)"
+      stroke-width="1.8" stroke-linejoin="round" />
+    <circle cx="24" cy="27.2" r="2.2" fill="var(--ada-mascot-accent)" />
+  </g>
+  <g fill="var(--ada-mascot-accent)">
+    <circle class="mascot-node node-a" cx="24" cy="5" r="2.6" />
+    <circle class="mascot-node node-b" cx="6" cy="41" r="2.4" />
+    <circle class="mascot-node node-c" cx="42" cy="41" r="2.4" />
+    <circle class="mascot-node node-b" cx="15" cy="23" r="1.9" />
+    <circle class="mascot-node node-c" cx="33" cy="23" r="1.9" />
+    <circle class="mascot-node node-a" cx="24" cy="41" r="1.9" />
+  </g>
 </svg>
 `
 

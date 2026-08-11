@@ -25,7 +25,6 @@ export const WIDGET_STYLE = `
   --ada-bg: #eef2fb;
   --ada-bubble-bot: #ffffff;
   --ada-bubble-visitor: #dbe6ff;
-  --ada-visor: #0d1b3e;
   --ada-text: #1e2a4a;
   --ada-muted: #64748b;
   --ada-danger: #b42318;
@@ -50,7 +49,6 @@ export const WIDGET_STYLE = `
     --ada-bg: #0d1526;
     --ada-bubble-bot: #1b2743;
     --ada-bubble-visitor: #1e4bb8;
-    --ada-visor: #0a1430;
     --ada-text: #e8eeff;
     --ada-muted: #93a4c8;
     --ada-danger: #ff9d94;
@@ -85,19 +83,48 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 
 /* --- mascote --- */
 
-.mascot { display: block; color: var(--ada-navy); }
+.mascot { display: block; color: var(--ada-navy); --ada-mascot-accent: var(--ada-cyan); }
 .mascot svg { display: block; width: 100%; height: 100%; }
 
-.mascot-launcher { width: 34px; height: 34px; color: #ffffff; }
-.mascot-header { width: 38px; height: 38px; color: #ffffff; flex: none; }
+/* Sobre o gradiente azul do launcher e do cabecalho o ciano da marca encostaria no fundo. */
+.mascot-launcher { width: 34px; height: 34px; color: #ffffff; --ada-mascot-accent: #a5f3fc; }
+.mascot-header {
+  width: 38px; height: 38px; flex: none; color: #ffffff; --ada-mascot-accent: #a5f3fc;
+}
 .mascot-bubble { width: 26px; height: 26px; align-self: flex-end; flex: none; }
 
-/* Piscada rara: da vida ao mascote sem virar animacao de fundo competindo com a conversa. */
-.mascot-header .mascot-eye { animation: ada-blink 7s infinite; transform-origin: center; }
+/* A 26px as diagonais internas viram borrao: ao lado do balao fica so o triangulo com os nos. */
+.mascot-bubble .mascot-mesh { display: none; }
 
-@keyframes ada-blink {
-  0%, 94%, 100% { transform: scaleY(1); }
-  97% { transform: scaleY(0.1); }
+/*
+ * A rede respira: os nos pulsam em cascata e o nucleo bate junto, como sinal percorrendo a malha.
+ * So no launcher e no cabecalho — ao lado de cada balao seria movimento disputando com o texto.
+ */
+.mascot-launcher .mascot-node, .mascot-header .mascot-node,
+.mascot-launcher .mascot-core, .mascot-header .mascot-core {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.mascot-launcher .mascot-node, .mascot-header .mascot-node {
+  animation: ada-node-pulse 3.2s ease-in-out infinite;
+}
+
+.mascot-launcher .node-b, .mascot-header .node-b { animation-delay: 0.45s; }
+.mascot-launcher .node-c, .mascot-header .node-c { animation-delay: 0.9s; }
+
+.mascot-launcher .mascot-core, .mascot-header .mascot-core {
+  animation: ada-core-beat 3.2s ease-in-out infinite;
+}
+
+@keyframes ada-node-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+@keyframes ada-core-beat {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.12); opacity: 1; }
 }
 
 /* --- painel --- */
@@ -355,7 +382,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 
 @media (prefers-reduced-motion: reduce) {
   .launcher, .launcher:hover { transition: none; transform: none; }
-  .typing span, .mascot-header .mascot-eye, .mic-recording { animation: none; }
+  .typing span, .mascot-node, .mascot-core, .mic-recording { animation: none; }
 }
 `
 
