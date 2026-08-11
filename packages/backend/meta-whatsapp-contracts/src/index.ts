@@ -69,6 +69,7 @@ export type {
   TranscriptionDeferredDescriptor,
 } from './events'
 
+export { WHATSAPP_CHOICE_LIMIT } from './providers'
 export type {
   ChannelAdapterInterface,
   SubjectResolverInterface,

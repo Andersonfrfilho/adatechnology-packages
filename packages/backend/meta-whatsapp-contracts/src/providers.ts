@@ -1,6 +1,20 @@
 import type { FlowActionKind, FlowNodeData } from './flow.types'
 import type { ConversationSession } from './conversation.types'
 
+/**
+ * Tetos da Meta para escolha interativa.
+ *
+ * Ficam no contrato porque quem escreve o texto da opção precisa deles antes de publicar: passar do
+ * limite não degrada nada, a Graph API recusa a mensagem inteira e o cliente vê silêncio. Botão é
+ * mais curto que linha de lista, e o emoji conta como caractere.
+ */
+export const WHATSAPP_CHOICE_LIMIT = {
+  BUTTONS: 3,
+  BUTTON_TITLE_LENGTH: 20,
+  LIST_ROWS: 10,
+  LIST_ROW_TITLE_LENGTH: 24,
+} as const
+
 // Separa "conversa" (agnóstica de canal) de "canal" (WhatsApp/Meta) — quem envia/recebe pela
 // Graph API implementa esta porta; o motor de conversa/fluxo nunca fala com a Graph API direto.
 export interface ChannelAdapterInterface {
@@ -23,6 +37,18 @@ export interface ChannelAdapterInterface {
     body: string
     buttonLabel: string
     rows: { id: string; title: string }[]
+  }): Promise<{ externalMessageId: string | null }>
+  /**
+   * Botão de resposta rápida — opcional porque a lista sempre serve de alternativa.
+   *
+   * Exigi-lo na porta quebraria todo dublê de teste e todo canal já escrito, para uma capacidade
+   * que nem todo canal tem: quem não implementa continua caindo na lista, que é o que o WhatsApp
+   * fazia antes. A Meta limita a 3 botões, e o provider recusa o quarto.
+   */
+  sendInteractiveButtons?(params: {
+    to: string
+    body: string
+    buttons: { id: string; title: string }[]
   }): Promise<{ externalMessageId: string | null }>
   fetchMediaAsBase64(mediaId: string): Promise<{ data: string; mimeType: string }>
 }

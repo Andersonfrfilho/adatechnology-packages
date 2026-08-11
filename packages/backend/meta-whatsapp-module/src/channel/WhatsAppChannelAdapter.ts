@@ -93,6 +93,21 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     return { externalMessageId: result.waMessageId }
   }
 
+  async sendInteractiveButtons(params: {
+    to: string
+    body: string
+    buttons: { id: string; title: string }[]
+  }): Promise<{ externalMessageId: string | null }> {
+    const result = await this.translateErrors(() =>
+      this.messages.sendInteractiveButtons({
+        to: params.to,
+        bodyText: params.body,
+        buttons: params.buttons,
+      }),
+    )
+    return { externalMessageId: result.waMessageId }
+  }
+
   /**
    * Busca o binário da mídia — da Meta, ou do storage quando o id é do simulador.
    *
