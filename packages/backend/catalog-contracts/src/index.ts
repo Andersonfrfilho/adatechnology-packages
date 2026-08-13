@@ -90,4 +90,6 @@ export {
   MetaSyncDisabledError,
   InvalidImportFileError,
   ConfigMissingError,
+  InvalidProductImageError,
+  ImageStorageDisabledError,
 } from './errors'

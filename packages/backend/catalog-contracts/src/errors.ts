@@ -27,6 +27,8 @@ export const CATALOG_ERROR_CODES = {
   META_SYNC_DISABLED: 'CATALOG_META_SYNC_DISABLED',
   INVALID_IMPORT_FILE: 'CATALOG_INVALID_IMPORT_FILE',
   CONFIG_MISSING: 'CATALOG_CONFIG_MISSING',
+  INVALID_IMAGE: 'CATALOG_INVALID_IMAGE',
+  IMAGE_STORAGE_DISABLED: 'CATALOG_IMAGE_STORAGE_DISABLED',
 } as const
 
 export class ProductNotFoundError extends CatalogError {
@@ -101,5 +103,21 @@ export class InvalidImportFileError extends CatalogError {
 export class ConfigMissingError extends CatalogError {
   constructor(public readonly field: string) {
     super(`Configuração obrigatória ausente: ${field}.`, 500, CATALOG_ERROR_CODES.CONFIG_MISSING, { field })
+  }
+}
+
+export class InvalidProductImageError extends CatalogError {
+  constructor(public readonly reason: string) {
+    super('Imagem de produto inválida.', 400, CATALOG_ERROR_CODES.INVALID_IMAGE, { reason })
+  }
+}
+
+/**
+ * Só acontece se o host montar a rota sem a porta — a rota nem é publicada quando `imageStorage`
+ * está ausente, então isto é rede de proteção para composição errada, não caminho de usuário.
+ */
+export class ImageStorageDisabledError extends CatalogError {
+  constructor() {
+    super('Upload de imagem está desligado para este módulo.', 409, CATALOG_ERROR_CODES.IMAGE_STORAGE_DISABLED)
   }
 }

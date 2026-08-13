@@ -1,3 +1,4 @@
+import { ImagePlus, X } from 'lucide-react'
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react'
 
 export type ImageUploadProps = {
@@ -82,10 +83,11 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
           <button
             type="button"
             onClick={handleRemove}
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors shadow-sm"
+            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
             title="Remover imagem"
+            aria-label="Remover imagem"
           >
-            &times;
+            <X aria-hidden="true" className="w-3.5 h-3.5" />
           </button>
           {uploading && (
             <div className="absolute inset-0 bg-black bg-opacity-40 rounded-lg flex items-center justify-center">
@@ -94,7 +96,8 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
           )}
         </div>
       ) : (
-        <div
+        <button
+          type="button"
           onClick={() => inputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -109,17 +112,13 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600" />
           ) : (
             <>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 dark:text-gray-500 mb-1">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
+              <ImagePlus aria-hidden="true" className="w-6 h-6 text-gray-400 dark:text-gray-500 mb-1" />
               <span className="text-xs text-gray-400 dark:text-gray-500 text-center px-2">
                 Clique ou arraste
               </span>
             </>
           )}
-        </div>
+        </button>
       )}
 
       <input

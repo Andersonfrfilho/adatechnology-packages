@@ -43,6 +43,7 @@ import {
   SyncPendingToMetaUseCase,
   SyncProductToMetaUseCase,
 } from './use-cases/MetaSync.use-cases'
+import { UploadProductImageUseCase } from './use-cases/UploadProductImage.use-case'
 import {
   CreateProductUseCase,
   DeleteProductUseCase,
@@ -91,6 +92,7 @@ export type CatalogModule = {
     readonly consumeInventory: ConsumeInventoryUseCase
     readonly adjustInventory: AdjustInventoryUseCase
     readonly bulkImportProducts: BulkImportProductsUseCase
+    readonly uploadProductImage: UploadProductImageUseCase
     readonly syncProductToMeta: SyncProductToMetaUseCase
     readonly syncCatalogToMeta: SyncCatalogToMetaUseCase
     readonly syncPendingToMeta: SyncPendingToMetaUseCase
@@ -101,6 +103,8 @@ export type CatalogModule = {
   readonly schedules: readonly CatalogSchedule[]
   /** Projeção para o canal de conversa plugar no `CatalogPort` do `meta-whatsapp-module`. */
   readonly lookup: CatalogProductLookup
+  /** Capacidade por ausência: sem porta de storage, a rota de upload não é publicada. */
+  readonly hasImageStorage: boolean
 }
 
 /** Teto da listagem do canal: lista interativa de WhatsApp não comporta mais que isso. */
@@ -151,6 +155,7 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       consumeInventory,
       adjustInventory: new AdjustInventoryUseCase(dependencies),
       bulkImportProducts: new BulkImportProductsUseCase(dependencies, createProduct),
+      uploadProductImage: new UploadProductImageUseCase(dependencies),
       syncProductToMeta,
       syncCatalogToMeta: new SyncCatalogToMetaUseCase(dependencies),
       syncPendingToMeta,
@@ -169,6 +174,8 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
           },
         ]
       : [],
+
+    hasImageStorage: Boolean(params.providers?.imageStorage),
 
     lookup: {
       async findByRetailerId({ companyId, retailerId }) {

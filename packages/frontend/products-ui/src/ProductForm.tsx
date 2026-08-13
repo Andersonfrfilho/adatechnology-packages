@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef, type FormEvent } from 'react'
 import type { Product, Catalog, Section, CreateProductInput, ProductSuggestion } from './providers/types'
 import { DEFAULT_UNIT_OPTIONS, PRODUCT_OPTIONAL_FIELD } from './providers/types'
-import { useIsProductFieldEnabled, useProductsConfig } from './providers/ProductsProvider'
+import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './providers/ProductsProvider'
+import { ImageUpload } from './ImageUpload'
 import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
 
 const SUGGESTION_MIN_QUERY_LENGTH = 2
@@ -92,6 +93,18 @@ export function ProductForm({
   // Escolher uma sugestão preenche o nome, e o nome preenchido dispararia a busca de novo. O flag
   // corta esse ciclo sem precisar comparar strings.
   const skipNextSearch = useRef(false)
+
+  const api = useProducts()
+  const uploadImage = api.uploadImage?.bind(api)
+
+  // O upload publica o arquivo e o formulário fica com a URL: é ela que vai para a API do produto e
+  // depois para a Meta, que busca a imagem por conta própria.
+  const handleUploadImage = useCallback(async (file: File): Promise<string> => {
+    if (!uploadImage) throw new Error('upload indisponivel')
+    const { url } = await uploadImage(file)
+    setForm(prev => ({ ...prev, imageUrl: url }))
+    return url
+  }, [uploadImage])
 
   const updateField = useCallback((field: keyof FormState, value: string | boolean | MoneyField) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -427,16 +440,38 @@ export function ProductForm({
       </div>
 
       <div>
-        <label className={LABEL_CLASS}>URL da imagem</label>
-        <input
-          type="text"
-          value={form.imageUrl}
-          onChange={(e) => updateField('imageUrl', e.target.value)}
-          className={INPUT_CLASS}
-          placeholder="https://..."
-        />
-        {form.imageUrl && (
-          <img src={form.imageUrl} alt="Preview" className="mt-2 w-20 h-20 rounded-lg object-cover bg-gray-100 dark:bg-gray-800" />
+        <label className={LABEL_CLASS}>Imagem</label>
+        {uploadImage ? (
+          <>
+            <ImageUpload
+              onUpload={handleUploadImage}
+              {...(form.imageUrl ? { currentUrl: form.imageUrl } : {})}
+            />
+            {/* A URL continua editável ao lado do upload: quem já hospeda a foto em outro lugar não
+                precisa reenviar o arquivo só para o produto ter imagem. */}
+            <input
+              type="text"
+              value={form.imageUrl}
+              onChange={(e) => updateField('imageUrl', e.target.value)}
+              className={`${INPUT_CLASS} mt-2`}
+              placeholder="https://... (ou envie um arquivo acima)"
+              aria-label="URL da imagem"
+            />
+          </>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={form.imageUrl}
+              onChange={(e) => updateField('imageUrl', e.target.value)}
+              className={INPUT_CLASS}
+              placeholder="https://..."
+              aria-label="URL da imagem"
+            />
+            {form.imageUrl && (
+              <img src={form.imageUrl} alt="Preview" className="mt-2 w-20 h-20 rounded-lg object-cover bg-gray-100 dark:bg-gray-800" />
+            )}
+          </>
         )}
       </div>
 

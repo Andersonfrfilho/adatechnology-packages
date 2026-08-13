@@ -24,7 +24,33 @@ const bulkImportSchema = z.object({
 export function buildProductRoutes(module: CatalogModule): ModuleRoute[] {
   const { useCases } = module
 
+  const imageRoutes: ModuleRoute[] = module.hasImageStorage
+    ? [
+        {
+          method: 'POST',
+          path: '/products/images',
+          scope: 'admin',
+          operationId: 'uploadProductImage',
+          summary: 'Envia a imagem de um produto e devolve a URL publicada',
+          // Sem `bodySchema`: o corpo são os bytes da imagem, e o `Content-Type` diz o formato.
+          // Base64 num JSON inflaria 33% do tráfego, e multipart exigiria um parser só para isto.
+          async handler(context) {
+            const companyId = requireCompany(context)
+            const result = await useCases.uploadProductImage.execute({
+              companyId,
+              bytes: context.rawBody ?? new Uint8Array(),
+              mimeType: context.headers['content-type'] ?? '',
+            })
+            return { kind: 'json', status: 201, body: { data: result } }
+          },
+        },
+      ]
+    : []
+
   return [
+    // Antes de `/products/:id` pelo mesmo motivo do `bulk-import`: `findRoute` para na primeira
+    // rota que casa, e `:id` casaria "images".
+    ...imageRoutes,
     {
       method: 'GET',
       path: '/products',

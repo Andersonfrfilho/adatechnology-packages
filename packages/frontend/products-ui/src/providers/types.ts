@@ -16,7 +16,11 @@ export type ProductsApi = {
   updateCatalog(id: string, data: UpdateCatalogInput): Promise<Catalog>
   deleteCatalog(id: string): Promise<void>
 
-  uploadImage(file: File): Promise<{ readonly url: string; readonly key: string }>
+  /**
+   * Capacidade por ausência: sem ela, o formulário não desenha o upload e só aceita URL. Instalação
+   * sem bucket não deve mostrar um alvo de arrastar arquivo que sempre falha.
+   */
+  uploadImage?(file: File): Promise<{ readonly url: string; readonly key: string }>
   bulkImportProducts(file: File): Promise<BulkImportResult>
 }
 
