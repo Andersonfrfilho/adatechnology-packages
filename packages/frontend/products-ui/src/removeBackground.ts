@@ -35,7 +35,16 @@ export type BackgroundFill = (typeof BACKGROUND_FILL)[keyof typeof BACKGROUND_FI
 export type BackgroundRemovalConfig = {
   /** URL do `u2netp.onnx` (ou `u2net.onnx`) servido pelo host. Sem ela o recurso não existe. */
   readonly modelUrl: string
-  /** Pasta dos `.wasm` do onnxruntime-web. Ausente, a lib busca no CDN dela — o que o CSP barra. */
+  /**
+   * URL do bundle do onnxruntime-web (`ort.wasm.min.js`), servido pelo host.
+   *
+   * Carregado por `<script>`, e não por `import()`, de propósito: o runtime importa o próprio loader
+   * `.mjs` em tempo de execução, e todo bundler reescreve esse import do seu jeito — o Vite chega a
+   * recusar o arquivo por estar em `public/`. Por fora do grafo de módulos isso simplesmente não
+   * acontece, e o pacote deixa de ter dependência de runtime.
+   */
+  readonly runtimeUrl: string
+  /** Pasta dos `.wasm`. Ausente, a lib os procura ao lado do próprio bundle, que costuma bastar. */
   readonly wasmPaths?: string
 }
 
@@ -59,8 +68,9 @@ export async function removeBackground({
   const bitmap = await createImageBitmap(file)
 
   try {
+    const runtime = await loadRuntime(config)
     const session = await loadSession(config)
-    const mask = await inferMask({ bitmap, session })
+    const mask = await inferMask({ bitmap, session, runtime })
     const blob = await composite({ bitmap, mask, fill })
 
     return new File([blob], toWebpName(file.name), { type: OUTPUT_TYPE })
@@ -75,17 +85,23 @@ type OnnxSession = {
   run(feeds: Record<string, unknown>): Promise<Record<string, { readonly data: Float32Array }>>
 }
 
+type OnnxRuntime = {
+  readonly env: { readonly wasm: { wasmPaths?: string } }
+  readonly Tensor: new (type: string, data: Float32Array, dims: readonly number[]) => unknown
+  readonly InferenceSession: {
+    create(modelUrl: string, options: { executionProviders: readonly string[] }): Promise<OnnxSession>
+  }
+}
+
 async function loadSession(config: BackgroundRemovalConfig): Promise<OnnxSession> {
   const cached = sessionByModelUrl.get(config.modelUrl)
   if (cached) return cached
 
-  // Import dinâmico de propósito: o runtime só é baixado por quem clica em remover fundo.
-  const pending = import('onnxruntime-web').then(async (onnx) => {
+  // O runtime e os pesos só são baixados por quem clica em remover fundo.
+  const pending = loadRuntime(config).then((onnx) => {
     if (config.wasmPaths) onnx.env.wasm.wasmPaths = config.wasmPaths
 
-    return (await onnx.InferenceSession.create(config.modelUrl, {
-      executionProviders: ['wasm'],
-    })) as unknown as OnnxSession
+    return onnx.InferenceSession.create(config.modelUrl, { executionProviders: ['wasm'] })
   })
 
   sessionByModelUrl.set(config.modelUrl, pending)
@@ -99,19 +115,57 @@ async function loadSession(config: BackgroundRemovalConfig): Promise<OnnxSession
   }
 }
 
-type InferMaskParams = { readonly bitmap: ImageBitmap; readonly session: OnnxSession }
+/** O bundle publica `window.ort`. Um `<script>` por URL: o segundo clique reusa o que já carregou. */
+const runtimeByUrl = new Map<string, Promise<OnnxRuntime>>()
 
-async function inferMask({ bitmap, session }: InferMaskParams): Promise<Float32Array> {
+function loadRuntime(config: BackgroundRemovalConfig): Promise<OnnxRuntime> {
+  const existing = runtimeByUrl.get(config.runtimeUrl)
+  if (existing) return existing
+
+  const pending = new Promise<OnnxRuntime>((resolve, reject) => {
+    const globalRuntime = (globalThis as { ort?: OnnxRuntime }).ort
+    if (globalRuntime) {
+      resolve(globalRuntime)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = config.runtimeUrl
+    script.async = true
+    script.onload = () => {
+      const loaded = (globalThis as { ort?: OnnxRuntime }).ort
+      if (loaded) resolve(loaded)
+      else reject(new Error('Runtime de recorte carregou sem publicar `ort`'))
+    }
+    script.onerror = () => reject(new Error('Falha ao carregar o runtime de recorte'))
+
+    document.head.appendChild(script)
+  })
+
+  runtimeByUrl.set(config.runtimeUrl, pending)
+
+  return pending.catch((error: unknown) => {
+    runtimeByUrl.delete(config.runtimeUrl)
+    throw error
+  })
+}
+
+type InferMaskParams = {
+  readonly bitmap: ImageBitmap
+  readonly session: OnnxSession
+  readonly runtime: OnnxRuntime
+}
+
+async function inferMask({ bitmap, session, runtime }: InferMaskParams): Promise<Float32Array> {
   const pixels = drawToImageData(bitmap, { width: MODEL_INPUT_EDGE, height: MODEL_INPUT_EDGE })
   const input = toNormalizedTensor(pixels)
 
-  const onnx = await import('onnxruntime-web')
   const inputName = session.inputNames[0]
   const outputName = session.outputNames[0]
   if (!inputName || !outputName) throw new Error('Modelo de recorte sem entrada ou saída declarada')
 
   const output = await session.run({
-    [inputName]: new onnx.Tensor('float32', input, [1, 3, MODEL_INPUT_EDGE, MODEL_INPUT_EDGE]),
+    [inputName]: new runtime.Tensor('float32', input, [1, 3, MODEL_INPUT_EDGE, MODEL_INPUT_EDGE]),
   })
 
   const mask = output[outputName]?.data
