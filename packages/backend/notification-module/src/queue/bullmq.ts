@@ -54,7 +54,12 @@ export function createBullMqQueue(params: CreateBullMqQueueParams): QueuePort {
         removeOnFail: params.removeOnFail ?? DEFAULT_REMOVE_ON_FAIL,
         // Idempotência de enfileiramento: o mesmo `deliveryId` na mesma tentativa não vira dois
         // jobs se o produtor for reexecutado.
-        jobId: `${job.deliveryId}:${job.attempt}`,
+        //
+        // Separador `_` porque o BullMQ recusa `:` em jobId customizado ("Custom Id cannot
+        // contain :") — ele usa `:` nas próprias chaves do Redis. Com `:` o `add` lançava, e como
+        // o enfileiramento acontece dentro da transação de quem dispara o aviso, a exceção subia
+        // e derrubava a operação de negócio inteira.
+        jobId: `${job.deliveryId}_${job.attempt}`,
       })
     },
 

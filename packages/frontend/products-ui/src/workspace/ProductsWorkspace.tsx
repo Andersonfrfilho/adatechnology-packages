@@ -62,7 +62,10 @@ export function ProductsWorkspace({
 
       <WorkspaceAreaNav area={area} labels={labels} onSelect={handleSelectArea} />
 
-      <div className="flex flex-1 min-h-0">
+      {/* `overflow-hidden` porque a linha tem dois filhos que querem largura fixa (barra de catálogos
+          e painel de edição): sem isto a soma passa da janela e a tela inteira ganha rolagem
+          horizontal, com o formulário do produto nascendo fora da margem direita. */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         {area === PRODUCTS_WORKSPACE_AREA.CATALOGS ? (
           <main className="flex-1 min-w-0 overflow-y-auto p-4">
             <CatalogList showSortOrder />
@@ -74,7 +77,7 @@ export function ProductsWorkspace({
         {isDraftOpen ? (
           <section
             aria-label={isEditing ? labels.editTitle : labels.createTitle}
-            className="desktop:w-[28rem] shrink-0 border-t desktop:border-t-0 desktop:border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-4"
+            className="w-full desktop:w-[28rem] max-w-full shrink-0 border-t desktop:border-t-0 desktop:border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-4"
           >
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mr-auto">

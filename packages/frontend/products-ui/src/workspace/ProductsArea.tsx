@@ -29,8 +29,10 @@ export function ProductsArea({ labels, workspace }: ProductsAreaProps) {
   const [importing, setImporting] = useState(false)
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col desktop:flex-row">
-      <aside className="desktop:w-64 shrink-0 border-b desktop:border-b-0 desktop:border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+    // `min-w-0` porque filho de flex não encolhe abaixo do conteúdo por padrão: a tabela de produtos
+    // é larga, e sem isto ela empurrava o painel de edição para fora da janela.
+    <div className="flex flex-1 min-h-0 min-w-0 flex-col desktop:flex-row">
+      <aside className="desktop:w-64 shrink-0 border-b desktop:border-b-0 desktop:border-r border-gray-200 dark:border-gray-700 overflow-y-auto p-3">
         <CatalogList
           variant="sidebar"
           selectedId={workspace.catalogId}

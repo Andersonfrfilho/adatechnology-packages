@@ -1,3 +1,4 @@
+import { Folder, FolderOpen, FolderX, Layers, Pencil, Plus } from 'lucide-react'
 import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import { PRODUCT_SYNC_STATUS, type Catalog, type ProductSyncStatus, type ProductsApi } from './providers/types'
 import { useProducts, useProductsConfig } from './providers/ProductsProvider'
@@ -17,6 +18,18 @@ export type CatalogListProps = {
   readonly noneCount?: number
   readonly showSortOrder?: boolean
 }
+
+// A altura mínima é a área de toque de 44px da regra de responsividade: a barra vira lista rolável
+// no celular, e item de 32px ali erra o dedo.
+const SIDEBAR_ITEM_CLASS =
+  'w-full flex items-center gap-2 min-h-11 px-2 py-2 rounded-lg text-sm text-left transition-colors'
+const SIDEBAR_ITEM_ACTIVE =
+  'bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400 font-medium'
+const SIDEBAR_ITEM_IDLE =
+  'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+// `tabular-nums` para a coluna de contagem não dançar entre 9 e 10.
+const SIDEBAR_COUNT_CLASS =
+  'shrink-0 tabular-nums text-xs text-gray-500 dark:text-gray-400 min-w-4 text-right'
 
 type EditingCatalog = {
   id: string
@@ -179,19 +192,43 @@ export function CatalogList({
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-          {catalogs.length} catálogo{catalogs.length !== 1 ? 's' : ''}
-        </h3>
-        {!creating && (
-          <button
-            onClick={() => { setCreating(true); setEditing(null) }}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors"
-          >
-            + Novo catálogo
-          </button>
-        )}
-      </div>
+      {/* Na barra lateral o cabeçalho é rótulo de seção, não título de tela: um botão primário azul
+          num painel de 16rem competiria com "Novo produto", que é a ação principal da área. */}
+      {variant === 'sidebar' ? (
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <Layers aria-hidden="true" className="w-4 h-4" />
+            Catálogos
+            <span className="tabular-nums font-normal text-gray-400 dark:text-gray-500">{catalogs.length}</span>
+          </h3>
+          {!creating && (
+            <button
+              type="button"
+              onClick={() => { setCreating(true); setEditing(null) }}
+              aria-label="Novo catálogo"
+              title="Novo catálogo"
+              className="inline-flex items-center justify-center w-11 h-11 -my-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-brand-700 dark:hover:text-brand-400 transition-colors"
+            >
+              <Plus aria-hidden="true" className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+            {catalogs.length} catálogo{catalogs.length !== 1 ? 's' : ''}
+          </h3>
+          {!creating && (
+            <button
+              onClick={() => { setCreating(true); setEditing(null) }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors"
+            >
+              <Plus aria-hidden="true" className="w-4 h-4" />
+              Novo catálogo
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Create form */}
       {creating && (
@@ -244,59 +281,67 @@ export function CatalogList({
       )}
 
       {variant === 'sidebar' && (
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
           <button
             type="button"
             onClick={() => onSelect?.(null)}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-              selectedId === null ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }`}
+            aria-current={selectedId === null ? 'true' : undefined}
+            className={`${SIDEBAR_ITEM_CLASS} ${selectedId === null ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_IDLE}`}
           >
-            Todos
+            <Layers aria-hidden="true" className="w-4 h-4 shrink-0" />
+            <span className="flex-1 truncate">Todos</span>
           </button>
 
-          {catalogs.map((catalog) => (
-            <div key={catalog.id} className="group flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onSelect?.(catalog.id)}
-                className={`flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
-                  selectedId === catalog.id
-                    ? 'bg-brand-50 text-brand-700 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
-              >
-                <span className={catalog.active ? '' : 'text-gray-400 dark:text-gray-500 line-through'}>{catalog.name}</span>
-                <span className="flex items-center gap-1">
+          {catalogs.map((catalog) => {
+            const selected = selectedId === catalog.id
+            const FolderIcon = selected ? FolderOpen : Folder
+
+            return (
+              <div key={catalog.id} className="group relative">
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(catalog.id)}
+                  aria-current={selected ? 'true' : undefined}
+                  className={`${SIDEBAR_ITEM_CLASS} pr-10 ${selected ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_IDLE}`}
+                >
+                  <FolderIcon aria-hidden="true" className="w-4 h-4 shrink-0" />
+                  <span className={`flex-1 truncate ${catalog.active ? '' : 'text-gray-400 dark:text-gray-500 line-through'}`}>
+                    {catalog.name}
+                  </span>
                   {showSyncStatus && <SyncDot status={catalog.syncStatus ?? null} error={catalog.syncError ?? null} />}
                   {catalog.productCount !== undefined && (
-                    <span className="text-xs text-gray-400 dark:text-gray-500">{catalog.productCount}</span>
+                    <span className={SIDEBAR_COUNT_CLASS}>{catalog.productCount}</span>
                   )}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => startEdit(catalog)}
-                aria-label={`Editar ${catalog.name}`}
-                className="opacity-0 group-hover:opacity-100 focus:opacity-100 px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity"
-              >
-                Editar
-              </button>
-            </div>
-          ))}
+                </button>
+                {/* Fora do botão de seleção: botão dentro de botão é HTML inválido, e o clique em
+                    "editar" não pode arrastar a lista para outro filtro pelo caminho. */}
+                <button
+                  type="button"
+                  onClick={() => startEdit(catalog)}
+                  aria-label={`Editar ${catalog.name}`}
+                  title={`Editar ${catalog.name}`}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-8 h-8 rounded-md text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-gray-200/70 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity"
+                >
+                  <Pencil aria-hidden="true" className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )
+          })}
 
+          {/* Órfãos não são um catálogo: a linha divisória diz isso sem precisar de itálico, que aqui
+              só deixava o rótulo mais difícil de ler do que os vizinhos. */}
           {showNoneOption && (
             <button
               type="button"
               onClick={() => onSelect?.(CATALOG_NONE)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm italic transition-colors flex items-center justify-between ${
-                selectedId === CATALOG_NONE
-                  ? 'bg-brand-50 text-brand-700 font-medium'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              aria-current={selectedId === CATALOG_NONE ? 'true' : undefined}
+              className={`${SIDEBAR_ITEM_CLASS} mt-2 border-t border-gray-200 dark:border-gray-700 rounded-t-none pt-3 ${
+                selectedId === CATALOG_NONE ? SIDEBAR_ITEM_ACTIVE : SIDEBAR_ITEM_IDLE
               }`}
             >
-              <span>Sem catálogo</span>
-              {noneCount !== undefined && <span className="text-xs text-gray-400 dark:text-gray-500">{noneCount}</span>}
+              <FolderX aria-hidden="true" className="w-4 h-4 shrink-0" />
+              <span className="flex-1 truncate">Sem catálogo</span>
+              {noneCount !== undefined && <span className={SIDEBAR_COUNT_CLASS}>{noneCount}</span>}
             </button>
           )}
 
