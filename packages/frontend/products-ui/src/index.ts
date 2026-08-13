@@ -26,6 +26,8 @@ export { ImageUpload } from './ImageUpload'
 export type { ImageUploadProps } from './ImageUpload'
 export { compressImage, PRODUCT_IMAGE_MAX_BYTES } from './compressImage'
 export type { CompressImageParams } from './compressImage'
+export { removeBackground, BACKGROUND_FILL } from './removeBackground'
+export type { BackgroundFill, BackgroundRemovalConfig, RemoveBackgroundParams } from './removeBackground'
 
 export { BulkImport } from './BulkImport'
 export type { BulkImportProps } from './BulkImport'
