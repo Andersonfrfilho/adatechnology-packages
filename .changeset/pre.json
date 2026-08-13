@@ -111,6 +111,7 @@
     "preview-silent-auth-failure",
     "preview-whatsapp-components",
     "product-agnostic-flow-and-session-context",
+    "products-workspace",
     "quick-replies-single-row",
     "redactor-logger-http-sink",
     "restore-provider-factory",
