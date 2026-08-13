@@ -1,6 +1,8 @@
 import { ImagePlus, X } from 'lucide-react'
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react'
 
+import { compressImage, PRODUCT_IMAGE_MAX_BYTES } from './compressImage'
+
 export type ImageUploadProps = {
   readonly onUpload: (file: File) => Promise<string>
   readonly currentUrl?: string
@@ -18,11 +20,6 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
       setError('Apenas imagens são permitidas')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Imagem deve ter no máximo 5MB')
-      return
-    }
-
     setError(null)
     setUploading(true)
 
@@ -30,7 +27,16 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
       const localPreview = URL.createObjectURL(file)
       setPreview(localPreview)
 
-      const url = await onUpload(file)
+      // Foto de celular passa dos 5MB com frequência, e o operador não tem editor à mão.
+      const compressed = await compressImage({ file })
+
+      if (compressed.size > PRODUCT_IMAGE_MAX_BYTES) {
+        setError('Imagem deve ter no máximo 5MB')
+        setPreview(currentUrl ?? null)
+        return
+      }
+
+      const url = await onUpload(compressed)
       setPreview(url)
     } catch {
       setError('Erro ao enviar imagem')

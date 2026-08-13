@@ -17,7 +17,8 @@
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm --external react --external react-dom",
     "build:watch": "tsup src/index.ts --watch --dts --format esm --external react --external react-dom",
-    "check": "tsc -p tsconfig.json --noEmit"
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "lucide-react": "^1.21.0"

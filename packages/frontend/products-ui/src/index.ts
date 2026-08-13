@@ -24,6 +24,8 @@ export type { CatalogListProps } from './CatalogList'
 
 export { ImageUpload } from './ImageUpload'
 export type { ImageUploadProps } from './ImageUpload'
+export { compressImage, PRODUCT_IMAGE_MAX_BYTES } from './compressImage'
+export type { CompressImageParams } from './compressImage'
 
 export { BulkImport } from './BulkImport'
 export type { BulkImportProps } from './BulkImport'
