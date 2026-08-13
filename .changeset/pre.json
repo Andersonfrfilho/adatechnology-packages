@@ -103,6 +103,7 @@
     "media-types-and-valid-preview-files",
     "message-moderation",
     "meta-whatsapp-trio-rc",
+    "notification-module-drizzle-1x",
     "notification-module-http",
     "notification-trio",
     "notification-ui-jsx-runtime",
