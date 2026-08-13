@@ -105,6 +105,8 @@ export type {
   AttachFlowMediaParams,
   UpdateFlowMediaParams,
 } from './repositories/FlowMediaRepository'
+export { createSendProductListAction, PRODUCT_LIST_LIMIT } from './flows/createSendProductListAction'
+export type { CreateSendProductListActionParams } from './flows/createSendProductListAction'
 export { createSendMediaAction } from './flows/createSendMediaAction'
 export type { CreateSendMediaActionParams, FlowMediaTranscriptLogger } from './flows/createSendMediaAction'
 

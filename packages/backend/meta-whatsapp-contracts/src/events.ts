@@ -38,6 +38,13 @@ export interface MetaWhatsAppHooks {
    */
   onFlowMediaError?: (error: unknown, details: { flowKey: string; nodeId: string; uploadId: string }) => void
   /**
+   * Falha ao enviar a vitrine de produtos num nó `send_product_list`.
+   *
+   * Hook próprio, e não o de mídia: aqui não há `uploadId` — o que falhou foi a montagem da
+   * vitrine a partir do catálogo, e o host precisa saber qual nó ficou mudo.
+   */
+  onFlowProductListError?: (error: unknown, details: { flowKey: string; nodeId: string }) => void
+  /**
    * Transcrição de áudio falhou de forma **retriável** (cota estourada, rede, 5xx) — o áudio segue
    * transcritível e alguém precisa tentar de novo.
    *

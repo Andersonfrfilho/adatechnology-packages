@@ -108,6 +108,25 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     return { externalMessageId: result.waMessageId }
   }
 
+  async sendProductList(params: {
+    to: string
+    headerText: string
+    body: string
+    footerText?: string
+    sections: { title: string; retailerIds: string[] }[]
+  }): Promise<{ externalMessageId: string | null }> {
+    const result = await this.translateErrors(() =>
+      this.messages.sendProductListMessage({
+        to: params.to,
+        headerText: params.headerText,
+        bodyText: params.body,
+        ...(params.footerText ? { footerText: params.footerText } : {}),
+        sections: params.sections,
+      }),
+    )
+    return { externalMessageId: result.waMessageId }
+  }
+
   /**
    * Busca o binário da mídia — da Meta, ou do storage quando o id é do simulador.
    *

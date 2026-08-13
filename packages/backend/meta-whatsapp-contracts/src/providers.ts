@@ -50,6 +50,21 @@ export interface ChannelAdapterInterface {
     body: string
     buttons: { id: string; title: string }[]
   }): Promise<{ externalMessageId: string | null }>
+  /**
+   * Vitrine de produtos — opcional pelo mesmo motivo do botão: canal que não sabe enviar produto
+   * continua funcionando, e a ausência do método é o que desliga o recurso, sem flag `hasCatalog`.
+   *
+   * A Meta limita a 30 itens por mensagem, distribuídos em até 10 seções; o provider recusa acima
+   * disso. Quem monta a lista corta antes — mandar tudo e ver a Graph API recusar a mensagem
+   * inteira deixa o cliente no silêncio.
+   */
+  sendProductList?(params: {
+    to: string
+    headerText: string
+    body: string
+    footerText?: string
+    sections: { title: string; retailerIds: string[] }[]
+  }): Promise<{ externalMessageId: string | null }>
   fetchMediaAsBase64(mediaId: string): Promise<{ data: string; mimeType: string }>
 }
 

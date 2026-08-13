@@ -40,6 +40,7 @@ import {
 } from './use-cases/FlowGraph.use-cases'
 import { FlowInterpreter } from './flows/FlowInterpreter'
 import { createSendMediaAction } from './flows/createSendMediaAction'
+import { createSendProductListAction } from './flows/createSendProductListAction'
 import { FlowMediaRepository } from './repositories/FlowMediaRepository'
 import { WhatsAppChannelAdapter, type PreviewMediaSupport } from './channel/WhatsAppChannelAdapter'
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
@@ -59,6 +60,12 @@ export interface MetaWhatsAppModuleConfig {
   apiVersion?: string
   // Aponta para um mock local em dev/teste; undefined usa a Graph API real.
   baseUrl?: string
+  /**
+   * Catálogo do Meta Commerce que a vitrine no chat oferece. Sem ele — ou sem `providers.catalog`
+   * — a action `send_product_list` não é registrada: nó que o editor oferece e que em silêncio não
+   * faz nada é pior do que nó que não existe.
+   */
+  catalogId?: string
 }
 
 export interface MetaWhatsAppModuleFeatures {
@@ -233,6 +240,21 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
         logMessage,
         startState,
         onError: hooks?.onFlowMediaError,
+      }),
+    )
+  }
+
+  // Vitrine no chat: precisa do catalogo injetado E do id do catalogo na Meta. Um sem o outro nao
+  // envia nada — o `retailerId` so significa alguma coisa dentro de um catalogo.
+  if (flowInterpreter && providers.catalog && config.catalogId) {
+    flowInterpreter.registerFlowAction(
+      FLOW_ACTION_KIND.SEND_PRODUCT_LIST,
+      createSendProductListAction({
+        catalog: providers.catalog,
+        catalogId: config.catalogId,
+        logMessage,
+        startState,
+        onError: hooks?.onFlowProductListError,
       }),
     )
   }
