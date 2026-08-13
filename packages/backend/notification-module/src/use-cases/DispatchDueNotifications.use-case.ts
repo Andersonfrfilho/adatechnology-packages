@@ -18,7 +18,7 @@
 
 import { and, asc, inArray, isNull, lte, or } from 'drizzle-orm'
 
-import type { NotificationDatabase } from '../database.types'
+import type { NotificationDatabase, NotificationTransaction } from '../database.types'
 import { notifications, type NotificationRow } from '../schema/schema'
 import type { SendNotificationUseCase } from './SendNotification.use-case'
 
@@ -38,7 +38,7 @@ export class DispatchDueNotificationsUseCase {
     const now = this.dependencies.clock?.now() ?? new Date()
     const limit = params.limit ?? DEFAULT_BATCH_LIMIT
 
-    const claimed = await this.dependencies.db.transaction(async (tx) => {
+    const claimed = await this.dependencies.db.transaction(async (tx: NotificationTransaction) => {
       const dueRows = await tx
         .select()
         .from(notifications)
