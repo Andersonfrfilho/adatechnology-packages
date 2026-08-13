@@ -1,0 +1,29 @@
+{
+  "name": "@adatechnology/catalog-image-storage-provider",
+  "version": "0.0.0",
+  "description": "Product image storage for catalog-module over an S3-compatible bucket",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@adatechnology/catalog-contracts": "workspace:*",
+    "@adatechnology/object-storage-provider": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  }
+}
