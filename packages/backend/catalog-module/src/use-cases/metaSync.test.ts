@@ -7,7 +7,12 @@ import { randomUUID } from 'node:crypto'
 import { MetaSyncDisabledError } from '@adatechnology/catalog-contracts'
 import type { MetaCatalogSyncPort, MetaSyncOutcome } from '@adatechnology/catalog-contracts'
 
-import { RetryFailedSyncsUseCase, SyncPendingToMetaUseCase, SyncProductToMetaUseCase } from './MetaSync.use-cases'
+import {
+  RecordMetaReviewVerdictUseCase,
+  RetryFailedSyncsUseCase,
+  SyncPendingToMetaUseCase,
+  SyncProductToMetaUseCase,
+} from './MetaSync.use-cases'
 import { createInMemoryCatalogs, createInMemoryProducts, createInMemorySections } from '../testing/inMemoryRepositories'
 import type { CatalogDependencies } from './catalogModule.types'
 import type { ProductRow } from '../schema/schema'
@@ -172,5 +177,65 @@ describe('RetryFailedSyncs', () => {
     expect(products.rows[0]?.syncStatus).toBe('pending')
     // Limpa o erro antigo: mantê-lo confundiria com uma falha nova na próxima tentativa.
     expect(products.rows[0]?.syncError).toBeNull()
+  })
+})
+
+describe('RecordMetaReviewVerdict — o veredito chega depois, pelo webhook', () => {
+  it('aprovacao grava o externalId da Meta e limpa o erro anterior', async () => {
+    const product = buildProduct({ syncStatus: 'failed', syncError: 'Em revisao' })
+    const { dependencies, products } = buildDependencies({ seed: [product] })
+
+    const result = await new RecordMetaReviewVerdictUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      retailerId: product.id,
+      approved: true,
+      externalId: 'meta-item-9',
+    })
+
+    expect(result.applied).toBe(true)
+    expect(products.rows[0]?.syncStatus).toBe('synced')
+    expect(products.rows[0]?.externalId).toBe('meta-item-9')
+    expect(products.rows[0]?.syncError).toBeNull()
+  })
+
+  it('reprovacao NAO volta para pending — reenviar o mesmo item seria reprovado de novo', async () => {
+    const product = buildProduct({ syncStatus: 'synced', externalId: 'meta-item-9' })
+    const { dependencies, products } = buildDependencies({ seed: [product] })
+
+    await new RecordMetaReviewVerdictUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      retailerId: product.id,
+      approved: false,
+      reason: 'Imagem fora do padrao',
+    })
+
+    expect(products.rows[0]?.syncStatus).toBe('failed')
+    expect(products.rows[0]?.syncError).toBe('Imagem fora do padrao')
+  })
+
+  it('o veredito nao chama a Graph API — republicar aqui viraria eco sem fim', async () => {
+    const product = buildProduct()
+    const { dependencies, sent } = buildDependencies({ seed: [product] })
+
+    await new RecordMetaReviewVerdictUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      retailerId: product.id,
+      approved: true,
+    })
+
+    expect(sent).toEqual([])
+  })
+
+  it('item de outra origem no mesmo catalogo e descartado, e nao erro', async () => {
+    const { dependencies, products } = buildDependencies({ seed: [buildProduct()] })
+
+    const result = await new RecordMetaReviewVerdictUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      retailerId: randomUUID(),
+      approved: false,
+    })
+
+    expect(result.applied).toBe(false)
+    expect(products.rows[0]?.syncStatus).toBe('pending')
   })
 })

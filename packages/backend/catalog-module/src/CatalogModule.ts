@@ -37,6 +37,7 @@ import {
 } from './use-cases/Catalog.use-cases'
 import { AdjustInventoryUseCase, ConsumeInventoryUseCase } from './use-cases/Inventory.use-cases'
 import {
+  RecordMetaReviewVerdictUseCase,
   RetryFailedSyncsUseCase,
   SyncCatalogToMetaUseCase,
   SyncPendingToMetaUseCase,
@@ -94,6 +95,7 @@ export type CatalogModule = {
     readonly syncCatalogToMeta: SyncCatalogToMetaUseCase
     readonly syncPendingToMeta: SyncPendingToMetaUseCase
     readonly retryFailedSyncs: RetryFailedSyncsUseCase
+    readonly recordMetaReviewVerdict: RecordMetaReviewVerdictUseCase
   }
   /** Descritores para o cron do host registrar; o módulo não abre timer próprio. */
   readonly schedules: readonly CatalogSchedule[]
@@ -153,6 +155,7 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       syncCatalogToMeta: new SyncCatalogToMetaUseCase(dependencies),
       syncPendingToMeta,
       retryFailedSyncs: new RetryFailedSyncsUseCase(dependencies),
+      recordMetaReviewVerdict: new RecordMetaReviewVerdictUseCase(dependencies),
     },
 
     schedules: wantsMetaSync

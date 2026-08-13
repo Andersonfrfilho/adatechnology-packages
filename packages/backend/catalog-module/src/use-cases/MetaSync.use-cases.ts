@@ -227,3 +227,83 @@ export class RetryFailedSyncsUseCase {
     return { requeued: failed.length }
   }
 }
+
+export class RecordMetaReviewVerdictUseCase {
+  constructor(private readonly dependencies: CatalogDependencies) {}
+
+  /**
+   * Aplica o veredito que a Meta manda pelo webhook de catálogo.
+   *
+   * A publicação devolve 200 muito antes de o item ser aprovado: a revisão é assíncrona, e um
+   * produto reprovado dias depois continuaria marcado como `synced` aqui — o operador só
+   * descobriria pelo pedido que não chega. Só o veredito entra por aqui; nada é reenviado para a
+   * Meta, senão a nossa própria republicação viraria um novo evento, e o eco não teria fim.
+   *
+   * O `retailerId` é o id do produto daqui (`toMetaPayload`), então o recibo aponta de volta sem
+   * tabela de correspondência. Id desconhecido é descartado em silêncio: o mesmo catálogo pode
+   * receber item de outra origem, e isso não é erro nosso.
+   */
+  async execute(params: {
+    companyId: string
+    retailerId: string
+    approved: boolean
+    externalId?: string
+    reason?: string
+  }): Promise<{ applied: boolean }> {
+    const row = await this.dependencies.products.findById({ companyId: params.companyId, id: params.retailerId })
+    if (!row) return { applied: false }
+
+    const occurredAt = nowOf(this.dependencies)
+
+    if (params.approved) {
+      await this.dependencies.products.markSync({
+        companyId: params.companyId,
+        id: row.id,
+        syncStatus: PRODUCT_SYNC_STATUS.SYNCED,
+        ...(params.externalId ? { externalId: params.externalId } : {}),
+        syncError: null,
+      })
+
+      await runHook({
+        dependencies: this.dependencies,
+        name: CATALOG_EVENT.SYNC_SUCCEEDED,
+        run: () =>
+          this.dependencies.hooks?.onSyncSucceeded?.({
+            companyId: params.companyId,
+            occurredAt,
+            entity: 'product',
+            entityId: row.id,
+            externalId: params.externalId ?? row.externalId ?? '',
+          }),
+      })
+
+      return { applied: true }
+    }
+
+    // Reprovação não volta para `pending`: reenviar o mesmo conteúdo seria reprovado de novo. Sai
+    // como `failed`, e o `retryFailedSyncs` republica depois que o operador corrigir o item.
+    await this.dependencies.products.markSync({
+      companyId: params.companyId,
+      id: row.id,
+      syncStatus: PRODUCT_SYNC_STATUS.FAILED,
+      syncError: params.reason ?? 'Item reprovado na revisao da Meta',
+    })
+
+    await runHook({
+      dependencies: this.dependencies,
+      name: CATALOG_EVENT.SYNC_FAILED,
+      run: () =>
+        this.dependencies.hooks?.onSyncFailed?.({
+          companyId: params.companyId,
+          occurredAt,
+          entity: 'product',
+          entityId: row.id,
+          errorCode: 'review_rejected',
+          status: PRODUCT_SYNC_STATUS.FAILED,
+          willRetry: false,
+        }),
+    })
+
+    return { applied: true }
+  }
+}

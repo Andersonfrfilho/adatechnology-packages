@@ -70,6 +70,7 @@ export {
   SyncCatalogToMetaUseCase,
   SyncPendingToMetaUseCase,
   RetryFailedSyncsUseCase,
+  RecordMetaReviewVerdictUseCase,
 } from './use-cases/MetaSync.use-cases'
 export type { SweepResult } from './use-cases/MetaSync.use-cases'
 export type { CatalogSchedule } from './CatalogModule'
