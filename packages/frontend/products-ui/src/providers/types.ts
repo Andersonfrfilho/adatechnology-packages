@@ -1,3 +1,5 @@
+import type { BackgroundRemovalConfig } from '../removeBackground'
+
 export type ProductsApi = {
   listProducts(params?: {
     page?: number
@@ -185,6 +187,9 @@ export type ProductsConfig = {
   // implicaria custo zero.
   readonly marginShortcutPercents?: readonly number[]
   readonly metaSync?: MetaSyncConfig
+  // Ausente, o botão de remover fundo não é desenhado — capacidade por ausência. O host informa de
+  // onde o modelo é servido porque ele pesa alguns MB e não cabe dentro do pacote.
+  readonly backgroundRemoval?: BackgroundRemovalConfig
 }
 
 export const DEFAULT_UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx', 'dz'] as const

@@ -1,7 +1,10 @@
-import { ImagePlus, X } from 'lucide-react'
+import { Check, ImagePlus, Scissors, X } from 'lucide-react'
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react'
 
 import { compressImage, PRODUCT_IMAGE_MAX_BYTES } from './compressImage'
+import { BACKGROUND_FILL } from './removeBackground'
+import { useBackgroundRemoval } from './useBackgroundRemoval.hook'
+import { useProductsConfig } from './providers/ProductsProvider'
 
 export type ImageUploadProps = {
   readonly onUpload: (file: File) => Promise<string>
@@ -9,11 +12,19 @@ export type ImageUploadProps = {
 }
 
 export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
+  const { backgroundRemoval } = useProductsConfig()
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  // O arquivo original fica retido para o recorte de fundo poder ser tentado depois do envio.
+  const [sourceFile, setSourceFile] = useState<File | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const cutout = useBackgroundRemoval({
+    file: sourceFile,
+    ...(backgroundRemoval ? { config: backgroundRemoval } : {}),
+  })
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -21,6 +32,7 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
       return
     }
     setError(null)
+    setSourceFile(file)
     setUploading(true)
 
     try {
@@ -74,8 +86,26 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
 
   const handleRemove = useCallback(() => {
     setPreview(null)
+    setSourceFile(null)
     if (inputRef.current) inputRef.current.value = ''
   }, [])
+
+  const handleApplyCutout = useCallback(async () => {
+    if (!cutout.result) return
+
+    setError(null)
+    setUploading(true)
+
+    try {
+      const url = await onUpload(await compressImage({ file: cutout.result }))
+      setPreview(url)
+      cutout.discard()
+    } catch {
+      setError('Erro ao enviar imagem')
+    } finally {
+      setUploading(false)
+    }
+  }, [cutout, onUpload])
 
   return (
     <div>
@@ -125,6 +155,75 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
             </>
           )}
         </button>
+      )}
+
+      {cutout.available && preview && (
+        <div className="mt-2">
+          {cutout.result && cutout.previewUrl ? (
+            <div className="flex items-start gap-3 flex-wrap">
+              <figure className="m-0">
+                <img
+                  src={cutout.previewUrl}
+                  alt="Prévia do produto sem fundo"
+                  className="w-32 h-32 rounded-lg object-cover border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800"
+                />
+                <figcaption className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sem fundo</figcaption>
+              </figure>
+
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={handleApplyCutout}
+                  disabled={uploading || cutout.running}
+                  className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg bg-brand-600 text-white text-sm hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                >
+                  <Check aria-hidden="true" className="w-4 h-4" />
+                  Aplicar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    cutout.run(
+                      cutout.fill === BACKGROUND_FILL.WHITE ? BACKGROUND_FILL.TRANSPARENT : BACKGROUND_FILL.WHITE,
+                    )
+                  }
+                  disabled={cutout.running}
+                  className="min-h-11 px-3 inline-flex items-center rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 hover:border-gray-400 disabled:opacity-50 transition-colors"
+                >
+                  {cutout.fill === BACKGROUND_FILL.WHITE ? 'Deixar transparente' : 'Fundo branco'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={cutout.discard}
+                  disabled={cutout.running}
+                  className="min-h-11 px-3 inline-flex items-center rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 disabled:opacity-50 transition-colors"
+                >
+                  Descartar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => cutout.run()}
+              disabled={cutout.running || uploading}
+              className="min-h-11 px-3 inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-200 hover:border-gray-400 disabled:opacity-50 transition-colors"
+            >
+              <Scissors aria-hidden="true" className="w-4 h-4" />
+              {cutout.running ? 'Recortando…' : 'Remover fundo'}
+            </button>
+          )}
+
+          {cutout.running && (
+            // O modelo pesa alguns MB e é baixado na primeira vez: sem este aviso a espera parece travamento.
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Na primeira vez o modelo é baixado; pode levar alguns segundos.
+            </p>
+          )}
+          {cutout.error && <p className="text-xs text-red-500 mt-1">{cutout.error}</p>}
+        </div>
       )}
 
       <input
