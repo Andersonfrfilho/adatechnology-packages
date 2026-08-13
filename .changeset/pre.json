@@ -119,6 +119,7 @@
     "restore-provider-factory",
     "rich-message-composer",
     "send-media-logger-port",
+    "send-product-list-action",
     "strict-declarations",
     "style-customization-and-moderation-badge",
     "summary-preview",
