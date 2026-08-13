@@ -19,6 +19,9 @@
     "build:watch": "tsup src/index.ts --watch --dts --format esm --external react --external react-dom",
     "check": "tsc -p tsconfig.json --noEmit"
   },
+  "dependencies": {
+    "lucide-react": "^1.21.0"
+  },
   "peerDependencies": {
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"

@@ -9,6 +9,8 @@ export interface ProductsWorkspaceLabels {
   readonly newProduct: string
   readonly bulkImport: string
   readonly catalogsTab: string
+  /** Nome acessível da navegação entre áreas — o leitor de tela anuncia isto antes dos itens. */
+  readonly areaNav: string
   readonly productsTab: string
   readonly editTitle: string
   readonly createTitle: string
@@ -27,6 +29,7 @@ export const DEFAULT_PRODUCTS_WORKSPACE_LABELS: ProductsWorkspaceLabels = {
   newProduct: 'Novo produto',
   bulkImport: 'Importar CSV',
   catalogsTab: 'Catálogos',
+  areaNav: 'Áreas do catálogo',
   productsTab: 'Produtos',
   editTitle: 'Editar produto',
   createTitle: 'Novo produto',

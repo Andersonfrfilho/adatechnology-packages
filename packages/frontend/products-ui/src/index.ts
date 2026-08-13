@@ -1,5 +1,17 @@
-export { ProductsWorkspace, useProductsWorkspace, DEFAULT_PRODUCTS_WORKSPACE_LABELS } from './workspace'
-export type { ProductsWorkspaceProps, ProductsWorkspaceState, ProductsWorkspaceLabels, ProductDraft } from './workspace'
+export {
+  ProductsWorkspace,
+  useProductsWorkspace,
+  DEFAULT_PRODUCTS_WORKSPACE_LABELS,
+  PRODUCTS_WORKSPACE_AREA,
+  isProductsWorkspaceArea,
+} from './workspace'
+export type {
+  ProductsWorkspaceProps,
+  ProductsWorkspaceState,
+  ProductsWorkspaceLabels,
+  ProductDraft,
+  ProductsWorkspaceArea,
+} from './workspace'
 
 export { ProductList } from './ProductList'
 export type { ProductListProps } from './ProductList'
