@@ -47,8 +47,8 @@ type FormState = {
   active: boolean
 }
 
-const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
-const LABEL_CLASS = 'block text-sm font-medium text-gray-700 mb-1'
+const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
+const LABEL_CLASS = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
 
 export function ProductForm({
   onSubmit,
@@ -264,21 +264,21 @@ export function ProductForm({
         />
         {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
         {suggestions.length > 0 && (
-          <ul className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+          <ul className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
             {suggestions.map((suggestion, index) => (
               <li key={`${suggestion.barcode ?? suggestion.name}-${index}`}>
                 <button
                   type="button"
                   onClick={() => handleSelectSuggestion(suggestion)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   {suggestion.imageUrl && (
-                    <img src={suggestion.imageUrl} alt="" className="w-8 h-8 rounded object-cover bg-gray-100" />
+                    <img src={suggestion.imageUrl} alt="" className="w-8 h-8 rounded object-cover bg-gray-100 dark:bg-gray-800" />
                   )}
                   <span className="flex-1 min-w-0">
                     <span className="block truncate">{suggestion.name}</span>
                     {suggestion.brand && (
-                      <span className="block text-xs text-gray-400 truncate">{suggestion.brand}</span>
+                      <span className="block text-xs text-gray-400 dark:text-gray-500 truncate">{suggestion.brand}</span>
                     )}
                   </span>
                 </button>
@@ -328,7 +328,7 @@ export function ProductForm({
                     key={percent}
                     type="button"
                     onClick={() => handleMarginShortcut(percent)}
-                    className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-brand-100 hover:text-brand-700 transition-colors"
+                    className="px-2 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-brand-100 hover:text-brand-700 transition-colors"
                   >
                     +{percent}%
                   </button>
@@ -372,7 +372,7 @@ export function ProductForm({
                     type="button"
                     onClick={() => void handleScanBarcode()}
                     disabled={scanning}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
                     title="Escanear código de barras"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -436,7 +436,7 @@ export function ProductForm({
           placeholder="https://..."
         />
         {form.imageUrl && (
-          <img src={form.imageUrl} alt="Preview" className="mt-2 w-20 h-20 rounded-lg object-cover bg-gray-100" />
+          <img src={form.imageUrl} alt="Preview" className="mt-2 w-20 h-20 rounded-lg object-cover bg-gray-100 dark:bg-gray-800" />
         )}
       </div>
 
@@ -506,10 +506,10 @@ export function ProductForm({
           />
           <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600" />
         </label>
-        <span className="text-sm font-medium text-gray-700">Produto ativo</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Produto ativo</span>
       </div>
 
-      <div className="flex justify-end pt-4 border-t border-gray-200">
+      <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
         <button
           type="submit"
           disabled={submitting}

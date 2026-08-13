@@ -180,7 +180,7 @@ export function CatalogList({
       )}
 
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-700">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
           {catalogs.length} catálogo{catalogs.length !== 1 ? 's' : ''}
         </h3>
         {!creating && (
@@ -196,14 +196,14 @@ export function CatalogList({
       {/* Create form */}
       {creating && (
         <form onSubmit={handleCreate} className="mb-4 p-4 border border-brand-200 rounded-lg bg-brand-50">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">Novo catálogo</h4>
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Novo catálogo</h4>
           <div className="space-y-3">
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Nome do catálogo"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               autoFocus
             />
             <input
@@ -211,7 +211,7 @@ export function CatalogList({
               value={newDescription}
               onChange={(e) => setNewDescription(e.target.value)}
               placeholder="Descrição (opcional)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             {showSortOrder && (
               <input
@@ -220,14 +220,14 @@ export function CatalogList({
                 value={newSortOrder}
                 onChange={(e) => setNewSortOrder(e.target.value)}
                 placeholder="Ordem de exibição"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             )}
             <div className="flex gap-2 justify-end">
               <button
                 type="button"
                 onClick={() => setCreating(false)}
-                className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-800"
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800"
               >
                 Cancelar
               </button>
@@ -249,7 +249,7 @@ export function CatalogList({
             type="button"
             onClick={() => onSelect?.(null)}
             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-              selectedId === null ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+              selectedId === null ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
             }`}
           >
             Todos
@@ -263,14 +263,14 @@ export function CatalogList({
                 className={`flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${
                   selectedId === catalog.id
                     ? 'bg-brand-50 text-brand-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}
               >
-                <span className={catalog.active ? '' : 'text-gray-400 line-through'}>{catalog.name}</span>
+                <span className={catalog.active ? '' : 'text-gray-400 dark:text-gray-500 line-through'}>{catalog.name}</span>
                 <span className="flex items-center gap-1">
                   {showSyncStatus && <SyncDot status={catalog.syncStatus ?? null} error={catalog.syncError ?? null} />}
                   {catalog.productCount !== undefined && (
-                    <span className="text-xs text-gray-400">{catalog.productCount}</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">{catalog.productCount}</span>
                   )}
                 </span>
               </button>
@@ -278,7 +278,7 @@ export function CatalogList({
                 type="button"
                 onClick={() => startEdit(catalog)}
                 aria-label={`Editar ${catalog.name}`}
-                className="opacity-0 group-hover:opacity-100 focus:opacity-100 px-2 py-1 text-xs text-gray-400 hover:text-gray-700 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 px-2 py-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-opacity"
               >
                 Editar
               </button>
@@ -292,11 +292,11 @@ export function CatalogList({
               className={`w-full text-left px-3 py-2 rounded-lg text-sm italic transition-colors flex items-center justify-between ${
                 selectedId === CATALOG_NONE
                   ? 'bg-brand-50 text-brand-700 font-medium'
-                  : 'text-gray-500 hover:bg-gray-50'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
               <span>Sem catálogo</span>
-              {noneCount !== undefined && <span className="text-xs text-gray-400">{noneCount}</span>}
+              {noneCount !== undefined && <span className="text-xs text-gray-400 dark:text-gray-500">{noneCount}</span>}
             </button>
           )}
 
@@ -306,7 +306,7 @@ export function CatalogList({
                 type="text"
                 value={editing.name}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                className="w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               {showSortOrder && (
                 <input
@@ -314,10 +314,10 @@ export function CatalogList({
                   min="0"
                   value={editing.sortOrder}
                   onChange={(e) => setEditing({ ...editing, sortOrder: e.target.value })}
-                  className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               )}
-              <label className="flex items-center gap-2 text-xs text-gray-600">
+              <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
                 <input
                   type="checkbox"
                   checked={editing.active}
@@ -336,7 +336,7 @@ export function CatalogList({
                   {deletingId === editing.id ? 'Confirmar exclusão' : 'Excluir'}
                 </button>
                 <span className="flex gap-1">
-                  <button type="button" onClick={cancelEdit} className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded">
+                  <button type="button" onClick={cancelEdit} className="px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
                     Cancelar
                   </button>
                   <button
@@ -358,20 +358,20 @@ export function CatalogList({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-200 bg-gray-50">
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
-              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Produtos</th>
-              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ativo</th>
+            <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nome</th>
+              <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Descrição</th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Produtos</th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ativo</th>
               {showSyncStatus && (
-                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">Meta</th>
+                <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Meta</th>
               )}
-              <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ações</th>
+              <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
             {catalogs.map((catalog) => (
-              <tr key={catalog.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={catalog.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                 {editing?.id === catalog.id ? (
                   <>
                     <td className="px-3 py-2">
@@ -379,7 +379,7 @@ export function CatalogList({
                         type="text"
                         value={editing.name}
                         onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        className="w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -387,10 +387,10 @@ export function CatalogList({
                         type="text"
                         value={editing.description}
                         onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                        className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        className="w-full px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                       />
                     </td>
-                    <td className="px-3 py-2 text-center text-gray-500">{catalog.productCount ?? '—'}</td>
+                    <td className="px-3 py-2 text-center text-gray-500 dark:text-gray-400">{catalog.productCount ?? '—'}</td>
                     <td className="px-3 py-2 text-center">
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
@@ -420,7 +420,7 @@ export function CatalogList({
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          className="px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 rounded transition-colors"
+                          className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
                         >
                           Cancelar
                         </button>
@@ -429,18 +429,18 @@ export function CatalogList({
                   </>
                 ) : (
                   <>
-                    <td className="px-3 py-3 font-medium text-gray-900">{catalog.name}</td>
-                    <td className="px-3 py-3 text-gray-500 max-w-[200px] truncate">
+                    <td className="px-3 py-3 font-medium text-gray-900 dark:text-gray-100">{catalog.name}</td>
+                    <td className="px-3 py-3 text-gray-500 dark:text-gray-400 max-w-[200px] truncate">
                       {catalog.description ?? '—'}
                     </td>
-                    <td className="px-3 py-3 text-center text-gray-700">
+                    <td className="px-3 py-3 text-center text-gray-700 dark:text-gray-300">
                       {catalog.productCount ?? '—'}
                     </td>
                     <td className="px-3 py-3 text-center">
                       {catalog.active ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Sim</span>
                       ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Não</span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">Não</span>
                       )}
                     </td>
                     {showSyncStatus && (
@@ -452,7 +452,7 @@ export function CatalogList({
                       <div className="flex gap-1 justify-end">
                         <button
                           onClick={() => startEdit(catalog)}
-                          className="px-2 py-1 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                          className="px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
                         >
                           Editar
                         </button>
@@ -474,7 +474,7 @@ export function CatalogList({
             ))}
             {catalogs.length === 0 && (
               <tr>
-                <td colSpan={showSyncStatus ? 6 : 5} className="px-3 py-12 text-center text-gray-500 text-sm">
+                <td colSpan={showSyncStatus ? 6 : 5} className="px-3 py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
                   Nenhum catálogo criado ainda
                 </td>
               </tr>

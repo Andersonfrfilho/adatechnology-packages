@@ -141,11 +141,11 @@ export function BulkImport({ onImport }: BulkImportProps) {
           <div className="flex gap-6 text-sm">
             <div>
               <span className="text-green-700 font-semibold">{result.succeeded}</span>
-              <span className="text-gray-600 ml-1">sucesso</span>
+              <span className="text-gray-600 dark:text-gray-400 ml-1">sucesso</span>
             </div>
             <div>
               <span className="text-red-600 font-semibold">{result.failed}</span>
-              <span className="text-gray-600 ml-1">falhas</span>
+              <span className="text-gray-600 dark:text-gray-400 ml-1">falhas</span>
             </div>
           </div>
           {result.errors.length > 0 && (
@@ -169,7 +169,7 @@ export function BulkImport({ onImport }: BulkImportProps) {
       {!result && (
         <>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Arquivo CSV
             </label>
             <input
@@ -177,36 +177,36 @@ export function BulkImport({ onImport }: BulkImportProps) {
               type="file"
               accept=".csv"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
+              className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100"
             />
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
               Colunas esperadas: nome, preço, descrição, unidade, código_barras, catálogo, estoque
             </p>
           </div>
 
           {preview.length > 0 && (
             <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 Prévia ({preview.length === 5 ? 'primeiras 5' : preview.length} linha{preview.length !== 1 ? 's' : ''})
               </h4>
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-3 py-2 text-left text-gray-500 font-medium">#</th>
+                    <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                      <th className="px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-medium">#</th>
                       {preview[0]?.cells.map((_, i) => (
-                        <th key={i} className="px-3 py-2 text-left text-gray-500 font-medium">
+                        <th key={i} className="px-3 py-2 text-left text-gray-500 dark:text-gray-400 font-medium">
                           Col {i + 1}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {preview.map((row) => (
                       <tr key={row.row}>
-                        <td className="px-3 py-2 text-gray-400">{row.row}</td>
+                        <td className="px-3 py-2 text-gray-400 dark:text-gray-500">{row.row}</td>
                         {row.cells.map((cell, i) => (
-                          <td key={i} className="px-3 py-2 text-gray-700 max-w-[180px] truncate">
+                          <td key={i} className="px-3 py-2 text-gray-700 dark:text-gray-300 max-w-[180px] truncate">
                             {cell}
                           </td>
                         ))}

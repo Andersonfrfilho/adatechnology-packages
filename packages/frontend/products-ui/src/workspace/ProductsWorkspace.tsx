@@ -42,13 +42,13 @@ export function ProductsWorkspace({
 
   return (
     <div className="flex flex-col h-full">
-      <header className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-200">
-        <h1 className="text-lg font-semibold text-gray-900 mr-auto">{labels.title}</h1>
+      <header className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mr-auto">{labels.title}</h1>
         {renderHeaderActions?.()}
         <button
           type="button"
           onClick={() => setImporting((value) => !value)}
-          className={`${BUTTON_CLASS} border border-gray-300 text-gray-700 hover:bg-gray-50`}
+          className={`${BUTTON_CLASS} border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800`}
         >
           {labels.bulkImport}
         </button>
@@ -62,7 +62,7 @@ export function ProductsWorkspace({
       </header>
 
       <div className="flex flex-1 min-h-0 flex-col desktop:flex-row">
-        <aside className="desktop:w-64 shrink-0 border-b desktop:border-b-0 desktop:border-r border-gray-200 overflow-y-auto">
+        <aside className="desktop:w-64 shrink-0 border-b desktop:border-b-0 desktop:border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
           <CatalogList
             variant="sidebar"
             selectedId={workspace.catalogId}
@@ -79,7 +79,7 @@ export function ProductsWorkspace({
               onChange={(event) => workspace.setSearch(event.target.value)}
               placeholder={labels.search}
               aria-label={labels.search}
-              className="w-full max-w-sm px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full max-w-sm px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
             <nav className="ml-auto flex gap-1" aria-label={labels.title}>
               {(['products', 'catalogs'] as const).map((value) => (
@@ -88,7 +88,7 @@ export function ProductsWorkspace({
                   type="button"
                   onClick={() => setTab(value)}
                   aria-pressed={tab === value}
-                  className={`${BUTTON_CLASS} ${tab === value ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  className={`${BUTTON_CLASS} ${tab === value ? 'bg-gray-900 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                 >
                   {value === 'products' ? labels.productsTab : labels.catalogsTab}
                 </button>
@@ -125,10 +125,10 @@ export function ProductsWorkspace({
         {isDraftOpen ? (
           <section
             aria-label={isEditing ? labels.editTitle : labels.createTitle}
-            className="desktop:w-[28rem] shrink-0 border-t desktop:border-t-0 desktop:border-l border-gray-200 overflow-y-auto p-4"
+            className="desktop:w-[28rem] shrink-0 border-t desktop:border-t-0 desktop:border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-4"
           >
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-sm font-semibold text-gray-900 mr-auto">
+              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mr-auto">
                 {isEditing ? labels.editTitle : labels.createTitle}
               </h2>
               {isEditing && (
@@ -147,7 +147,7 @@ export function ProductsWorkspace({
               <button
                 type="button"
                 onClick={workspace.closeDraft}
-                className={`${BUTTON_CLASS} text-gray-600 hover:bg-gray-100`}
+                className={`${BUTTON_CLASS} text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800`}
               >
                 {labels.close}
               </button>
@@ -177,12 +177,12 @@ function Pagination({
   if (workspace.totalPages <= 1) return null
 
   return (
-    <div className="flex items-center gap-3 text-sm text-gray-600">
+    <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
       <button
         type="button"
         disabled={workspace.page <= 1}
         onClick={() => workspace.setPage(workspace.page - 1)}
-        className={`${BUTTON_CLASS} border border-gray-300 disabled:opacity-40`}
+        className={`${BUTTON_CLASS} border border-gray-300 dark:border-gray-700 disabled:opacity-40`}
       >
         {labels.previousPage}
       </button>
@@ -191,7 +191,7 @@ function Pagination({
         type="button"
         disabled={workspace.page >= workspace.totalPages}
         onClick={() => workspace.setPage(workspace.page + 1)}
-        className={`${BUTTON_CLASS} border border-gray-300 disabled:opacity-40`}
+        className={`${BUTTON_CLASS} border border-gray-300 dark:border-gray-700 disabled:opacity-40`}
       >
         {labels.nextPage}
       </button>

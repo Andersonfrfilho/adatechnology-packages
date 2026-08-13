@@ -15,8 +15,8 @@ export type ProductListProps = {
 type SortField = 'name' | 'price' | 'unit' | 'catalogName' | 'barcode' | 'active' | 'inventory'
 type SortDir = 'asc' | 'desc'
 
-const HEADER_CLASS = 'px-3 py-3 text-xs font-medium text-gray-500 uppercase'
-const SORTABLE_CLASS = `${HEADER_CLASS} cursor-pointer select-none hover:text-gray-700`
+const HEADER_CLASS = 'px-3 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'
+const SORTABLE_CLASS = `${HEADER_CLASS} cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-200`
 
 const SYNC_STATUS_BADGE: Record<ProductSyncStatus, { readonly label: string; readonly className: string }> = {
   [PRODUCT_SYNC_STATUS.PENDING]: { label: 'Pendente', className: 'bg-amber-100 text-amber-800' },
@@ -106,7 +106,7 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
 
   if (products.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-500 text-sm">
+      <div className="text-center py-12 text-gray-500 dark:text-gray-400 text-sm">
         Nenhum produto encontrado
       </div>
     )
@@ -125,7 +125,7 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-200 bg-gray-50">
+          <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             <th className={`${HEADER_CLASS} text-left`}>Img</th>
             <th className={`${SORTABLE_CLASS} text-left`} onClick={() => handleSort('name')}>
               Nome <SortIcon field="name" currentField={sortField} currentDir={sortDir} />
@@ -158,7 +158,7 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
             {showSyncStatus && <th className={`${HEADER_CLASS} text-center`}>Catálogo Meta</th>}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
           {sortedProducts.map((product) => (
             <tr
               key={product.id}
@@ -170,11 +170,11 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                   <img
                     src={product.imageUrl}
                     alt={product.name}
-                    className="w-10 h-10 rounded-lg object-cover bg-gray-100"
+                    className="w-10 h-10 rounded-lg object-cover bg-gray-100 dark:bg-gray-800"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 dark:text-gray-500">
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                       <circle cx="8.5" cy="8.5" r="1.5" />
                       <polyline points="21 15 16 10 5 21" />
@@ -182,25 +182,25 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                   </div>
                 )}
               </td>
-              <td className="px-3 py-3 font-medium text-gray-900 max-w-[200px] truncate">
+              <td className="px-3 py-3 font-medium text-gray-900 dark:text-gray-100 max-w-[200px] truncate">
                 {product.name}
               </td>
-              <td className="px-3 py-3 text-right font-mono text-gray-700">
+              <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300">
                 {formatMoney(product.priceInCents, moneyFormat)}
               </td>
               {showCostPrice && (
-                <td className="px-3 py-3 text-center text-gray-500">
+                <td className="px-3 py-3 text-center text-gray-500 dark:text-gray-400">
                   {product.costPriceInCents
                     ? formatMarginPercent(product.costPriceInCents, product.priceInCents)
                     : '—'}
                 </td>
               )}
-              {showUnit && <td className="px-3 py-3 text-gray-600">{product.unit ?? '—'}</td>}
-              <td className="px-3 py-3 text-gray-600 max-w-[120px] truncate">
+              {showUnit && <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{product.unit ?? '—'}</td>}
+              <td className="px-3 py-3 text-gray-600 dark:text-gray-400 max-w-[120px] truncate">
                 {product.catalogName ?? '—'}
               </td>
               {showBarcode && (
-                <td className="px-3 py-3 text-gray-500 font-mono text-xs">
+                <td className="px-3 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">
                   {product.barcode ? formatBarcode(product.barcode) : '—'}
                 </td>
               )}
@@ -210,13 +210,13 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                     Sim
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
                     Não
                   </span>
                 )}
               </td>
               {showInventory && (
-                <td className="px-3 py-3 text-right font-mono text-gray-700">
+                <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300">
                   {product.inventory ?? '—'}
                 </td>
               )}
@@ -236,7 +236,7 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
 // O motivo da falha vai no `title` em vez de numa coluna própria: a mensagem da Graph API é longa
 // e só interessa quando alguém está investigando aquele item.
 function SyncStatusBadge({ status, error }: { status?: ProductSyncStatus | null; error?: string | null }) {
-  if (!status) return <span className="text-gray-400">—</span>
+  if (!status) return <span className="text-gray-400 dark:text-gray-500">—</span>
 
   const badge = SYNC_STATUS_BADGE[status]
   return (

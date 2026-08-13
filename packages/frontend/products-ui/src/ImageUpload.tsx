@@ -77,7 +77,7 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
           <img
             src={preview}
             alt="Preview"
-            className="w-32 h-32 rounded-lg object-cover bg-gray-100 border border-gray-200"
+            className="w-32 h-32 rounded-lg object-cover bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
           />
           <button
             type="button"
@@ -102,19 +102,19 @@ export function ImageUpload({ onUpload, currentUrl }: ImageUploadProps) {
           className={`w-32 h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors ${
             dragOver
               ? 'border-brand-500 bg-brand-50'
-              : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+              : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 bg-gray-50 dark:bg-gray-800'
           }`}
         >
           {uploading ? (
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600" />
           ) : (
             <>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 mb-1">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400 dark:text-gray-500 mb-1">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              <span className="text-xs text-gray-400 text-center px-2">
+              <span className="text-xs text-gray-400 dark:text-gray-500 text-center px-2">
                 Clique ou arraste
               </span>
             </>
