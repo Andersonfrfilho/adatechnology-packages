@@ -17,6 +17,7 @@ import {
   RESOURCE_KIND,
   ResourceNotFoundError,
   ServiceNotFoundError,
+  type CalendarSyncPort,
   type ClockPort,
   type SchedulingHooks,
   type SchedulingModuleConfig,
@@ -50,6 +51,7 @@ function buildDependencies(
     config?: Partial<SchedulingModuleConfig>
     hooks?: SchedulingHooks
     videoMeeting?: VideoMeetingPort
+    calendarSync?: CalendarSyncPort
     clock?: ClockPort
   } = {},
 ) {
@@ -63,6 +65,7 @@ function buildDependencies(
     hooks: options.hooks,
     clock: options.clock ?? FIXED_CLOCK,
     videoMeeting: options.videoMeeting,
+    calendarSync: options.calendarSync,
   } as unknown as SchedulingDependencies
 
   return { dependencies, resources, services, bookings }
@@ -252,6 +255,43 @@ describe('RequestBookingUseCase', () => {
     expect(booking.meetingUrl ?? null).toBeNull()
   })
 
+  it('anexa evento de calendário quando a reserva nasce confirmed', async () => {
+    const calendarSync: CalendarSyncPort = {
+      upsertEvent: async () => ({ outcome: 'synced', externalEventId: 'ext-event-1' }),
+      deleteEvent: async () => {},
+      readEvents: async () => [],
+    }
+    const { dependencies, resources } = buildDependencies({ calendarSync })
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+
+    expect(booking.externalCalendarId).toBe('ext-event-1')
+  })
+
+  it('falha do provedor de calendário não bloqueia a reserva', async () => {
+    const calendarSync: CalendarSyncPort = {
+      upsertEvent: async () => {
+        throw new Error('provedor fora do ar')
+      },
+      deleteEvent: async () => {},
+      readEvents: async () => [],
+    }
+    const { dependencies, resources } = buildDependencies({ calendarSync })
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+
+    expect(booking.status).toBe(BOOKING_STATUS.CONFIRMED)
+    expect(booking.externalCalendarId ?? null).toBeNull()
+  })
+
   it('dispara onBookingRequested sempre, e onBookingConfirmed só quando nasce confirmed', async () => {
     const requestedEvents: string[] = []
     const confirmedEvents: string[] = []
@@ -384,6 +424,34 @@ describe('ConfirmBookingUseCase', () => {
       new ConfirmBookingUseCase(dependencies).execute({ companyId: COMPANY_ID, id: 'missing' }),
     ).rejects.toBeInstanceOf(BookingNotFoundError)
   })
+
+  it('anexa evento de calendário ao confirmar', async () => {
+    const calendarSync: CalendarSyncPort = {
+      upsertEvent: async () => ({ outcome: 'synced', externalEventId: 'ext-event-2' }),
+      deleteEvent: async () => {},
+      readEvents: async () => [],
+    }
+    const { dependencies, resources, services } = buildDependencies({ calendarSync })
+    const resource = await createResource(resources)
+    const service = await createService(services, { requiresConfirmation: true })
+
+    const { booking: requested } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: {
+        title: 'Corte',
+        serviceId: service.id,
+        during: { start: FUTURE_START, end: FUTURE_END },
+        resourceIds: [resource.id],
+      },
+    })
+
+    const { booking: confirmed } = await new ConfirmBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: requested.id,
+    })
+
+    expect(confirmed.externalCalendarId).toBe('ext-event-2')
+  })
 })
 
 describe('RescheduleBookingUseCase', () => {
@@ -438,6 +506,77 @@ describe('RescheduleBookingUseCase', () => {
         input: { during: { start: pastStart, end: pastEnd } },
       }),
     ).rejects.toBeInstanceOf(BookingInPastError)
+  })
+
+  it('reenvia o novo horário ao calendário externo quando já havia espelho', async () => {
+    const upsertCalls: Array<{ externalCalendarId?: string; startsAt: Date }> = []
+    const calendarSync: CalendarSyncPort = {
+      upsertEvent: async (payload) => {
+        upsertCalls.push({ externalCalendarId: payload.externalCalendarId, startsAt: payload.startsAt })
+        return { outcome: 'synced', externalEventId: 'ext-event-3' }
+      },
+      deleteEvent: async () => {},
+      readEvents: async () => [],
+    }
+    const { dependencies, resources } = buildDependencies({ calendarSync })
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+    expect(upsertCalls).toHaveLength(1)
+
+    const newStart = new Date('2026-08-21T14:00:00.000Z')
+    const newEnd = new Date('2026-08-21T14:30:00.000Z')
+    const { booking: rescheduled } = await new RescheduleBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: booking.id,
+      input: { during: { start: newStart, end: newEnd } },
+    })
+
+    expect(rescheduled.externalCalendarId).toBe('ext-event-3')
+    expect(upsertCalls).toHaveLength(2)
+    expect(upsertCalls[1]?.externalCalendarId).toBe('ext-event-3')
+    expect(upsertCalls[1]?.startsAt).toEqual(newStart)
+  })
+
+  it('não cria espelho novo ao remarcar reserva sem sincronização prévia', async () => {
+    const upsertCalls: number[] = []
+    const calendarSync: CalendarSyncPort = {
+      upsertEvent: async () => {
+        upsertCalls.push(1)
+        return { outcome: 'synced', externalEventId: 'ext-event-4' }
+      },
+      deleteEvent: async () => {},
+      readEvents: async () => [],
+    }
+    const { dependencies, resources, services } = buildDependencies({ calendarSync })
+    const resource = await createResource(resources)
+    const service = await createService(services, { requiresConfirmation: true })
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: {
+        title: 'Corte',
+        serviceId: service.id,
+        during: { start: FUTURE_START, end: FUTURE_END },
+        resourceIds: [resource.id],
+      },
+    })
+    expect(booking.status).toBe(BOOKING_STATUS.REQUESTED)
+    expect(upsertCalls).toHaveLength(0)
+
+    const newStart = new Date('2026-08-21T14:00:00.000Z')
+    const newEnd = new Date('2026-08-21T14:30:00.000Z')
+    const { booking: rescheduled } = await new RescheduleBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: booking.id,
+      input: { during: { start: newStart, end: newEnd } },
+    })
+
+    expect(rescheduled.externalCalendarId ?? null).toBeNull()
+    expect(upsertCalls).toHaveLength(0)
   })
 })
 
@@ -556,6 +695,57 @@ describe('CancelBookingUseCase', () => {
     expect(replayed.cancelledBy).toBe('user-1')
     expect(slots).toEqual([])
     expect(cancelledEvents).toHaveLength(1)
+  })
+
+  it('remove o espelho externo ao cancelar', async () => {
+    const deletedIds: string[] = []
+    const calendarSync: CalendarSyncPort = {
+      upsertEvent: async () => ({ outcome: 'synced', externalEventId: 'ext-event-5' }),
+      deleteEvent: async (externalEventId) => {
+        deletedIds.push(externalEventId)
+      },
+      readEvents: async () => [],
+    }
+    const { dependencies, resources } = buildDependencies({ calendarSync })
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+
+    await new CancelBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: booking.id,
+      input: { cancelledBy: 'user-1' },
+    })
+
+    expect(deletedIds).toEqual(['ext-event-5'])
+  })
+
+  it('falha ao remover o espelho externo não bloqueia o cancelamento', async () => {
+    const calendarSync: CalendarSyncPort = {
+      upsertEvent: async () => ({ outcome: 'synced', externalEventId: 'ext-event-6' }),
+      deleteEvent: async () => {
+        throw new Error('provedor fora do ar')
+      },
+      readEvents: async () => [],
+    }
+    const { dependencies, resources } = buildDependencies({ calendarSync })
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+
+    const { booking: cancelled } = await new CancelBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: booking.id,
+      input: { cancelledBy: 'user-1' },
+    })
+
+    expect(cancelled.status).toBe(BOOKING_STATUS.CANCELLED)
   })
 })
 

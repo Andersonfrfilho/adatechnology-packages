@@ -98,6 +98,59 @@ async function attachVideoMeeting(params: {
   }
 }
 
+/**
+ * Espelho no calendário externo nunca bloqueia a reserva (spec §8) — mesma postura de
+ * `attachVideoMeeting`. Chamada em `RequestBooking`/`ConfirmBooking` (reserva `confirmed`) e em
+ * `RescheduleBooking` (o evento espelhado precisa acompanhar o novo horário).
+ */
+async function attachCalendarSync(params: {
+  dependencies: SchedulingDependencies
+  companyId: string
+  booking: BookingRow
+}): Promise<BookingRow> {
+  const { calendarSync, repositories, logger } = params.dependencies
+  if (!calendarSync) return params.booking
+
+  try {
+    const outcome = await calendarSync.upsertEvent({
+      externalCalendarId: params.booking.externalCalendarId ?? undefined,
+      title: params.booking.title,
+      startsAt: params.booking.startsAt,
+      endsAt: params.booking.endsAt,
+      notes: params.booking.notes ?? undefined,
+    })
+    if (outcome.outcome !== 'synced') {
+      logger?.warn('scheduling.calendar_sync_failed', { bookingId: params.booking.id, errorCode: outcome.errorCode })
+      return params.booking
+    }
+    const updated = await repositories.bookings.updateStatus({
+      companyId: params.companyId,
+      id: params.booking.id,
+      status: params.booking.status,
+      values: { externalCalendarId: outcome.externalEventId },
+    })
+    return updated ?? params.booking
+  } catch (error) {
+    logger?.warn('scheduling.calendar_sync_failed', { bookingId: params.booking.id, error: String(error) })
+    return params.booking
+  }
+}
+
+/** Remove o espelho externo no cancelamento — melhor esforço, nunca bloqueia (mesma postura acima). */
+async function detachCalendarSync(params: {
+  dependencies: SchedulingDependencies
+  booking: BookingRow
+}): Promise<void> {
+  const { calendarSync, logger } = params.dependencies
+  if (!calendarSync || !params.booking.externalCalendarId) return
+
+  try {
+    await calendarSync.deleteEvent(params.booking.externalCalendarId)
+  } catch (error) {
+    logger?.warn('scheduling.calendar_sync_delete_failed', { bookingId: params.booking.id, error: String(error) })
+  }
+}
+
 function resourceIdsOf(slots: readonly { resourceId: string }[]): readonly string[] {
   return slots.map((slot) => slot.resourceId)
 }
@@ -194,6 +247,7 @@ export class RequestBookingUseCase {
     let booking = created.booking
     if (status === BOOKING_STATUS.CONFIRMED) {
       booking = await attachVideoMeeting({ dependencies: this.dependencies, companyId: params.companyId, booking })
+      booking = await attachCalendarSync({ dependencies: this.dependencies, companyId: params.companyId, booking })
       await runHook({
         dependencies: this.dependencies,
         name: 'onBookingConfirmed',
@@ -240,6 +294,11 @@ export class ConfirmBookingUseCase {
       companyId: params.companyId,
       booking: confirmed,
     })
+    const withCalendar = await attachCalendarSync({
+      dependencies: this.dependencies,
+      companyId: params.companyId,
+      booking: withVideo,
+    })
 
     await runHook({
       dependencies: this.dependencies,
@@ -248,13 +307,13 @@ export class ConfirmBookingUseCase {
         hooks?.onBookingConfirmed?.({
           companyId: params.companyId,
           occurredAt: nowOf(this.dependencies),
-          bookingId: withVideo.id,
-          serviceId: withVideo.serviceId,
+          bookingId: withCalendar.id,
+          serviceId: withCalendar.serviceId,
           resourceIds: resourceIdsOf(slots),
         }),
     })
 
-    return { booking: toBooking(withVideo), slots: slots.map(toBookingSlot) }
+    return { booking: toBooking(withCalendar), slots: slots.map(toBookingSlot) }
   }
 }
 
@@ -305,6 +364,11 @@ export class RescheduleBookingUseCase {
     })
     if (!updated) throw new BookingNotFoundError(params.id)
 
+    // Só re-sincroniza quem já tinha espelho — remarcar uma `requested` nunca cria evento novo.
+    const booking = existing.externalCalendarId
+      ? await attachCalendarSync({ dependencies: this.dependencies, companyId: params.companyId, booking: updated })
+      : updated
+
     await runHook({
       dependencies: this.dependencies,
       name: 'onBookingRescheduled',
@@ -312,15 +376,15 @@ export class RescheduleBookingUseCase {
         hooks?.onBookingRescheduled?.({
           companyId: params.companyId,
           occurredAt: now,
-          bookingId: updated.id,
-          serviceId: updated.serviceId,
+          bookingId: booking.id,
+          serviceId: booking.serviceId,
           resourceIds: resourceIdsOf(slots),
           previousDuring: { start: existing.startsAt, end: existing.endsAt },
           during: params.input.during,
         }),
     })
 
-    return { booking: toBooking(updated), slots: slots.map(toBookingSlot) }
+    return { booking: toBooking(booking), slots: slots.map(toBookingSlot) }
   }
 }
 
@@ -367,6 +431,8 @@ export class CancelBookingUseCase {
       cancellationReason: params.input.cancellationReason,
     })
     if (!cancelled) throw new BookingNotFoundError(params.id)
+
+    await detachCalendarSync({ dependencies: this.dependencies, booking: cancelled })
 
     await runHook({
       dependencies: this.dependencies,
