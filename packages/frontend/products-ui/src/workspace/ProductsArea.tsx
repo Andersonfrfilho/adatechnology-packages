@@ -43,7 +43,11 @@ export function ProductsArea({ labels, workspace }: ProductsAreaProps) {
 
       <main className="flex-1 min-w-0 overflow-y-auto p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full max-w-sm">
+          {/* `flex-1`, e nao `w-full`: com largura de 100% a busca reservava 24rem inteiros e a soma
+              com os dois botoes passava da linha por uma dezena de pixels, jogando ambos para baixo.
+              Agora ela ocupa a sobra ate o teto de 24rem e cede quando a linha aperta; o `min-w-40`
+              e o ponto em que ceder deixa de valer a pena e a quebra passa a ser a resposta certa. */}
+          <div className="relative flex-1 min-w-40 max-w-sm">
             <Search
               aria-hidden="true"
               className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
@@ -54,7 +58,7 @@ export function ProductsArea({ labels, workspace }: ProductsAreaProps) {
               onChange={(event) => workspace.setSearch(event.target.value)}
               placeholder={labels.search}
               aria-label={labels.search}
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full min-h-11 pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
 
