@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef, type FormEvent } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef, type FormEvent, type ReactNode } from 'react'
 import type { Product, Catalog, Section, CreateProductInput, ProductSuggestion } from './providers/types'
 import { DEFAULT_UNIT_OPTIONS, PRODUCT_OPTIONAL_FIELD } from './providers/types'
 import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './providers/ProductsProvider'
@@ -50,6 +51,48 @@ type FormState = {
 
 const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
 const LABEL_CLASS = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
+
+// `appearance-none` troca a seta do sistema pelo chevron desenhado abaixo: a nativa muda de forma e
+// de tamanho entre navegadores, e ao lado de um input de texto o campo parecia de outra tela.
+// `min-h-11` e a area de toque de 44px; `py-2` sozinho entrega 36px e erra o dedo no celular.
+// O fundo e explicito porque select sem `bg` herda o do sistema, que ignora o tema escuro.
+const SELECT_CLASS = `${INPUT_CLASS} appearance-none min-h-11 pr-9 cursor-pointer bg-white dark:bg-gray-900`
+
+type SelectFieldProps = {
+  readonly id: string
+  readonly label: string
+  readonly value: string
+  readonly onChange: (value: string) => void
+  readonly children: ReactNode
+}
+
+/**
+ * Campo de selecao com rotulo associado por `id`.
+ *
+ * O `htmlFor` nao e detalhe de conformidade: sem ele o clique no rotulo nao foca o campo — alvo bem
+ * maior que a seta — e o leitor de tela anuncia um combo sem nome.
+ */
+function SelectField({ id, label, value, onChange, children }: SelectFieldProps) {
+  return (
+    <div>
+      <label className={LABEL_CLASS} htmlFor={id}>{label}</label>
+      <div className="relative">
+        <select
+          id={id}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={SELECT_CLASS}
+        >
+          {children}
+        </select>
+        <ChevronDown
+          aria-hidden="true"
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+        />
+      </div>
+    </div>
+  )
+}
 
 export function ProductForm({
   onSubmit,
@@ -355,18 +398,16 @@ export function ProductForm({
       {(showUnit || showBarcode) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {showUnit && (
-            <div>
-              <label className={LABEL_CLASS}>Unidade</label>
-              <select
-                value={form.unit}
-                onChange={(e) => updateField('unit', e.target.value)}
-                className={INPUT_CLASS}
-              >
-                {unitOptions.map((unit) => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </select>
-            </div>
+            <SelectField
+              id="product-unit"
+              label="Unidade"
+              value={form.unit}
+              onChange={(value) => updateField('unit', value)}
+            >
+              {unitOptions.map((unit) => (
+                <option key={unit} value={unit}>{unit}</option>
+              ))}
+            </SelectField>
           )}
           {showBarcode && (
             <div>
@@ -404,38 +445,34 @@ export function ProductForm({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className={LABEL_CLASS}>Catálogo</label>
-          <select
-            value={form.catalogId}
-            onChange={(e) => updateField('catalogId', e.target.value)}
-            className={INPUT_CLASS}
-          >
-            <option value="">Nenhum</option>
-            {catalogs.map((catalog) => (
-              <option key={catalog.id} value={catalog.id}>{catalog.name}</option>
-            ))}
-          </select>
-        </div>
+        <SelectField
+          id="product-catalog"
+          label="Catálogo"
+          value={form.catalogId}
+          onChange={(value) => updateField('catalogId', value)}
+        >
+          <option value="">Nenhum</option>
+          {catalogs.map((catalog) => (
+            <option key={catalog.id} value={catalog.id}>{catalog.name}</option>
+          ))}
+        </SelectField>
         {showSection && (
-          <div>
-            <label className={LABEL_CLASS}>Seção</label>
-            <select
-              value={form.sectionId}
-              onChange={(e) => updateField('sectionId', e.target.value)}
-              className={INPUT_CLASS}
-            >
-              <option value="">Nenhuma</option>
-              {sections
-                .filter(
-                  (section) =>
-                    !section.catalogId || !form.catalogId || section.catalogId === form.catalogId,
-                )
-                .map((section) => (
-                  <option key={section.id} value={section.id}>{section.name}</option>
-                ))}
-            </select>
-          </div>
+          <SelectField
+            id="product-section"
+            label="Seção"
+            value={form.sectionId}
+            onChange={(value) => updateField('sectionId', value)}
+          >
+            <option value="">Nenhuma</option>
+            {sections
+              .filter(
+                (section) =>
+                  !section.catalogId || !form.catalogId || section.catalogId === form.catalogId,
+              )
+              .map((section) => (
+                <option key={section.id} value={section.id}>{section.name}</option>
+              ))}
+          </SelectField>
         )}
       </div>
 
