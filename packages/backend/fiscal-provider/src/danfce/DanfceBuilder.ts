@@ -1,3 +1,4 @@
+import { formatCnpjForDisplay } from '../sefaz/SefazTaxId'
 import type { EmitFiscalParams, NfceConfig, FiscalResult, DanfceData } from '../types'
 
 type BuildDanfceParams = {
@@ -19,17 +20,19 @@ export function buildDanfce(params: BuildDanfceParams): DanfceData {
 }
 
 function buildDanfceText({
-  emitParams, config, result, qrCodeUrl, urlConsulta, dataEmissao,
+  emitParams,
+  config,
+  result,
+  qrCodeUrl,
+  urlConsulta,
+  dataEmissao,
 }: BuildDanfceParams): string {
   const SEP = '━'.repeat(32)
   const lines: string[] = []
 
   const center = (text: string) => text.padStart(Math.floor((32 + text.length) / 2)).padEnd(32)
   const money = (value: number) => `R$ ${value.toFixed(2).replace('.', ',')}`
-  const formatCnpj = (cnpj: string) => {
-    const d = cnpj.replace(/\D/g, '')
-    return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
-  }
+  const formatCnpj = formatCnpjForDisplay
   const formatDate = (d: Date) => {
     const p = (n: number) => n.toString().padStart(2, '0')
     return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
@@ -87,7 +90,12 @@ function buildDanfceText({
   const chave = result.chaveAcesso ?? ''
   // Grupos de 4 dígitos para facilitar leitura
   for (let i = 0; i < chave.length; i += 16) {
-    lines.push(chave.slice(i, i + 16).match(/.{1,4}/g)?.join(' ') ?? '')
+    lines.push(
+      chave
+        .slice(i, i + 16)
+        .match(/.{1,4}/g)
+        ?.join(' ') ?? '',
+    )
   }
   lines.push('')
 

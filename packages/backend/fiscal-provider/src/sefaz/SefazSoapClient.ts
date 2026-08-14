@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser'
 import { FiscalError } from '../errors/FiscalError'
 import type { FiscalResult } from '../types'
 import { SEFAZ_RETRYABLE_CODES } from './SefazConstants'
+import { normalizeTaxId } from './SefazTaxId'
 import { signNfeEventoXml, signInutNFeXml } from './SefazXmlSigner'
 import type { CertificateData } from './SefazXmlSigner'
 import { sefazFetch } from './SefazHttpClient'
@@ -172,7 +173,7 @@ function buildCancelamentoEventoXml(params: {
 }): string {
   const id = `ID110111${params.chaveAcesso}${params.nSeqEvento.padStart(2, '0')}`
   // Compact: SP SEFAZ rejects whitespace between tags (cStat 588)
-  return `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></evento></envEvento>`
+  return `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${normalizeTaxId(params.cnpj)}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></evento></envEvento>`
 }
 
 function buildStatusServicoSoap(
@@ -504,7 +505,7 @@ export async function sendCartaCorrecao(params: {
   const id = `ID110110${params.chaveAcesso}${params.nSeqEvento.padStart(2, '0')}`
   const xCondUso =
     'A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.'
-  const unsignedXml = `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110110</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Carta de Correcao</descEvento><xCorrecao>${params.correcao}</xCorrecao><xCondUso>${xCondUso}</xCondUso></detEvento></infEvento></evento></envEvento>`
+  const unsignedXml = `<envEvento versao="1.00" xmlns="http://www.portalfiscal.inf.br/nfe"><idLote>1</idLote><evento versao="1.00"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${normalizeTaxId(params.cnpj)}</CNPJ><chNFe>${params.chaveAcesso}</chNFe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110110</tpEvento><nSeqEvento>${params.nSeqEvento}</nSeqEvento><verEvento>1.00</verEvento><detEvento versao="1.00"><descEvento>Carta de Correcao</descEvento><xCorrecao>${params.correcao}</xCorrecao><xCondUso>${xCondUso}</xCondUso></detEvento></infEvento></evento></envEvento>`
   const { signedXml } = signNfeEventoXml(unsignedXml, params.certData)
   const eventoXml = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')
   const soapBody = buildEventoSoapEnvelope({ cUF: params.cUF, eventoXml })
@@ -538,7 +539,7 @@ export async function sendInutilizacao(params: {
   tpAmb: string
   certData: CertificateData
 }): Promise<FiscalResult> {
-  const cnpj = params.cnpj.replace(/\D/g, '')
+  const cnpj = normalizeTaxId(params.cnpj)
   const serie3 = params.serie.padStart(3, '0')
   const ini9 = params.numeroInicial.padStart(9, '0')
   const fin9 = params.numeroFinal.padStart(9, '0')

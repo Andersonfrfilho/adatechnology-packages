@@ -5,6 +5,8 @@
  * Gera cupons fiscais completos com dados reais e formatação para impressora
  */
 
+import { formatCnpjForDisplay, normalizeTaxId } from '../sefaz/SefazTaxId'
+
 export interface CupomItemData {
   /** Código do produto */
   codigo: string
@@ -135,9 +137,7 @@ export function gerarCupomTermico(data: CupomFiscalData): string {
     const vUnit = formatarMoeda(item.valorUnitario).padStart(8)
     const vTotal = formatarMoeda(item.quantidade * item.valorUnitario).padStart(9)
 
-    linhas.push(
-      `${numero}| ${descricao.padEnd(18)} | ${qtd} | ${vUnit} | ${vTotal}`
-    )
+    linhas.push(`${numero}| ${descricao.padEnd(18)} | ${qtd} | ${vUnit} | ${vTotal}`)
   })
 
   linhas.push('-'.repeat(largura))
@@ -146,24 +146,18 @@ export function gerarCupomTermico(data: CupomFiscalData): string {
   if (data.valorDesconto && data.valorDesconto > 0) {
     const descLabel = 'DESCONTO'
     const descValor = formatarMoeda(data.valorDesconto).padStart(10)
-    linhas.push(
-      descLabel.padEnd(largura - 10) + descValor
-    )
+    linhas.push(descLabel.padEnd(largura - 10) + descValor)
   }
 
   const subtotalLabel = 'SUBTOTAL'
   const subtotalValor = formatarMoeda(data.valorSubtotal || data.valorTotal).padStart(10)
-  linhas.push(
-    subtotalLabel.padEnd(largura - 10) + subtotalValor
-  )
+  linhas.push(subtotalLabel.padEnd(largura - 10) + subtotalValor)
 
   linhas.push(separador)
 
   const totalLabel = 'TOTAL'
   const totalValor = formatarMoeda(data.valorTotal).padStart(10)
-  linhas.push(
-    totalLabel.padEnd(largura - 10) + totalValor
-  )
+  linhas.push(totalLabel.padEnd(largura - 10) + totalValor)
 
   // Pagamentos
   linhas.push(separador)
@@ -171,9 +165,7 @@ export function gerarCupomTermico(data: CupomFiscalData): string {
   data.pagamentos.forEach((pag) => {
     const metodo = traduzirMetodoPagamento(pag.metodo)
     const valor = formatarMoeda(pag.valor).padStart(10)
-    linhas.push(
-      metodo.padEnd(largura - 10) + valor
-    )
+    linhas.push(metodo.padEnd(largura - 10) + valor)
   })
 
   // Troco
@@ -181,9 +173,7 @@ export function gerarCupomTermico(data: CupomFiscalData): string {
     linhas.push(separador)
     const trocoLabel = 'TROCO'
     const trocoValor = formatarMoeda(data.valorTroco).padStart(10)
-    linhas.push(
-      trocoLabel.padEnd(largura - 10) + trocoValor
-    )
+    linhas.push(trocoLabel.padEnd(largura - 10) + trocoValor)
   }
 
   // Rodapé
@@ -207,12 +197,11 @@ export function gerarXMLCupom(data: CupomFiscalData, chaveAcesso: string): strin
   const dataStr = dataAgora.toISOString().split('T')[0]
   const horaStr = dataAgora.toTimeString().split(' ')[0]
 
-  const totalItems = data.itens
-    .reduce((sum, item) => sum + (item.quantidade * item.valorUnitario), 0)
-    .toFixed(2)
+  const totalItems = data.itens.reduce((sum, item) => sum + item.quantidade * item.valorUnitario, 0).toFixed(2)
 
   const itemsXml = data.itens
-    .map((item, index) => `
+    .map(
+      (item, index) => `
     <det nItem="${index + 1}">
       <prod>
         <cProd>${item.codigo}</cProd>
@@ -238,29 +227,32 @@ export function gerarXMLCupom(data: CupomFiscalData, chaveAcesso: string): strin
           <COFINSNT><CST>07</CST></COFINSNT>
         </COFINS>
       </imposto>
-    </det>`)
+    </det>`,
+    )
     .join('\n')
 
   const pagamentosXml = data.pagamentos
-    .map((pag) => `
+    .map(
+      (pag) => `
     <MP>
       <cMP>${mapearFormaPagamento(pag.metodo)}</cMP>
       <vMP>${pag.valor.toFixed(2)}</vMP>
-    </MP>`)
+    </MP>`,
+    )
     .join('\n')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <CFe>
   <infCFe Id="ID${chaveAcesso}" versaoDadosEnt="0.08">
     <ide>
-      <CNPJ>${data.cnpj.replace(/\D/g, '')}</CNPJ>
+      <CNPJ>${normalizeTaxId(data.cnpj)}</CNPJ>
       <signAC>SGF0b21lMzE5</signAC>
       <numeroCaixa>001</numeroCaixa>
       <dEmi>${dataStr}</dEmi>
       <hEmi>${horaStr}</hEmi>
     </ide>
     <emit>
-      <CNPJ>${data.cnpj.replace(/\D/g, '')}</CNPJ>
+      <CNPJ>${normalizeTaxId(data.cnpj)}</CNPJ>
       <IE>${data.inscricaoEstadual}</IE>
       <indRatISSQN>N</indRatISSQN>
     </emit>
@@ -283,7 +275,7 @@ export function gerarCupomCompleto(
   data: CupomFiscalData,
   chaveAcesso: string,
   numero: string = '000001',
-  serie: string = '1'
+  serie: string = '1',
 ): CupomFormatado {
   const dataAgora = new Date()
 
@@ -315,11 +307,7 @@ function formatarMoeda(valor: number): string {
 }
 
 function formatarCNPJ(cnpj: string): string {
-  const clean = cnpj.replace(/\D/g, '')
-  return `${clean.slice(0, 2)}.${clean.slice(2, 5)}.${clean.slice(5, 8)}/${clean.slice(
-    8,
-    12
-  )}-${clean.slice(12)}`
+  return formatCnpjForDisplay(cnpj)
 }
 
 function traduzirMetodoPagamento(metodo: string): string {

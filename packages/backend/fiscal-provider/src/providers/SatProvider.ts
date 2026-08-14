@@ -8,6 +8,7 @@ import type {
   SatConfig,
 } from '../types'
 import { toSatPaymentCode } from '../utils/mapPaymentMethod'
+import { normalizeTaxId } from '../sefaz/SefazTaxId'
 import { FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
 import { buildCupomPdf } from '../danfce/CupomPdfBuilder'
 import { gerarURLQRCode } from './controlid-qrcode'
@@ -107,12 +108,12 @@ export class SatProvider implements FiscalProvider {
 <CFe>
   <infCFe versaoDadosEnt="0.08">
     <ide>
-      <CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ>
+      <CNPJ>${normalizeTaxId(config.cnpj)}</CNPJ>
       <signAC>${config.signatureAC}</signAC>
       <numeroCaixa>001</numeroCaixa>
     </ide>
     <emit>
-      <CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ>
+      <CNPJ>${normalizeTaxId(config.cnpj)}</CNPJ>
       <IE>${config.inscricaoEstadual}</IE>
       <indRatISSQN>N</indRatISSQN>
     </emit>

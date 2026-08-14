@@ -2,23 +2,12 @@ import { randomInt } from 'crypto'
 import type { CteConfig, CteData, CteParticipante, CteIcms, CteModalData, CteDocumento } from '../types'
 import { getCteQrCodeUrl, UF_IBGE_CODES_CTE } from './CteConstants'
 import { formatDhEmi, toBrasiliaWallClock } from './SefazDateTime'
+import { CNPJ_PATTERN, calcularDvChave, normalizeTaxId } from './SefazTaxId'
 import { escapeXml } from './SefazXmlEscape'
 
 const CTE_NS = 'http://www.portalfiscal.inf.br/cte'
 
 // ─── Chave de acesso ──────────────────────────────────────────────────────────
-
-function calcDigitoVerificador(chave43: string): string {
-  const weights = [2, 3, 4, 5, 6, 7, 8, 9]
-  let sum = 0
-  let wi = 0
-  for (let i = chave43.length - 1; i >= 0; i--) {
-    sum += parseInt(chave43[i]!, 10) * weights[wi % 8]!
-    wi++
-  }
-  const remainder = sum % 11
-  return remainder < 2 ? '0' : String(11 - remainder)
-}
 
 function buildChaveCte(params: {
   cUF: string
@@ -31,14 +20,15 @@ function buildChaveCte(params: {
   const { cUF, dhEmi, cnpj, serie, nCT, tpEmis } = params
   const wallClock = toBrasiliaWallClock(dhEmi)
   const aamm = `${wallClock.getUTCFullYear().toString().slice(2)}${String(wallClock.getUTCMonth() + 1).padStart(2, '0')}`
-  const cnpjClean = cnpj.replace(/\D/g, '').padStart(14, '0')
+  const cnpjClean = normalizeTaxId(cnpj)
+  // Sem padStart: CNPJ que não fecha 14 posições é erro de cadastro, não valor a completar com zero
+  if (!CNPJ_PATTERN.test(cnpjClean)) throw new Error(`CNPJ inválido para a chave do CT-e: ${cnpj}`)
   const mod = '57'
   const serieStr = String(parseInt(serie, 10)).padStart(3, '0')
   const nCTStr = String(nCT).padStart(9, '0')
   const cCT = String(randomInt(1, 99999999)).padStart(8, '0')
   const chave43 = `${cUF}${aamm}${cnpjClean}${mod}${serieStr}${nCTStr}${tpEmis}${cCT}`
-  const cDV = calcDigitoVerificador(chave43)
-  return `${chave43}${cDV}`
+  return `${chave43}${calcularDvChave(chave43)}`
 }
 
 // ─── Endereço ─────────────────────────────────────────────────────────────────
@@ -71,7 +61,7 @@ const HOMOLOGACAO_XNOME_PARTICIPANTE = 'CTE EMITIDO EM AMBIENTE DE HOMOLOGACAO -
 const PARTICIPANTE_COM_NOME_FANTASIA = 'rem'
 
 function buildParticipante(tag: string, p: CteParticipante): string {
-  const doc = p.cnpj ? `<CNPJ>${p.cnpj.replace(/\D/g, '')}</CNPJ>` : `<CPF>${p.cpf!.replace(/\D/g, '')}</CPF>`
+  const doc = p.cnpj ? `<CNPJ>${normalizeTaxId(p.cnpj)}</CNPJ>` : `<CPF>${p.cpf!.replace(/\D/g, '')}</CPF>`
   const xFant = p.xFant && tag === PARTICIPANTE_COM_NOME_FANTASIA ? `<xFant>${escapeXml(p.xFant)}</xFant>` : ''
   const fone = p.fone ? `<fone>${p.fone.replace(/\D/g, '')}</fone>` : ''
   const email = p.email ? `<email>${escapeXml(p.email)}</email>` : ''
@@ -147,7 +137,7 @@ function buildModalRodoviario(modal: Extract<CteModalData, { modal: '01' }>): st
       .join('') ?? ''
   const ciot = modal.CIOT ? `<CIOT><CIOT>${modal.CIOT}</CIOT></CIOT>` : ''
   const contr = modal.contratante
-    ? `<contratante>${modal.contratante.CNPJ ? `<CNPJ>${modal.contratante.CNPJ.replace(/\D/g, '')}</CNPJ>` : `<CPF>${modal.contratante.CPF!.replace(/\D/g, '')}</CPF>`}<xNome>${escapeXml(modal.contratante.xNome)}</xNome></contratante>`
+    ? `<contratante>${modal.contratante.CNPJ ? `<CNPJ>${normalizeTaxId(modal.contratante.CNPJ)}</CNPJ>` : `<CPF>${modal.contratante.CPF!.replace(/\D/g, '')}</CPF>`}<xNome>${escapeXml(modal.contratante.xNome)}</xNome></contratante>`
     : ''
   return `<rodo><RNTRC>${modal.rntrc}</RNTRC>${veicXml}${mots}${ciot}${contr}</rodo>`
 }
@@ -193,7 +183,7 @@ function buildModalAquaviario(modal: Extract<CteModalData, { modal: '03' }>): st
 
 function buildModalFerroviario(modal: Extract<CteModalData, { modal: '04' }>): string {
   const ferr = modal.ferrEmi
-    ? `<ferrEmi><CNPJ>${modal.ferrEmi.CNPJ.replace(/\D/g, '')}</CNPJ>${modal.ferrEmi.cInt ? `<cInt>${modal.ferrEmi.cInt}</cInt>` : ''}<IE>${modal.ferrEmi.IE}</IE><xNome>${escapeXml(modal.ferrEmi.xNome)}</xNome><fluxo>${modal.ferrEmi.fluxo}</fluxo></ferrEmi>`
+    ? `<ferrEmi><CNPJ>${normalizeTaxId(modal.ferrEmi.CNPJ)}</CNPJ>${modal.ferrEmi.cInt ? `<cInt>${modal.ferrEmi.cInt}</cInt>` : ''}<IE>${modal.ferrEmi.IE}</IE><xNome>${escapeXml(modal.ferrEmi.xNome)}</xNome><fluxo>${modal.ferrEmi.fluxo}</fluxo></ferrEmi>`
     : ''
   const vagoes =
     modal.vagao
@@ -259,7 +249,7 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
 
   // Emitente
   const xFantEmit = config.nomeFantasia ? `<xFant>${escapeXml(config.nomeFantasia)}</xFant>` : ''
-  const emit = `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${tpAmb === '2' ? 'CT-E EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : escapeXml(config.razaoSocial)}</xNome>${xFantEmit}<enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''}</enderEmit><CRT>${config.crt}</CRT></emit>`
+  const emit = `<emit><CNPJ>${normalizeTaxId(config.cnpj)}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${tpAmb === '2' ? 'CT-E EMITIDO EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL' : escapeXml(config.razaoSocial)}</xNome>${xFantEmit}<enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''}</enderEmit><CRT>${config.crt}</CRT></emit>`
 
   // Rem / Dest / expedidor / recebedor
   // Rejeições 646/647/648/649: em homologação a SEFAZ exige esta razão social exata nas partes
@@ -304,7 +294,7 @@ export function buildCteXml(config: CteConfig, data: CteData, now: Date = new Da
   // NT 2018.005: infRespTec fecha o infCte e identifica a software house, não o transportador
   const respTec = config.responsavelTecnico
   const infRespTec = respTec
-    ? `<infRespTec><CNPJ>${respTec.cnpj.replace(/\D/g, '')}</CNPJ><xContato>${escapeXml(respTec.xContato)}</xContato><email>${escapeXml(respTec.email)}</email><fone>${respTec.fone.replace(/\D/g, '')}</fone></infRespTec>`
+    ? `<infRespTec><CNPJ>${normalizeTaxId(respTec.cnpj)}</CNPJ><xContato>${escapeXml(respTec.xContato)}</xContato><email>${escapeXml(respTec.email)}</email><fone>${respTec.fone.replace(/\D/g, '')}</fone></infRespTec>`
     : ''
 
   const infCteId = `CTe${chave}`

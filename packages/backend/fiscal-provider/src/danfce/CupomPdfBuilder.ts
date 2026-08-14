@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit'
 import QRCode from 'qrcode'
+import { CHAVE_PATTERN, formatCnpjForDisplay, normalizeTaxId } from '../sefaz/SefazTaxId'
 import type { EmitFiscalParams, FiscalConfig, FiscalResult } from '../types'
 
 const PAGE_WIDTH_PT = 226.77 // ~80mm térmica
@@ -26,11 +27,7 @@ function money(value: number): string {
   return `R$ ${value.toFixed(2).replace('.', ',')}`
 }
 
-function formatCnpj(cnpj: string): string {
-  const d = cnpj.replace(/\D/g, '')
-  if (d.length !== 14) return cnpj
-  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`
-}
+const formatCnpj = formatCnpjForDisplay
 
 function formatDate(d: Date): string {
   const p = (n: number) => n.toString().padStart(2, '0')
@@ -38,8 +35,9 @@ function formatDate(d: Date): string {
 }
 
 function formatChave(chave: string): string {
-  const digits = chave.replace(/\D/g, '')
-  return digits.match(/.{1,4}/g)?.join(' ') ?? chave
+  const key = normalizeTaxId(chave)
+  if (!CHAVE_PATTERN.test(key)) return chave
+  return key.match(/.{1,4}/g)?.join(' ') ?? chave
 }
 
 function getConfigAddress(config: FiscalConfig): {
@@ -209,7 +207,9 @@ export async function buildCupomPdf(params: BuildCupomPdfParams): Promise<CupomP
 
   doc.end()
   const buffer = await pdfDone
-  const chaveSuffix = (result.chaveAcesso ?? 'cupom').replace(/\D/g, '').slice(-8) || 'cupom'
+  // As 8 últimas posições da chave são sempre numéricas (cNF+DV), mas normalizar em vez de filtrar
+  // deixa o nome do arquivo íntegro se a fatia mudar
+  const chaveSuffix = normalizeTaxId(result.chaveAcesso ?? 'cupom').slice(-8) || 'cupom'
   const fileName = `cupom-${model}-${chaveSuffix}.pdf`
 
   return {

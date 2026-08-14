@@ -11,6 +11,9 @@ export const CARRIER_CNPJ = '55444333000161'
 
 type BuildNfeXmlParams = {
   readonly accessKey?: string
+  readonly issuerCnpj?: string
+  readonly recipientCnpj?: string
+  readonly carrierCnpj?: string
 }
 
 type BuildAuthorizedNfeXmlParams = BuildNfeXmlParams & {
@@ -30,7 +33,7 @@ export function buildAuthorizedNfeXml(params: BuildAuthorizedNfeXmlParams = {}):
   return [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">',
-    buildNfeNode({ accessKey }),
+    buildNfeNode({ ...params, accessKey }),
     '<protNFe versao="4.00"><infProt>',
     '<tpAmb>2</tpAmb><verAplic>TEST-1.0</verAplic>',
     `<chNFe>${protocolAccessKey}</chNFe>`,
@@ -43,10 +46,7 @@ export function buildAuthorizedNfeXml(params: BuildAuthorizedNfeXmlParams = {}):
 }
 
 export function buildBareNfeXml(params: BuildNfeXmlParams = {}): string {
-  return [
-    '<?xml version="1.0" encoding="UTF-8"?>',
-    buildNfeNode({ accessKey: params.accessKey ?? NFE_ACCESS_KEY }),
-  ].join('')
+  return ['<?xml version="1.0" encoding="UTF-8"?>', buildNfeNode(params)].join('')
 }
 
 export function buildNfeEventXml(params: BuildNfeEventXmlParams = {}): string {
@@ -81,7 +81,12 @@ export function buildNfeEventXml(params: BuildNfeEventXmlParams = {}): string {
   ].join('')
 }
 
-function buildNfeNode({ accessKey }: Required<BuildNfeXmlParams>): string {
+function buildNfeNode(params: BuildNfeXmlParams): string {
+  const accessKey = params.accessKey ?? NFE_ACCESS_KEY
+  const issuerCnpj = params.issuerCnpj ?? ISSUER_CNPJ
+  const recipientCnpj = params.recipientCnpj ?? RECIPIENT_CNPJ
+  const carrierCnpj = params.carrierCnpj ?? CARRIER_CNPJ
+
   return [
     '<NFe xmlns="http://www.portalfiscal.inf.br/nfe">',
     `<infNFe Id="NFe${accessKey}" versao="4.00">`,
@@ -96,7 +101,7 @@ function buildNfeNode({ accessKey }: Required<BuildNfeXmlParams>): string {
     '<indPres>9</indPres><procEmi>0</procEmi><verProc>fixture-1.0</verProc>',
     '</ide>',
     '<emit>',
-    `<CNPJ>${ISSUER_CNPJ}</CNPJ>`,
+    `<CNPJ>${issuerCnpj}</CNPJ>`,
     '<xNome>EMITENTE TESTE LTDA</xNome><xFant>EMITENTE FIXTURE</xFant>',
     '<enderEmit><xLgr>Rua Origem</xLgr><nro>100</nro><xCpl>Galpao A</xCpl>',
     '<xBairro>Centro</xBairro><cMun>3550308</cMun><xMun>Sao Paulo</xMun>',
@@ -105,7 +110,7 @@ function buildNfeNode({ accessKey }: Required<BuildNfeXmlParams>): string {
     '<IE>111111111111</IE><CRT>3</CRT>',
     '</emit>',
     '<dest>',
-    `<CNPJ>${RECIPIENT_CNPJ}</CNPJ>`,
+    `<CNPJ>${recipientCnpj}</CNPJ>`,
     '<xNome>DESTINATARIO TESTE LTDA</xNome>',
     '<enderDest><xLgr>Rua Destino</xLgr><nro>200</nro>',
     '<xBairro>Centro</xBairro><cMun>3304557</cMun><xMun>Rio de Janeiro</xMun>',
@@ -134,7 +139,7 @@ function buildNfeNode({ accessKey }: Required<BuildNfeXmlParams>): string {
     '<vOutro>0.7500</vOutro><vNF>260.8085</vNF><vTotTrib>45.0555</vTotTrib>',
     '</ICMSTot></total>',
     '<transp><modFrete>0</modFrete><transporta>',
-    `<CNPJ>${CARRIER_CNPJ}</CNPJ>`,
+    `<CNPJ>${carrierCnpj}</CNPJ>`,
     '<xNome>TRANSPORTADORA TESTE LTDA</xNome><IE>333333333333</IE>',
     '<xEnder>Rodovia Teste 300</xEnder><xMun>Sao Paulo</xMun><UF>SP</UF>',
     '</transporta><vol><qVol>2</qVol><esp>CAIXA</esp><marca>FIXTURE</marca>',

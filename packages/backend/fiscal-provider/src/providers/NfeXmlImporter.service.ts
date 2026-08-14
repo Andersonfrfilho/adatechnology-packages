@@ -7,6 +7,7 @@ import { XMLParser } from 'fast-xml-parser'
 
 import { NFE_XML_IMPORT_ERROR_CODE, NfeXmlImportError, type NfeXmlImportErrorCode } from '../errors/NfeXmlImport.error'
 import { isChaveDvValid } from '../sefaz/SefazChave'
+import { CHAVE_PATTERN, CNPJ_PATTERN } from '../sefaz/SefazTaxId'
 import type {
   DfeItem,
   ImportedAuthorizedNfeXml,
@@ -24,8 +25,6 @@ import type {
 } from '../types'
 
 const MAX_NFE_XML_BYTES = 5 * 1024 * 1024
-const ACCESS_KEY_PATTERN = /^\d{44}$/
-const CNPJ_PATTERN = /^\d{14}$/
 const DECIMAL_PATTERN = /^-?\d+(?:\.\d+)?$/
 const FORBIDDEN_XML_DECLARATION_PATTERN = /<!\s*(?:DOCTYPE|ENTITY)\b/i
 
@@ -451,7 +450,7 @@ function createDfeSummary({ document, situation, xml }: CreateDfeSummaryParams):
 }
 
 function parseAccessKey(value: string): string {
-  if (!ACCESS_KEY_PATTERN.test(value) || !isChaveDvValid(value)) {
+  if (!CHAVE_PATTERN.test(value) || !isChaveDvValid(value)) {
     throwImportError({
       code: NFE_XML_IMPORT_ERROR_CODE.invalidAccessKey,
       message: 'Invalid NF-e access key',

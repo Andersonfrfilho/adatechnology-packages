@@ -106,6 +106,16 @@ export type {
   ComputeQrCodeHashParams,
 } from './sefaz/SefazQrCodeVerifier'
 export { isChaveDvValid } from './sefaz/SefazChave'
+export {
+  CHAVE_PATTERN,
+  CNPJ_PATTERN,
+  calcularDvChave,
+  calcularDvCnpj,
+  charValue,
+  formatCnpjForDisplay,
+  isCnpjValid,
+  normalizeTaxId,
+} from './sefaz/SefazTaxId'
 export { resolveErrorHint, SEFAZ_CSTAT_HINT } from './sefaz/SefazCstatHints'
 export { consultarNfe, cartaCorrecao, inutilizar } from './sefaz/SefazDocumentOps'
 export type { ConsultaResult } from './sefaz/SefazSoapClient'

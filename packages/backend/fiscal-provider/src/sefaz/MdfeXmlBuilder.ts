@@ -17,6 +17,7 @@ import { UF_IBGE_CODES_CTE } from './CteConstants'
 import { escapeXml } from './SefazXmlEscape'
 import { getMdfeQrCodeUrl, MDFE_MODELO, MDFE_NS, MDFE_VERSAO } from './MdfeConstants'
 import { formatDhEmi, toBrasiliaWallClock } from './SefazDateTime'
+import { CNPJ_PATTERN, calcularDvChave, normalizeTaxId } from './SefazTaxId'
 
 // O MDF-e só trata carga rodoviária neste provider — modal é 1 dígito, ao contrário dos 2 do CT-e
 const MODAL_RODOVIARIO = '1'
@@ -25,18 +26,6 @@ const PROC_EMI_APLICATIVO_CONTRIBUINTE = '0'
 const VER_PROC = 'fiscal-provider@1.0'
 
 // ─── Chave de acesso ──────────────────────────────────────────────────────────
-
-function calcDigitoVerificador(chave43: string): string {
-  const weights = [2, 3, 4, 5, 6, 7, 8, 9]
-  let sum = 0
-  let wi = 0
-  for (let i = chave43.length - 1; i >= 0; i--) {
-    sum += parseInt(chave43[i]!, 10) * weights[wi % 8]!
-    wi++
-  }
-  const remainder = sum % 11
-  return remainder < 2 ? '0' : String(11 - remainder)
-}
 
 function buildChaveMdfe(params: {
   cUF: string
@@ -48,18 +37,20 @@ function buildChaveMdfe(params: {
 }): string {
   const wallClock = toBrasiliaWallClock(params.dhEmi)
   const aamm = `${wallClock.getUTCFullYear().toString().slice(2)}${String(wallClock.getUTCMonth() + 1).padStart(2, '0')}`
-  const cnpjClean = params.cnpj.replace(/\D/g, '').padStart(14, '0')
+  const cnpjClean = normalizeTaxId(params.cnpj)
+  // Sem padStart: CNPJ que não fecha 14 posições é erro de cadastro, não valor a completar com zero
+  if (!CNPJ_PATTERN.test(cnpjClean)) throw new Error(`CNPJ inválido para a chave do MDF-e: ${params.cnpj}`)
   const serieStr = String(parseInt(params.serie, 10)).padStart(3, '0')
   const nMDFStr = String(params.nMDF).padStart(9, '0')
   const cMDF = String(randomInt(1, 99999999)).padStart(8, '0')
   const chave43 = `${params.cUF}${aamm}${cnpjClean}${MDFE_MODELO}${serieStr}${nMDFStr}${params.tpEmis}${cMDF}`
-  return `${chave43}${calcDigitoVerificador(chave43)}`
+  return `${chave43}${calcularDvChave(chave43)}`
 }
 
 // ─── Modal rodoviário ─────────────────────────────────────────────────────────
 
 function buildProprietario(prop: MdfeProprietarioVeiculo): string {
-  const doc = prop.cnpj ? `<CNPJ>${prop.cnpj.replace(/\D/g, '')}</CNPJ>` : `<CPF>${prop.cpf!.replace(/\D/g, '')}</CPF>`
+  const doc = prop.cnpj ? `<CNPJ>${normalizeTaxId(prop.cnpj)}</CNPJ>` : `<CPF>${prop.cpf!.replace(/\D/g, '')}</CPF>`
   const ie = prop.inscricaoEstadual && prop.uf ? `<IE>${prop.inscricaoEstadual}</IE><UF>${prop.uf}</UF>` : ''
   return `<prop>${doc}<RNTRC>${prop.rntrc}</RNTRC><xNome>${escapeXml(prop.nome)}</xNome>${ie}<tpProp>${prop.tipoProprietario}</tpProp></prop>`
 }
@@ -121,7 +112,7 @@ function buildLotacao(lotacao: MdfeLotacao): string {
 
 function buildContratante(contratante: MdfeContratante): string {
   const documento = contratante.cnpj
-    ? `<CNPJ>${contratante.cnpj.replace(/\D/g, '')}</CNPJ>`
+    ? `<CNPJ>${normalizeTaxId(contratante.cnpj)}</CNPJ>`
     : contratante.cpf
       ? `<CPF>${contratante.cpf.replace(/\D/g, '')}</CPF>`
       : ''
@@ -131,7 +122,7 @@ function buildContratante(contratante: MdfeContratante): string {
 function buildDadosBancarios(dados: MdfeDadosBancarios): string {
   if (dados.pix) return `<infBanc><PIX>${escapeXml(dados.pix)}</PIX></infBanc>`
   if (dados.cnpjInstituicaoPagamento)
-    return `<infBanc><CNPJIPEF>${dados.cnpjInstituicaoPagamento.replace(/\D/g, '')}</CNPJIPEF></infBanc>`
+    return `<infBanc><CNPJIPEF>${normalizeTaxId(dados.cnpjInstituicaoPagamento)}</CNPJIPEF></infBanc>`
   if (dados.codigoBanco && dados.codigoAgencia)
     return `<infBanc><codBanco>${dados.codigoBanco}</codBanco><codAgencia>${dados.codigoAgencia}</codAgencia></infBanc>`
   return ''
@@ -140,7 +131,7 @@ function buildDadosBancarios(dados: MdfeDadosBancarios): string {
 function buildPagamento(pagamento: MdfePagamento): string {
   const nome = pagamento.nome ? `<xNome>${escapeXml(pagamento.nome)}</xNome>` : ''
   const documento = pagamento.cnpj
-    ? `<CNPJ>${pagamento.cnpj.replace(/\D/g, '')}</CNPJ>`
+    ? `<CNPJ>${normalizeTaxId(pagamento.cnpj)}</CNPJ>`
     : pagamento.cpf
       ? `<CPF>${pagamento.cpf.replace(/\D/g, '')}</CPF>`
       : ''
@@ -198,12 +189,12 @@ function countDocumentos(data: MdfeData): { qCTe: number; qNFe: number; qMDFe: n
 
 function buildSeguro(seguro: MdfeSeguro): string {
   const responsavelDoc = seguro.responsavelCnpj
-    ? `<CNPJ>${seguro.responsavelCnpj.replace(/\D/g, '')}</CNPJ>`
+    ? `<CNPJ>${normalizeTaxId(seguro.responsavelCnpj)}</CNPJ>`
     : seguro.responsavelCpf
       ? `<CPF>${seguro.responsavelCpf.replace(/\D/g, '')}</CPF>`
       : ''
   const seguradora = seguro.seguradora
-    ? `<infSeg><xSeg>${escapeXml(seguro.seguradora.nome)}</xSeg><CNPJ>${seguro.seguradora.cnpj.replace(/\D/g, '')}</CNPJ></infSeg>`
+    ? `<infSeg><xSeg>${escapeXml(seguro.seguradora.nome)}</xSeg><CNPJ>${normalizeTaxId(seguro.seguradora.cnpj)}</CNPJ></infSeg>`
     : ''
   const apolice = seguro.apolice ? `<nApol>${escapeXml(seguro.apolice)}</nApol>` : ''
   const averbacoes = (seguro.averbacoes ?? []).map((averbacao) => `<nAver>${escapeXml(averbacao)}</nAver>`).join('')
@@ -250,7 +241,7 @@ export function buildMdfeXml(config: MdfeConfig, data: MdfeData, now: Date = new
 
   const complemento = config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''
   const fone = config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''
-  const emit = `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${escapeXml(config.razaoSocial)}</xNome><enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${complemento}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${fone}</enderEmit></emit>`
+  const emit = `<emit><CNPJ>${normalizeTaxId(config.cnpj)}</CNPJ><IE>${config.inscricaoEstadual || 'ISENTO'}</IE><xNome>${escapeXml(config.razaoSocial)}</xNome><enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${complemento}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><CEP>${config.cep.replace(/\D/g, '')}</CEP><UF>${config.uf}</UF>${fone}</enderEmit></emit>`
 
   // O schema exige versaoModal em infModal — versao é rejeitado com cStat 215
   const infModal = `<infModal versaoModal="${MDFE_VERSAO}">${buildRodo(data)}</infModal>`

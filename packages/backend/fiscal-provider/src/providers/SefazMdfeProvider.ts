@@ -15,9 +15,9 @@ import { buildMdfeCancelamentoXml, buildMdfeEncerramentoXml } from '../sefaz/Mdf
 import { buildMdfeXml } from '../sefaz/MdfeXmlBuilder'
 import { sendMdfeAutorizacao, sendMdfeEvento, sendMdfeStatusServico } from '../sefaz/MdfeSoapClient'
 import { formatSefazDateTime } from '../sefaz/SefazDateTime'
+import { CHAVE_PATTERN, normalizeTaxId } from '../sefaz/SefazTaxId'
 import { loadCertificate, signMdfeEventoXml, signMdfeXml } from '../sefaz/SefazXmlSigner'
 
-const ACCESS_KEY_PATTERN = /^[0-9]{44}$/
 const IBGE_CITY_PATTERN = /^[0-9]{7}$/
 const ISO_DATE_PATTERN = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
 const MIN_JUSTIFICATIVA_LENGTH = 15
@@ -49,8 +49,11 @@ function reject(errorCode: string, errorMessage: string): FiscalResult {
 }
 
 function validateCloseParams(params: CloseMdfeParams): FiscalResult | undefined {
-  if (!ACCESS_KEY_PATTERN.test(params.chaveAcesso)) {
-    return reject('INVALID_CHAVE', 'Chave de acesso do MDF-e deve ter 44 dígitos')
+  if (!CHAVE_PATTERN.test(normalizeTaxId(params.chaveAcesso))) {
+    return reject(
+      'INVALID_CHAVE',
+      'Chave de acesso do MDF-e deve ter 44 posições, com letra apenas nas 12 primeiras do CNPJ',
+    )
   }
   if (!params.protocolo) {
     return reject('MISSING_PROTOCOLO', 'Protocolo de autorização é obrigatório para encerrar o MDF-e')
@@ -68,8 +71,11 @@ function validateCloseParams(params: CloseMdfeParams): FiscalResult | undefined 
 }
 
 function validateCancelParams(params: CancelFiscalParams): FiscalResult | undefined {
-  if (!ACCESS_KEY_PATTERN.test(params.chaveAcesso)) {
-    return reject('INVALID_CHAVE', 'Chave de acesso do MDF-e deve ter 44 dígitos')
+  if (!CHAVE_PATTERN.test(normalizeTaxId(params.chaveAcesso))) {
+    return reject(
+      'INVALID_CHAVE',
+      'Chave de acesso do MDF-e deve ter 44 posições, com letra apenas nas 12 primeiras do CNPJ',
+    )
   }
   if (!params.protocolo) {
     return reject('MISSING_PROTOCOLO', 'Protocolo de autorização é obrigatório para cancelar o MDF-e')

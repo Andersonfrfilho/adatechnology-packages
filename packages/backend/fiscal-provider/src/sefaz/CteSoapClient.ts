@@ -2,6 +2,7 @@ import { gzipSync } from 'node:zlib'
 
 import { XMLParser } from 'fast-xml-parser'
 import type { FiscalResult } from '../types'
+import { normalizeTaxId } from './SefazTaxId'
 import { signCteEventoXml } from './SefazXmlSigner'
 import type { CertificateData } from './SefazXmlSigner'
 import { CTE_WS_NS } from './CteConstants'
@@ -111,7 +112,7 @@ export async function sendCteCancelamento(params: {
 }): Promise<FiscalResult> {
   const ns = CTE_WS_NS.evento
   const id = `ID110111${params.chaveAcesso}01`
-  const eventoXml = `<eventoCTe versao="${CTE_EVENTO_VERSAO}" xmlns="${CTE_NS}"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${params.cnpj.replace(/\D/g, '')}</CNPJ><chCTe>${params.chaveAcesso}</chCTe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><detEvento versao="${CTE_EVENTO_VERSAO}"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></eventoCTe>`
+  const eventoXml = `<eventoCTe versao="${CTE_EVENTO_VERSAO}" xmlns="${CTE_NS}"><infEvento Id="${id}"><cOrgao>${params.cUF}</cOrgao><tpAmb>${params.tpAmb}</tpAmb><CNPJ>${normalizeTaxId(params.cnpj)}</CNPJ><chCTe>${params.chaveAcesso}</chCTe><dhEvento>${params.dhEvento}</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento><detEvento versao="${CTE_EVENTO_VERSAO}"><descEvento>Cancelamento</descEvento><nProt>${params.protocolo}</nProt><xJust>${params.justificativa}</xJust></detEvento></infEvento></eventoCTe>`
 
   const { signedXml } = signCteEventoXml(eventoXml, params.certData)
   const fragment = signedXml.replace(/^<\?xml[^?]*\?>\s*/i, '')

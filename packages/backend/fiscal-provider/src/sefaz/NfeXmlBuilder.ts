@@ -3,6 +3,7 @@ import type { ChaveAcesso } from './SefazChave'
 import { UF_IBGE_CODES } from './SefazConstants'
 import { toNfcePaymentCode } from '../utils/mapPaymentMethod'
 import { formatDhEmi } from './SefazDateTime'
+import { normalizeTaxId } from './SefazTaxId'
 
 type BuildNfeXmlParams = {
   readonly params: EmitFiscalParams
@@ -60,12 +61,12 @@ function buildEmitXml(config: NfeConfig): string {
   const xCpl = config.complemento ? `<xCpl>${escapeXml(config.complemento)}</xCpl>` : ''
   const fone = config.telefone ? `<fone>${config.telefone.replace(/\D/g, '')}</fone>` : ''
   const ie = config.inscricaoEstadual.replace(/\D/g, '') || 'ISENTO'
-  return `<emit><CNPJ>${config.cnpj.replace(/\D/g, '')}</CNPJ><xNome>${escapeXml(config.razaoSocial)}</xNome><enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${xCpl}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><UF>${config.uf}</UF><CEP>${config.cep.replace(/\D/g, '')}</CEP><cPais>1058</cPais><xPais>Brasil</xPais>${fone}</enderEmit><IE>${ie}</IE><CRT>${config.crt}</CRT></emit>`
+  return `<emit><CNPJ>${normalizeTaxId(config.cnpj)}</CNPJ><xNome>${escapeXml(config.razaoSocial)}</xNome><enderEmit><xLgr>${escapeXml(config.logradouro)}</xLgr><nro>${escapeXml(config.numero)}</nro>${xCpl}<xBairro>${escapeXml(config.bairro)}</xBairro><cMun>${config.codigoMunicipio}</cMun><xMun>${escapeXml(config.municipio)}</xMun><UF>${config.uf}</UF><CEP>${config.cep.replace(/\D/g, '')}</CEP><cPais>1058</cPais><xPais>Brasil</xPais>${fone}</enderEmit><IE>${ie}</IE><CRT>${config.crt}</CRT></emit>`
 }
 
 function buildDestXml(dest: NfeDestinatario): string {
   const docXml = dest.cnpj
-    ? `<CNPJ>${dest.cnpj.replace(/\D/g, '')}</CNPJ>`
+    ? `<CNPJ>${normalizeTaxId(dest.cnpj)}</CNPJ>`
     : dest.cpf
       ? `<CPF>${dest.cpf.replace(/\D/g, '')}</CPF>`
       : ''

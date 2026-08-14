@@ -10,6 +10,7 @@ import type {
   NfseData,
   NfseCancelCode,
 } from '../types'
+import { normalizeTaxId } from '../sefaz/SefazTaxId'
 import { loadCertificate, signNfseXml } from '../sefaz/SefazXmlSigner'
 import { FiscalError, FiscalConnectionError, FiscalTimeoutError } from '../errors/FiscalError'
 
@@ -168,14 +169,9 @@ function buildGerarNfseXml({ params, config, rpsNumero }: BuildGerarNfseXmlParam
 </GerarNfseEnvio>`
 }
 
-function buildSubstituirNfseXml({
-  params,
-  config,
-  rpsNumero,
-  nfseSubstituida,
-}: BuildSubstituirNfseXmlParams): string {
+function buildSubstituirNfseXml({ params, config, rpsNumero, nfseSubstituida }: BuildSubstituirNfseXmlParams): string {
   const nfseData = params.nfseData as NfseData
-  const cnpjLimpo = config.cnpj.replace(/\D/g, '')
+  const cnpjLimpo = normalizeTaxId(config.cnpj)
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <SubstituirNfseEnvio xmlns="http://www.abrasf.org.br/nfse.xsd">
@@ -249,7 +245,7 @@ function buildInfDeclaracaoXml({ params, config, rpsNumero, nfseData }: BuildInf
         <MunicipioIncidencia>${config.codigoMunicipio}</MunicipioIncidencia>
       </Servico>
       <Prestador>
-        <CpfCnpj><Cnpj>${config.cnpj.replace(/\D/g, '')}</Cnpj></CpfCnpj>
+        <CpfCnpj><Cnpj>${normalizeTaxId(config.cnpj)}</Cnpj></CpfCnpj>
         <InscricaoMunicipal>${config.inscricaoMunicipal}</InscricaoMunicipal>
       </Prestador>
       ${tomadorXml}
@@ -262,7 +258,7 @@ function buildTomadorXml(nfseData: NfseData): string {
   if (!nfseData.tomadorCnpj && !nfseData.tomadorCpf) return ''
 
   const cpfCnpjXml = nfseData.tomadorCnpj
-    ? `<Cnpj>${nfseData.tomadorCnpj.replace(/\D/g, '')}</Cnpj>`
+    ? `<Cnpj>${normalizeTaxId(nfseData.tomadorCnpj)}</Cnpj>`
     : `<Cpf>${nfseData.tomadorCpf!.replace(/\D/g, '')}</Cpf>`
 
   const inscricaoXml = nfseData.tomadorInscricaoMunicipal
@@ -294,7 +290,7 @@ function buildCancelarNfseXml({
     <InfPedidoCancelamento Id="Cancel${numeroNfse}">
       <IdentificacaoNfse>
         <Numero>${numeroNfse}</Numero>
-        <CpfCnpj><Cnpj>${config.cnpj.replace(/\D/g, '')}</Cnpj></CpfCnpj>
+        <CpfCnpj><Cnpj>${normalizeTaxId(config.cnpj)}</Cnpj></CpfCnpj>
         <InscricaoMunicipal>${config.inscricaoMunicipal}</InscricaoMunicipal>
         <CodigoMunicipio>${config.codigoMunicipio}</CodigoMunicipio>
       </IdentificacaoNfse>
@@ -358,8 +354,7 @@ function parseGerarNfseResponse(soapXml: string): FiscalResult {
     }
 
     const listaErros =
-      retorno?.ListaMensagemRetorno?.MensagemRetorno ??
-      retorno?.ListaMensagemRetornoLote?.MensagemRetorno
+      retorno?.ListaMensagemRetorno?.MensagemRetorno ?? retorno?.ListaMensagemRetornoLote?.MensagemRetorno
     const primeiroErro = Array.isArray(listaErros) ? listaErros[0] : listaErros
 
     if (primeiroErro) {
@@ -432,8 +427,7 @@ function parseSubstituirNfseResponse(soapXml: string): FiscalResult {
     const body = parsed?.Envelope?.Body
     const retorno = body?.SubstituirNfseResposta
 
-    const nfse =
-      retorno?.RetSubstituicao?.NfseSubstituicao?.SubstituicaoNfse?.NfseSubstituida?.CompNfse?.Nfse?.InfNfse
+    const nfse = retorno?.RetSubstituicao?.NfseSubstituicao?.SubstituicaoNfse?.NfseSubstituida?.CompNfse?.Nfse?.InfNfse
 
     if (nfse) {
       return {
@@ -486,7 +480,7 @@ async function sendSoap({ url, soapAction, body, certData }: SendSoapParams): Pr
     method: 'POST',
     headers: {
       'Content-Type': 'application/soap+xml; charset=utf-8',
-      'SOAPAction': `"${soapAction}"`,
+      SOAPAction: `"${soapAction}"`,
     },
     body,
     // @ts-expect-error — Bun TLS extension
@@ -511,7 +505,7 @@ async function fetchWithTimeout(url: string, options: RequestInit): Promise<Resp
     }
     throw new FiscalConnectionError(
       'webservice municipal NFS-e',
-      error instanceof Error ? error.message : 'erro de rede desconhecido'
+      error instanceof Error ? error.message : 'erro de rede desconhecido',
     )
   } finally {
     clearTimeout(timer)
@@ -527,7 +521,7 @@ function loadCertificateOrThrow(config: NfseConfig) {
 function signOrThrow(
   xml: string,
   certData: { certificatePem: string; privateKeyPem: string },
-  context: string
+  context: string,
 ): string {
   try {
     const result = signNfseXml(xml, certData)
@@ -537,7 +531,7 @@ function signOrThrow(
       `Falha ao assinar XML de ${context}: ${error instanceof Error ? error.message : 'erro desconhecido'}`,
       'XML_SIGN_ERROR',
       error instanceof Error ? error.message : 'unknown',
-      null
+      null,
     )
   }
 }

@@ -3,6 +3,7 @@ import type { ChaveAcesso } from './SefazChave'
 import { UF_IBGE_CODES } from './SefazConstants'
 import { toNfcePaymentCode } from '../utils/mapPaymentMethod'
 import { formatDhEmi } from './SefazDateTime'
+import { normalizeTaxId } from './SefazTaxId'
 import { buildIbsCbsItem, buildIbsCbsTotal, resolveIbsCbsRates, type IbsCbsAmounts } from './IbsCbsBuilder'
 
 /** Códigos tPag que exigem o grupo <card> (cartão + arranjos eletrônicos). */
@@ -27,7 +28,7 @@ export function buildNfceXml({ params, config, chave, dataEmissao }: BuildNfceXm
   const totalProdutos = params.items.reduce((sum, item) => sum + item.valorTotal, 0).toFixed(2)
   const totalNf = params.totalAmount.toFixed(2)
   const totalDesc = (params.discountAmount ?? 0).toFixed(2)
-  const cnpj = config.cnpj.replace(/\D/g, '')
+  const cnpj = normalizeTaxId(config.cnpj)
   const cep = config.cep.replace(/\D/g, '').padStart(8, '0')
 
   // Homologação: primeiro item deve identificar ambiente (evita cStat 598)

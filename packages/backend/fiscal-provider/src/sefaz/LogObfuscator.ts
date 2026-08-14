@@ -1,8 +1,10 @@
+import { CHAVE_PATTERN, CNPJ_PATTERN, normalizeTaxId } from './SefazTaxId'
+
 function maskCnpj(value: string): string {
-  const digits = value.replace(/\D/g, '')
-  if (digits.length !== 14) return '**masked**'
-  // Preserva UF raiz (2 dígitos) + sufixo filial (4) para identificação; oculta o centro
-  return `${digits.slice(0, 2)}****${digits.slice(8, 12)}-**`
+  const taxId = normalizeTaxId(value)
+  if (!CNPJ_PATTERN.test(taxId)) return '**masked**'
+  // Preserva UF raiz (2 posições) + sufixo filial (4) para identificação; oculta o centro
+  return `${taxId.slice(0, 2)}****${taxId.slice(8, 12)}-**`
 }
 
 function maskCpf(value: string): string {
@@ -13,18 +15,22 @@ function maskCpf(value: string): string {
 }
 
 function maskChaveAcesso(value: string): string {
-  const digits = value.replace(/\D/g, '')
-  if (digits.length !== 44) return '**masked**'
+  const key = normalizeTaxId(value)
+  if (!CHAVE_PATTERN.test(key)) return '**masked**'
   // UF+AAMM visíveis no início, cNF visível no final para rastreio mínimo
-  return `${digits.slice(0, 6)}...${digits.slice(-4)}`
+  return `${key.slice(0, 6)}...${key.slice(-4)}`
 }
 
 function maskXmlResponse(value: string): string {
-  return value
-    .replace(/(<CNPJ>)(\d{14})(<\/CNPJ>)/g, '$1**masked**$3')
-    .replace(/(<CPF>)(\d{11})(<\/CPF>)/g, '$1**masked**$3')
-    .replace(/(<IE>)([^<]+)(<\/IE>)/g, '$1**masked**$3')
-    .replace(/(<xNome>)([^<]+)(<\/xNome>)/g, '$1**masked**$3')
+  return (
+    value
+      // `\d{14}` não casava o CNPJ alfanumérico: a tag passava direto e o documento ia inteiro
+      // para o log, ao lado de um `<xNome>` corretamente mascarado
+      .replace(/(<CNPJ>)([A-Z0-9]{12}[0-9]{2})(<\/CNPJ>)/g, '$1**masked**$3')
+      .replace(/(<CPF>)(\d{11})(<\/CPF>)/g, '$1**masked**$3')
+      .replace(/(<IE>)([^<]+)(<\/IE>)/g, '$1**masked**$3')
+      .replace(/(<xNome>)([^<]+)(<\/xNome>)/g, '$1**masked**$3')
+  )
 }
 
 /**
@@ -40,10 +46,22 @@ export function obfuscateMeta(meta: Record<string, unknown>): Record<string, unk
       continue
     }
 
-    if (key === 'cnpj') { result[key] = maskCnpj(value); continue }
-    if (key === 'cpf') { result[key] = maskCpf(value); continue }
-    if (key === 'chaveAcesso') { result[key] = maskChaveAcesso(value); continue }
-    if (key === 'rawResponse') { result[key] = maskXmlResponse(value); continue }
+    if (key === 'cnpj') {
+      result[key] = maskCnpj(value)
+      continue
+    }
+    if (key === 'cpf') {
+      result[key] = maskCpf(value)
+      continue
+    }
+    if (key === 'chaveAcesso') {
+      result[key] = maskChaveAcesso(value)
+      continue
+    }
+    if (key === 'rawResponse') {
+      result[key] = maskXmlResponse(value)
+      continue
+    }
 
     result[key] = value
   }

@@ -9,9 +9,13 @@ import * as forge from 'node-forge'
 
 import { createFiscalProvider, FiscalEnvironment, type MdfeConfig, type MdfeData } from '../../src/index'
 import { buildMdfeXml } from '../../src/sefaz/MdfeXmlBuilder'
+import { calcularDvChave } from '../../src/sefaz/SefazTaxId'
 import { loadCertificate, signMdfeXml } from '../../src/sefaz/SefazXmlSigner'
 
 const CERTIFICATE_CNPJ = '11222333000181'
+const ALPHANUMERIC_CNPJ = '12ABC34501DE35'
+/** O que `replace(/\D/g, '')` produziria: 9 posições que nomeiam outro contribuinte. */
+const CORRUPTED_ALPHANUMERIC_CNPJ = '123450135'
 const CERTIFICATE_PASSWORD = 'fixture-password'
 const MOCK_ACCESS_KEY = '35260711222333000181580010000000011000000018'
 const MOCK_CTE_KEY = '35260711222333000181570010000000011000000010'
@@ -43,6 +47,24 @@ describe('MDF-e 3.00 schema element names', () => {
     expect(chaveAcesso.slice(20, 22)).toBe('58')
     expect(chaveAcesso.slice(0, 2)).toBe('35')
     expect(chaveAcesso.slice(6, 20)).toBe(CERTIFICATE_CNPJ)
+  })
+
+  // A chave de 44 é onde o CNPJ alfanumérico aparece sem tag em volta: ele ocupa as posições 6..19 e
+  // entra no módulo 11 do cDV pelo valor do caractere. Uma transportadora com CNPJ novo emite MDF-e
+  // desde o primeiro dia, e é a chave dela que a SEFAZ confere
+  test('carries an alphanumeric CNPJ in the access key and in the emit group', () => {
+    const { xml, chaveAcesso } = buildMdfeXml(
+      { ...buildMdfeConfig('unused'), cnpj: ALPHANUMERIC_CNPJ },
+      buildMdfeData(),
+    )
+
+    expect(chaveAcesso).toHaveLength(44)
+    expect(chaveAcesso.slice(6, 20)).toBe(ALPHANUMERIC_CNPJ)
+    expect(chaveAcesso.slice(20, 22)).toBe('58')
+    expect(calcularDvChave(chaveAcesso.slice(0, 43))).toBe(chaveAcesso.slice(43))
+    expect(xml.includes(`<emit><CNPJ>${ALPHANUMERIC_CNPJ}</CNPJ>`)).toBe(true)
+    expect(xml.includes(`Id="MDFe${chaveAcesso}"`)).toBe(true)
+    expect(xml.includes(CORRUPTED_ALPHANUMERIC_CNPJ)).toBe(false)
   })
 
   // O MDF-e usa o modal em um dígito (1..4); o CT-e usa dois ('01'..'04')

@@ -12,6 +12,7 @@ import type {
   ImportedNfeXml,
 } from '../types'
 import { loadCertificate } from '../sefaz/SefazXmlSigner'
+import { CHAVE_PATTERN, CNPJ_PATTERN, normalizeTaxId } from '../sefaz/SefazTaxId'
 import { NFE_DISTRIBUICAO_ENDPOINT, UF_IBGE_CODES_CTE } from '../sefaz/CteConstants'
 import { importarNfeXml } from './NfeXmlImporter.service'
 
@@ -161,9 +162,9 @@ function mapReceitaWsCnpj(cnpjClean: string, data: Record<string, unknown>): Cnp
 }
 
 export async function consultarCnpj(cnpj: string): Promise<CnpjInfo> {
-  const cnpjClean = cnpj.replace(/\D/g, '')
-  if (cnpjClean.length !== 14) {
-    throw new Error(`CNPJ inválido: "${cnpj}" — deve conter 14 dígitos`)
+  const cnpjClean = normalizeTaxId(cnpj)
+  if (!CNPJ_PATTERN.test(cnpjClean)) {
+    throw new Error(`CNPJ inválido: "${cnpj}" — deve conter 14 posições, com letra apenas nas 12 primeiras`)
   }
 
   let response: Response
@@ -228,7 +229,7 @@ export class NfeDistribuicaoProvider {
    */
   async consultarDFe(params: ConsultarDFeParams): Promise<NfeDistribuicaoResult> {
     const { config, ultNSU, filtros } = params
-    const cnpjClean = config.cnpj.replace(/\D/g, '')
+    const cnpjClean = normalizeTaxId(config.cnpj)
     const cooldownKey = `${cnpjClean}:${config.environment}`
     const cooldownUntil = distNsuCooldowns.get(cooldownKey)
 
@@ -267,7 +268,7 @@ export class NfeDistribuicaoProvider {
     const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
     const tpAmb = config.environment === 'producao' ? '1' : '2'
     const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
-    const cnpjClean = config.cnpj.replace(/\D/g, '')
+    const cnpjClean = normalizeTaxId(config.cnpj)
 
     const soapBody = buildConsNsuSoap({ cUF, cnpj: cnpjClean, nsu, tpAmb })
     const responseText = await this.fetchSefaz(config, certData, soapBody)
@@ -281,15 +282,17 @@ export class NfeDistribuicaoProvider {
    */
   async consultarPorChave(params: ConsultarPorChaveParams): Promise<DfeItem | undefined> {
     const { config, chaveNfe } = params
-    const chaveClean = chaveNfe.replace(/\D/g, '')
-    if (chaveClean.length !== 44) {
-      throw new Error(`Chave de acesso inválida: "${chaveNfe}" — deve conter 44 dígitos`)
+    const chaveClean = normalizeTaxId(chaveNfe)
+    if (!CHAVE_PATTERN.test(chaveClean)) {
+      throw new Error(
+        `Chave de acesso inválida: "${chaveNfe}" — deve conter 44 posições, com letra apenas nas 12 primeiras do CNPJ`,
+      )
     }
 
     const certData = loadCertificate(config.certificadoBase64, config.certificadoSenha)
     const tpAmb = config.environment === 'producao' ? '1' : '2'
     const cUF = UF_IBGE_CODES_CTE[config.uf] ?? '35'
-    const cnpjClean = config.cnpj.replace(/\D/g, '')
+    const cnpjClean = normalizeTaxId(config.cnpj)
 
     const soapBody = buildConsChaveSoap({ cUF, cnpj: cnpjClean, chaveNfe: chaveClean, tpAmb })
     const responseText = await this.fetchSefaz(config, certData, soapBody)
@@ -379,7 +382,11 @@ function buildSoapEnvelope(params: SoapBaseParams, queryBody: string): string {
 function aplicarFiltros(itens: readonly DfeItem[], filtros: FiltrosDfe): readonly DfeItem[] {
   return itens.filter((item) => {
     if (filtros.modelo && item.mod !== filtros.modelo) return false
-    if (filtros.cnpjEmitente && item.emitenteCnpj?.replace(/\D/g, '') !== filtros.cnpjEmitente.replace(/\D/g, ''))
+    // Normalizado dos dois lados: com replace(/\D/g,'') dois CNPJs alfanuméricos distintos colidiam
+    if (
+      filtros.cnpjEmitente &&
+      (item.emitenteCnpj === undefined || normalizeTaxId(item.emitenteCnpj) !== normalizeTaxId(filtros.cnpjEmitente))
+    )
       return false
     if (filtros.situacao && item.situacao !== filtros.situacao) return false
     if (filtros.schemas && !filtros.schemas.includes(item.schema)) return false

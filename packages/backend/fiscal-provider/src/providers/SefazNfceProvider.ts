@@ -22,6 +22,7 @@ import { obfuscateMeta } from '../sefaz/LogObfuscator'
 import { resolveErrorHint } from '../sefaz/SefazCstatHints'
 import { assertValidFiscalItems } from '../validation/FiscalItemValidator'
 import { formatSefazDateTime } from '../sefaz/SefazDateTime'
+import { CHAVE_PATTERN, normalizeTaxId } from '../sefaz/SefazTaxId'
 import {
   CANCEL_TIMING_REJECT_CODES,
   CANCEL_MAX_ATTEMPTS,
@@ -214,15 +215,15 @@ export class SefazNfceProvider implements FiscalProvider {
     const { config } = params
     assertNfceConfig(config)
 
-    if (!params.chaveAcesso || params.chaveAcesso.replace(/\D/g, '').length !== 44) {
+    if (!params.chaveAcesso || !CHAVE_PATTERN.test(normalizeTaxId(params.chaveAcesso))) {
       log('warn', NFCE_LOG.CANCEL_CHAVE_INVALID, {
         chaveAcesso: params.chaveAcesso,
-        tamanho: params.chaveAcesso?.replace(/\D/g, '').length ?? 0,
+        tamanho: normalizeTaxId(params.chaveAcesso ?? '').length,
       })
       return {
         success: false,
         errorCode: 'INVALID_CHAVE',
-        errorMessage: `chaveAcesso inválida: deve ter exatamente 44 dígitos numéricos (recebido: "${params.chaveAcesso}")`,
+        errorMessage: `chaveAcesso inválida: deve ter exatamente 44 posições, com letra apenas nas 12 primeiras do CNPJ (recebido: "${params.chaveAcesso}")`,
         rawResponse: null,
       }
     }

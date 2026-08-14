@@ -3,6 +3,7 @@ import { loadCertificate } from './SefazXmlSigner'
 import { getSefazUrls, UF_IBGE_CODES } from './SefazConstants'
 import { getNfeUrls } from './NfeConstants'
 import { formatSefazDateTime } from './SefazDateTime'
+import { normalizeTaxId } from './SefazTaxId'
 import { cancelEventoDate } from './SefazCancelTiming'
 import { sendConsultaProtocolo, sendCartaCorrecao, sendInutilizacao, type ConsultaResult } from './SefazSoapClient'
 
@@ -38,7 +39,7 @@ export async function consultarNfe(params: { chaveAcesso: string; config: DocCon
   return sendConsultaProtocolo({
     endpoint: r.consultaProtocolo,
     cUF: r.cUF,
-    chaveAcesso: params.chaveAcesso.replace(/\D/g, ''),
+    chaveAcesso: normalizeTaxId(params.chaveAcesso),
     tpAmb: r.tpAmb,
     certData: r.cert,
   })
@@ -64,7 +65,7 @@ export async function cartaCorrecao(params: {
   return sendCartaCorrecao({
     endpoint: r.recepcaoEvento,
     cUF: r.cUF,
-    chaveAcesso: params.chaveAcesso.replace(/\D/g, ''),
+    chaveAcesso: normalizeTaxId(params.chaveAcesso),
     correcao,
     cnpj: params.config.cnpj,
     dhEvento: formatSefazDateTime(cancelEventoDate()),

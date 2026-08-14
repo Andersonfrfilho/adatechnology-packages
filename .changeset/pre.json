@@ -57,6 +57,7 @@
     "catalog-inventory",
     "catalog-review-verdict",
     "catalog-trio",
+    "cnpj-alfanumerico",
     "composed-workspaces",
     "composer-idle-action",
     "configurable-product-model",

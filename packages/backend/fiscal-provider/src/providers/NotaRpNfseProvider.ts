@@ -8,6 +8,7 @@ import type {
   NotaRpConfig,
   NotaRpNfseData,
 } from '../types'
+import { normalizeTaxId } from '../sefaz/SefazTaxId'
 import { FiscalError, FiscalConnectionError, FiscalRejectionError } from '../errors/FiscalError'
 
 const NOTARP_BASE_URL = 'https://www.notarp.com.br'
@@ -91,7 +92,7 @@ function buildHeaders(config: NotaRpConfig): Record<string, string> {
   return {
     'Content-Type': 'application/json',
     'X-Auth-User-Token': config.apiToken,
-    'X-Auth-CNPJ': config.cnpj.replace(/\D/g, ''),
+    'X-Auth-CNPJ': normalizeTaxId(config.cnpj),
     'X-Auth-IM': config.inscricaoMunicipal.replace(/\D/g, ''),
   }
 }
@@ -136,9 +137,10 @@ function buildEmitirPayload(data: NotaRpNfseData): NotaRpEmitirPayload {
       aliquota_cofins: data.aliquotaCofins ?? 3.0,
       pis_retido: data.pisRetido ?? false,
       cofins_retido: data.cofinsRetido ?? false,
-      tributos_aproximados: data.aliquotaSimplesNacional !== undefined
-        ? { aliquota_simples_nacional: data.aliquotaSimplesNacional }
-        : undefined,
+      tributos_aproximados:
+        data.aliquotaSimplesNacional !== undefined
+          ? { aliquota_simples_nacional: data.aliquotaSimplesNacional }
+          : undefined,
       ibscbs: data.ibscbs,
     },
     flags: {

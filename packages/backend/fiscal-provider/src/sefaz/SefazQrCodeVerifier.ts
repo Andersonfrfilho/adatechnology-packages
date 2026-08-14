@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { isChaveDvValid } from './SefazChave'
+import { CHAVE_PATTERN } from './SefazTaxId'
 
 /**
  * Verificação do QR Code da NFC-e (NT 2016.002 — QRCODE V2 online).
@@ -87,7 +88,7 @@ export function verifyQrCode({ qrCodeUrl, cscToken }: VerifyQrCodeParams): Verif
     }
   }
 
-  const chaveFormatoOk = /^\d{44}$/.test(parts.chave)
+  const chaveFormatoOk = CHAVE_PATTERN.test(parts.chave)
   const cIdTokenOk = /^[1-9]\d{0,5}$/.test(parts.cIdToken)
   const expectedHash = computeQrCodeHash({
     chave: parts.chave,
@@ -99,7 +100,7 @@ export function verifyQrCode({ qrCodeUrl, cscToken }: VerifyQrCodeParams): Verif
   const checks: QrCodeCheck[] = [
     { name: 'formato', passed: true },
     {
-      name: 'chave-44-digitos',
+      name: 'chave-44-posicoes',
       passed: chaveFormatoOk,
       detail: chaveFormatoOk ? undefined : `chave tem ${parts.chave.length} caracteres`,
     },
