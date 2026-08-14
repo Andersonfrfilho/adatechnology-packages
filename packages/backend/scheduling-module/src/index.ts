@@ -48,6 +48,9 @@ export { AvailabilityRepository } from './repositories/AvailabilityRepository'
 export { BookingRepository } from './repositories/BookingRepository'
 export type { ListBookingsQuery, ListBookingsPage } from './repositories/BookingRepository'
 
+export { createSchedulingSchedules } from './worker'
+export type { SchedulingSchedule } from './worker'
+
 export {
   resourceOwnedByCondition,
   resourceListCondition,
@@ -80,7 +83,10 @@ export {
   MarkNoShowUseCase,
   RequestBookingUseCase,
   RescheduleBookingUseCase,
+  SyncBookingCalendarUseCase,
 } from './use-cases/Booking.use-cases'
+
+export { SweepDueRemindersUseCase } from './use-cases/Reminders.use-cases'
 
 export {
   CreateResourceUseCase,

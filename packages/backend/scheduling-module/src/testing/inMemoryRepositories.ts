@@ -422,5 +422,24 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       })
       return snapshot(row)
     },
+    /**
+     * Sem `await` entre ler e marcar `reminderSentAt` — em JS single-thread isso já basta para o
+     * mesmo aceite de T6.2 que o `FOR UPDATE SKIP LOCKED` garante no Postgres real: nenhum ponto
+     * de interleaving existe entre duas chamadas concorrentes deste método.
+     */
+    async claimDueReminders(params: { now: Date; windowMinutes: number; limit?: number }): Promise<BookingRow[]> {
+      const until = new Date(params.now.getTime() + params.windowMinutes * 60_000)
+      const due = rows
+        .filter((row) => row.status === 'confirmed' && row.reminderSentAt === null && row.startsAt <= until)
+        .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+        .slice(0, params.limit ?? 100)
+
+      for (const row of due) {
+        row.reminderSentAt = params.now
+        row.updatedAt = params.now
+      }
+
+      return due.map((row) => ({ ...row }))
+    },
   }
 }

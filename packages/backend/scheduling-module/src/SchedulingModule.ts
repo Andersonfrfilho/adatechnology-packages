@@ -47,6 +47,7 @@ import {
   ListResourcesUseCase,
   UpdateResourceUseCase,
 } from './use-cases/Resource.use-cases'
+import { SweepDueRemindersUseCase } from './use-cases/Reminders.use-cases'
 import type { SchedulingDependencies } from './use-cases/schedulingModule.types'
 import {
   CreateServiceUseCase,
@@ -101,6 +102,7 @@ export type SchedulingModule = {
     readonly getBooking: GetBookingUseCase
     readonly listBookings: ListBookingsUseCase
     readonly syncBookingCalendar: SyncBookingCalendarUseCase
+    readonly sweepDueReminders: SweepDueRemindersUseCase
   }
   /** Capacidade opcional por ausência (`pluggable-module.md` §4) — o host consulta em vez de inferir da config. */
   readonly hasVideoMeeting: boolean
@@ -158,6 +160,7 @@ export function createSchedulingModule(params: CreateSchedulingModuleParams): Sc
       getBooking: new GetBookingUseCase(dependencies),
       listBookings: new ListBookingsUseCase(dependencies),
       syncBookingCalendar: new SyncBookingCalendarUseCase(dependencies),
+      sweepDueReminders: new SweepDueRemindersUseCase(dependencies),
     },
     hasVideoMeeting: Boolean(params.providers?.videoMeeting),
     hasCalendarSync: Boolean(params.providers?.calendarSync),

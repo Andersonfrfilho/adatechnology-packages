@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { and, asc, eq, gt, gte, lt, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm'
 import { SlotUnavailableError } from '@adatechnology/scheduling-contracts'
 
 import type { SchedulingDatabase } from '../database.types'
@@ -212,6 +212,36 @@ export class BookingRepository {
       }
       throw error
     }
+  }
+
+  /**
+   * Reivindica lembretes devidos: `confirmed`, `reminderSentAt` nulo e `startsAt` dentro da janela
+   * de antecedência (T6.1). `FOR UPDATE SKIP LOCKED` + marcação de `reminderSentAt` na mesma
+   * transação é o mesmo desenho de `DispatchDueNotificationsUseCase` — duas varreduras
+   * concorrentes nunca reivindicam a mesma linha (T6.2), e nenhuma trava esperando a outra.
+   */
+  async claimDueReminders(params: { now: Date; windowMinutes: number; limit?: number }): Promise<BookingRow[]> {
+    const until = new Date(params.now.getTime() + params.windowMinutes * 60_000)
+
+    return this.db.transaction(async (tx) => {
+      const due = await tx
+        .select()
+        .from(bookings)
+        .where(and(eq(bookings.status, 'confirmed'), isNull(bookings.reminderSentAt), lte(bookings.startsAt, until)))
+        .orderBy(asc(bookings.startsAt))
+        .limit(params.limit ?? 100)
+        .for('update', { skipLocked: true })
+
+      if (due.length === 0) return []
+
+      const ids = due.map((row) => row.id)
+      await tx
+        .update(bookings)
+        .set({ reminderSentAt: params.now, updatedAt: params.now })
+        .where(inArray(bookings.id, ids))
+
+      return due.map((row) => ({ ...row, reminderSentAt: params.now }))
+    })
   }
 
   /**

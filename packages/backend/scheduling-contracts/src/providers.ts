@@ -87,6 +87,11 @@ export type SchedulingModuleConfig = {
   /** Tolerância para "horário no passado" em criação/remarcação — `0` (padrão) não perdoa nada (T4.8). */
   readonly pastBookingToleranceMinutes?: number
   /**
+   * Antecedência do lembrete (T6.1) — `SweepDueReminders` considera "devida" toda reserva
+   * confirmada com início dentro desta janela. Padrão 1440 (24h) quando ausente.
+   */
+  readonly reminderAdvanceMinutes?: number
+  /**
    * Espelho no calendário externo é **desligado por padrão** (spec §1, §8) — diferente do
    * `VideoMeetingPort`, que é capacidade pura por ausência. Ligar aqui sem plugar
    * `providers.calendarSync` falha no boot (`CalendarSyncDisabledError`), não na primeira
