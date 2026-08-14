@@ -124,6 +124,7 @@
     "products-ui-image-compression",
     "products-ui-runtime-by-script",
     "products-workspace-areas",
+    "products-workspace-drawer",
     "products-workspace",
     "quick-replies-single-row",
     "redactor-logger-http-sink",
