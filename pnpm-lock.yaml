@@ -141,6 +141,22 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  packages/backend/caldav-calendar-provider:
+    dependencies:
+      '@adatechnology/scheduling-contracts':
+        specifier: workspace:*
+        version: link:../scheduling-contracts
+    devDependencies:
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.15)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/backend/catalog-contracts:
     dependencies:
       zod:
@@ -511,6 +527,22 @@ importers:
         specifier: '>=6.4.2'
         version: 8.0.14(@types/node@24.13.3)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.1)(yaml@2.9.0)
 
+  packages/backend/google-calendar-provider:
+    dependencies:
+      '@adatechnology/scheduling-contracts':
+        specifier: workspace:*
+        version: link:../scheduling-contracts
+    devDependencies:
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.15)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/backend/http-client:
     devDependencies:
       '@adatechnology/logger':
@@ -653,6 +685,22 @@ importers:
         version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.15)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
       typescript:
         specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/backend/microsoft-calendar-provider:
+    dependencies:
+      '@adatechnology/scheduling-contracts':
+        specifier: workspace:*
+        version: link:../scheduling-contracts
+    devDependencies:
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.15)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.9.3
         version: 5.9.3
 
   packages/backend/module-http:
