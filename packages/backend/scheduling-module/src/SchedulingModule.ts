@@ -38,6 +38,7 @@ import {
   MarkNoShowUseCase,
   RequestBookingUseCase,
   RescheduleBookingUseCase,
+  SyncBookingCalendarUseCase,
 } from './use-cases/Booking.use-cases'
 import {
   CreateResourceUseCase,
@@ -99,6 +100,7 @@ export type SchedulingModule = {
     readonly markNoShow: MarkNoShowUseCase
     readonly getBooking: GetBookingUseCase
     readonly listBookings: ListBookingsUseCase
+    readonly syncBookingCalendar: SyncBookingCalendarUseCase
   }
   /** Capacidade opcional por ausência (`pluggable-module.md` §4) — o host consulta em vez de inferir da config. */
   readonly hasVideoMeeting: boolean
@@ -155,6 +157,7 @@ export function createSchedulingModule(params: CreateSchedulingModuleParams): Sc
       markNoShow: new MarkNoShowUseCase(dependencies),
       getBooking: new GetBookingUseCase(dependencies),
       listBookings: new ListBookingsUseCase(dependencies),
+      syncBookingCalendar: new SyncBookingCalendarUseCase(dependencies),
     },
     hasVideoMeeting: Boolean(params.providers?.videoMeeting),
     hasCalendarSync: Boolean(params.providers?.calendarSync),

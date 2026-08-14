@@ -1014,6 +1014,9 @@ importers:
 
   packages/backend/scheduling-module:
     dependencies:
+      '@adatechnology/module-http':
+        specifier: workspace:*
+        version: link:../module-http
       '@adatechnology/scheduling-contracts':
         specifier: workspace:*
         version: link:../scheduling-contracts

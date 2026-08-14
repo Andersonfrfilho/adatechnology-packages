@@ -543,6 +543,27 @@ export class GetBookingUseCase {
   }
 }
 
+/** Trigger manual do espelho de calendário — reusa `attachCalendarSync`; nunca lança em falha do provider (mesma postura). */
+export class SyncBookingCalendarUseCase {
+  constructor(private readonly dependencies: SchedulingDependencies) {}
+
+  async execute(params: { companyId: string; id: string }): Promise<{ booking: Booking; slots: BookingSlot[] }> {
+    const { repositories } = this.dependencies
+
+    const existing = await repositories.bookings.findById({ companyId: params.companyId, id: params.id })
+    if (!existing) throw new BookingNotFoundError(params.id)
+
+    const booking = await attachCalendarSync({
+      dependencies: this.dependencies,
+      companyId: params.companyId,
+      booking: existing,
+    })
+    const slots = await repositories.bookings.findSlotsByBooking({ bookingId: params.id })
+
+    return { booking: toBooking(booking), slots: slots.map(toBookingSlot) }
+  }
+}
+
 /** T4.7 — listagem paginada, filtrável por recurso/status/janela. */
 export class ListBookingsUseCase {
   constructor(private readonly dependencies: SchedulingDependencies) {}
