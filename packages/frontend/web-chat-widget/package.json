@@ -10,6 +10,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./simulator": {
+      "import": "./dist/simulator/index.js",
+      "types": "./dist/simulator/index.d.ts"
     }
   },
   "main": "dist/index.js",
@@ -18,7 +22,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --dts --clean --format esm",
+    "build": "tsup src/index.ts src/simulator/index.ts --dts --clean --format esm",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "bun test"
   },

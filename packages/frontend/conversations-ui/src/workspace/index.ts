@@ -1,5 +1,10 @@
 export { ConversationsWorkspace } from './ConversationsWorkspace'
-export type { ConversationsWorkspaceProps, ConversationsWorkspaceSimulator } from './ConversationsWorkspace'
+export type {
+  ConversationsWorkspaceProps,
+  ConversationsWorkspaceSimulator,
+  SimulatorTransportFactory,
+  SimulatorTransportParams,
+} from './ConversationsWorkspace'
 export { ConversationPane } from './ConversationPane'
 export type { ConversationPaneProps } from './ConversationPane'
 export { BulkTemplateModal } from './BulkTemplateModal'

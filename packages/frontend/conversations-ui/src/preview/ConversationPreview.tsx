@@ -1,7 +1,11 @@
 /**
- * Visão lado-cliente: você digita como se fosse o cliente no WhatsApp e vê o bot responder. A
- * mensagem sai assinada para o webhook real, então o que roda aqui é o mesmo caminho de staging e
- * produção — webhook, parser, motor de conversa.
+ * Visão lado-cliente: você digita como se fosse o cliente e vê o bot responder. A mensagem sai pelo
+ * transporte real do canal — webhook assinado no WhatsApp, rota pública do widget no chat do site —,
+ * então o que roda aqui é o mesmo caminho de staging e produção: parser, motor de conversa, fluxo.
+ *
+ * O canal entra por `client` (a porta `ConversationSimulatorClient`), não por condicional aqui
+ * dentro: esta tela não sabe qual canal está simulando, e é o que permite o painel ficar no mesmo
+ * lugar da conversa para todos eles.
  *
  * É o layout de conversa de verdade (wallpaper, divisor de data, agrupamento de bolhas), não uma
  * casca de teste: o preview serve para julgar copy e fluxo, e isso só funciona se o que se vê
@@ -19,11 +23,24 @@ import { MessageBubble } from '../MessageBubble'
 import { MessageComposer } from '../MessageComposer'
 import { DateDivider } from '../DateDivider'
 import { ConversationWallpaper } from '../Wallpaper'
-import type { PreviewWebhookClient, SendPreviewMediaParams } from './createPreviewWebhookClient'
+import type { PreviewWebhookClient } from './createPreviewWebhookClient'
+import {
+  acceptsMediaKind,
+  isConversationSimulatorClient,
+  mediaKindOf,
+  SIMULATOR_FILE_MEDIA_KINDS,
+  toConversationSimulatorClient,
+  type ConversationSimulatorClient,
+  type SimulatorMediaKind,
+} from './ConversationSimulatorClient'
 import { AudioRecorderButton } from '../AudioRecorderButton'
 
 export type ConversationPreviewProps = {
-  client: PreviewWebhookClient
+  /**
+   * Transporte do canal. `PreviewWebhookClient` continua aceito — é o caminho WhatsApp de antes
+   * desta porta, adaptado aqui dentro para não obrigar host nenhum a mudar de chamada.
+   */
+  client: ConversationSimulatorClient | PreviewWebhookClient
   sse: SSEProvider
   conversationId: string
   loadMessages: (conversationId: string) => Promise<MessagePayload[]>
@@ -35,12 +52,10 @@ export type ConversationPreviewProps = {
    */
   pollIntervalMs?: number
   /**
-   * Como transformar um arquivo do disco (ou o áudio gravado) na referência que o webhook carrega.
-   * O caminho da Meta entrega mídia por `id`, e quem sabe hospedar o arquivo é o host — a SDK não
-   * inventa um endpoint de upload. Ausente, o compositor não oferece anexo nem gravação: melhor um
-   * botão que não existe do que um que falha ao ser tocado.
+   * Destino alternativo do upload, no canal que sobe a mídia antes de citá-la (o caminho da Meta
+   * entrega mídia por `id`). Sem isto, usa o do próprio `client`. Canal que manda os bytes direto
+   * ignora esta prop: quem decide referência × bytes é o adaptador do canal.
    */
-  /** Destino alternativo do áudio gravado. Sem isto, usa o do próprio `client`. */
   uploadMedia?: (file: File) => Promise<PreviewUploadedMedia>
 }
 
@@ -50,12 +65,9 @@ export type PreviewUploadedMedia = {
   readonly filename?: string
 }
 
-/** Deriva o tipo de mídia do WhatsApp a partir do MIME do arquivo escolhido. */
-export function mediaTypeOf(mimeType: string): SendPreviewMediaParams['mediaType'] {
-  if (mimeType.startsWith('image/')) return 'image'
-  if (mimeType.startsWith('video/')) return 'video'
-  if (mimeType.startsWith('audio/')) return 'audio'
-  return 'document'
+/** @deprecated Use `mediaKindOf`, que não nomeia canal. Mantido para quem já importa. */
+export function mediaTypeOf(mimeType: string): SimulatorMediaKind {
+  return mediaKindOf(mimeType)
 }
 
 // Mesma janela usada pelo WhatsApp para colar bolhas do mesmo autor: acima disso, a mensagem
@@ -139,6 +151,14 @@ export function ConversationPreview({
   const bottomRef = useRef<HTMLDivElement>(null)
   loadMessagesRef.current = loadMessages
 
+  const simulator = useMemo(
+    () =>
+      isConversationSimulatorClient(client)
+        ? client
+        : toConversationSimulatorClient({ client, ...(uploadMedia ? { uploadMedia } : {}) }),
+    [client, uploadMedia],
+  )
+
   const refresh = useCallback(async (): Promise<void> => {
     try {
       const loaded = await loadMessagesRef.current(conversationId)
@@ -207,7 +227,7 @@ export function ConversationPreview({
   async function handleSend(text: string): Promise<void> {
     setFailure(undefined)
     try {
-      await client.sendText(text)
+      await simulator.sendText(text)
       setPendingLocal((current) => [
         ...current,
         {
@@ -235,12 +255,12 @@ export function ConversationPreview({
 
   async function handleInteractiveSelect(selection: InteractiveSelection): Promise<void> {
     setFailure(undefined)
-    const reply = { id: selection.option.id, title: selection.option.title }
     try {
-      // Botão e lista são payloads diferentes para a Meta (`button_reply` × `list_reply`), e o
-      // roteador do fluxo lê campos distintos: tratar os dois como um só faria o menu responder no
-      // simulador e falhar no aparelho do cliente.
-      await (selection.kind === 'button' ? client.sendButtonReply(reply) : client.sendListReply(reply))
+      // A seleção viaja inteira (botão × lista) porque a forma de fio é do canal: a Meta separa
+      // `button_reply` de `list_reply` e o roteador do fluxo lê campos distintos, enquanto o chat do
+      // site manda o rótulo como texto. Decidir isso aqui faria o menu responder no simulador e
+      // falhar no aparelho do cliente.
+      await simulator.sendReply(selection)
       await refreshWithFollowUps()
     } catch (error) {
       setFailure(error instanceof Error ? error.message : 'Falha ao entregar a resposta no webhook.')
@@ -248,23 +268,25 @@ export function ConversationPreview({
   }
 
   /**
-   * O cliente do preview sabe subir mídia sozinho; a prop é só para quem quer outro destino.
+   * O transporte do canal diz se aceita mídia do cliente; a tela só pergunta.
    *
    * Antes isto era `uploadMedia` puro, e o microfone só aparecia no produto que lembrasse de montar
-   * o upload — de onde veio a divergência entre dois simuladores da mesma casa.
+   * o upload — de onde veio a divergência entre dois simuladores da mesma casa. Agora quem responde
+   * é o adaptador: no WhatsApp ele precisa de um destino de upload, no chat do site manda os bytes.
    */
-  const uploadFile = uploadMedia ?? client.uploadMedia
+  const sendMedia = simulator.sendMedia
+  const canAttachFile = SIMULATOR_FILE_MEDIA_KINDS.some((kind) => acceptsMediaKind(simulator, kind))
+  const canRecordAudio = acceptsMediaKind(simulator, 'audio')
 
   async function handleAttach(file: File): Promise<void> {
-    if (!uploadFile) return
+    if (!sendMedia) return
     setFailure(undefined)
     try {
-      const uploaded = await uploadFile(file)
-      await client.sendMedia({
-        mediaType: mediaTypeOf(uploaded.mimeType ?? file.type),
-        mediaId: uploaded.mediaId,
-        mimeType: uploaded.mimeType ?? file.type,
-        filename: uploaded.filename ?? file.name,
+      await sendMedia({
+        mediaKind: mediaKindOf(file.type),
+        file,
+        mimeType: file.type,
+        filename: file.name,
       })
       await refreshWithFollowUps()
     } catch (error) {
@@ -312,7 +334,7 @@ export function ConversationPreview({
 
       <MessageComposer
         onSend={(text) => void handleSend(text)}
-        onAttach={uploadFile ? (file) => void handleAttach(file) : undefined}
+        onAttach={canAttachFile ? (file) => void handleAttach(file) : undefined}
         /* Gravando, o campo diz o que falta fazer: o botão é um interruptor e o segundo toque é
            que envia — sem esse aviso o operador grava, não vê nada acontecer e conclui que o
            microfone está quebrado. */
@@ -320,7 +342,7 @@ export function ConversationPreview({
           isRecording ? 'Gravando… toque no quadrado para ouvir' : (placeholder ?? 'Escreva como o cliente…')
         }
         idleAction={
-          uploadFile ? (
+          canRecordAudio ? (
             <AudioRecorderButton
               onRecorded={(file) => void handleAttach(file)}
               onFailure={(message) => setFailure(message)}

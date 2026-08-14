@@ -9,6 +9,11 @@
  * Customização: `labels` (texto e idioma), `renderFilters` / `renderBulkActions` /
  * `renderAboveTranscript` / `renderRow` (peças do produto), `contextEntriesOf` (vocabulário do
  * contexto), `extraUtilities` (ações no cabeçalho da conversa) e `simulator` (painel de preview).
+ *
+ * O simulador é montado aqui, e não pelo host: com `simulator.transports` o produto entrega só o
+ * transporte de cada canal e a moldura vem do pacote. Isso traz o `preview/` para o bundle de quem
+ * usa o workspace — o preço de a tela composta ser o padrão de consumo, que é o que impede a inbox
+ * de divergir entre produtos.
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -20,6 +25,14 @@ import type { ConversationHeaderUtility } from '../ConversationHeader'
 import type { QuickReply } from '../MessageComposer'
 import type { RichComposerVariable } from '../RichMessageComposer'
 import type { ConversationSummary } from '../providers/types'
+import { useConversations } from '../providers/ConversationsProvider'
+import { DEFAULT_CONVERSATION_CHANNEL, formatContactHandle, type ConversationChannel } from '../conversationChannel'
+import type { ConversationSimulatorClient } from '../preview/ConversationSimulatorClient'
+import type { PreviewUploadedMedia } from '../preview/createPreviewMediaUploader'
+import {
+  ConversationSimulatorPanel,
+  type ConversationSimulatorPanelLabels,
+} from '../preview/ConversationSimulatorPanel'
 import { BulkTemplateModal } from './BulkTemplateModal'
 import { ConversationPane } from './ConversationPane'
 import { ConversationsInboxList } from './ConversationsInboxList'
@@ -27,17 +40,49 @@ import { DEFAULT_CONVERSATIONS_WORKSPACE_LABELS, type ConversationsWorkspaceLabe
 import { useConversationsInbox, type UseConversationsInboxResult } from './useConversationsInbox'
 import { TooltipLayer } from '../Tooltip'
 
+export type SimulatorTransportParams = {
+  readonly conversationId: string
+  readonly channel: ConversationChannel
+  /** Identificador do contato no canal: telefone no WhatsApp, id de sessão no chat do site. */
+  readonly handle: string
+}
+
+/**
+ * Fábrica do transporte daquele canal.
+ *
+ * É o único ponto onde o host precisa saber de canal: o painel, a moldura e o comportamento são os
+ * mesmos em todos. No WhatsApp devolve o cliente-ponte (assinatura no servidor do host); no chat do
+ * site, o cliente das rotas do widget.
+ */
+export type SimulatorTransportFactory = (params: SimulatorTransportParams) => ConversationSimulatorClient
+
 export interface ConversationsWorkspaceSimulator {
   /**
-   * Desenha o painel do cliente. Fica com o host porque o simulador precisa da rota assinada no
-   * servidor DELE — e é o que mantém o `preview/` fora do bundle de quem não usa.
+   * Um transporte por canal — o workspace monta o painel com o da conversa selecionada.
+   *
+   * Canal sem transporte não desenha o botão: capacidade é opcional por ausência, e oferecer
+   * "simular" numa conversa que não tem como receber a mensagem é um botão que falha ao ser tocado.
    */
-  render(params: { conversationId: string; close: () => void }): ReactNode
+  readonly transports?: Partial<Record<ConversationChannel, SimulatorTransportFactory>>
+  /**
+   * Válvula de escape: o host desenha o painel inteiro. Tem precedência sobre `transports`.
+   *
+   * Era a única porta antes de `transports`, quando o simulador só falava WhatsApp e cada produto
+   * remontava a moldura — o que fez duas telas da mesma casa divergirem. Continua aceito para não
+   * quebrar quem já a usa.
+   */
+  render?(params: { conversationId: string; channel: ConversationChannel; close: () => void }): ReactNode
   /** Ausente = ligado. Serve para esconder fora de desenvolvimento sem condicionar o JSX. */
   readonly enabled?: boolean
   /** Ícone da biblioteca (lucide) no utilitário do cabeçalho. Ausente, entra o frasco de teste. */
   readonly icon?: ReactNode
   readonly label?: string
+  /** Vocabulário do painel. O que muda de canal (destino, placeholder) já vem resolvido. */
+  readonly labels?: Partial<ConversationSimulatorPanelLabels>
+  /** Destino do upload no canal que entrega mídia por referência (o caminho da Meta). */
+  readonly uploadMedia?: (file: File) => Promise<PreviewUploadedMedia>
+  /** Recarrega o transcript a cada N ms. Serve a host sem stream. */
+  readonly pollIntervalMs?: number
 }
 
 export interface ConversationsWorkspaceProps {
@@ -157,8 +202,22 @@ export function ConversationsWorkspace({
   }, [initialConversationId, initialWhatsappNumber, openedFromLink, inbox])
 
   const selected = inbox.selectedConversation
-  const simulatorEnabled = Boolean(simulator && (simulator.enabled ?? true))
+  const conversations = useConversations()
+  const selectedId = selected?.id
+  const channel = selected?.channel ?? DEFAULT_CONVERSATION_CHANNEL
+  const handle = selected ? (selected.contactId ?? selected.whatsappNumber) : ''
+  const transport = simulator?.transports?.[channel]
+  const simulatorEnabled = Boolean(
+    simulator && (simulator.enabled ?? true) && (simulator.render ?? transport),
+  )
   const showSimulator = simulatorEnabled && simulatorOpen && Boolean(selected)
+
+  // O transporte é recriado só quando a conversa (ou o canal dela) muda: identidade nova a cada
+  // render reiniciaria a leitura do transcript dentro do painel a cada digitação.
+  const simulatorClient = useMemo(
+    () => (transport && selectedId ? transport({ conversationId: selectedId, channel, handle }) : undefined),
+    [transport, selectedId, channel, handle],
+  )
 
   const paneUtilities = useMemo(() => {
     if (!selected) return undefined
@@ -325,7 +384,25 @@ export function ConversationsWorkspace({
           // `min-height:0` junto do `min-width:0`: sem isso a linha do grid cresce com o conteúdo do
           // painel, o scroll interno nunca ativa e quem rola passa a ser a página inteira.
           <div className="cv-workspace-simulator">
-            {simulator?.render({ conversationId: selected.id, close: () => setSimulatorOpen(false) })}
+            {simulator?.render ? (
+              simulator.render({ conversationId: selected.id, channel, close: () => setSimulatorOpen(false) })
+            ) : simulatorClient && conversations ? (
+              // `key` pela conversa: trocar de contato sem remontar deixaria o transcript e o campo
+              // de texto do contato anterior na tela.
+              <ConversationSimulatorPanel
+                key={selected.id}
+                client={simulatorClient}
+                sse={conversations.sse}
+                conversationId={selected.id}
+                channel={channel}
+                displayHandle={formatContactHandle({ handle, channel })}
+                loadMessages={(conversationId) => conversations.api.fetchMessages(conversationId)}
+                onClose={() => setSimulatorOpen(false)}
+                {...(simulator?.labels ? { labels: simulator.labels } : {})}
+                {...(simulator?.uploadMedia ? { uploadMedia: simulator.uploadMedia } : {})}
+                {...(simulator?.pollIntervalMs ? { pollIntervalMs: simulator.pollIntervalMs } : {})}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>

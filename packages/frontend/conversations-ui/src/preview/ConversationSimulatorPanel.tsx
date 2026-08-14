@@ -20,15 +20,20 @@
  *
  * O efeito de cada envio aparece na thread ao lado pelo mesmo stream que a inbox já assina — este
  * painel não abre conexão própria.
+ *
+ * A moldura é a mesma em todo canal — o que muda é o transporte, que entra pelo `client`, e duas
+ * frases do cabeçalho: dizer "entrega no webhook real" num chat de site descreveria um caminho que
+ * ali não existe, e "escreva como o cliente" num visitante anônimo nomeia alguém que ainda não é.
  */
 
 import type { ReactNode } from 'react'
 
+import { CONVERSATION_CHANNEL, DEFAULT_CONVERSATION_CHANNEL, type ConversationChannel } from '../conversationChannel'
 import { ConversationPreview, type ConversationPreviewProps } from './ConversationPreview'
 
 export type ConversationSimulatorPanelLabels = {
   readonly title: string
-  /** Complementa o telefone no subtítulo, explicando para onde a mensagem realmente vai. */
+  /** Complementa o identificador no subtítulo, explicando para onde a mensagem realmente vai. */
   readonly destinationHint: string
   readonly close: string
   readonly placeholder: string
@@ -41,12 +46,47 @@ export const DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS: ConversationSimulatorP
   placeholder: 'Escreva como o cliente…',
 }
 
+type ChannelWording = Pick<ConversationSimulatorPanelLabels, 'destinationHint' | 'placeholder'>
+
+/** Só o que muda de canal para canal; o resto continua vindo do default. */
+const SIMULATOR_PANEL_CHANNEL_WORDING: Readonly<Record<ConversationChannel, ChannelWording>> = {
+  [CONVERSATION_CHANNEL.WHATSAPP]: {
+    destinationHint: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.destinationHint,
+    placeholder: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.placeholder,
+  },
+  [CONVERSATION_CHANNEL.MESSENGER]: {
+    destinationHint: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.destinationHint,
+    placeholder: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.placeholder,
+  },
+  [CONVERSATION_CHANNEL.INSTAGRAM]: {
+    destinationHint: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.destinationHint,
+    placeholder: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.placeholder,
+  },
+  [CONVERSATION_CHANNEL.WEBCHAT]: {
+    destinationHint: 'entrega na API do chat do site',
+    placeholder: 'Escreva como o visitante…',
+  },
+}
+
+/** Rótulos do painel já resolvidos para o canal — útil para o host que monta o cabeçalho por fora. */
+export function simulatorPanelLabelsOf(channel: ConversationChannel | undefined): ConversationSimulatorPanelLabels {
+  return {
+    ...DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS,
+    ...SIMULATOR_PANEL_CHANNEL_WORDING[channel ?? DEFAULT_CONVERSATION_CHANNEL],
+  }
+}
+
 export type ConversationSimulatorPanelProps = Omit<ConversationPreviewProps, 'placeholder'> & {
   readonly onClose: () => void
+  /** Ausente = WhatsApp, que era o único canal antes desta prop existir. */
+  readonly channel?: ConversationChannel
   /**
-   * Telefone já formatado para leitura. É o host que formata: máscara de telefone é convenção
+   * Identificador do contato já formatado para leitura — telefone no WhatsApp, apelido no Instagram,
+   * "Visitante 3f9c21" no chat do site. É o host que formata: máscara de telefone é convenção
    * regional, e o pacote não tem como saber a do produto.
    */
+  readonly displayHandle?: string
+  /** @deprecated Use `displayHandle` — o simulador deixou de ser só telefone. */
   readonly displayNumber?: string
   readonly labels?: Partial<ConversationSimulatorPanelLabels>
   /** Ações extras no cabeçalho — roteiro automático, limpar conversa, trocar de contato. */
@@ -55,13 +95,15 @@ export type ConversationSimulatorPanelProps = Omit<ConversationPreviewProps, 'pl
 
 export function ConversationSimulatorPanel({
   onClose,
+  channel,
+  displayHandle,
   displayNumber,
   labels,
   headerActions,
   ...previewProps
 }: ConversationSimulatorPanelProps) {
-  const text = { ...DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS, ...labels }
-  const subtitle = [displayNumber ?? previewProps.conversationId, text.destinationHint].join(' · ')
+  const text = { ...simulatorPanelLabelsOf(channel), ...labels }
+  const subtitle = [displayHandle ?? displayNumber ?? previewProps.conversationId, text.destinationHint].join(' · ')
 
   return (
     <aside className="cv-simulator-panel" aria-label={text.title}>

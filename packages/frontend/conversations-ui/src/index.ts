@@ -251,9 +251,21 @@ export { useConversationsInbox, CONVERSATIONS_PER_PAGE, DEFAULT_CONVERSATIONS_WO
 export type {
   ConversationsWorkspaceProps,
   ConversationsWorkspaceSimulator,
+  SimulatorTransportFactory,
+  SimulatorTransportParams,
   ConversationsWorkspaceLabels,
   ConversationPaneProps,
   ConversationsInboxListProps,
   UseConversationsInboxParams,
   UseConversationsInboxResult,
 } from './workspace'
+
+// A porta do simulador entra no export principal como TIPO: `simulator.transports` é tipado por ela,
+// e obrigar o host a abrir o subpath `/preview` só para declarar a fábrica seria pedir que ele
+// importasse fixtures para escrever uma assinatura. `export type` é apagado no build — o `preview/`
+// continua fora do bundle de quem só declara o transporte.
+export type {
+  ConversationSimulatorClient,
+  SendSimulatorMediaParams,
+  SimulatorMediaKind,
+} from './preview/ConversationSimulatorClient'
