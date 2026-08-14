@@ -1,7 +1,7 @@
 {
   "name": "bun-app-example",
   "private": true,
-  "version": "0.0.2-rc.0",
+  "version": "0.0.2-rc.1",
   "type": "module",
   "description": "Integrated example using all @adatechnology Bun/Node libraries",
   "scripts": {

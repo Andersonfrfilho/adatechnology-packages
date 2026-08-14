@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/auth-keycloak",
-  "version": "1.0.0-rc.0",
+  "version": "1.0.0-rc.1",
   "description": "Keycloak JWT verification and middleware for Bun, uWebSockets.js, and Node.js",
   "type": "module",
   "main": "dist/index.js",

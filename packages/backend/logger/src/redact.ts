@@ -41,16 +41,60 @@ export const DEFAULT_REDACTED_KEYS = [
 ] as const
 
 const EMAIL_PATTERN = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g
-const ACCESS_KEY_PATTERN = /(?<!\d)\d{44}(?!\d)/g
-const CNPJ_FORMATTED_PATTERN = /(?<!\d)\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}(?!\d)/g
+const ACCESS_KEY_PATTERN = /(?<![A-Za-z0-9])[0-9]{6}[A-Za-z0-9]{12}[0-9]{26}(?![A-Za-z0-9])/g
+const CNPJ_FORMATTED_PATTERN =
+  /(?<![A-Za-z0-9])[A-Za-z0-9]{2}\.[A-Za-z0-9]{3}\.[A-Za-z0-9]{3}\/[A-Za-z0-9]{4}-\d{2}(?!\d)/g
 const CPF_FORMATTED_PATTERN = /(?<!\d)\d{3}\.\d{3}\.\d{3}-\d{2}(?!\d)/g
 const PHONE_COUNTRY_CODE_PATTERN = /\+\d{1,3}[\s-]?\d{2}[\s-]?9?\d{4}[\s-]?\d{4}(?!\d)/g
 const PHONE_PARENTHESES_PATTERN = /\(\d{2}\)\s?9?\d{4}[\s-]?\d{4}(?!\d)/g
 const PHONE_SEPARATED_PATTERN = /(?<![\d.])\d{2}[\s-]9\d{4}[\s-]?\d{4}(?!\d)/g
 const CNPJ_BARE_PATTERN = /(?<!\d)\d{14}(?!\d)/g
+const CNPJ_ALPHANUMERIC_BARE_PATTERN = /(?<![A-Za-z0-9])[A-Za-z0-9]{12}\d{2}(?![A-Za-z0-9])/g
 const CPF_BARE_PATTERN = /(?<!\d)\d{11}(?!\d)/g
 
 const ACCESS_KEY_VISIBLE_DIGITS = 6
+
+/**
+ * Módulo 11 do CNPJ alfanumérico (IN RFB 2229/2024), escrito aqui de propósito. Este pacote não
+ * declara dependência de runtime nenhuma, e quem o consome é produto de conversa, de catálogo, de
+ * fiscal — importar o `fiscal-provider` só para redigir log arrastaria `pdfkit`, `xml-crypto` e
+ * `node-forge` para dentro de todos eles.
+ */
+const CNPJ_DV_WEIGHTS = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] as const
+const CNPJ_BASE_LENGTH = 12
+const ZERO_CHAR_CODE = '0'.charCodeAt(0)
+
+function resolveModulo11(sum: number): number {
+  const remainder = sum % 11
+  return remainder < 2 ? 0 : 11 - remainder
+}
+
+function hasValidCnpjCheckDigits(taxId: string): boolean {
+  let firstSum = 0
+  let secondSum = 0
+  for (let index = 0; index < CNPJ_BASE_LENGTH; index += 1) {
+    const value = taxId.charCodeAt(index) - ZERO_CHAR_CODE
+    firstSum += value * CNPJ_DV_WEIGHTS[index + 1]!
+    secondSum += value * CNPJ_DV_WEIGHTS[index]!
+  }
+
+  const firstDigit = resolveModulo11(firstSum)
+  secondSum += firstDigit * CNPJ_DV_WEIGHTS[CNPJ_BASE_LENGTH]!
+
+  return `${firstDigit}${resolveModulo11(secondSum)}` === taxId.slice(CNPJ_BASE_LENGTH)
+}
+
+/**
+ * Catorze posições soltas com letra é a forma de um CNPJ alfanumérico — e também a de um id opaco.
+ * Sem pontuação em volta não há mais nada separando os dois, então o dígito verificador é a
+ * evidência: sem ele, `01J8Z9ABCDEF12` viraria `[CNPJ_REDACTED]` e o log deixaria de diagnosticar.
+ * A forma puramente numérica continua sendo tratada pelo padrão de sempre, sem conferir DV — mudar
+ * aquilo seria regressão, e catorze dígitos seguidos já são documento em praticamente todo log.
+ */
+function redactAlphanumericCnpj(match: string): string {
+  if (!/[A-Za-z]/.test(match)) return match
+  return hasValidCnpjCheckDigits(match.toUpperCase()) ? '[CNPJ_REDACTED]' : match
+}
 
 function maskAccessKey(accessKey: string): string {
   return `****${accessKey.slice(-ACCESS_KEY_VISIBLE_DIGITS)}`
@@ -70,6 +114,7 @@ function redactString(value: string): string {
     .replace(PHONE_PARENTHESES_PATTERN, '[PHONE_REDACTED]')
     .replace(PHONE_SEPARATED_PATTERN, '[PHONE_REDACTED]')
     .replace(CNPJ_BARE_PATTERN, '[CNPJ_REDACTED]')
+    .replace(CNPJ_ALPHANUMERIC_BARE_PATTERN, redactAlphanumericCnpj)
     .replace(CPF_BARE_PATTERN, '[CPF_REDACTED]')
 }
 

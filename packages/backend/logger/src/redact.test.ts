@@ -11,6 +11,19 @@ const PHONE_WITH_COUNTRY_CODE = '+55 11 98765-4321'
 const PHONE_BARE = '11987654321'
 const ACCESS_KEY = '35240712345678000190570010000012341000012347'
 
+/** Exemplo da IN RFB 2229/2024 — DV `35` confere pelo módulo 11 com `charCodeAt(0) - 48`. */
+const CNPJ_ALPHANUMERIC = '12ABC34501DE35'
+const CNPJ_ALPHANUMERIC_FORMATTED = '12.ABC.345/01DE-35'
+const CNPJ_ALPHANUMERIC_LOWERCASE = '12abc34501de35'
+const ACCESS_KEY_ALPHANUMERIC = '35260712ABC34501DE35550010000000011000000014'
+
+/** Catorze posições, letras, dois dígitos no fim — e DV que não fecha. É id, não documento. */
+const OPAQUE_ID_14 = '01J8Z9ABCDEF12'
+const OPAQUE_ID_CNPJ_SHAPED = 'A1B2C3D4E5F601'
+const FOURTEEN_LETTER_WORD = 'TRANSPORTADORA'
+const SHA256_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+const UUID_WITHOUT_HYPHENS = '9f1c2b3a4d5e6f708a9b0c1d2e3f4a5b'
+
 function serialize(value: unknown): string {
   return JSON.stringify(value)
 }
@@ -153,6 +166,82 @@ describe('redact — chave de acesso', () => {
     const redacted = redactMeta({ primeira: ACCESS_KEY, segunda: otherAccessKey })
 
     expect(redacted.primeira).not.toBe(redacted.segunda)
+  })
+})
+
+/**
+ * CNPJ alfanumérico (IN RFB 2229/2024, em produção desde 01/07/2026). Os padrões daqui foram
+ * escritos quando `\d` era o alfabeto inteiro do documento, então o CNPJ com letra e a chave de
+ * acesso que o carrega atravessavam a redação em texto puro — vazamento silencioso, porque o log
+ * sai com aparência normal.
+ *
+ * O risco desta correção é o inverso do resto da mudança: um padrão largo demais passa a apagar
+ * texto que não é documento, e log redigido demais não diagnostica nada. Por isso o contrato tem
+ * duas listas, e a segunda é a que importa.
+ */
+describe('redact — CNPJ alfanumérico', () => {
+  it('redige o CNPJ alfanumérico cru no meio de uma frase', () => {
+    const output = serialize(redactMeta({ descricao: `emitente ${CNPJ_ALPHANUMERIC} recusou` }))
+
+    expect(output).not.toContain(CNPJ_ALPHANUMERIC)
+    expect(output).toContain('emitente')
+    expect(output).toContain('recusou')
+  })
+
+  it('redige o CNPJ alfanumérico pontuado', () => {
+    const output = serialize(redactMeta({ descricao: `tomador ${CNPJ_ALPHANUMERIC_FORMATTED}` }))
+
+    expect(output).not.toContain(CNPJ_ALPHANUMERIC_FORMATTED)
+  })
+
+  // A canonicalização em maiúscula acontece na fronteira da aplicação; o log é defesa em
+  // profundidade e vê o que o usuário digitou
+  it('redige o CNPJ alfanumérico em minúscula', () => {
+    const output = serialize(redactMeta({ descricao: `digitado ${CNPJ_ALPHANUMERIC_LOWERCASE}` }))
+
+    expect(output).not.toContain(CNPJ_ALPHANUMERIC_LOWERCASE)
+  })
+
+  it('mascara a chave de acesso alfanumérica como já mascara a numérica', () => {
+    const redacted = redactMeta({ chaveAcesso: ACCESS_KEY_ALPHANUMERIC })
+
+    expect(redacted.chaveAcesso).toBe('****000014')
+  })
+
+  it('não deixa o CNPJ alfanumérico escapar dentro da chave de acesso', () => {
+    const output = serialize(redactMeta({ descricao: `chave ${ACCESS_KEY_ALPHANUMERIC}` }))
+
+    expect(output).not.toContain(ACCESS_KEY_ALPHANUMERIC)
+    expect(output).not.toContain(CNPJ_ALPHANUMERIC)
+  })
+
+  it('continua redigindo o CNPJ numérico do mesmo jeito', () => {
+    const output = serialize(redactMeta({ descricao: `${CNPJ_BARE} e ${CNPJ_FORMATTED}` }))
+
+    expect(output).not.toContain(CNPJ_BARE)
+    expect(output).not.toContain(CNPJ_FORMATTED)
+  })
+})
+
+describe('redact — o que o padrão alfanumérico não pode apagar', () => {
+  it('deixa intacto id opaco, hash, UUID sem hífen e palavra de catorze letras', () => {
+    const meta = {
+      requestId: OPAQUE_ID_14,
+      buildId: OPAQUE_ID_CNPJ_SHAPED,
+      contentHash: SHA256_HASH,
+      companyId: UUID_WITHOUT_HYPHENS,
+      constraint: 'nfe_documents_company_id_access_key_unique',
+      papel: FOURTEEN_LETTER_WORD,
+    }
+
+    expect(redactMeta(meta)).toEqual(meta)
+  })
+
+  it('deixa intacto o mesmo id opaco quando ele aparece no meio do texto', () => {
+    const message = redact(`retry de ${OPAQUE_ID_14} apos ${SHA256_HASH}`)
+
+    expect(message).toContain(OPAQUE_ID_14)
+    expect(message).toContain(SHA256_HASH)
   })
 })
 

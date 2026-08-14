@@ -129,6 +129,7 @@
     "products-workspace-drawer",
     "products-workspace",
     "quick-replies-single-row",
+    "redact-cnpj-alfanumerico",
     "redactor-logger-http-sink",
     "restore-provider-factory",
     "rich-message-composer",
