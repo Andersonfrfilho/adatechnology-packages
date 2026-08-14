@@ -16,9 +16,13 @@
 import { randomUUID } from 'node:crypto'
 
 import type {
+  AvailabilityExceptionRow,
+  AvailabilityRuleRow,
   BookingParticipantRow,
   BookingRow,
   BookingSlotRow,
+  NewAvailabilityExceptionRow,
+  NewAvailabilityRuleRow,
   NewBookingParticipantRow,
   NewBookingRow,
   NewBookingSlotRow,
@@ -96,9 +100,11 @@ export function createInMemoryResources(seed: ResourceRow[] = []) {
 
 export function createInMemoryServices(seed: ServiceRow[] = []) {
   const rows: ServiceRow[] = [...seed]
+  const links: Array<{ companyId: string; resourceId: string; serviceId: string }> = []
 
   return {
     rows,
+    links,
     async create(values: NewServiceRow): Promise<ServiceRow> {
       const row = {
         id: randomUUID(),
@@ -150,6 +156,118 @@ export function createInMemoryServices(seed: ServiceRow[] = []) {
       if (!row) return false
       row.deletedAt = EPOCH
       return true
+    },
+    async linkResource(values: { companyId: string; resourceId: string; serviceId: string }): Promise<void> {
+      const exists = links.some(
+        (link) =>
+          link.companyId === values.companyId &&
+          link.resourceId === values.resourceId &&
+          link.serviceId === values.serviceId,
+      )
+      if (!exists) links.push({ ...values })
+    },
+    async unlinkResource(params: { companyId: string; resourceId: string; serviceId: string }): Promise<void> {
+      const index = links.findIndex(
+        (link) =>
+          link.companyId === params.companyId &&
+          link.resourceId === params.resourceId &&
+          link.serviceId === params.serviceId,
+      )
+      if (index !== -1) links.splice(index, 1)
+    },
+    async listResourceIdsForService(params: { companyId: string; serviceId: string }): Promise<string[]> {
+      return links
+        .filter((link) => link.companyId === params.companyId && link.serviceId === params.serviceId)
+        .map((link) => link.resourceId)
+    },
+    async listServiceIdsForResources(params: { companyId: string; resourceIds: string[] }): Promise<string[]> {
+      const serviceIds = links
+        .filter((link) => link.companyId === params.companyId && params.resourceIds.includes(link.resourceId))
+        .map((link) => link.serviceId)
+      return [...new Set(serviceIds)]
+    },
+  }
+}
+
+/**
+ * `resolveLocalInstant` fica fora deste dublê de propósito: depende de `AT TIME ZONE` do Postgres
+ * (spec §5.3), sem equivalente honesto em JS puro — mesmo raciocínio da constraint de
+ * sobreposição documentada no topo do arquivo. Use-case que precisa dela (`ListAvailableSlotsUseCase`)
+ * tem só teste de integração.
+ */
+export function createInMemoryAvailability(
+  seed: { rules?: AvailabilityRuleRow[]; exceptions?: AvailabilityExceptionRow[] } = {},
+) {
+  const rules: AvailabilityRuleRow[] = [...(seed.rules ?? [])]
+  const exceptions: AvailabilityExceptionRow[] = [...(seed.exceptions ?? [])]
+
+  return {
+    rules,
+    exceptions,
+    async createRule(values: NewAvailabilityRuleRow): Promise<AvailabilityRuleRow> {
+      const row = {
+        id: randomUUID(),
+        validFrom: null,
+        validUntil: null,
+        createdAt: EPOCH,
+        ...values,
+      } as AvailabilityRuleRow
+      rules.push(row)
+      return row
+    },
+    async listRulesByResource(params: { companyId: string; resourceId: string }): Promise<AvailabilityRuleRow[]> {
+      return rules
+        .filter((row) => row.companyId === params.companyId && row.resourceId === params.resourceId)
+        .map((row) => ({ ...row }))
+    },
+    async deleteRule(params: { companyId: string; id: string }): Promise<boolean> {
+      const index = rules.findIndex((row) => row.companyId === params.companyId && row.id === params.id)
+      if (index === -1) return false
+      rules.splice(index, 1)
+      return true
+    },
+    async replaceRules(params: {
+      companyId: string
+      resourceId: string
+      rules: ReadonlyArray<Omit<NewAvailabilityRuleRow, 'companyId' | 'resourceId'>>
+    }): Promise<AvailabilityRuleRow[]> {
+      for (let index = rules.length - 1; index >= 0; index -= 1) {
+        const row = rules[index]
+        if (row && row.companyId === params.companyId && row.resourceId === params.resourceId) rules.splice(index, 1)
+      }
+      const inserted = params.rules.map(
+        (rule) =>
+          ({
+            id: randomUUID(),
+            validFrom: null,
+            validUntil: null,
+            createdAt: EPOCH,
+            ...rule,
+            companyId: params.companyId,
+            resourceId: params.resourceId,
+          }) as AvailabilityRuleRow,
+      )
+      rules.push(...inserted)
+      return inserted.map((row) => ({ ...row }))
+    },
+    async createException(values: NewAvailabilityExceptionRow): Promise<AvailabilityExceptionRow> {
+      const row = { id: randomUUID(), reason: null, createdAt: EPOCH, ...values } as AvailabilityExceptionRow
+      exceptions.push(row)
+      return row
+    },
+    async deleteException(params: { companyId: string; id: string }): Promise<boolean> {
+      const index = exceptions.findIndex((row) => row.companyId === params.companyId && row.id === params.id)
+      if (index === -1) return false
+      exceptions.splice(index, 1)
+      return true
+    },
+    async listExceptionsByResourceInRange(params: {
+      companyId: string
+      resourceId: string
+    }): Promise<AvailabilityExceptionRow[]> {
+      return exceptions
+        .filter((row) => row.companyId === params.companyId && row.resourceId === params.resourceId)
+        .map((row) => ({ ...row }))
     },
   }
 }

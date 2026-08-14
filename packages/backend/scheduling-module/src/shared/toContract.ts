@@ -2,9 +2,81 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import type { Booking, BookingSlot, BookingStatus } from '@adatechnology/scheduling-contracts'
+import type {
+  AvailabilityException,
+  AvailabilityExceptionKind,
+  AvailabilityRule,
+  Booking,
+  BookingSlot,
+  BookingStatus,
+  Resource,
+  ResourceKind,
+  Service,
+} from '@adatechnology/scheduling-contracts'
 
-import type { BookingRow, BookingSlotRow } from '../schema/schema'
+import type {
+  AvailabilityExceptionRow,
+  AvailabilityRuleRow,
+  BookingRow,
+  BookingSlotRow,
+  ResourceRow,
+  ServiceRow,
+} from '../schema/schema'
+
+export function toResource(row: ResourceRow): Resource {
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    name: row.name,
+    kind: row.kind as ResourceKind,
+    timezone: row.timezone,
+    externalRef: row.externalRef,
+    active: row.active,
+    deletedAt: row.deletedAt,
+  }
+}
+
+export function toService(row: ServiceRow): Service {
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    name: row.name,
+    description: row.description,
+    durationMinutes: row.durationMinutes,
+    bufferBeforeMinutes: row.bufferBeforeMinutes,
+    bufferAfterMinutes: row.bufferAfterMinutes,
+    priceInCents: row.priceInCents,
+    requiresConfirmation: row.requiresConfirmation,
+    minCancellationNoticeMinutes: row.minCancellationNoticeMinutes,
+    active: row.active,
+    sortOrder: row.sortOrder,
+    deletedAt: row.deletedAt,
+  }
+}
+
+export function toAvailabilityRule(row: AvailabilityRuleRow): AvailabilityRule {
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    resourceId: row.resourceId,
+    weekday: row.weekday,
+    startsAtLocal: row.startsAtLocal,
+    endsAtLocal: row.endsAtLocal,
+    validFrom: row.validFrom,
+    validUntil: row.validUntil,
+  }
+}
+
+export function toAvailabilityException(row: AvailabilityExceptionRow): AvailabilityException {
+  return {
+    id: row.id,
+    companyId: row.companyId,
+    resourceId: row.resourceId,
+    during: { start: row.duringStart, end: row.duringEnd },
+    kind: row.kind as AvailabilityExceptionKind,
+    reason: row.reason,
+  }
+}
 
 export function toBooking(row: BookingRow): Booking {
   return {

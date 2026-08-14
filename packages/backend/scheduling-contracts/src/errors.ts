@@ -20,6 +20,7 @@ export class SchedulingError extends Error {
 export const SCHEDULING_ERROR_CODES = {
   RESOURCE_NOT_FOUND: 'SCHEDULING_RESOURCE_NOT_FOUND',
   SERVICE_NOT_FOUND: 'SCHEDULING_SERVICE_NOT_FOUND',
+  AVAILABILITY_EXCEPTION_NOT_FOUND: 'SCHEDULING_AVAILABILITY_EXCEPTION_NOT_FOUND',
   BOOKING_NOT_FOUND: 'SCHEDULING_BOOKING_NOT_FOUND',
   SLOT_UNAVAILABLE: 'SCHEDULING_SLOT_UNAVAILABLE',
   CANCELLATION_TOO_LATE: 'SCHEDULING_CANCELLATION_TOO_LATE',
@@ -40,6 +41,14 @@ export class ResourceNotFoundError extends SchedulingError {
 export class ServiceNotFoundError extends SchedulingError {
   constructor(public readonly serviceId: string) {
     super('Serviço não encontrado.', 404, SCHEDULING_ERROR_CODES.SERVICE_NOT_FOUND, { serviceId })
+  }
+}
+
+export class AvailabilityExceptionNotFoundError extends SchedulingError {
+  constructor(public readonly availabilityExceptionId: string) {
+    super('Exceção de disponibilidade não encontrada.', 404, SCHEDULING_ERROR_CODES.AVAILABILITY_EXCEPTION_NOT_FOUND, {
+      availabilityExceptionId,
+    })
   }
 }
 

@@ -4,15 +4,21 @@
 
 import {
   AVAILABILITY_EXCEPTION_KIND,
+  AvailabilityExceptionNotFoundError,
   ResourceNotFoundError,
   ResourceUnavailableError,
   ServiceNotFoundError,
   ServiceNotOfferedByResourceError,
+  type AvailabilityException,
+  type AvailabilityRule,
   type AvailableSlot,
+  type CreateAvailabilityExceptionInput,
+  type CreateAvailabilityRuleInput,
   type GetAvailabilityParams,
 } from '@adatechnology/scheduling-contracts'
 
 import type { AvailabilityExceptionRow, AvailabilityRuleRow } from '../schema/schema'
+import { toAvailabilityException, toAvailabilityRule } from '../shared/toContract'
 import {
   formatLocalDate,
   localDateRange,
@@ -179,4 +185,100 @@ function candidatesFromExtraExceptions(params: {
         stepMinutes: params.stepMinutes,
       }),
     )
+}
+
+/** Substitui a grade semanal inteira do recurso — molde de `RescheduleBookingUseCase` (troca atômica). */
+export class SetAvailabilityRulesUseCase {
+  constructor(private readonly dependencies: SchedulingDependencies) {}
+
+  async execute(params: {
+    companyId: string
+    resourceId: string
+    rules: ReadonlyArray<Omit<CreateAvailabilityRuleInput, 'resourceId'>>
+  }): Promise<AvailabilityRule[]> {
+    const { resources, availability } = this.dependencies.repositories
+
+    const resource = await resources.findById({ companyId: params.companyId, id: params.resourceId })
+    if (!resource) throw new ResourceNotFoundError(params.resourceId)
+
+    const rows = await availability.replaceRules({
+      companyId: params.companyId,
+      resourceId: params.resourceId,
+      rules: params.rules.map((rule) => ({
+        weekday: rule.weekday,
+        startsAtLocal: rule.startsAtLocal,
+        endsAtLocal: rule.endsAtLocal,
+        validFrom: rule.validFrom ?? null,
+        validUntil: rule.validUntil ?? null,
+      })),
+    })
+
+    return rows.map(toAvailabilityRule)
+  }
+}
+
+/** Leitura da grade semanal vigente do recurso. */
+export class ListAvailabilityRulesUseCase {
+  constructor(private readonly dependencies: SchedulingDependencies) {}
+
+  async execute(params: { companyId: string; resourceId: string }): Promise<AvailabilityRule[]> {
+    const { resources, availability } = this.dependencies.repositories
+
+    const resource = await resources.findById({ companyId: params.companyId, id: params.resourceId })
+    if (!resource) throw new ResourceNotFoundError(params.resourceId)
+
+    const rows = await availability.listRulesByResource(params)
+    return rows.map(toAvailabilityRule)
+  }
+}
+
+/** Bloqueio (`block`) ou encaixe pontual (`extra`) fora da grade semanal (spec §7). */
+export class AddAvailabilityExceptionUseCase {
+  constructor(private readonly dependencies: SchedulingDependencies) {}
+
+  async execute(params: {
+    companyId: string
+    input: CreateAvailabilityExceptionInput
+  }): Promise<AvailabilityException> {
+    const { resources, availability } = this.dependencies.repositories
+
+    const resource = await resources.findById({ companyId: params.companyId, id: params.input.resourceId })
+    if (!resource) throw new ResourceNotFoundError(params.input.resourceId)
+
+    const row = await availability.createException({
+      companyId: params.companyId,
+      resourceId: params.input.resourceId,
+      duringStart: params.input.during.start,
+      duringEnd: params.input.during.end,
+      kind: params.input.kind,
+      reason: params.input.reason ?? null,
+    })
+
+    return toAvailabilityException(row)
+  }
+}
+
+/** Leitura das exceções vigentes do recurso. */
+export class ListAvailabilityExceptionsUseCase {
+  constructor(private readonly dependencies: SchedulingDependencies) {}
+
+  async execute(params: { companyId: string; resourceId: string }): Promise<AvailabilityException[]> {
+    const { resources, availability } = this.dependencies.repositories
+
+    const resource = await resources.findById({ companyId: params.companyId, id: params.resourceId })
+    if (!resource) throw new ResourceNotFoundError(params.resourceId)
+
+    const rows = await availability.listExceptionsByResourceInRange(params)
+    return rows.map(toAvailabilityException)
+  }
+}
+
+/** Remove uma exceção — id + empresa bastam (BOLA, `authorization.md`): nunca vaza 403 para outra empresa. */
+export class RemoveAvailabilityExceptionUseCase {
+  constructor(private readonly dependencies: SchedulingDependencies) {}
+
+  async execute(params: { companyId: string; id: string }): Promise<void> {
+    const deleted = await this.dependencies.repositories.availability.deleteException(params)
+    if (!deleted) throw new AvailabilityExceptionNotFoundError(params.id)
+  }
 }

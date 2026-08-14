@@ -62,7 +62,14 @@ export {
 export { nowOf, runHook } from './use-cases/schedulingModule.types'
 export type { SchedulingRepositories, SchedulingDependencies } from './use-cases/schedulingModule.types'
 
-export { ListAvailableSlotsUseCase } from './use-cases/Availability.use-cases'
+export {
+  AddAvailabilityExceptionUseCase,
+  ListAvailabilityExceptionsUseCase,
+  ListAvailabilityRulesUseCase,
+  ListAvailableSlotsUseCase,
+  RemoveAvailabilityExceptionUseCase,
+  SetAvailabilityRulesUseCase,
+} from './use-cases/Availability.use-cases'
 
 export {
   CancelBookingUseCase,
@@ -75,7 +82,32 @@ export {
   RescheduleBookingUseCase,
 } from './use-cases/Booking.use-cases'
 
-export { toBooking, toBookingSlot } from './shared/toContract'
+export {
+  CreateResourceUseCase,
+  DeleteResourceUseCase,
+  GetResourceUseCase,
+  ListResourcesUseCase,
+  UpdateResourceUseCase,
+} from './use-cases/Resource.use-cases'
+
+export {
+  CreateServiceUseCase,
+  DeleteServiceUseCase,
+  GetServiceUseCase,
+  LinkResourceToServiceUseCase,
+  ListServicesUseCase,
+  UnlinkResourceFromServiceUseCase,
+  UpdateServiceUseCase,
+} from './use-cases/Service.use-cases'
+
+export {
+  toAvailabilityException,
+  toAvailabilityRule,
+  toBooking,
+  toBookingSlot,
+  toResource,
+  toService,
+} from './shared/toContract'
 
 export { createSchedulingModule } from './SchedulingModule'
 export type { SchedulingModule, SchedulingModuleProviders, CreateSchedulingModuleParams } from './SchedulingModule'

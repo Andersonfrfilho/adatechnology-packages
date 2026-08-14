@@ -21,7 +21,14 @@ import { AvailabilityRepository } from './repositories/AvailabilityRepository'
 import { BookingRepository } from './repositories/BookingRepository'
 import { ResourceRepository } from './repositories/ResourceRepository'
 import { ServiceRepository } from './repositories/ServiceRepository'
-import { ListAvailableSlotsUseCase } from './use-cases/Availability.use-cases'
+import {
+  AddAvailabilityExceptionUseCase,
+  ListAvailabilityExceptionsUseCase,
+  ListAvailabilityRulesUseCase,
+  ListAvailableSlotsUseCase,
+  RemoveAvailabilityExceptionUseCase,
+  SetAvailabilityRulesUseCase,
+} from './use-cases/Availability.use-cases'
 import {
   CancelBookingUseCase,
   CompleteBookingUseCase,
@@ -32,7 +39,23 @@ import {
   RequestBookingUseCase,
   RescheduleBookingUseCase,
 } from './use-cases/Booking.use-cases'
+import {
+  CreateResourceUseCase,
+  DeleteResourceUseCase,
+  GetResourceUseCase,
+  ListResourcesUseCase,
+  UpdateResourceUseCase,
+} from './use-cases/Resource.use-cases'
 import type { SchedulingDependencies } from './use-cases/schedulingModule.types'
+import {
+  CreateServiceUseCase,
+  DeleteServiceUseCase,
+  GetServiceUseCase,
+  LinkResourceToServiceUseCase,
+  ListServicesUseCase,
+  UnlinkResourceFromServiceUseCase,
+  UpdateServiceUseCase,
+} from './use-cases/Service.use-cases'
 
 export type SchedulingModuleProviders = {
   readonly videoMeeting?: VideoMeetingPort
@@ -50,6 +73,23 @@ export type CreateSchedulingModuleParams = {
 
 export type SchedulingModule = {
   readonly useCases: {
+    readonly createResource: CreateResourceUseCase
+    readonly updateResource: UpdateResourceUseCase
+    readonly deleteResource: DeleteResourceUseCase
+    readonly getResource: GetResourceUseCase
+    readonly listResources: ListResourcesUseCase
+    readonly createService: CreateServiceUseCase
+    readonly updateService: UpdateServiceUseCase
+    readonly deleteService: DeleteServiceUseCase
+    readonly getService: GetServiceUseCase
+    readonly listServices: ListServicesUseCase
+    readonly linkResourceToService: LinkResourceToServiceUseCase
+    readonly unlinkResourceFromService: UnlinkResourceFromServiceUseCase
+    readonly setAvailabilityRules: SetAvailabilityRulesUseCase
+    readonly listAvailabilityRules: ListAvailabilityRulesUseCase
+    readonly addAvailabilityException: AddAvailabilityExceptionUseCase
+    readonly listAvailabilityExceptions: ListAvailabilityExceptionsUseCase
+    readonly removeAvailabilityException: RemoveAvailabilityExceptionUseCase
     readonly listAvailableSlots: ListAvailableSlotsUseCase
     readonly requestBooking: RequestBookingUseCase
     readonly confirmBooking: ConfirmBookingUseCase
@@ -89,6 +129,23 @@ export function createSchedulingModule(params: CreateSchedulingModuleParams): Sc
 
   return {
     useCases: {
+      createResource: new CreateResourceUseCase(dependencies),
+      updateResource: new UpdateResourceUseCase(dependencies),
+      deleteResource: new DeleteResourceUseCase(dependencies),
+      getResource: new GetResourceUseCase(dependencies),
+      listResources: new ListResourcesUseCase(dependencies),
+      createService: new CreateServiceUseCase(dependencies),
+      updateService: new UpdateServiceUseCase(dependencies),
+      deleteService: new DeleteServiceUseCase(dependencies),
+      getService: new GetServiceUseCase(dependencies),
+      listServices: new ListServicesUseCase(dependencies),
+      linkResourceToService: new LinkResourceToServiceUseCase(dependencies),
+      unlinkResourceFromService: new UnlinkResourceFromServiceUseCase(dependencies),
+      setAvailabilityRules: new SetAvailabilityRulesUseCase(dependencies),
+      listAvailabilityRules: new ListAvailabilityRulesUseCase(dependencies),
+      addAvailabilityException: new AddAvailabilityExceptionUseCase(dependencies),
+      listAvailabilityExceptions: new ListAvailabilityExceptionsUseCase(dependencies),
+      removeAvailabilityException: new RemoveAvailabilityExceptionUseCase(dependencies),
       listAvailableSlots: new ListAvailableSlotsUseCase(dependencies),
       requestBooking: new RequestBookingUseCase(dependencies),
       confirmBooking: new ConfirmBookingUseCase(dependencies),

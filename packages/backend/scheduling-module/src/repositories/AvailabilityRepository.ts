@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { eq, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 
 import type { SchedulingDatabase } from '../database.types'
 import {
@@ -16,7 +16,9 @@ import {
 } from '../schema/schema'
 import {
   availabilityExceptionListCondition,
+  availabilityExceptionOwnedByCondition,
   availabilityRuleListCondition,
+  availabilityRuleOwnedByCondition,
   resourceOwnedByCondition,
 } from './conditions'
 
@@ -36,15 +38,43 @@ export class AvailabilityRepository {
   async deleteRule(params: { companyId: string; id: string }): Promise<boolean> {
     const [row] = await this.db
       .delete(availabilityRules)
-      .where(eq(availabilityRules.companyId, params.companyId))
+      .where(availabilityRuleOwnedByCondition(params))
       .returning({ id: availabilityRules.id })
     return row !== undefined
+  }
+
+  /**
+   * Substitui todas as regras do recurso na mesma transação (apaga + insere) — nunca uma janela
+   * onde o recurso fica sem regra nenhuma se o processo cair no meio (molde de
+   * `BookingRepository.replaceSlots`).
+   */
+  async replaceRules(params: {
+    companyId: string
+    resourceId: string
+    rules: ReadonlyArray<Omit<NewAvailabilityRuleRow, 'companyId' | 'resourceId'>>
+  }): Promise<AvailabilityRuleRow[]> {
+    return this.db.transaction(async (tx) => {
+      await tx.delete(availabilityRules).where(availabilityRuleListCondition(params))
+      if (params.rules.length === 0) return []
+      return tx
+        .insert(availabilityRules)
+        .values(params.rules.map((rule) => ({ ...rule, companyId: params.companyId, resourceId: params.resourceId })))
+        .returning()
+    })
   }
 
   async createException(values: NewAvailabilityExceptionRow): Promise<AvailabilityExceptionRow> {
     const [row] = await this.db.insert(availabilityExceptions).values(values).returning()
     if (!row) throw new Error('scheduling-module: insert em availability_exceptions não retornou linha')
     return row
+  }
+
+  async deleteException(params: { companyId: string; id: string }): Promise<boolean> {
+    const [row] = await this.db
+      .delete(availabilityExceptions)
+      .where(availabilityExceptionOwnedByCondition(params))
+      .returning({ id: availabilityExceptions.id })
+    return row !== undefined
   }
 
   /**

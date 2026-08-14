@@ -114,6 +114,7 @@ export {
   SCHEDULING_ERROR_CODES,
   ResourceNotFoundError,
   ServiceNotFoundError,
+  AvailabilityExceptionNotFoundError,
   BookingNotFoundError,
   SlotUnavailableError,
   CancellationTooLateError,

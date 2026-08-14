@@ -32,11 +32,19 @@ export function availabilityRuleListCondition(params: { companyId: string; resou
   return and(eq(availabilityRules.companyId, params.companyId), eq(availabilityRules.resourceId, params.resourceId))!
 }
 
+export function availabilityRuleOwnedByCondition(params: { companyId: string; id: string }): SQL {
+  return and(eq(availabilityRules.companyId, params.companyId), eq(availabilityRules.id, params.id))!
+}
+
 export function availabilityExceptionListCondition(params: { companyId: string; resourceId: string }): SQL {
   return and(
     eq(availabilityExceptions.companyId, params.companyId),
     eq(availabilityExceptions.resourceId, params.resourceId),
   )!
+}
+
+export function availabilityExceptionOwnedByCondition(params: { companyId: string; id: string }): SQL {
+  return and(eq(availabilityExceptions.companyId, params.companyId), eq(availabilityExceptions.id, params.id))!
 }
 
 export function bookingOwnedByCondition(params: { companyId: string; id: string }): SQL {
