@@ -44,6 +44,11 @@ export class CreateProductUseCase {
       priceInCents: params.priceInCents,
       costPriceInCents: params.costPriceInCents,
       unit: params.unit,
+      unitSize: params.unitSize,
+      brand: params.brand,
+      aisle: params.aisle,
+      // `aliases` é NOT NULL no banco; ausente vira lista vazia, e não `null`.
+      ...(params.aliases ? { aliases: [...params.aliases] } : {}),
       barcode: params.barcode,
       imageUrl: params.imageUrl,
       inventory: params.inventory,
@@ -76,7 +81,9 @@ export class UpdateProductUseCase {
   constructor(private readonly dependencies: CatalogDependencies) {}
 
   async execute(params: { companyId: string; id: string } & UpdateProductInput): Promise<Product> {
-    const { companyId, id, ...changes } = params
+    // `aliases` sai do resto porque chega readonly do contrato e o Drizzle escreve num array
+    // mutável; deixá-lo no spread contaminaria o tipo do `set` inteiro.
+    const { companyId, id, aliases, ...changes } = params
 
     const current = await this.dependencies.products.findById({ companyId, id })
     if (!current) throw new ProductNotFoundError(id)
@@ -93,6 +100,7 @@ export class UpdateProductUseCase {
     })
 
     const changedFields = Object.keys(changes).filter((field) => changes[field as keyof typeof changes] !== undefined)
+    if (aliases) changedFields.push('aliases')
     if (availability) changedFields.push('availability')
 
     const row = await this.dependencies.products.update({
@@ -100,6 +108,7 @@ export class UpdateProductUseCase {
       id,
       values: {
         ...changes,
+        ...(aliases ? { aliases: [...aliases] } : {}),
         ...(availability ? { availability } : {}),
         // Só reenfileira quando mudou algo que a Meta enxerga — alterar ficha da cozinha ou custo
         // não muda nada lá, e marcar `pending` geraria fila de sync sem motivo.

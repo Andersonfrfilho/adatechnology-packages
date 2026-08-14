@@ -58,6 +58,34 @@ export type Product = {
   /** Ficha técnica para quem produz — separado de `description`, que é o que o cliente lê. */
   readonly preparationInstructions?: string | null
 
+  /**
+   * Fabricante ("Nescafé", "Piracanjuba"). Separado do nome porque em mercearia é ele que decide
+   * entre dois itens homônimos, e concatenar no nome torna a busca por marca impossível.
+   */
+  readonly brand?: string | null
+  /**
+   * Tamanho da embalagem como está escrito no rótulo ("500g", "1L", "fardo 12un").
+   *
+   * Texto, e não número + `unit`: "fardo 12un" e "cx 24x350ml" não têm forma numérica única, e
+   * quem confere a sacola lê o rótulo, não uma conversão nossa.
+   */
+  readonly unitSize?: string | null
+  /**
+   * Onde o item fica na loja física, na placa pendurada no corredor ("Corredor 3", "Hortifruti").
+   *
+   * Não é `sectionId`: aquilo agrupa o catálogo (e, em restaurante, é o posto de produção). Este é
+   * endereço de prateleira, existe só em quem tem loja física, e é `null` na maioria dos itens —
+   * nenhuma loja mapeia o catálogo inteiro de uma vez.
+   */
+  readonly aisle?: string | null
+  /**
+   * Como o cliente chama o produto ("miojo", "leite moça", "coca 2l").
+   *
+   * Alimenta a busca por texto; quem vende por conversa depende disto para casar fala com SKU, e
+   * sem os apelidos o casamento fica preso ao nome do rótulo, que ninguém fala.
+   */
+  readonly aliases?: readonly string[]
+
   readonly externalId?: string | null
   readonly syncStatus?: ProductSyncStatus | null
   readonly syncError?: string | null
@@ -111,6 +139,11 @@ export type CreateProductInput = {
   readonly preparationTimeMinutes?: number
   readonly preparationInstructions?: string
   readonly sortOrder?: number
+  readonly brand?: string | null
+  readonly unitSize?: string | null
+  readonly aisle?: string | null
+  /** Substitui a lista inteira — quem acrescenta um apelido precisa mandar os atuais junto. */
+  readonly aliases?: readonly string[]
 }
 
 export type UpdateProductInput = Partial<CreateProductInput> & {

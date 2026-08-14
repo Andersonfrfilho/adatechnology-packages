@@ -75,6 +75,19 @@ export const products = catalogSchema.table(
     // Margem: nunca sai na projeção destinada ao cliente final (ver ProductRepository).
     costPriceInCents: integer('cost_price_in_cents'),
     unit: varchar('unit', { length: 16 }),
+    // Tamanho da embalagem como está no rótulo ("500g", "fardo 12un"). Texto, e não número, porque
+    // "cx 24x350ml" não tem forma numérica única e quem confere a sacola lê o rótulo.
+    unitSize: varchar('unit_size', { length: 40 }),
+    brand: varchar('brand', { length: 80 }),
+    // Endereço de prateleira, não agrupamento de catálogo (isso é `sectionId`). Vazio na maioria
+    // dos itens: nenhuma loja mapeia o catálogo inteiro de uma vez.
+    aisle: varchar('aisle', { length: 60 }),
+    // Como o cliente chama o produto. Array em vez de tabela: a lista é curta, sempre lida junto
+    // com o produto e nunca consultada sozinha — uma tabela só acrescentaria um join por item.
+    aliases: text('aliases')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     barcode: varchar('barcode', { length: 14 }),
     imageUrl: text('image_url'),
     // Separado da URL porque ela pode ser assinada e expirar; a chave é o que permite reemitir
@@ -108,6 +121,12 @@ export const products = catalogSchema.table(
     // e btree não serve, porque não atende curinga no início do padrão.
     // A extensão `pg_trgm` é criada na migration; sem ela o índice não pode ser construído.
     index('idx_products_name_trgm').using('gin', sql`${table.name} gin_trgm_ops`),
+    // A busca casa nome, marca e apelido na mesma consulta; sem estes dois, acrescentar marca e
+    // apelido ao `where` transformaria a busca indexada numa varredura de tabela.
+    index('idx_products_brand_trgm').using('gin', sql`${table.brand} gin_trgm_ops`),
+    // `array_ops`, e não trigrama: o apelido é casado inteiro (`aliases && ARRAY[...]`), porque
+    // apelido é o termo curto que o cliente digita — casar pedaço dele traria o catálogo todo.
+    index('idx_products_aliases_gin').using('gin', table.aliases),
   ],
 )
 

@@ -33,6 +33,19 @@ export const createProductSchema = z.object({
   preparationTimeMinutes: z.number().int().min(0).max(1440).optional(),
   preparationInstructions: z.string().max(2000).optional(),
   sortOrder: z.number().int().optional(),
+  // Os quatro abaixo aceitam `null` porque são preenchidos aos poucos, item a item: quem mapeou o
+  // corredor errado precisa poder apagar, e `undefined` numa atualização parcial significaria
+  // "não mexer" — o oposto do que o operador pediu.
+  brand: z.string().min(1).max(80).nullable().optional(),
+  unitSize: z.string().min(1).max(40).nullable().optional(),
+  aisle: z.string().min(1).max(60).nullable().optional(),
+  // Teto de 30: a lista existe para casar fala com produto, e passar disso é sinal de que o
+  // produto deveria ser dois. Vazios são descartados aqui para não virarem apelido que casa com tudo.
+  aliases: z
+    .array(z.string().min(1).max(80))
+    .max(30)
+    .transform((values) => values.map((value) => value.trim()).filter((value) => value.length > 0))
+    .optional(),
 })
 export type CreateProductBody = z.infer<typeof createProductSchema>
 
@@ -98,6 +111,9 @@ export const bulkImportRowSchema = z.object({
   description: z.string().max(2000).optional(),
   unit: z.string().max(16).optional(),
   barcode: z.string().max(14).optional(),
+  brand: z.string().max(80).optional(),
+  unitSize: z.string().max(40).optional(),
+  aisle: z.string().max(60).optional(),
   catalogName: z.string().max(120).optional(),
   sectionName: z.string().max(80).optional(),
   inventory: z.union([z.string(), z.number()]).optional(),

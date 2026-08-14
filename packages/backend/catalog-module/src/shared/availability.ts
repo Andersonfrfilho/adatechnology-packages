@@ -43,6 +43,10 @@ const META_RELEVANT_FIELDS: readonly string[] = [
   'imageUrl',
   'availability',
   'active',
+  // A Meta exibe marca e embalagem na ficha do item; corredor e apelido são internos da loja e
+  // não aparecem na vitrine, então não republicam.
+  'brand',
+  'unitSize',
 ]
 
 export function requiresMetaResync(changedFields: readonly string[]): boolean {

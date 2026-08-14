@@ -1,7 +1,13 @@
 import { useState, useCallback } from 'react'
 import type { Product, ProductSyncStatus, ProductsApi } from './providers/types'
-import { PRODUCT_OPTIONAL_FIELD, PRODUCT_SYNC_STATUS } from './providers/types'
-import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './providers/ProductsProvider'
+import { PRODUCT_FIELD, PRODUCT_OPTIONAL_FIELD, PRODUCT_SURFACE, PRODUCT_SYNC_STATUS } from './providers/types'
+import {
+  useIsProductFieldEnabled,
+  useIsProductFieldVisible,
+  useProductLabel,
+  useProducts,
+  useProductsConfig,
+} from './providers/ProductsProvider'
 import { formatBarcode } from './lib/format'
 import { formatMarginPercent, formatMoney } from './lib/money'
 
@@ -12,7 +18,7 @@ export type ProductListProps = {
   readonly api?: ProductsApi
 }
 
-type SortField = 'name' | 'price' | 'unit' | 'catalogName' | 'barcode' | 'active' | 'inventory'
+type SortField = 'name' | 'price' | 'unit' | 'catalogName' | 'barcode' | 'active' | 'inventory' | 'brand'
 type SortDir = 'asc' | 'desc'
 
 // `whitespace-nowrap` no cabecalho: sem ele "Cod.barras" e o par rotulo+seta de ordenacao quebravam
@@ -37,7 +43,9 @@ function SortIcon({ field, currentField, currentDir }: { field: SortField; curre
 export function ProductList({ onSelect, selectable = false, products: externalProducts, api }: ProductListProps) {
   const contextApi = useProducts()
   const config = useProductsConfig()
-  const isFieldEnabled = useIsProductFieldEnabled()
+  const isFieldEnabled = useIsProductFieldEnabled(PRODUCT_SURFACE.LIST)
+  const label = useProductLabel(PRODUCT_SURFACE.LIST)
+  const isFieldVisible = useIsProductFieldVisible(PRODUCT_SURFACE.LIST)
   const resolvedApi = api ?? contextApi
 
   const [internalProducts, setInternalProducts] = useState<readonly Product[]>([])
@@ -86,6 +94,8 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
         return (a.priceInCents - b.priceInCents) * dir
       case 'unit':
         return (a.unit ?? '').localeCompare(b.unit ?? '') * dir
+      case 'brand':
+        return (a.brand ?? '').localeCompare(b.brand ?? '') * dir
       case 'catalogName':
         return (a.catalogName ?? '').localeCompare(b.catalogName ?? '') * dir
       case 'barcode':
@@ -120,6 +130,15 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
   const showUnit = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT)
   const showBarcode = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BARCODE)
   const showInventory = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.INVENTORY)
+  const showBrand = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BRAND)
+  const showUnitSize = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT_SIZE)
+  const showAisle = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.AISLE)
+  // Colunas do núcleo: aparecem por padrão, e só somem se a tabela por campo mandar.
+  const showImage = isFieldVisible(PRODUCT_FIELD.IMAGE)
+  const showCatalog = isFieldVisible(PRODUCT_FIELD.CATALOG)
+  const showActive = isFieldVisible(PRODUCT_FIELD.ACTIVE)
+  // Apelido não vira coluna: são vários por produto, de tamanho imprevisível, e uma coluna de texto
+  // corrido empurraria preço e estoque para fora da tela. Ele se edita no formulário.
   // Estado de sincronização não é um campo do produto que o host escolhe exibir: ele existe se, e
   // só se, o host publica na Meta. Uma flag só, em `metaSync`, evita a tela mostrar coluna vazia.
   const showSyncStatus = config.metaSync?.products === true
@@ -132,35 +151,50 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
       <table className="w-full min-w-max text-sm">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <th className={`${HEADER_CLASS} text-left`}>Img</th>
+            {showImage && <th className={`${HEADER_CLASS} text-left`}>{label(PRODUCT_FIELD.IMAGE)}</th>}
             <th className={`${SORTABLE_CLASS} text-left`} onClick={() => handleSort('name')}>
-              Nome <SortIcon field="name" currentField={sortField} currentDir={sortDir} />
+              {label(PRODUCT_FIELD.NAME)} <SortIcon field="name" currentField={sortField} currentDir={sortDir} />
             </th>
+            {showBrand && (
+              <th className={`${SORTABLE_CLASS} text-left`} onClick={() => handleSort('brand')}>
+                {label(PRODUCT_FIELD.BRAND)} <SortIcon field="brand" currentField={sortField} currentDir={sortDir} />
+              </th>
+            )}
+            {/* Embalagem não é ordenável: "500g" e "1L" não têm ordem entre si, e ordenar por texto
+                agruparia por primeiro dígito — que não responde a pergunta de ninguém. */}
+            {showUnitSize && <th className={`${HEADER_CLASS} text-left`}>{label(PRODUCT_FIELD.UNIT_SIZE)}</th>}
             <th className={`${SORTABLE_CLASS} text-right`} onClick={() => handleSort('price')}>
-              Preço <SortIcon field="price" currentField={sortField} currentDir={sortDir} />
+              {label(PRODUCT_FIELD.PRICE)} <SortIcon field="price" currentField={sortField} currentDir={sortDir} />
             </th>
             {showCostPrice && <th className={`${HEADER_CLASS} text-center`}>Mg%</th>}
             {showUnit && (
               <th className={`${SORTABLE_CLASS} text-left`} onClick={() => handleSort('unit')}>
-                Un <SortIcon field="unit" currentField={sortField} currentDir={sortDir} />
+                {label(PRODUCT_FIELD.UNIT)} <SortIcon field="unit" currentField={sortField} currentDir={sortDir} />
               </th>
             )}
-            <th className={`${SORTABLE_CLASS} text-left`} onClick={() => handleSort('catalogName')}>
-              Catálogo <SortIcon field="catalogName" currentField={sortField} currentDir={sortDir} />
-            </th>
+            {showCatalog && (
+              <th className={`${SORTABLE_CLASS} text-left`} onClick={() => handleSort('catalogName')}>
+                {label(PRODUCT_FIELD.CATALOG)} <SortIcon field="catalogName" currentField={sortField} currentDir={sortDir} />
+              </th>
+            )}
             {showBarcode && (
               <th className={`${SORTABLE_CLASS} text-left`} onClick={() => handleSort('barcode')}>
-                Cód.barras <SortIcon field="barcode" currentField={sortField} currentDir={sortDir} />
+                {label(PRODUCT_FIELD.BARCODE)} <SortIcon field="barcode" currentField={sortField} currentDir={sortDir} />
               </th>
             )}
-            <th className={`${SORTABLE_CLASS} text-center`} onClick={() => handleSort('active')}>
-              Ativo <SortIcon field="active" currentField={sortField} currentDir={sortDir} />
-            </th>
+            {showActive && (
+              <th className={`${SORTABLE_CLASS} text-center`} onClick={() => handleSort('active')}>
+                {label(PRODUCT_FIELD.ACTIVE)} <SortIcon field="active" currentField={sortField} currentDir={sortDir} />
+              </th>
+            )}
             {showInventory && (
               <th className={`${SORTABLE_CLASS} text-right`} onClick={() => handleSort('inventory')}>
-                Estoque <SortIcon field="inventory" currentField={sortField} currentDir={sortDir} />
+                {label(PRODUCT_FIELD.INVENTORY)} <SortIcon field="inventory" currentField={sortField} currentDir={sortDir} />
               </th>
             )}
+            {/* Não é ordenável de propósito: a pergunta desta coluna é "o que ainda falta mapear", e
+                ela se responde pela célula vazia — ordenar por texto de placa não agrupa a loja. */}
+            {showAisle && <th className={`${HEADER_CLASS} text-left`}>{label(PRODUCT_FIELD.AISLE)}</th>}
             {showSyncStatus && <th className={`${HEADER_CLASS} text-center`}>Catálogo Meta</th>}
           </tr>
         </thead>
@@ -171,6 +205,7 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
               className={`hover:bg-gray-50 transition-colors ${selectable ? 'cursor-pointer' : ''}`}
               onClick={() => selectable && onSelect?.(product)}
             >
+              {showImage && (
               <td className="px-3 py-3">
                 {product.imageUrl ? (
                   <img
@@ -188,9 +223,20 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                   </div>
                 )}
               </td>
+              )}
               <td className="px-3 py-3 font-medium text-gray-900 dark:text-gray-100 max-w-[200px] truncate">
                 {product.name}
               </td>
+              {showBrand && (
+                <td className="px-3 py-3 text-gray-600 dark:text-gray-400 max-w-[120px] truncate">
+                  {product.brand ?? '—'}
+                </td>
+              )}
+              {showUnitSize && (
+                <td className="px-3 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  {product.unitSize ?? '—'}
+                </td>
+              )}
               <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
                 {formatMoney(product.priceInCents, moneyFormat)}
               </td>
@@ -206,14 +252,17 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                   {product.unit ?? '—'}
                 </td>
               )}
-              <td className="px-3 py-3 text-gray-600 dark:text-gray-400 max-w-[120px] truncate">
-                {product.catalogName ?? '—'}
-              </td>
+              {showCatalog && (
+                <td className="px-3 py-3 text-gray-600 dark:text-gray-400 max-w-[120px] truncate">
+                  {product.catalogName ?? '—'}
+                </td>
+              )}
               {showBarcode && (
                 <td className="px-3 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs whitespace-nowrap">
                   {product.barcode ? formatBarcode(product.barcode) : '—'}
                 </td>
               )}
+              {showActive && (
               <td className="px-3 py-3 text-center">
                 {product.active ? (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -225,9 +274,15 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                   </span>
                 )}
               </td>
+              )}
               {showInventory && (
                 <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
                   {product.inventory ?? '—'}
+                </td>
+              )}
+              {showAisle && (
+                <td className="px-3 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  {product.aisle ?? '—'}
                 </td>
               )}
               {showSyncStatus && (

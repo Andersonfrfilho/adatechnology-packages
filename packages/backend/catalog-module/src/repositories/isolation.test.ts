@@ -79,6 +79,24 @@ describe('busca casa o índice GIN', () => {
     expect(renderParams(productSearchCondition(params))).toContain('%leite%')
     expect(sql).not.toContain('leite')
   })
+
+  it('alcança marca e apelido, não só o nome', () => {
+    const sql = render(productSearchCondition(params))
+
+    expect(sql).toContain('"brand"')
+    expect(sql).toContain('"aliases"')
+  })
+
+  it('o apelido casa inteiro, e em minúsculas — não por trecho', () => {
+    // Casar pedaço de apelido devolveria o catálogo inteiro para termo curto ("leite" dentro de
+    // "leite condensado", "leite de coco", "leite em pó"), que é o oposto do que o apelido serve.
+    const bound = renderParams(productSearchCondition({ companyId: 'company-a', search: 'Leite Moça' }))
+
+    // O mesmo termo vai duas vezes: com curinga para o ilike de nome e marca, e inteiro e em
+    // minúsculas para o `&&` sobre o array de apelidos.
+    expect(bound).toContain('%Leite Moça%')
+    expect(bound).toContain('leite moça')
+  })
 })
 
 describe('id sozinho nunca basta', () => {

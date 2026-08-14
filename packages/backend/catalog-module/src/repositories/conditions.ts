@@ -23,9 +23,17 @@ export function productListCondition(params: { companyId: string }): SQL {
 /**
  * Busca por trigrama, casando o índice GIN. `ILIKE '%termo%'` é o operador que o `gin_trgm_ops`
  * acelera — trocar por `=` ou por prefixo deixaria o índice sem uso.
+ *
+ * Marca e apelido entram no mesmo `or`: quem procura "piracanjuba" ou "leite moça" não está
+ * digitando o nome do rótulo, e limitar ao nome devolveria vazio para o termo mais falado. O
+ * apelido casa inteiro (`&&` sobre o array), porque ele já é o termo curto do cliente.
  */
 export function productSearchCondition(params: { companyId: string; search: string }): SQL {
-  return and(productListCondition(params), sql`${products.name} ilike ${'%' + params.search + '%'}`)!
+  const pattern = '%' + params.search + '%'
+  return and(
+    productListCondition(params),
+    sql`(${products.name} ilike ${pattern} or ${products.brand} ilike ${pattern} or ${products.aliases} && array[${params.search.toLowerCase()}]::text[])`,
+  )!
 }
 
 export function catalogOwnedByCondition(params: { companyId: string; id: string }): SQL {

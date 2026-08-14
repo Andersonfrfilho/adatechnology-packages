@@ -40,6 +40,9 @@ export {
   useProducts,
   useProductsConfig,
   useIsProductFieldEnabled,
+  useIsProductFieldRequired,
+  useIsProductFieldVisible,
+  useProductLabel,
 } from './providers/ProductsProvider'
 export type { ProductsProviderProps } from './providers/ProductsProvider'
 
@@ -49,6 +52,15 @@ export type { MoneyFormat } from './lib/money'
 
 export {
   PRODUCT_OPTIONAL_FIELD,
+  PRODUCT_SURFACE,
+  resolveProductFields,
+  PRODUCT_FIELD,
+  resolveProductLabel,
+  isProductFieldVisible,
+  isProductFieldRequired,
+  DEFAULT_PRODUCT_FIELD_LABELS,
+  DEFAULT_PRODUCT_COLUMN_LABELS,
+  ALWAYS_REQUIRED_PRODUCT_FIELDS,
   PRODUCT_SYNC_STATUS,
   DEFAULT_PRODUCTS_CONFIG,
   DEFAULT_UNIT_OPTIONS,
@@ -63,6 +75,13 @@ export type {
   ProductsConfig,
   MetaSyncConfig,
   ProductOptionalField,
+  ProductSurface,
+  ProductFieldsConfig,
+  ProductField,
+  ProductFieldLabels,
+  ProductFieldOptions,
+  ProductFieldsMap,
+  ProductLabelsConfig,
   ProductSyncStatus,
   PaginatedResponse,
   ProductSuggestion,

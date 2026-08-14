@@ -76,6 +76,20 @@ import { catalogOpenApiPaths } from '@adatechnology/catalog-module/openapi'
 const spec = buildOpenApiSpec({ extraPaths: catalogOpenApiPaths({ routes, basePath: '/v1' }) })
 ```
 
+## Varejo físico
+
+Quatro campos opcionais para quem tem loja e vende por conversa: `brand`, `unitSize` (o tamanho
+como está no rótulo — "500g", "fardo 12un"), `aisle` e `aliases`.
+
+`aisle` é **endereço de prateleira**, a placa pendurada no corredor, e não se confunde com
+`sectionId`, que agrupa o catálogo (em restaurante, o posto de produção). Um item pode ter os dois.
+
+`aliases` é como o cliente chama o produto ("miojo", "leite moça"). A busca casa `name` e `brand`
+por trecho (índice GIN de trigrama nos dois) e **apelido inteiro**, em minúsculas: apelido já é o
+termo curto que o cliente digitou, e casar pedaço dele devolveria o catálogo inteiro.
+
+Os quatro chegam vazios em quem não os usa, e a busca se comporta como antes.
+
 ## Estoque
 
 `consumeInventory` desce até um `UPDATE ... WHERE inventory >= quantity` com checagem de linhas

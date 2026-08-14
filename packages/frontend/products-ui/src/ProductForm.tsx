@@ -1,8 +1,15 @@
 import { ChevronDown } from 'lucide-react'
 import { useState, useCallback, useEffect, useRef, type FormEvent, type ReactNode } from 'react'
-import type { Product, Catalog, Section, CreateProductInput, ProductSuggestion } from './providers/types'
-import { DEFAULT_UNIT_OPTIONS, PRODUCT_OPTIONAL_FIELD } from './providers/types'
-import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './providers/ProductsProvider'
+import type { Product, Catalog, Section, CreateProductInput, ProductField, ProductSuggestion } from './providers/types'
+import { DEFAULT_UNIT_OPTIONS, PRODUCT_FIELD, PRODUCT_OPTIONAL_FIELD, PRODUCT_SURFACE } from './providers/types'
+import {
+  useIsProductFieldEnabled,
+  useIsProductFieldRequired,
+  useIsProductFieldVisible,
+  useProductLabel,
+  useProducts,
+  useProductsConfig,
+} from './providers/ProductsProvider'
 import { ImageUpload } from './ImageUpload'
 import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
 
@@ -38,6 +45,12 @@ type FormState = {
   price: MoneyField
   costPrice: MoneyField
   unit: string
+  unitSize: string
+  brand: string
+  aisle: string
+  // Um campo de texto, separado por vírgula: apelido se cadastra em rajada ("miojo, lámen,
+  // macarrão instantâneo"), e uma linha por apelido faria quatro cliques para cada produto.
+  aliases: string
   barcode: string
   catalogId: string
   sectionId: string
@@ -48,6 +61,41 @@ type FormState = {
   sortOrder: string
   active: boolean
 }
+
+// Campos de texto que podem entrar em `requiredFields`, e onde cada um mora no estado. Uma tabela,
+// e não um `switch` na validação, para que acrescentar campo não exija lembrar de dois lugares.
+type TextFieldKey = Extract<
+  keyof FormState,
+  | 'description'
+  | 'unit'
+  | 'unitSize'
+  | 'brand'
+  | 'aisle'
+  | 'aliases'
+  | 'barcode'
+  | 'catalogId'
+  | 'sectionId'
+  | 'imageUrl'
+  | 'inventory'
+  | 'preparationTimeMinutes'
+  | 'preparationInstructions'
+>
+
+const TEXT_FIELD_STATE_KEYS: ReadonlyArray<readonly [ProductField, TextFieldKey]> = [
+  [PRODUCT_FIELD.DESCRIPTION, 'description'],
+  [PRODUCT_FIELD.UNIT, 'unit'],
+  [PRODUCT_FIELD.UNIT_SIZE, 'unitSize'],
+  [PRODUCT_FIELD.BRAND, 'brand'],
+  [PRODUCT_FIELD.AISLE, 'aisle'],
+  [PRODUCT_FIELD.ALIASES, 'aliases'],
+  [PRODUCT_FIELD.BARCODE, 'barcode'],
+  [PRODUCT_FIELD.CATALOG, 'catalogId'],
+  [PRODUCT_FIELD.SECTION, 'sectionId'],
+  [PRODUCT_FIELD.IMAGE, 'imageUrl'],
+  [PRODUCT_FIELD.INVENTORY, 'inventory'],
+  [PRODUCT_FIELD.PREPARATION_TIME, 'preparationTimeMinutes'],
+  [PRODUCT_FIELD.PREPARATION_INSTRUCTIONS, 'preparationInstructions'],
+]
 
 const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
 const LABEL_CLASS = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'
@@ -63,7 +111,15 @@ type SelectFieldProps = {
   readonly label: string
   readonly value: string
   readonly onChange: (value: string) => void
+  readonly error?: string | undefined
   readonly children: ReactNode
+}
+
+// `message` é obrigatório e admite `undefined` de propósito: com `exactOptionalPropertyTypes`,
+// prop opcional obrigaria cada chamada a espalhar um objeto condicional.
+function FieldError({ message }: { readonly message: string | undefined }) {
+  if (!message) return null
+  return <p className="mt-1 text-xs text-red-500">{message}</p>
 }
 
 /**
@@ -72,7 +128,7 @@ type SelectFieldProps = {
  * O `htmlFor` nao e detalhe de conformidade: sem ele o clique no rotulo nao foca o campo — alvo bem
  * maior que a seta — e o leitor de tela anuncia um combo sem nome.
  */
-function SelectField({ id, label, value, onChange, children }: SelectFieldProps) {
+function SelectField({ id, label, value, onChange, error, children }: SelectFieldProps) {
   return (
     <div>
       <label className={LABEL_CLASS} htmlFor={id}>{label}</label>
@@ -90,6 +146,7 @@ function SelectField({ id, label, value, onChange, children }: SelectFieldProps)
           className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
         />
       </div>
+      <FieldError message={error} />
     </div>
   )
 }
@@ -103,7 +160,10 @@ export function ProductForm({
   onSearchSuggestions,
 }: ProductFormProps) {
   const config = useProductsConfig()
-  const isFieldEnabled = useIsProductFieldEnabled()
+  const isFieldEnabled = useIsProductFieldEnabled(PRODUCT_SURFACE.FORM)
+  const isFieldRequired = useIsProductFieldRequired()
+  const isFieldVisible = useIsProductFieldVisible(PRODUCT_SURFACE.FORM)
+  const label = useProductLabel(PRODUCT_SURFACE.FORM)
   const moneyFormat = { currency: config.currency, locale: config.locale }
 
   const toMoneyField = useCallback(
@@ -118,6 +178,10 @@ export function ProductForm({
     price: toMoneyField(initialValues?.priceInCents),
     costPrice: toMoneyField(initialValues?.costPriceInCents),
     unit: initialValues?.unit ?? (config.unitOptions ?? DEFAULT_UNIT_OPTIONS)[0] ?? '',
+    unitSize: initialValues?.unitSize ?? '',
+    brand: initialValues?.brand ?? '',
+    aisle: initialValues?.aisle ?? '',
+    aliases: (initialValues?.aliases ?? []).join(', '),
     barcode: initialValues?.barcode ?? '',
     catalogId: initialValues?.catalogId ?? '',
     sectionId: initialValues?.sectionId ?? '',
@@ -237,16 +301,27 @@ export function ProductForm({
     const newErrors: Partial<Record<keyof FormState, string>> = {}
 
     if (!form.name.trim()) {
-      newErrors.name = 'Nome é obrigatório'
+      newErrors.name = `${label(PRODUCT_FIELD.NAME)} é obrigatório`
     }
 
     if (form.price.amountInCents <= 0) {
-      newErrors.price = 'Preço deve ser maior que zero'
+      newErrors.price = `${label(PRODUCT_FIELD.PRICE)} deve ser maior que zero`
+    }
+
+    for (const [field, stateKey] of TEXT_FIELD_STATE_KEYS) {
+      if (!isFieldRequired(field)) continue
+      if (form[stateKey].trim()) continue
+      newErrors[stateKey] = `${label(field)} é obrigatório`
+    }
+
+    // Custo é dinheiro, e "vazio" nele é zero centavo — não string em branco.
+    if (isFieldRequired(PRODUCT_FIELD.COST_PRICE) && form.costPrice.amountInCents <= 0) {
+      newErrors.costPrice = `${label(PRODUCT_FIELD.COST_PRICE)} é obrigatório`
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }, [form])
+  }, [form, isFieldRequired, label])
 
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault()
@@ -264,6 +339,15 @@ export function ProductForm({
           ? { costPriceInCents: form.costPrice.amountInCents }
           : {}),
         ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT) && form.unit ? { unit: form.unit } : {}),
+        // Os quatro de varejo mandam `null` quando ficam vazios, em vez de sumirem do corpo: apagar
+        // uma marca errada ou um corredor errado é gesto comum, e omitir a chave manteria o valor
+        // antigo — o usuário limparia o campo, salvaria, e veria o texto voltar.
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BRAND) ? { brand: form.brand.trim() || null } : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT_SIZE) ? { unitSize: form.unitSize.trim() || null } : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.AISLE) ? { aisle: form.aisle.trim() || null } : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ALIASES)
+          ? { aliases: form.aliases.split(',').map((alias) => alias.trim()).filter(Boolean) }
+          : {}),
         ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BARCODE) && form.barcode.trim()
           ? { barcode: form.barcode.trim() }
           : {}),
@@ -297,10 +381,25 @@ export function ProductForm({
   const showUnit = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT)
   const showBarcode = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BARCODE)
   const showSection = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SECTION)
+  const showBrand = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.BRAND)
+  const showUnitSize = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.UNIT_SIZE)
+  const showAisle = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.AISLE)
+  const showAliases = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ALIASES)
   const showInventory = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.INVENTORY)
   const showPreparationTime = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME)
   const showPreparationInstructions = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_INSTRUCTIONS)
   const showSortOrder = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SORT_ORDER)
+  // Campos do núcleo: aparecem por padrão, e só somem se a tabela por campo mandar.
+  const showDescription = isFieldVisible(PRODUCT_FIELD.DESCRIPTION)
+  const showCatalog = isFieldVisible(PRODUCT_FIELD.CATALOG)
+  const showImage = isFieldVisible(PRODUCT_FIELD.IMAGE)
+  const showActive = isFieldVisible(PRODUCT_FIELD.ACTIVE)
+  // O asterisco sai do mesmo lugar que a validação: rótulo marcado e campo não exigido (ou o
+  // contrário) é o defeito clássico de formulário configurável.
+  const labelFor = useCallback(
+    (field: ProductField) => `${label(field)}${isFieldRequired(field) ? ' *' : ''}`,
+    [label, isFieldRequired],
+  )
   const moneyPlaceholder = formatMoney(0, moneyFormat)
   const unitOptions = config.unitOptions ?? DEFAULT_UNIT_OPTIONS
   const marginShortcuts = config.marginShortcutPercents ?? []
@@ -311,7 +410,7 @@ export function ProductForm({
     // dentro de um espaco que so comporta uma, e o codigo de barras nascia cortado.
     <form onSubmit={handleSubmit} className="@container space-y-6">
       <div className="relative">
-        <label className={LABEL_CLASS}>Nome do produto *</label>
+        <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.NAME)}</label>
         <input
           type="text"
           value={form.name}
@@ -347,8 +446,9 @@ export function ProductForm({
         )}
       </div>
 
+      {showDescription && (
       <div>
-        <label className={LABEL_CLASS}>Descrição</label>
+        <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.DESCRIPTION)}</label>
         <textarea
           value={form.description}
           onChange={(e) => updateField('description', e.target.value)}
@@ -356,11 +456,13 @@ export function ProductForm({
           className={INPUT_CLASS}
           placeholder="Descrição do produto..."
         />
+        <FieldError message={errors.description} />
       </div>
+      )}
 
       <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
         <div>
-          <label className={LABEL_CLASS}>Preço de venda *</label>
+          <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.PRICE)}</label>
           <input
             type="text"
             value={form.price.text}
@@ -372,7 +474,7 @@ export function ProductForm({
         </div>
         {showCostPrice && (
           <div>
-            <label className={LABEL_CLASS}>Preço de custo</label>
+            <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.COST_PRICE)}</label>
             <input
               type="text"
               value={form.costPrice.text}
@@ -380,6 +482,7 @@ export function ProductForm({
               className={INPUT_CLASS}
               placeholder={moneyPlaceholder}
             />
+            <FieldError message={errors.costPrice} />
             {form.costPrice.amountInCents > 0 && marginShortcuts.length > 0 && (
               <div className="flex gap-2 mt-2">
                 {marginShortcuts.map((percent) => (
@@ -398,14 +501,91 @@ export function ProductForm({
         )}
       </div>
 
+      {(showBrand || showUnitSize) && (
+        <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
+          {showBrand && (
+            <div>
+              <label className={LABEL_CLASS} htmlFor="product-brand">{labelFor(PRODUCT_FIELD.BRAND)}</label>
+              <input
+                id="product-brand"
+                type="text"
+                value={form.brand}
+                onChange={(e) => updateField('brand', e.target.value)}
+                className={INPUT_CLASS}
+                placeholder="Piracanjuba"
+                maxLength={80}
+              />
+              <FieldError message={errors.brand} />
+            </div>
+          )}
+          {showUnitSize && (
+            <div>
+              <label className={LABEL_CLASS} htmlFor="product-unit-size">{labelFor(PRODUCT_FIELD.UNIT_SIZE)}</label>
+              <input
+                id="product-unit-size"
+                type="text"
+                value={form.unitSize}
+                onChange={(e) => updateField('unitSize', e.target.value)}
+                className={INPUT_CLASS}
+                placeholder="1L"
+                maxLength={40}
+              />
+              <FieldError message={errors.unitSize} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {(showAisle || showAliases) && (
+        <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
+          {showAisle && (
+            <div>
+              <label className={LABEL_CLASS} htmlFor="product-aisle">{labelFor(PRODUCT_FIELD.AISLE)}</label>
+              <input
+                id="product-aisle"
+                type="text"
+                value={form.aisle}
+                onChange={(e) => updateField('aisle', e.target.value)}
+                className={INPUT_CLASS}
+                placeholder="Corredor 3"
+                maxLength={60}
+              />
+              <FieldError message={errors.aisle} />
+              {/* O que vale é a placa pendurada no corredor: quem separa lê ela, não um código nosso. */}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Como está escrito na placa da loja.
+              </p>
+            </div>
+          )}
+          {showAliases && (
+            <div>
+              <label className={LABEL_CLASS} htmlFor="product-aliases">{labelFor(PRODUCT_FIELD.ALIASES)}</label>
+              <input
+                id="product-aliases"
+                type="text"
+                value={form.aliases}
+                onChange={(e) => updateField('aliases', e.target.value)}
+                className={INPUT_CLASS}
+                placeholder="miojo, lámen"
+              />
+              <FieldError message={errors.aliases} />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                Separados por vírgula. Como o cliente pede o produto.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {(showUnit || showBarcode) && (
         <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
           {showUnit && (
             <SelectField
               id="product-unit"
-              label="Unidade"
+              label={labelFor(PRODUCT_FIELD.UNIT)}
               value={form.unit}
               onChange={(value) => updateField('unit', value)}
+              error={errors.unit}
             >
               {unitOptions.map((unit) => (
                 <option key={unit} value={unit}>{unit}</option>
@@ -414,7 +594,7 @@ export function ProductForm({
           )}
           {showBarcode && (
             <div>
-              <label className={LABEL_CLASS}>Código de barras</label>
+              <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.BARCODE)}</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -442,29 +622,35 @@ export function ProductForm({
                   </button>
                 )}
               </div>
+              <FieldError message={errors.barcode} />
             </div>
           )}
         </div>
       )}
 
+      {(showCatalog || showSection) && (
       <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
+        {showCatalog && (
         <SelectField
           id="product-catalog"
-          label="Catálogo"
+          label={labelFor(PRODUCT_FIELD.CATALOG)}
           value={form.catalogId}
           onChange={(value) => updateField('catalogId', value)}
+          error={errors.catalogId}
         >
           <option value="">Nenhum</option>
           {catalogs.map((catalog) => (
             <option key={catalog.id} value={catalog.id}>{catalog.name}</option>
           ))}
         </SelectField>
+        )}
         {showSection && (
           <SelectField
             id="product-section"
-            label="Seção"
+            label={labelFor(PRODUCT_FIELD.SECTION)}
             value={form.sectionId}
             onChange={(value) => updateField('sectionId', value)}
+            error={errors.sectionId}
           >
             <option value="">Nenhuma</option>
             {sections
@@ -478,9 +664,11 @@ export function ProductForm({
           </SelectField>
         )}
       </div>
+      )}
 
+      {showImage && (
       <div>
-        <label className={LABEL_CLASS}>Imagem</label>
+        <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.IMAGE)}</label>
         {uploadImage ? (
           <>
             <ImageUpload
@@ -513,13 +701,15 @@ export function ProductForm({
             )}
           </>
         )}
+        <FieldError message={errors.imageUrl} />
       </div>
+      )}
 
       {(showInventory || showPreparationTime) && (
         <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
           {showInventory && (
             <div>
-              <label className={LABEL_CLASS}>Estoque</label>
+              <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.INVENTORY)}</label>
               <input
                 type="number"
                 value={form.inventory}
@@ -527,11 +717,12 @@ export function ProductForm({
                 className={INPUT_CLASS}
                 min={0}
               />
+              <FieldError message={errors.inventory} />
             </div>
           )}
           {showPreparationTime && (
             <div>
-              <label className={LABEL_CLASS}>Tempo de preparo (min)</label>
+              <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.PREPARATION_TIME)}</label>
               <input
                 type="number"
                 value={form.preparationTimeMinutes}
@@ -540,6 +731,7 @@ export function ProductForm({
                 min={0}
                 placeholder="Ex: 15"
               />
+              <FieldError message={errors.preparationTimeMinutes} />
             </div>
           )}
         </div>
@@ -547,7 +739,7 @@ export function ProductForm({
 
       {showSortOrder && (
         <div>
-          <label className={LABEL_CLASS}>Ordem de exibição</label>
+          <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.SORT_ORDER)}</label>
           <input
             type="number"
             value={form.sortOrder}
@@ -560,7 +752,7 @@ export function ProductForm({
 
       {showPreparationInstructions && (
         <div>
-          <label className={LABEL_CLASS}>Modo de preparo</label>
+          <label className={LABEL_CLASS}>{labelFor(PRODUCT_FIELD.PREPARATION_INSTRUCTIONS)}</label>
           <textarea
             value={form.preparationInstructions}
             onChange={(e) => updateField('preparationInstructions', e.target.value)}
@@ -568,9 +760,11 @@ export function ProductForm({
             className={INPUT_CLASS}
             placeholder="Instruções para quem produz o item..."
           />
+          <FieldError message={errors.preparationInstructions} />
         </div>
       )}
 
+      {showActive && (
       <div className="flex items-center gap-3">
         <label className="relative inline-flex items-center cursor-pointer">
           <input
@@ -581,8 +775,9 @@ export function ProductForm({
           />
           <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600" />
         </label>
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Produto ativo</span>
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label(PRODUCT_FIELD.ACTIVE)}</span>
       </div>
+      )}
 
       <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
         <button

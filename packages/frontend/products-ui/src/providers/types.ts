@@ -38,8 +38,236 @@ export const PRODUCT_OPTIONAL_FIELD = {
   PREPARATION_INSTRUCTIONS: 'preparationInstructions',
   INVENTORY: 'inventory',
   SORT_ORDER: 'sortOrder',
+  // Varejo físico: marca e embalagem separam dois itens homônimos na prateleira, corredor é onde
+  // ele fica na loja, e apelido é como o cliente o chama. Fora dos padrões porque catálogo de
+  // serviço ou de restaurante não tem nenhum dos quatro.
+  BRAND: 'brand',
+  UNIT_SIZE: 'unitSize',
+  AISLE: 'aisle',
+  ALIASES: 'aliases',
 } as const
 export type ProductOptionalField = (typeof PRODUCT_OPTIONAL_FIELD)[keyof typeof PRODUCT_OPTIONAL_FIELD]
+
+// As duas superfícies que desenham campo opcional. Ficha técnica da cozinha faz sentido no
+// formulário e não na tabela; marca faz sentido nos dois — e uma lista só não sabe separar isso.
+export const PRODUCT_SURFACE = {
+  FORM: 'form',
+  LIST: 'list',
+} as const
+export type ProductSurface = (typeof PRODUCT_SURFACE)[keyof typeof PRODUCT_SURFACE]
+
+// O que se configura de um campo. Tudo opcional: declarar o campo já é dizer que ele aparece, e
+// `{}` é a configuração mais comum — "mostra, do jeito padrão".
+export type ProductFieldOptions = {
+  // `false` esconde nas duas superfícies; o objeto esconde só numa. Ausente = aparece.
+  readonly visible?: boolean | { readonly form?: boolean; readonly list?: boolean }
+  readonly required?: boolean
+  // String vale para as duas superfícies; o objeto separa rótulo de campo de cabeçalho de coluna.
+  readonly label?: string | { readonly form?: string; readonly list?: string }
+}
+
+// A tabela de campos: uma entrada por campo, com as opções dele juntas. É a forma que responde
+// "o que este host faz com marca?" num lugar só, em vez de procurar o nome do campo em três listas.
+export type ProductFieldsMap = { readonly [TField in ProductField]?: ProductFieldOptions }
+
+/**
+ * Quais campos a tela desenha, em uma de três formas.
+ *
+ * - `['brand', 'barcode']` — os mesmos campos opcionais nas duas superfícies. É o que todo host usa
+ *   hoje, e trocar por objeto obrigatório quebraria todos eles para resolver o problema de um.
+ * - `{ form: [...], list: [...] }` — superfícies com campos diferentes. Superfície ausente não
+ *   desenha campo opcional nenhum.
+ * - `{ brand: { required: true, label: 'Fabricante' }, aisle: { visible: { list: false } } }` — a
+ *   tabela por campo, quando visibilidade sozinha não basta.
+ *
+ * As três se distinguem sem discriminante: array é array, e nenhum campo se chama `form` ou `list`.
+ */
+export type ProductFieldsConfig =
+  | readonly ProductOptionalField[]
+  | {
+      readonly form?: readonly ProductOptionalField[]
+      readonly list?: readonly ProductOptionalField[]
+    }
+  | ProductFieldsMap
+
+function asFieldsMap(fields: ProductFieldsConfig): ProductFieldsMap | null {
+  if (Array.isArray(fields)) return null
+  const candidate = fields as Record<string, unknown>
+  if ('form' in candidate || 'list' in candidate) return null
+  return fields as ProductFieldsMap
+}
+
+function isVisibleInMap(options: ProductFieldOptions, surface: ProductSurface): boolean {
+  const { visible } = options
+  if (visible === undefined) return true
+  if (typeof visible === 'boolean') return visible
+  return visible[surface] ?? true
+}
+
+/**
+ * Se o campo é desenhado na superfície.
+ *
+ * Núcleo e extensão têm padrões opostos, e isso é deliberado: campo de vertical (marca, corredor)
+ * não aparece até ser declarado — senão um catálogo de serviços mostraria colunas vazias; campo do
+ * núcleo (descrição, catálogo, imagem) aparece até ser escondido, porque ele já estava na tela
+ * antes de existir configuração. Nome e preço não se escondem: sem eles não há produto.
+ */
+export function isProductFieldVisible(params: {
+  readonly fields: ProductFieldsConfig
+  readonly field: ProductField
+  readonly surface: ProductSurface
+}): boolean {
+  const { fields, field, surface } = params
+  if (ALWAYS_REQUIRED_PRODUCT_FIELDS.includes(field)) return true
+
+  const isVerticalField = (Object.values(PRODUCT_OPTIONAL_FIELD) as readonly string[]).includes(field)
+  const map = asFieldsMap(fields)
+  if (map) {
+    const options = map[field]
+    if (!options) return !isVerticalField
+    return isVisibleInMap(options, surface)
+  }
+
+  if (!isVerticalField) return true
+  const declared = Array.isArray(fields)
+    ? (fields as readonly ProductOptionalField[])
+    : ((fields as { readonly [TSurface in ProductSurface]?: readonly ProductOptionalField[] })[surface] ?? [])
+  return declared.includes(field as ProductOptionalField)
+}
+
+export function resolveProductFields(
+  fields: ProductFieldsConfig,
+  surface: ProductSurface,
+): readonly ProductOptionalField[] {
+  const map = asFieldsMap(fields)
+  if (map) {
+    return Object.values(PRODUCT_OPTIONAL_FIELD).filter((field) => isProductFieldVisible({ fields, field, surface }))
+  }
+  if (Array.isArray(fields)) return fields
+  return (fields as { readonly [TSurface in ProductSurface]?: readonly ProductOptionalField[] })[surface] ?? []
+}
+
+// Todo campo que ganha rótulo na tela — o núcleo e as extensões juntos. É um conjunto maior que
+// `PRODUCT_OPTIONAL_FIELD` de propósito: "Nome do produto" e "Preço de venda" sempre aparecem, e
+// ainda assim são os que mais mudam de nome entre verticais ("Serviço", "Valor da sessão").
+export const PRODUCT_FIELD = {
+  NAME: 'name',
+  DESCRIPTION: 'description',
+  PRICE: 'price',
+  COST_PRICE: 'costPrice',
+  UNIT: 'unit',
+  UNIT_SIZE: 'unitSize',
+  BRAND: 'brand',
+  AISLE: 'aisle',
+  ALIASES: 'aliases',
+  BARCODE: 'barcode',
+  CATALOG: 'catalog',
+  SECTION: 'section',
+  IMAGE: 'image',
+  INVENTORY: 'inventory',
+  PREPARATION_TIME: 'preparationTime',
+  PREPARATION_INSTRUCTIONS: 'preparationInstructions',
+  SORT_ORDER: 'sortOrder',
+  ACTIVE: 'active',
+} as const
+export type ProductField = (typeof PRODUCT_FIELD)[keyof typeof PRODUCT_FIELD]
+
+export type ProductFieldLabels = Partial<Record<ProductField, string>>
+
+// O rótulo do formulário é a forma por extenso; o da tabela é a abreviação que cabe na coluna.
+// Duas tabelas, e não uma, porque "Embalagem" no cabeçalho empurra preço e estoque para fora da
+// tela, e "Emb." num rótulo de campo não diz nada a quem está cadastrando.
+export const DEFAULT_PRODUCT_FIELD_LABELS: Record<ProductField, string> = {
+  name: 'Nome do produto',
+  description: 'Descrição',
+  price: 'Preço de venda',
+  costPrice: 'Preço de custo',
+  unit: 'Unidade',
+  unitSize: 'Embalagem',
+  brand: 'Marca',
+  aisle: 'Corredor',
+  aliases: 'Apelidos',
+  barcode: 'Código de barras',
+  catalog: 'Catálogo',
+  section: 'Seção',
+  image: 'Imagem',
+  inventory: 'Estoque',
+  preparationTime: 'Tempo de preparo (min)',
+  preparationInstructions: 'Modo de preparo',
+  sortOrder: 'Ordem de exibição',
+  active: 'Produto ativo',
+}
+
+export const DEFAULT_PRODUCT_COLUMN_LABELS: Record<ProductField, string> = {
+  ...DEFAULT_PRODUCT_FIELD_LABELS,
+  name: 'Nome',
+  price: 'Preço',
+  unit: 'Un',
+  unitSize: 'Emb.',
+  barcode: 'Cód.barras',
+  image: 'Img',
+  preparationTime: 'Preparo',
+  active: 'Ativo',
+}
+
+/**
+ * Rótulos por superfície. A tabela simples vale para as duas — quem renomeia "Corredor" para
+ * "Setor" quer o novo nome no formulário e no cabeçalho, e obrigar a repetir seria só cerimônia.
+ * Campo não declarado mantém o rótulo padrão daquela superfície.
+ */
+export type ProductLabelsConfig =
+  | ProductFieldLabels
+  | {
+      readonly form?: ProductFieldLabels
+      readonly list?: ProductFieldLabels
+    }
+
+// Núcleo do produto: sem nome e sem preço não existe item vendável, e desligar isso pela
+// configuração da tela só adiaria a rejeição para o 400 da API.
+export const ALWAYS_REQUIRED_PRODUCT_FIELDS: readonly ProductField[] = [PRODUCT_FIELD.NAME, PRODUCT_FIELD.PRICE]
+
+/**
+ * Se o formulário exige o campo. Núcleo é sempre exigido; campo de vertical desligado nunca é —
+ * exigir o que não se desenha travaria o salvamento sem mostrar onde está o problema.
+ */
+export function isProductFieldRequired(params: {
+  readonly requiredFields: readonly ProductField[] | undefined
+  readonly fields: ProductFieldsConfig
+  readonly field: ProductField
+}): boolean {
+  const { requiredFields, fields, field } = params
+  if (ALWAYS_REQUIRED_PRODUCT_FIELDS.includes(field)) return true
+
+  const declaredInMap = asFieldsMap(fields)?.[field]?.required === true
+  if (!declaredInMap && !requiredFields?.includes(field)) return false
+
+  return isProductFieldVisible({ fields, field, surface: PRODUCT_SURFACE.FORM })
+}
+
+export function resolveProductLabel(params: {
+  readonly labels: ProductLabelsConfig | undefined
+  readonly field: ProductField
+  readonly surface: ProductSurface
+  // A tabela por campo também carrega rótulo, e ela ganha de `labels`: quem configurou o campo
+  // inteiro num lugar só não espera que uma tabela separada sobrescreva por baixo.
+  readonly fields?: ProductFieldsConfig
+}): string {
+  const { labels, field, surface, fields } = params
+  const defaults = surface === PRODUCT_SURFACE.LIST ? DEFAULT_PRODUCT_COLUMN_LABELS : DEFAULT_PRODUCT_FIELD_LABELS
+
+  const fromMap = fields ? asFieldsMap(fields)?.[field]?.label : undefined
+  if (typeof fromMap === 'string') return fromMap
+  if (fromMap?.[surface]) return fromMap[surface]
+
+  if (!labels) return defaults[field]
+
+  const perSurface = labels as { readonly form?: ProductFieldLabels; readonly list?: ProductFieldLabels }
+  // Nenhum campo se chama `form` ou `list`, então a presença de uma das chaves distingue as duas
+  // formas sem precisar de discriminante explícito.
+  const isPerSurface = 'form' in perSurface || 'list' in perSurface
+  const overrides = isPerSurface ? (perSurface[surface] ?? {}) : (labels as ProductFieldLabels)
+  return overrides[field] ?? defaults[field]
+}
 
 // Estado da sincronização do item com o catálogo da Meta. Faz parte do núcleo, e não das
 // extensões, porque é inerente a catálogo Meta: qualquer consumidor que publique produtos lá
@@ -77,6 +305,17 @@ export type Product = {
   // Texto livre para quem produz o item (ficha técnica, ponto da carne, ordem de montagem). É
   // separado de `description`, que é o que o cliente lê.
   readonly preparationInstructions?: string | null
+
+  // Fabricante. Separado do nome porque em mercearia é ele que decide entre dois itens homônimos,
+  // e concatenar no nome torna a busca por marca impossível.
+  readonly brand?: string | null
+  // Tamanho da embalagem como está no rótulo ("500g", "fardo 12un") — texto, porque "cx 24x350ml"
+  // não tem forma numérica única e quem confere a sacola lê o rótulo.
+  readonly unitSize?: string | null
+  // Onde o item fica na loja física, na placa do corredor. Não é `sectionId`, que agrupa catálogo.
+  readonly aisle?: string | null
+  // Como o cliente chama o produto ("miojo", "leite moça"). Alimenta a busca por texto.
+  readonly aliases?: readonly string[]
 
   readonly externalId?: string | null
   readonly syncStatus?: ProductSyncStatus | null
@@ -141,6 +380,11 @@ export type CreateProductInput = {
   readonly inventory?: number
   readonly preparationTimeMinutes?: number
   readonly preparationInstructions?: string
+  readonly brand?: string | null
+  readonly unitSize?: string | null
+  readonly aisle?: string | null
+  // Substitui a lista inteira — quem acrescenta um apelido manda os atuais junto.
+  readonly aliases?: readonly string[]
 }
 
 export type UpdateProductInput = Partial<CreateProductInput> & {
@@ -180,7 +424,19 @@ export type ProductsConfig = {
   // pacote assumiria BRL/pt-BR, o que só serve a um consumidor.
   readonly currency: string
   readonly locale: string
-  readonly fields: readonly ProductOptionalField[]
+  readonly fields: ProductFieldsConfig
+  // Renomeia campo e coluna. Ausente, valem os rótulos padrão.
+  readonly labels?: ProductLabelsConfig
+  /**
+   * Campos que o formulário exige **além** de nome e preço, que são sempre obrigatórios.
+   *
+   * Mercearia quer marca preenchida, restaurante não tem marca — e a diferença é do host, não do
+   * schema. Campo desligado em `fields` é ignorado aqui: não dá para exigir o que não se desenha.
+   *
+   * Isto é ergonomia de formulário, não regra de negócio: a API continua sendo quem valida, e
+   * quem importa em massa não passa por esta tela.
+   */
+  readonly requiredFields?: readonly ProductField[]
   readonly unitOptions?: readonly string[]
   // Atalhos de margem **sobre o preço de venda** — a mesma conta de `applyMarginToCost`. Vazio
   // esconde os botões. Valor >= 100 é descartado por aquele helper: margem de 100% sobre a venda

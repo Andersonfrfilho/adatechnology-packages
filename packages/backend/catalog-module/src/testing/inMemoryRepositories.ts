@@ -25,6 +25,13 @@ function snapshot<TRow>(row: TRow | undefined): TRow | undefined {
   return row ? { ...row } : undefined
 }
 
+function matchesSearch(row: ProductRow, search: string): boolean {
+  const term = search.toLowerCase()
+  if (row.name.toLowerCase().includes(term)) return true
+  if (row.brand?.toLowerCase().includes(term)) return true
+  return (row.aliases ?? []).some((alias) => alias.toLowerCase() === term)
+}
+
 export function createInMemoryProducts(seed: ProductRow[] = []) {
   const rows: ProductRow[] = [...seed]
 
@@ -38,6 +45,10 @@ export function createInMemoryProducts(seed: ProductRow[] = []) {
         description: null,
         costPriceInCents: null,
         unit: null,
+        unitSize: null,
+        brand: null,
+        aisle: null,
+        aliases: [],
         barcode: null,
         imageUrl: null,
         imageStorageKey: null,
@@ -71,7 +82,9 @@ export function createInMemoryProducts(seed: ProductRow[] = []) {
         (row) =>
           row.companyId === query.companyId &&
           !row.deletedAt &&
-          (query.search ? row.name.toLowerCase().includes(query.search.toLowerCase()) : true) &&
+          // Mesmo alcance do `productSearchCondition` no Postgres: nome e marca por trecho, apelido
+          // inteiro. O dublê que só casasse nome deixaria passar uma regressão na busca por apelido.
+          (query.search ? matchesSearch(row, query.search) : true) &&
           (query.active === undefined ? true : row.active === query.active),
       )
       return {
