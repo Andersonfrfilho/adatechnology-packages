@@ -27,6 +27,7 @@ export const SCHEDULING_ERROR_CODES = {
   RESOURCE_UNAVAILABLE: 'SCHEDULING_RESOURCE_UNAVAILABLE',
   SERVICE_NOT_OFFERED_BY_RESOURCE: 'SCHEDULING_SERVICE_NOT_OFFERED_BY_RESOURCE',
   CONFIG_MISSING: 'SCHEDULING_CONFIG_MISSING',
+  LOOKAHEAD_WINDOW_TOO_LARGE: 'SCHEDULING_LOOKAHEAD_WINDOW_TOO_LARGE',
 } as const
 
 export class ResourceNotFoundError extends SchedulingError {
@@ -115,5 +116,20 @@ export class ServiceNotOfferedByResourceError extends SchedulingError {
 export class ConfigMissingError extends SchedulingError {
   constructor(public readonly field: string) {
     super(`Configuração obrigatória ausente: ${field}.`, 500, SCHEDULING_ERROR_CODES.CONFIG_MISSING, { field })
+  }
+}
+
+/** Janela `until - from` maior que `maxLookaheadDays` da config — consulta de anos é varredura acidental (T3.5). */
+export class LookaheadWindowTooLargeError extends SchedulingError {
+  constructor(
+    public readonly requestedDays: number,
+    public readonly maxLookaheadDays: number,
+  ) {
+    super(
+      'Janela de disponibilidade consultada excede o máximo permitido.',
+      400,
+      SCHEDULING_ERROR_CODES.LOOKAHEAD_WINDOW_TOO_LARGE,
+      { requestedDays, maxLookaheadDays },
+    )
   }
 }

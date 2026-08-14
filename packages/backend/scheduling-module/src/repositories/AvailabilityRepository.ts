@@ -2,18 +2,23 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 
 import type { SchedulingDatabase } from '../database.types'
 import {
   availabilityExceptions,
   availabilityRules,
+  resources,
   type AvailabilityExceptionRow,
   type AvailabilityRuleRow,
   type NewAvailabilityExceptionRow,
   type NewAvailabilityRuleRow,
 } from '../schema/schema'
-import { availabilityExceptionListCondition, availabilityRuleListCondition } from './conditions'
+import {
+  availabilityExceptionListCondition,
+  availabilityRuleListCondition,
+  resourceOwnedByCondition,
+} from './conditions'
 
 export class AvailabilityRepository {
   constructor(private readonly db: SchedulingDatabase) {}
@@ -51,5 +56,28 @@ export class AvailabilityRepository {
     resourceId: string
   }): Promise<AvailabilityExceptionRow[]> {
     return this.db.select().from(availabilityExceptions).where(availabilityExceptionListCondition(params))
+  }
+
+  /**
+   * Hora de parede (`HH:mm`) → instante, pelo fuso do próprio recurso — via `AT TIME ZONE` do
+   * Postgres, nunca offset fixo calculado no código (spec §5.3, T3.2). É a única conversão do
+   * módulo que depende de Postgres real: `(data + hora) AT TIME ZONE zona` resolve o deslocamento
+   * certo mesmo quando a data cai do outro lado de uma virada de horário de verão.
+   */
+  async resolveLocalInstant(params: {
+    companyId: string
+    resourceId: string
+    localDate: string
+    localTime: string
+  }): Promise<Date> {
+    const [row] = await this.db
+      .select({
+        instant: sql<Date>`(${params.localDate}::date + ${params.localTime}::time) AT TIME ZONE ${resources.timezone}`,
+      })
+      .from(resources)
+      .where(resourceOwnedByCondition({ companyId: params.companyId, id: params.resourceId }))
+      .limit(1)
+    if (!row) throw new Error('scheduling-module: recurso não encontrado ao resolver hora local')
+    return row.instant
   }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { and, asc, eq, gte, lte, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, gte, lt, lte, sql } from 'drizzle-orm'
 import { SlotUnavailableError } from '@adatechnology/scheduling-contracts'
 
 import type { SchedulingDatabase } from '../database.types'
@@ -108,6 +108,28 @@ export class BookingRepository {
 
   async findSlotsByBooking(params: { bookingId: string }): Promise<BookingSlotRow[]> {
     return this.db.select().from(bookingSlots).where(eq(bookingSlots.bookingId, params.bookingId))
+  }
+
+  /**
+   * `blocking` de todo `booking_slot` do recurso que toca `[from, until)` — usado para subtrair da
+   * disponibilidade calculada (spec §7). Sem filtro de status: cancelamento apaga a linha do slot
+   * (T4.6), então todo `booking_slot` que sobrevive já representa reserva que ocupa a agenda.
+   */
+  async listBlockingSlotsByResource(params: {
+    resourceId: string
+    from: Date
+    until: Date
+  }): Promise<Array<{ blockingStart: Date; blockingEnd: Date }>> {
+    return this.db
+      .select({ blockingStart: bookingSlots.blockingStart, blockingEnd: bookingSlots.blockingEnd })
+      .from(bookingSlots)
+      .where(
+        and(
+          eq(bookingSlots.resourceId, params.resourceId),
+          lt(bookingSlots.blockingStart, params.until),
+          gt(bookingSlots.blockingEnd, params.from),
+        ),
+      )
   }
 
   async list(query: ListBookingsQuery): Promise<ListBookingsPage> {

@@ -121,4 +121,5 @@ export {
   ResourceUnavailableError,
   ServiceNotOfferedByResourceError,
   ConfigMissingError,
+  LookaheadWindowTooLargeError,
 } from './errors'

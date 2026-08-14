@@ -58,3 +58,8 @@ export {
   bookingOwnedByCondition,
   bookingListCondition,
 } from './repositories/conditions'
+
+export { nowOf } from './use-cases/schedulingModule.types'
+export type { SchedulingRepositories, SchedulingDependencies } from './use-cases/schedulingModule.types'
+
+export { ListAvailableSlotsUseCase } from './use-cases/Availability.use-cases'
