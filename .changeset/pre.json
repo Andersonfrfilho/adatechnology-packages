@@ -135,6 +135,7 @@
     "rich-message-composer",
     "send-media-logger-port",
     "send-product-list-action",
+    "simulator-any-channel",
     "strict-declarations",
     "style-customization-and-moderation-badge",
     "summary-preview",
