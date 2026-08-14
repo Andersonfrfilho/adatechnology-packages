@@ -16,8 +16,10 @@
 import { randomUUID } from 'node:crypto'
 
 import type {
+  BookingParticipantRow,
   BookingRow,
   BookingSlotRow,
+  NewBookingParticipantRow,
   NewBookingRow,
   NewBookingSlotRow,
   NewResourceRow,
@@ -155,13 +157,16 @@ export function createInMemoryServices(seed: ServiceRow[] = []) {
 export function createInMemoryBookings(seed: BookingRow[] = []) {
   const rows: BookingRow[] = [...seed]
   const slotsByBooking = new Map<string, BookingSlotRow[]>()
+  const participantsByBooking = new Map<string, BookingParticipantRow[]>()
 
   return {
     rows,
     slotsByBooking,
+    participantsByBooking,
     async createWithSlots(params: {
       booking: NewBookingRow
       slots: ReadonlyArray<Omit<NewBookingSlotRow, 'bookingId'>>
+      participants?: ReadonlyArray<Omit<NewBookingParticipantRow, 'bookingId'>>
     }): Promise<{ booking: BookingRow; slots: BookingSlotRow[] }> {
       const booking = {
         id: randomUUID(),
@@ -187,13 +192,77 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       )
       slotsByBooking.set(booking.id, slots)
 
+      if (params.participants && params.participants.length > 0) {
+        const participants = params.participants.map(
+          (participant) =>
+            ({
+              id: randomUUID(),
+              bookingId: booking.id,
+              resourceId: null,
+              responseStatus: null,
+              ...participant,
+            }) as BookingParticipantRow,
+        )
+        participantsByBooking.set(booking.id, participants)
+      }
+
       return { booking, slots }
     },
     async findById(params: { companyId: string; id: string }): Promise<BookingRow | undefined> {
       return snapshot(rows.find((row) => row.companyId === params.companyId && row.id === params.id))
     },
+    async findByIdempotencyKey(params: { companyId: string; idempotencyKey: string }): Promise<BookingRow | undefined> {
+      return snapshot(
+        rows.find((row) => row.companyId === params.companyId && row.idempotencyKey === params.idempotencyKey),
+      )
+    },
     async findSlotsByBooking(params: { bookingId: string }): Promise<BookingSlotRow[]> {
       return (slotsByBooking.get(params.bookingId) ?? []).map((slot) => ({ ...slot }))
+    },
+    async listBlockingSlotsByResource(params: {
+      resourceId: string
+      from: Date
+      until: Date
+    }): Promise<Array<{ blockingStart: Date; blockingEnd: Date }>> {
+      const blocking: Array<{ blockingStart: Date; blockingEnd: Date }> = []
+      for (const slots of slotsByBooking.values()) {
+        for (const slot of slots) {
+          if (
+            slot.resourceId === params.resourceId &&
+            slot.blockingStart < params.until &&
+            slot.blockingEnd > params.from
+          ) {
+            blocking.push({ blockingStart: slot.blockingStart, blockingEnd: slot.blockingEnd })
+          }
+        }
+      }
+      return blocking
+    },
+    async list(query: {
+      companyId: string
+      page: number
+      pageSize: number
+      resourceId?: string
+      status?: string
+      from?: Date
+      until?: Date
+    }): Promise<{ rows: BookingRow[]; total: number }> {
+      const filtered = rows.filter((row) => {
+        if (row.companyId !== query.companyId) return false
+        if (query.status && row.status !== query.status) return false
+        if (query.from && row.startsAt < query.from) return false
+        if (query.until && row.startsAt > query.until) return false
+        if (query.resourceId) {
+          const slots = slotsByBooking.get(row.id) ?? []
+          if (!slots.some((slot) => slot.resourceId === query.resourceId)) return false
+        }
+        return true
+      })
+      const sorted = [...filtered].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      return {
+        rows: sorted.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
+        total: filtered.length,
+      }
     },
     async updateStatus(params: {
       companyId: string
@@ -204,6 +273,35 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === params.id)
       if (!row) return undefined
       Object.assign(row, params.values, { status: params.status })
+      return snapshot(row)
+    },
+    async replaceSlots(params: {
+      bookingId: string
+      slots: ReadonlyArray<Omit<NewBookingSlotRow, 'bookingId'>>
+    }): Promise<BookingSlotRow[]> {
+      const slots = params.slots.map(
+        (slot) => ({ id: randomUUID(), bookingId: params.bookingId, createdAt: EPOCH, ...slot }) as BookingSlotRow,
+      )
+      slotsByBooking.set(params.bookingId, slots)
+      return slots.map((slot) => ({ ...slot }))
+    },
+    async cancelWithSlotRelease(params: {
+      companyId: string
+      id: string
+      cancelledAt: Date
+      cancelledBy: string
+      cancellationReason?: string
+    }): Promise<BookingRow | undefined> {
+      const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === params.id)
+      if (!row) return undefined
+      slotsByBooking.delete(params.id)
+      Object.assign(row, {
+        status: 'cancelled',
+        cancelledAt: params.cancelledAt,
+        cancelledBy: params.cancelledBy,
+        cancellationReason: params.cancellationReason,
+        updatedAt: EPOCH,
+      })
       return snapshot(row)
     },
   }

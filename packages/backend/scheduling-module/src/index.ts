@@ -59,7 +59,23 @@ export {
   bookingListCondition,
 } from './repositories/conditions'
 
-export { nowOf } from './use-cases/schedulingModule.types'
+export { nowOf, runHook } from './use-cases/schedulingModule.types'
 export type { SchedulingRepositories, SchedulingDependencies } from './use-cases/schedulingModule.types'
 
 export { ListAvailableSlotsUseCase } from './use-cases/Availability.use-cases'
+
+export {
+  CancelBookingUseCase,
+  CompleteBookingUseCase,
+  ConfirmBookingUseCase,
+  GetBookingUseCase,
+  ListBookingsUseCase,
+  MarkNoShowUseCase,
+  RequestBookingUseCase,
+  RescheduleBookingUseCase,
+} from './use-cases/Booking.use-cases'
+
+export { toBooking, toBookingSlot } from './shared/toContract'
+
+export { createSchedulingModule } from './SchedulingModule'
+export type { SchedulingModule, SchedulingModuleProviders, CreateSchedulingModuleParams } from './SchedulingModule'

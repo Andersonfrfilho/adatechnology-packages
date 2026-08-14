@@ -28,6 +28,7 @@ export const SCHEDULING_ERROR_CODES = {
   SERVICE_NOT_OFFERED_BY_RESOURCE: 'SCHEDULING_SERVICE_NOT_OFFERED_BY_RESOURCE',
   CONFIG_MISSING: 'SCHEDULING_CONFIG_MISSING',
   LOOKAHEAD_WINDOW_TOO_LARGE: 'SCHEDULING_LOOKAHEAD_WINDOW_TOO_LARGE',
+  CALENDAR_SYNC_DISABLED: 'SCHEDULING_CALENDAR_SYNC_DISABLED',
 } as const
 
 export class ResourceNotFoundError extends SchedulingError {
@@ -130,6 +131,17 @@ export class LookaheadWindowTooLargeError extends SchedulingError {
       400,
       SCHEDULING_ERROR_CODES.LOOKAHEAD_WINDOW_TOO_LARGE,
       { requestedDays, maxLookaheadDays },
+    )
+  }
+}
+
+/** `config.calendarSync.enabled` sem `providers.calendarSync` plugado (T4.10). */
+export class CalendarSyncDisabledError extends SchedulingError {
+  constructor() {
+    super(
+      'Sincronização com o calendário está desligada para este módulo.',
+      409,
+      SCHEDULING_ERROR_CODES.CALENDAR_SYNC_DISABLED,
     )
   }
 }

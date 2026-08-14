@@ -106,6 +106,16 @@ export class BookingRepository {
     return row
   }
 
+  /** Suporta o replay de `Idempotency-Key` (T4.3) — `idx_bookings_company_idempotency` cobre a busca. */
+  async findByIdempotencyKey(params: { companyId: string; idempotencyKey: string }): Promise<BookingRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(bookings)
+      .where(and(eq(bookings.companyId, params.companyId), eq(bookings.idempotencyKey, params.idempotencyKey)))
+      .limit(1)
+    return row
+  }
+
   async findSlotsByBooking(params: { bookingId: string }): Promise<BookingSlotRow[]> {
     return this.db.select().from(bookingSlots).where(eq(bookingSlots.bookingId, params.bookingId))
   }
@@ -202,5 +212,33 @@ export class BookingRepository {
       }
       throw error
     }
+  }
+
+  /**
+   * Apaga os `booking_slots` da reserva e marca `cancelled` na mesma transação — nunca uma
+   * reserva sem slot mas ainda `confirmed`/`requested` se o processo cair no meio (T4.6).
+   */
+  async cancelWithSlotRelease(params: {
+    companyId: string
+    id: string
+    cancelledAt: Date
+    cancelledBy: string
+    cancellationReason?: string
+  }): Promise<BookingRow | undefined> {
+    return this.db.transaction(async (tx) => {
+      await tx.delete(bookingSlots).where(eq(bookingSlots.bookingId, params.id))
+      const [row] = await tx
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          cancelledAt: params.cancelledAt,
+          cancelledBy: params.cancelledBy,
+          cancellationReason: params.cancellationReason,
+          updatedAt: new Date(),
+        })
+        .where(bookingOwnedByCondition(params))
+        .returning()
+      return row
+    })
   }
 }

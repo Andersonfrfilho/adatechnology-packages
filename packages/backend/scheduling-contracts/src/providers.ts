@@ -84,4 +84,15 @@ export type SchedulingModuleConfig = {
   readonly maxLookaheadDays: number
   /** `0` desliga a janela mínima de cancelamento por completo (T4.6). */
   readonly defaultMinCancellationNoticeMinutes?: number
+  /** Tolerância para "horário no passado" em criação/remarcação — `0` (padrão) não perdoa nada (T4.8). */
+  readonly pastBookingToleranceMinutes?: number
+  /**
+   * Espelho no calendário externo é **desligado por padrão** (spec §1, §8) — diferente do
+   * `VideoMeetingPort`, que é capacidade pura por ausência. Ligar aqui sem plugar
+   * `providers.calendarSync` falha no boot (`CalendarSyncDisabledError`), não na primeira
+   * tentativa de sincronizar.
+   */
+  readonly calendarSync?: {
+    readonly enabled: boolean
+  }
 }

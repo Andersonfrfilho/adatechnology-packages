@@ -122,4 +122,5 @@ export {
   ServiceNotOfferedByResourceError,
   ConfigMissingError,
   LookaheadWindowTooLargeError,
+  CalendarSyncDisabledError,
 } from './errors'
