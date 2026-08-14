@@ -306,7 +306,10 @@ export function ProductForm({
   const marginShortcuts = config.marginShortcutPercents ?? []
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    // `@container` porque os pares de campos abaixo precisam medir a coluna onde o formulario esta,
+    // e nao a janela: no painel lateral de 28rem o `md:` da janela (768px) dava duas colunas de 200px
+    // dentro de um espaco que so comporta uma, e o codigo de barras nascia cortado.
+    <form onSubmit={handleSubmit} className="@container space-y-6">
       <div className="relative">
         <label className={LABEL_CLASS}>Nome do produto *</label>
         <input
@@ -355,7 +358,7 @@ export function ProductForm({
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
         <div>
           <label className={LABEL_CLASS}>Preço de venda *</label>
           <input
@@ -396,7 +399,7 @@ export function ProductForm({
       </div>
 
       {(showUnit || showBarcode) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
           {showUnit && (
             <SelectField
               id="product-unit"
@@ -444,7 +447,7 @@ export function ProductForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
         <SelectField
           id="product-catalog"
           label="Catálogo"
@@ -513,7 +516,7 @@ export function ProductForm({
       </div>
 
       {(showInventory || showPreparationTime) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
           {showInventory && (
             <div>
               <label className={LABEL_CLASS}>Estoque</label>

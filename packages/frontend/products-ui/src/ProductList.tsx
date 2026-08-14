@@ -15,7 +15,10 @@ export type ProductListProps = {
 type SortField = 'name' | 'price' | 'unit' | 'catalogName' | 'barcode' | 'active' | 'inventory'
 type SortDir = 'asc' | 'desc'
 
-const HEADER_CLASS = 'px-3 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase'
+// `whitespace-nowrap` no cabecalho: sem ele "Cod.barras" e o par rotulo+seta de ordenacao quebravam
+// em duas linhas quando a coluna apertava, e a altura da tabela mudava conforme a largura da janela.
+const HEADER_CLASS =
+  'px-3 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase whitespace-nowrap'
 const SORTABLE_CLASS = `${HEADER_CLASS} cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-200`
 
 const SYNC_STATUS_BADGE: Record<ProductSyncStatus, { readonly label: string; readonly className: string }> = {
@@ -122,8 +125,11 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
   const showSyncStatus = config.metaSync?.products === true
 
   return (
+    // `min-w-max` e o que faz o `overflow-x-auto` do pai existir de verdade: so com `w-full` a tabela
+    // encolhia ate caber e as colunas se esmagavam — o cabecalho quebrava em duas linhas e o codigo de
+    // barras sumia atras da borda. Agora ela para de encolher no conteudo e a rolagem aparece.
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full min-w-max text-sm">
         <thead>
           <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             <th className={`${HEADER_CLASS} text-left`}>Img</th>
@@ -185,7 +191,7 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
               <td className="px-3 py-3 font-medium text-gray-900 dark:text-gray-100 max-w-[200px] truncate">
                 {product.name}
               </td>
-              <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300">
+              <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
                 {formatMoney(product.priceInCents, moneyFormat)}
               </td>
               {showCostPrice && (
@@ -195,12 +201,16 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                     : '—'}
                 </td>
               )}
-              {showUnit && <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{product.unit ?? '—'}</td>}
+              {showUnit && (
+                <td className="px-3 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                  {product.unit ?? '—'}
+                </td>
+              )}
               <td className="px-3 py-3 text-gray-600 dark:text-gray-400 max-w-[120px] truncate">
                 {product.catalogName ?? '—'}
               </td>
               {showBarcode && (
-                <td className="px-3 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">
+                <td className="px-3 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs whitespace-nowrap">
                   {product.barcode ? formatBarcode(product.barcode) : '—'}
                 </td>
               )}
@@ -216,7 +226,7 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                 )}
               </td>
               {showInventory && (
-                <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300">
+                <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
                   {product.inventory ?? '—'}
                 </td>
               )}

@@ -102,6 +102,10 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
 
   const reload = useCallback(() => setReloadToken((value) => value + 1), [])
 
+  // Estavel de proposito: a tela assina o Esc com esta referencia, e uma funcao nova a cada resposta
+  // da listagem tiraria e recolocaria o listener a cada tecla digitada na busca.
+  const closeDraft = useCallback(() => setDraft(undefined), [])
+
   const setSearch = useCallback((value: string) => {
     setSearchValue(value)
     setPage(1)
@@ -148,7 +152,7 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
       setCatalogId,
       setPage,
       openDraft: setDraft,
-      closeDraft: () => setDraft(undefined),
+      closeDraft,
       submitDraft,
       removeDraft,
       reload,
@@ -166,6 +170,7 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
       draft,
       setSearch,
       setCatalogId,
+      closeDraft,
       submitDraft,
       removeDraft,
       reload,

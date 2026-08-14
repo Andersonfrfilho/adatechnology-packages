@@ -1,5 +1,5 @@
 import { Trash2, X } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { CatalogList } from '../CatalogList'
 import { ProductForm } from '../ProductForm'
@@ -52,6 +52,20 @@ export function ProductsWorkspace({
 
   const isEditing = Boolean(workspace.draft)
   const isDraftOpen = workspace.draft !== undefined
+  const { closeDraft } = workspace
+
+  // Enquanto o painel cobre a lista, o Esc e a unica saida que nao exige achar o botao: num formulario
+  // longo, em tela estreita, ele e o que separa "fechei" de "estou preso".
+  useEffect(() => {
+    if (!isDraftOpen) return undefined
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') closeDraft()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isDraftOpen, closeDraft])
 
   return (
     <div className="flex flex-col h-full">
@@ -62,10 +76,12 @@ export function ProductsWorkspace({
 
       <WorkspaceAreaNav area={area} labels={labels} onSelect={handleSelectArea} />
 
-      {/* `overflow-hidden` porque a linha tem dois filhos que querem largura fixa (barra de catálogos
-          e painel de edição): sem isto a soma passa da janela e a tela inteira ganha rolagem
-          horizontal, com o formulário do produto nascendo fora da margem direita. */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      {/* `relative` ancora o painel de edição, que abaixo de `wide:` cobre a lista em vez de dividir a
+          linha com ela. Dividir só funciona quando sobra largura para as duas: a 1024px a barra de
+          catálogos e o painel comiam 704px e restavam 320px de tabela, e abaixo disso o painel de
+          largura total zerava a lista — clicar em "Novo produto" fazia os produtos sumirem da tela.
+          `overflow-hidden` mantém a rolagem dentro de cada coluna, nunca na janela inteira. */}
+      <div className="relative flex flex-1 min-h-0 overflow-hidden">
         {area === PRODUCTS_WORKSPACE_AREA.CATALOGS ? (
           <main className="flex-1 min-w-0 overflow-y-auto p-4">
             <CatalogList showSortOrder />
@@ -75,46 +91,63 @@ export function ProductsWorkspace({
         )}
 
         {isDraftOpen ? (
-          <section
-            aria-label={isEditing ? labels.editTitle : labels.createTitle}
-            className="w-full desktop:w-[28rem] max-w-full shrink-0 border-t desktop:border-t-0 desktop:border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-4"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mr-auto">
-                {isEditing ? labels.editTitle : labels.createTitle}
-              </h2>
-              {isEditing && (
+          <>
+            {/* Fundo clicável só enquanto o painel flutua: em `wide:` ele volta a ser coluna e não há
+                nada por fora para fechar. `tabIndex={-1}` porque o teclado já tem o botão Fechar e o
+                Esc — um alvo a mais no Tab seria ruído sem destino. */}
+            <button
+              type="button"
+              aria-hidden="true"
+              tabIndex={-1}
+              onClick={workspace.closeDraft}
+              className="absolute inset-0 z-10 bg-gray-900/20 wide:hidden"
+            />
+            <section
+              aria-label={isEditing ? labels.editTitle : labels.createTitle}
+              className="absolute inset-y-0 right-0 z-20 flex w-full max-w-full flex-col bg-white shadow-2xl desktop:w-[28rem] dark:bg-gray-900 wide:static wide:z-auto wide:shrink-0 wide:border-l wide:border-gray-200 wide:shadow-none wide:dark:border-gray-700"
+            >
+              {/* Cabeçalho fora da área de rolagem: o formulário é longo, e "Fechar" que sobe junto com
+                  o scroll deixa o painel sem saída visível a meio caminho. */}
+              <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mr-auto">
+                  {isEditing ? labels.editTitle : labels.createTitle}
+                </h2>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (workspace.draft && window.confirm(labels.removeConfirm(workspace.draft.name))) {
+                        void workspace.removeDraft()
+                      }
+                    }}
+                    className={`${BUTTON_CLASS} text-red-700 hover:bg-red-50`}
+                  >
+                    <Trash2 aria-hidden="true" className="w-4 h-4" />
+                    {labels.remove}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (workspace.draft && window.confirm(labels.removeConfirm(workspace.draft.name))) {
-                      void workspace.removeDraft()
-                    }
-                  }}
-                  className={`${BUTTON_CLASS} text-red-700 hover:bg-red-50`}
+                  onClick={workspace.closeDraft}
+                  className={`${BUTTON_CLASS} text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800`}
                 >
-                  <Trash2 aria-hidden="true" className="w-4 h-4" />
-                  {labels.remove}
+                  <X aria-hidden="true" className="w-4 h-4" />
+                  {labels.close}
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={workspace.closeDraft}
-                className={`${BUTTON_CLASS} text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800`}
-              >
-                <X aria-hidden="true" className="w-4 h-4" />
-                {labels.close}
-              </button>
-            </div>
-            <ProductForm
-              onSubmit={workspace.submitDraft}
-              catalogs={workspace.catalogs}
-              sections={sections}
-              {...(workspace.draft ? { initialValues: workspace.draft } : {})}
-              {...(onScanBarcode ? { onScanBarcode } : {})}
-              {...(onSearchSuggestions ? { onSearchSuggestions } : {})}
-            />
-          </section>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                <ProductForm
+                  onSubmit={workspace.submitDraft}
+                  catalogs={workspace.catalogs}
+                  sections={sections}
+                  {...(workspace.draft ? { initialValues: workspace.draft } : {})}
+                  {...(onScanBarcode ? { onScanBarcode } : {})}
+                  {...(onSearchSuggestions ? { onSearchSuggestions } : {})}
+                />
+              </div>
+            </section>
+          </>
         ) : null}
       </div>
     </div>
