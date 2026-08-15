@@ -1,0 +1,45 @@
+{
+  "launcher": {
+    "open": "Agendar horário",
+    "close": "Fechar agendamento"
+  },
+  "header": {
+    "title": "Agendar horário"
+  },
+  "step": {
+    "service": "Escolha o serviço",
+    "resource": "Escolha o profissional",
+    "slot": "Escolha o horário",
+    "details": "Seus dados",
+    "confirmed": "Agendamento confirmado"
+  },
+  "service": {
+    "empty": "Nenhum serviço disponível no momento."
+  },
+  "resource": {
+    "empty": "Nenhum profissional disponível para este serviço."
+  },
+  "slot": {
+    "empty": "Nenhum horário disponível nos próximos dias.",
+    "visitorTimezoneNote": "Horários no seu fuso ({timezone}).",
+    "resourceTimezoneNote": "Fuso do profissional: {timezone}, {time}."
+  },
+  "details": {
+    "namePlaceholder": "Seu nome",
+    "contactPlaceholder": "Telefone ou e-mail",
+    "summary": "{service} com {resource} em {date}, {time} no seu horário.",
+    "confirm": "Confirmar agendamento"
+  },
+  "confirmed": {
+    "message": "Tudo certo! Seu agendamento foi confirmado.",
+    "close": "Fechar"
+  },
+  "nav": {
+    "back": "Voltar"
+  },
+  "status": {
+    "loading": "Carregando…",
+    "loadFailed": "Não foi possível carregar. Tente de novo em instantes.",
+    "submitFailed": "Não foi possível confirmar o agendamento. Tente de novo."
+  }
+}
