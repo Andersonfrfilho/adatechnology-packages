@@ -13,6 +13,7 @@ export { assertConfigField } from './assertConfigField'
 export {
   idResponseSchema,
   catalogListResponseSchema,
+  productListResponseSchema,
   productDetailResponseSchema,
   parseGraphResponse,
 } from './graphResponseSchemas'

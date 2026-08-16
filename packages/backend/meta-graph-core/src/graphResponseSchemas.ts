@@ -7,6 +7,11 @@ export const catalogListResponseSchema = z.object({
   data: z.array(z.object({ id: z.string(), name: z.string() })),
 })
 
+export const productListResponseSchema = z.object({
+  data: z.array(z.object({ id: z.string(), retailer_id: z.string(), name: z.string().optional().default('') })),
+  paging: z.object({ next: z.string().optional() }).optional(),
+})
+
 export const productDetailResponseSchema = z.object({
   id: z.string(),
   retailer_id: z.string(),
