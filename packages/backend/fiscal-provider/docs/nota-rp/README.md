@@ -13,6 +13,13 @@ Este arquivo é o resumo operacional; **em divergência, o material do fornecedo
 > `ValorServicos`…). Não há changelog da v3 em mãos. Antes de mexer no provider, **confirme contra a
 > coleção da versão que ele usa** — aplicar o que está escrito aqui na v3 é troca de contrato às
 > cegas.
+>
+> **E a v2 não é legado a ser aposentado: ela é a única porta para parte dos municípios.** A própria
+> coleção oficial da Nota RP diz que a v3 _"aplica-se … utilize a nossa versão 2"_ para município
+> ainda não migrado, e o `NotaRpNfseProvider` devolve erro explícito nesse caso. É por isso que
+> existe consumidor deste pacote falando v2 por conta própria — não foi desconhecimento do provider.
+> Quem for unificar os dois precisa cobrir a v2 primeiro, senão a unificação derruba esses
+> municípios.
 
 ## Um endereço só
 
