@@ -55,6 +55,7 @@
     "audio-transcription",
     "catalog-image-storage-provider",
     "catalog-inventory",
+    "catalog-list-products",
     "catalog-review-verdict",
     "catalog-trio",
     "cnpj-alfanumerico",
