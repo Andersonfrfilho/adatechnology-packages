@@ -1,3 +1,5 @@
+import type { z } from 'zod'
+
 import {
   assertConfigField,
   buildGraphUrl,
@@ -5,6 +7,7 @@ import {
   parseGraphResponse,
   idResponseSchema,
   catalogListResponseSchema,
+  productListResponseSchema,
   productDetailResponseSchema,
 } from '@adatechnology/meta-graph-core'
 import type {
@@ -17,6 +20,8 @@ import type {
   UpdateCatalogProductSetParams,
   CatalogProductSetResult,
   CatalogSummary,
+  CatalogProductSummary,
+  ListCatalogProductsParams,
   CreateCatalogParams,
   CreateCatalogResult,
   UpdateCatalogParams,
@@ -25,6 +30,12 @@ import type {
 const DEFAULT_AVAILABILITY = 'in stock'
 const DEFAULT_CONDITION = 'new'
 const DEFAULT_CATALOG_VERTICAL = 'commerce'
+// Anotado à mão: sem isso o `url` reatribuído a partir de `paging.next` cria uma inferência
+// circular entre a resposta e a própria URL que a produziu.
+type ProductListResponse = z.infer<typeof productListResponseSchema>
+
+const PRODUCT_PAGE_SIZE = 100
+const MAXIMUM_PRODUCT_PAGES = 20
 
 export class MetaCatalogProvider {
   constructor(private readonly config: MetaCatalogProviderConfig) {}
@@ -173,6 +184,38 @@ export class MetaCatalogProvider {
     )
 
     return response.data.map((catalog) => ({ id: catalog.id, name: catalog.name }))
+  }
+
+  /**
+   * Lista os itens do catálogo, seguindo a paginação do Graph.
+   *
+   * Existe para reconciliação: comparar o que está gravado localmente com o que a conta realmente
+   * tem. `getProduct` responderia a mesma pergunta uma linha por vez, o que numa listagem vira
+   * dezenas de chamadas e esbarra em rate limit.
+   *
+   * O teto de páginas evita que um catálogo grande transforme uma checagem de tela em varredura
+   * indefinida; quem precisa de tudo pagina do lado de fora.
+   */
+  async listProducts(params: ListCatalogProductsParams = {}): Promise<readonly CatalogProductSummary[]> {
+    const products: CatalogProductSummary[] = []
+    let url: string | undefined = `${buildGraphUrl(
+      this.config.apiVersion,
+      `${this.resolveCatalogId(params.catalogId)}/products`,
+      this.config.baseUrl,
+    )}?fields=id,retailer_id,name&limit=${PRODUCT_PAGE_SIZE}`
+
+    for (let page = 0; page < MAXIMUM_PRODUCT_PAGES && url; page += 1) {
+      const response: ProductListResponse = parseGraphResponse(
+        productListResponseSchema,
+        await graphFetch({ url, accessToken: this.config.accessToken }),
+      )
+      for (const product of response.data) {
+        products.push({ id: product.id, retailerId: product.retailer_id, name: product.name })
+      }
+      url = response.paging?.next
+    }
+
+    return products
   }
 
   async createCatalog(params: CreateCatalogParams): Promise<CreateCatalogResult> {

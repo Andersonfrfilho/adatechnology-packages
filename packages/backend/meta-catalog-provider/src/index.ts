@@ -9,6 +9,8 @@ export type {
   UpdateCatalogProductSetParams,
   CatalogProductSetResult,
   CatalogSummary,
+  CatalogProductSummary,
+  ListCatalogProductsParams,
   CreateCatalogParams,
   CreateCatalogResult,
   UpdateCatalogParams,

@@ -62,6 +62,16 @@ export type CatalogSummary = {
   readonly name: string
 }
 
+export type CatalogProductSummary = {
+  readonly id: string
+  readonly retailerId: string
+  readonly name: string
+}
+
+export type ListCatalogProductsParams = {
+  readonly catalogId?: string
+}
+
 export type CreateCatalogParams = {
   readonly name: string
   readonly vertical?: string
