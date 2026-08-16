@@ -7,10 +7,6 @@
 
 import type { Booking } from '@adatechnology/scheduling-contracts'
 
-export const AGENDA_START_HOUR = 7
-export const AGENDA_END_HOUR = 20
-export const AGENDA_VISIBLE_MINUTES = (AGENDA_END_HOUR - AGENDA_START_HOUR) * 60
-
 export type PositionedBooking = {
   readonly booking: Booking
   readonly columnIndex: number
@@ -60,9 +56,15 @@ export function minutesFromDayStart(date: Date, dayStart: Date): number {
   return (date.getTime() - dayStart.getTime()) / 60_000
 }
 
-export function toVisiblePercent(minutesSinceDayStart: number): number {
-  const visibleMinutes = minutesSinceDayStart - AGENDA_START_HOUR * 60
-  return Math.max(0, Math.min(100, (visibleMinutes / AGENDA_VISIBLE_MINUTES) * 100))
+/**
+ * F-016: `startHour`/`endHour` vêm do `SchedulingUiConfig` do host, não de constante fixa do
+ * módulo — cada produto tem seu próprio expediente (spec `pluggable-module.md` §4: regra de
+ * negócio nunca embutida num pacote genérico).
+ */
+export function toVisiblePercent(params: { minutesSinceDayStart: number; startHour: number; endHour: number }): number {
+  const visibleMinutes = (params.endHour - params.startHour) * 60
+  const minutesSinceVisibleStart = params.minutesSinceDayStart - params.startHour * 60
+  return Math.max(0, Math.min(100, (minutesSinceVisibleStart / visibleMinutes) * 100))
 }
 
 export function startOfDay(date: Date): Date {

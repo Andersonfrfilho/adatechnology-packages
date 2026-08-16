@@ -25,7 +25,7 @@ const SELECT_CLASS =
 export function AvailabilityExceptionsEditor({ resourceId }: AvailabilityExceptionsEditorProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  const { data } = useAvailabilityExceptions(resourceId)
+  const { data, isLoading, isError: isLoadError } = useAvailabilityExceptions(resourceId)
   const addException = useAddAvailabilityException()
   const removeException = useRemoveAvailabilityException()
 
@@ -36,15 +36,20 @@ export function AvailabilityExceptionsEditor({ resourceId }: AvailabilityExcepti
 
   async function handleAdd(): Promise<void> {
     if (!from || !until) return
-    await addException.mutateAsync({
-      resourceId,
-      during: { start: new Date(from), end: new Date(until) },
-      kind,
-      ...(reason ? { reason } : {}),
-    })
-    setFrom('')
-    setUntil('')
-    setReason('')
+    try {
+      await addException.mutateAsync({
+        resourceId,
+        during: { start: new Date(from), end: new Date(until) },
+        kind,
+        ...(reason ? { reason } : {}),
+      })
+      setFrom('')
+      setUntil('')
+      setReason('')
+    } catch {
+      // H-G: sem isto a rejeição sobe sem tratamento até o `onClick`, que não tem `.catch()` —
+      // o alerta abaixo (addException.isError) já mostra a falha ao usuário.
+    }
   }
 
   return (
@@ -52,6 +57,20 @@ export function AvailabilityExceptionsEditor({ resourceId }: AvailabilityExcepti
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
         {messages['availability.exceptionsTitle']}
       </h3>
+
+      {(addException.isError || removeException.isError) && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.actionFailure']}
+        </p>
+      )}
+
+      {isLoadError && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.loadFailure']}
+        </p>
+      )}
+
+      {isLoading && <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>}
 
       <ul className="space-y-2">
         {(data ?? []).map((exception) => (

@@ -21,6 +21,24 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/ci_test
+
     steps:
       - uses: actions/checkout@v4
 
@@ -35,8 +53,24 @@ jobs:
           node-version: "22"
           cache: "pnpm"
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build all packages
         run: pnpm run build:all
+
+      # nestjs-auth-keycloak and nestjs-keycloak-admin reference a "../http" project that does
+      # not exist on main, and nestjs-http-client's project reference to @adatechnology/logger
+      # requires logger to be a composite project, which conflicts with logger's tsup dts build
+      # (TS6307). All three are pre-existing, unrelated to this branch — excluded here so that
+      # defect doesn't block every other package's publish gate.
+      - name: Typecheck all packages
+        run: pnpm --filter='!@adatechnology/nestjs-http-client' --filter='!@adatechnology/nestjs-auth-keycloak' --filter='!@adatechnology/nestjs-keycloak-admin' -r --if-present run check
+
+      - name: Test all packages
+        run: pnpm -r --if-present run test

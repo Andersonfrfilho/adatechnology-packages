@@ -21,33 +21,46 @@ function buildBooking(id: string, title: string, status: Booking['status'], star
 }
 
 describe('parseBookingsTableState / serializeBookingsTableState', () => {
-  it('ida e volta preserva ordenação e filtros', () => {
+  it('ida e volta preserva ordenação, filtros e página', () => {
     const query = serializeBookingsTableState({
       sortColumn: 'startsAt',
       sortDirection: 'desc',
       statusFilters: ['confirmed', 'requested'],
+      page: 3,
     })
 
     expect(parseBookingsTableState(query)).toEqual({
       sortColumn: 'startsAt',
       sortDirection: 'desc',
       statusFilters: ['confirmed', 'requested'],
+      page: 3,
     })
   })
 
   // Query string vinda de link colado é entrada não confiável — coluna inexistente não pode virar ordenação.
   it('ignora coluna de ordenação desconhecida', () => {
-    expect(parseBookingsTableState('sortBy=lixo')).toEqual({ sortDirection: 'asc', statusFilters: [] })
+    expect(parseBookingsTableState('sortBy=lixo')).toEqual({ sortDirection: 'asc', statusFilters: [], page: 1 })
+  })
+
+  // H-G: `page=0`/`page=-1`/`page=abc` vindo de link colado não pode virar página inválida.
+  it('ignora página inválida e volta para 1', () => {
+    expect(parseBookingsTableState('page=0').page).toBe(1)
+    expect(parseBookingsTableState('page=-3').page).toBe(1)
+    expect(parseBookingsTableState('page=abc').page).toBe(1)
   })
 })
 
 describe('isBookingsTableStateDefault', () => {
-  it('é verdadeiro sem ordenação e sem filtro', () => {
-    expect(isBookingsTableStateDefault({ sortDirection: 'asc', statusFilters: [] })).toBe(true)
+  it('é verdadeiro sem ordenação, sem filtro e na primeira página', () => {
+    expect(isBookingsTableStateDefault({ sortDirection: 'asc', statusFilters: [], page: 1 })).toBe(true)
   })
 
   it('é falso com qualquer filtro de status', () => {
-    expect(isBookingsTableStateDefault({ sortDirection: 'asc', statusFilters: ['confirmed'] })).toBe(false)
+    expect(isBookingsTableStateDefault({ sortDirection: 'asc', statusFilters: ['confirmed'], page: 1 })).toBe(false)
+  })
+
+  it('é falso fora da primeira página', () => {
+    expect(isBookingsTableStateDefault({ sortDirection: 'asc', statusFilters: [], page: 2 })).toBe(false)
   })
 })
 

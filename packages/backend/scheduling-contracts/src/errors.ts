@@ -30,6 +30,7 @@ export const SCHEDULING_ERROR_CODES = {
   CONFIG_MISSING: 'SCHEDULING_CONFIG_MISSING',
   LOOKAHEAD_WINDOW_TOO_LARGE: 'SCHEDULING_LOOKAHEAD_WINDOW_TOO_LARGE',
   CALENDAR_SYNC_DISABLED: 'SCHEDULING_CALENDAR_SYNC_DISABLED',
+  BOOKING_NOT_MODIFIABLE: 'SCHEDULING_BOOKING_NOT_MODIFIABLE',
 } as const
 
 export class ResourceNotFoundError extends SchedulingError {
@@ -152,5 +153,22 @@ export class CalendarSyncDisabledError extends SchedulingError {
       409,
       SCHEDULING_ERROR_CODES.CALENDAR_SYNC_DISABLED,
     )
+  }
+}
+
+/**
+ * F-019/F-020: `cancelled`, `completed` e `no_show` são estados finais — remarcar, completar ou
+ * marcar `no_show` numa reserva que já chegou lá não tem uma linha de slots por baixo (o
+ * cancelamento já as apagou) nem faz sentido de negócio (não se completa uma reserva cancelada).
+ */
+export class BookingNotModifiableError extends SchedulingError {
+  constructor(
+    public readonly bookingId: string,
+    public readonly currentStatus: string,
+  ) {
+    super('Reserva está em estado final e não pode ser alterada.', 409, SCHEDULING_ERROR_CODES.BOOKING_NOT_MODIFIABLE, {
+      bookingId,
+      currentStatus,
+    })
   }
 }

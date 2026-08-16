@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { sql } from 'drizzle-orm'
+import { and, gt, lt, sql } from 'drizzle-orm'
 
 import type { SchedulingDatabase } from '../database.types'
 import {
@@ -46,7 +46,7 @@ export class AvailabilityRepository {
   /**
    * Substitui todas as regras do recurso na mesma transação (apaga + insere) — nunca uma janela
    * onde o recurso fica sem regra nenhuma se o processo cair no meio (molde de
-   * `BookingRepository.replaceSlots`).
+   * `BookingRepository.rescheduleWithSlotReplace`).
    */
   async replaceRules(params: {
     companyId: string
@@ -80,12 +80,31 @@ export class AvailabilityRepository {
   /**
    * Janela `[from, until)` — o cálculo de disponibilidade em leitura (Fase 3) soma/subtrai estas
    * linhas contra a regra semanal, nunca materializa slot (spec §7).
+   *
+   * F-014: `from`/`until` são opcionais porque a tela de gestão de exceções (`ListAvailability-
+   * ExceptionsUseCase`) precisa do histórico inteiro do recurso, não só o que cai numa janela de
+   * busca — mas o cálculo de disponibilidade (`ListAvailableSlotsUseCase`) sempre passa os dois.
+   * Sem o filtro, uma exceção `extra` de qualquer data (passada ou anos no futuro) virava
+   * candidato de slot reservável em toda consulta de disponibilidade do recurso, porque nada
+   * comparava `duringStart`/`duringEnd` contra a janela pedida — o nome do método prometia o
+   * filtro desde o começo, mas ele nunca foi implementado.
    */
   async listExceptionsByResourceInRange(params: {
     companyId: string
     resourceId: string
+    from?: Date
+    until?: Date
   }): Promise<AvailabilityExceptionRow[]> {
-    return this.db.select().from(availabilityExceptions).where(availabilityExceptionListCondition(params))
+    const listCondition = availabilityExceptionListCondition(params)
+    const where =
+      params.from && params.until
+        ? and(
+            listCondition,
+            lt(availabilityExceptions.duringStart, params.until),
+            gt(availabilityExceptions.duringEnd, params.from),
+          )!
+        : listCondition
+    return this.db.select().from(availabilityExceptions).where(where)
   }
 
   /**
@@ -93,21 +112,65 @@ export class AvailabilityRepository {
    * Postgres, nunca offset fixo calculado no código (spec §5.3, T3.2). É a única conversão do
    * módulo que depende de Postgres real: `(data + hora) AT TIME ZONE zona` resolve o deslocamento
    * certo mesmo quando a data cai do outro lado de uma virada de horário de verão.
+   *
+   * F-008: resolve N pares `(localDate, localTime)` numa única viagem ao Postgres —
+   * `ListAvailableSlotsUseCase` resolvia início e fim de cada ocorrência de regra com uma chamada
+   * por par, virando N+1 idas ao banco numa janela de disponibilidade de semanas. `unnest`
+   * decompõe os arrays em linhas dentro da própria query; a chave do mapa devolvido é
+   * `localDate|localTime`, a mesma formada em `resolveLocalInstantsKey`.
    */
-  async resolveLocalInstant(params: {
+  async resolveLocalInstants(params: {
     companyId: string
     resourceId: string
-    localDate: string
-    localTime: string
-  }): Promise<Date> {
-    const [row] = await this.db
-      .select({
-        instant: sql<Date>`(${params.localDate}::date + ${params.localTime}::time) AT TIME ZONE ${resources.timezone}`,
-      })
-      .from(resources)
-      .where(resourceOwnedByCondition({ companyId: params.companyId, id: params.resourceId }))
-      .limit(1)
-    if (!row) throw new Error('scheduling-module: recurso não encontrado ao resolver hora local')
-    return row.instant
+    occurrences: ReadonlyArray<{ localDate: string; localTime: string }>
+  }): Promise<Map<string, Date>> {
+    if (params.occurrences.length === 0) return new Map()
+
+    // Uma linha `VALUES` por ocorrência, cada uma com 3 parâmetros escalares (`date`, `time`,
+    // `ord`) — nunca um array ligado a `unnest(...)::date[]`. Duas tentativas anteriores
+    // mostraram por que: interpolar o array puro (`${array}`) faz o drizzle expandi-lo em
+    // `(p1, p2, ...)`, e o cast `::date[]` seguinte vira "cannot cast type record to date[]"; e
+    // `sql.param(array)` embrulha o array como um parâmetro só, mas o driver `bun-sql` serializa
+    // esse parâmetro como texto separado por vírgula (`2027-04-07,2027-04-14`), não como literal
+    // de array do Postgres (`{2027-04-07,2027-04-14}`) — `array_in` rejeita com "malformed array
+    // literal". Confirmado contra Postgres real, não só lendo o driver. `VALUES` com parâmetro
+    // escalar por célula é o mesmo binding que já funciona no resto do módulo.
+    const valuesRows = sql.join(
+      params.occurrences.map(
+        (occurrence, index) => sql`(${occurrence.localDate}::date, ${occurrence.localTime}::time, ${index + 1})`,
+      ),
+      sql`, `,
+    )
+
+    // `ord` volta cada linha ao par original por posição, em vez de reconstruir a chave a
+    // partir do texto que o Postgres devolve — `pair.local_time::text` sai `09:00:00` (com
+    // segundos) e nunca bate com a chave `09:00` montada a partir da regra.
+    const result = await this.db.execute(sql`
+      select pair.ord as ord,
+             (pair.local_date + pair.local_time) AT TIME ZONE ${resources.timezone} as instant
+      from (values ${valuesRows}) as pair(local_date, local_time, ord), ${resources}
+      where ${resourceOwnedByCondition({ companyId: params.companyId, id: params.resourceId })}
+    `)
+
+    // O shape de `execute()` varia por driver (`postgres`/bun-sql devolvem o array de linhas
+    // direto, `node-postgres` embrulha em `.rows`) — `SchedulingDatabase` é intencionalmente
+    // agnóstico de driver (`database.types.ts`), então os dois formatos são aceitos aqui.
+    const rows = (Array.isArray(result) ? result : (result as unknown as { rows: unknown[] }).rows) as Array<{
+      ord: number | string | bigint
+      instant: Date | string
+    }>
+
+    const instants = new Map<string, Date>()
+    for (const row of rows) {
+      const occurrence = params.occurrences[Number(row.ord) - 1]
+      if (!occurrence) continue
+      instants.set(resolveLocalInstantsKey(occurrence), new Date(row.instant))
+    }
+    return instants
   }
+}
+
+/** Chave do mapa devolvido por `resolveLocalInstants` — mesmo formato usado em `Availability.use-cases.ts`. */
+export function resolveLocalInstantsKey(params: { localDate: string; localTime: string }): string {
+  return `${params.localDate}|${params.localTime}`
 }

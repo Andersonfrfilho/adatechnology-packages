@@ -34,7 +34,7 @@ function createEmptyDraft(): WeeklyRuleDraft {
 export function WeeklyRulesEditor({ resourceId }: WeeklyRulesEditorProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  const { data } = useAvailabilityRules(resourceId)
+  const { data, isSuccess: isRulesLoaded, isError: isRulesLoadError } = useAvailabilityRules(resourceId)
   const setAvailabilityRules = useSetAvailabilityRules()
 
   const [draft, setDraft] = useState<readonly WeeklyRuleDraft[] | undefined>(undefined)
@@ -53,11 +53,40 @@ export function WeeklyRulesEditor({ resourceId }: WeeklyRulesEditorProps) {
   }
 
   async function handleSave(): Promise<void> {
-    await setAvailabilityRules.mutateAsync({
-      resourceId,
-      rules: rules.map((rule) => ({ ...rule, resourceId })),
-    })
-    setDraft(undefined)
+    try {
+      await setAvailabilityRules.mutateAsync({
+        resourceId,
+        rules: rules.map((rule) => ({ ...rule, resourceId })),
+      })
+      setDraft(undefined)
+    } catch {
+      // H-G: sem isto a rejeição sobe sem tratamento até o `onClick`, que não tem `.catch()` —
+      // o alerta abaixo (setAvailabilityRules.isError) já mostra a falha ao usuário.
+    }
+  }
+
+  if (isRulesLoadError) {
+    return (
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {messages['availability.weeklyRulesTitle']}
+        </h3>
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.loadFailure']}
+        </p>
+      </section>
+    )
+  }
+
+  if (!isRulesLoaded) {
+    return (
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          {messages['availability.weeklyRulesTitle']}
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>
+      </section>
+    )
   }
 
   return (
@@ -65,6 +94,12 @@ export function WeeklyRulesEditor({ resourceId }: WeeklyRulesEditorProps) {
       <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
         {messages['availability.weeklyRulesTitle']}
       </h3>
+
+      {setAvailabilityRules.isError && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.actionFailure']}
+        </p>
+      )}
 
       <ul className="space-y-2">
         {rules.map((rule, index) => (

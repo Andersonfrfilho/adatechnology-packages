@@ -1,9 +1,5 @@
 /**
- * Copyright (c) 2026 Ada Technology. All rights reserved.
- *
- * This source code is proprietary and confidential. Unauthorized copying,
- * modification, distribution, or use of this file, via any medium, is
- * strictly prohibited without prior written permission from Ada Technology.
+ * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
 import { WidgetRequestError, getApiErrorCode, toRetryAfterSeconds } from './widget.error'
@@ -77,7 +73,10 @@ export class WidgetApi {
   async requestBooking(params: RequestBookingParams): Promise<WidgetBookingResult> {
     const response = await fetch(`${this.#baseUrl}${WIDGET_PATH.BOOKINGS}`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      // H-C: sem isto, uma retentativa de rede (proxy, gateway) na mesma tentativa de reserva
+      // vira uma segunda reserva — o servidor já sabe fazer replay por `Idempotency-Key`
+      // (`bookingRoutes.ts`), mas só se o cliente mandar uma.
+      headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() },
       body: JSON.stringify({
         serviceId: params.serviceId,
         resourceId: params.resourceId,

@@ -34,12 +34,17 @@ export function ServicesArea() {
   const isEditing = Boolean(draft)
 
   async function handleSubmit(input: CreateServiceInput & UpdateServiceInput): Promise<void> {
-    if (draft) {
-      await updateService.mutateAsync({ id: draft.id, input })
-    } else {
-      await createService.mutateAsync(input)
+    try {
+      if (draft) {
+        await updateService.mutateAsync({ id: draft.id, input })
+      } else {
+        await createService.mutateAsync(input)
+      }
+      setDraft(undefined)
+    } catch {
+      // H-G: painel fica aberto e o alerta abaixo (isError) mostra a falha — sem isto a rejeição
+      // sobe sem tratamento até o `onSubmit` do form, que não tem `.catch()`.
     }
-    setDraft(undefined)
   }
 
   return (
@@ -54,6 +59,12 @@ export function ServicesArea() {
       {isError && (
         <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
           {messages['common.loadFailure']}
+        </p>
+      )}
+
+      {(createService.isError || updateService.isError || deleteService.isError) && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.actionFailure']}
         </p>
       )}
 
@@ -73,7 +84,9 @@ export function ServicesArea() {
               <button
                 type="button"
                 onClick={() => {
-                  if (draft) void deleteService.mutateAsync(draft.id).then(() => setDraft(undefined))
+                  // H-G: `.catch()` obrigatório — sem ele, uma falha de exclusão vira rejeição não
+                  // tratada; o alerta acima (deleteService.isError) já mostra a falha ao usuário.
+                  if (draft) void deleteService.mutateAsync(draft.id).then(() => setDraft(undefined)).catch(() => {})
                 }}
                 className={BUTTON_DANGER}
               >
@@ -83,7 +96,13 @@ export function ServicesArea() {
             ) : undefined
           }
         >
-          <ServiceForm {...(draft ? { initialValues: draft } : {})} onSubmit={handleSubmit} />
+          {/* H-6: sem `key`, trocar de serviço selecionado sem fechar o painel mantém o `useState`
+              interno do form com os valores do serviço anterior — ver `AvailabilityArea.tsx`. */}
+          <ServiceForm
+            key={draft ? draft.id : 'new'}
+            {...(draft ? { initialValues: draft } : {})}
+            onSubmit={handleSubmit}
+          />
         </SidePanel>
       )}
     </div>

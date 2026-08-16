@@ -12,6 +12,7 @@ import { LookaheadWindowTooLargeError } from '@adatechnology/scheduling-contract
 
 import {
   addDays,
+  computeBlockingWindow,
   formatLocalDate,
   localDateRange,
   sliceIntoSteps,
@@ -57,11 +58,12 @@ describe('localDateRange', () => {
 })
 
 describe('sliceIntoSteps', () => {
-  test('sem buffer (stepMinutes = durationMinutes), fatias ficam coladas', () => {
+  test('sem buffer, fatias ficam coladas', () => {
     const candidates = sliceIntoSteps({
       window: { start: new Date('2026-09-01T09:00:00Z'), end: new Date('2026-09-01T10:00:00Z') },
       durationMinutes: 30,
-      stepMinutes: 30,
+      bufferBeforeMinutes: 0,
+      bufferAfterMinutes: 0,
     })
     expect(candidates).toHaveLength(2)
     expect(candidates[0]!.during.end).toEqual(candidates[1]!.during.start)
@@ -70,24 +72,58 @@ describe('sliceIntoSteps', () => {
   // T3.3: dois atendimentos colados sem respeitar o buffer não podem os dois aparecer livres —
   // o passo já embute o buffer, então o segundo candidato só nasce depois que o primeiro +
   // buffer termina.
-  test('com buffer, dois candidatos vizinhos nunca ficam mais próximos que o buffer exige', () => {
+  test('com buffer depois, dois candidatos vizinhos nunca ficam mais próximos que o buffer exige', () => {
     const candidates = sliceIntoSteps({
       window: { start: new Date('2026-09-01T09:00:00Z'), end: new Date('2026-09-01T10:00:00Z') },
       durationMinutes: 20,
-      stepMinutes: 30,
+      bufferBeforeMinutes: 0,
+      bufferAfterMinutes: 10,
     })
     expect(candidates).toHaveLength(2)
     const gapMinutes = (candidates[1]!.during.start.getTime() - candidates[0]!.during.end.getTime()) / 60_000
     expect(gapMinutes).toBe(10)
   })
 
+  // F-005: o buffer "antes" precisa deslocar o `during` mostrado ao cliente, não só encolher o
+  // espaço entre candidatos — senão a reserva criada a partir desse horário bloqueia um intervalo
+  // diferente do que a disponibilidade calculou (ver computeBlockingWindow abaixo).
+  test('com buffer antes, o during nasce deslocado do início do blocking', () => {
+    const candidates = sliceIntoSteps({
+      window: { start: new Date('2026-09-01T09:00:00Z'), end: new Date('2026-09-01T10:00:00Z') },
+      durationMinutes: 20,
+      bufferBeforeMinutes: 10,
+      bufferAfterMinutes: 0,
+    })
+    expect(candidates).toHaveLength(2)
+    expect(candidates[0]!.blocking.start).toEqual(new Date('2026-09-01T09:00:00Z'))
+    expect(candidates[0]!.during.start).toEqual(new Date('2026-09-01T09:10:00Z'))
+    expect(candidates[0]!.during.end).toEqual(new Date('2026-09-01T09:30:00Z'))
+  })
+
   test('o blocking inteiro precisa caber na janela — nunca invade além do fim da regra', () => {
     const candidates = sliceIntoSteps({
       window: { start: new Date('2026-09-01T09:00:00Z'), end: new Date('2026-09-01T09:35:00Z') },
       durationMinutes: 30,
-      stepMinutes: 40,
+      bufferBeforeMinutes: 0,
+      bufferAfterMinutes: 10,
     })
     expect(candidates).toHaveLength(0)
+  })
+})
+
+describe('computeBlockingWindow', () => {
+  // F-005: mesma função usada por Booking.use-cases.ts — uma reserva criada com o `during` exibido
+  // pela disponibilidade tem que reproduzir exatamente o `blocking` que a disponibilidade calculou.
+  test('aplica bufferBefore no início e bufferAfter no fim do during', () => {
+    const blocking = computeBlockingWindow({
+      during: { start: new Date('2026-09-01T09:10:00Z'), end: new Date('2026-09-01T09:30:00Z') },
+      bufferBeforeMinutes: 10,
+      bufferAfterMinutes: 5,
+    })
+    expect(blocking).toEqual({
+      start: new Date('2026-09-01T09:00:00Z'),
+      end: new Date('2026-09-01T09:35:00Z'),
+    })
   })
 })
 

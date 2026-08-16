@@ -13,6 +13,7 @@ import {
   BOOKING_PARTICIPANT_ROLE,
   BookingInPastError,
   BookingNotFoundError,
+  BookingNotModifiableError,
   CancellationTooLateError,
   RESOURCE_KIND,
   ResourceNotFoundError,
@@ -164,6 +165,31 @@ describe('RequestBookingUseCase', () => {
     ).rejects.toBeInstanceOf(ResourceNotFoundError)
   })
 
+  it('HIGH-2: recusa participant.resourceId que não pertence à empresa', async () => {
+    const { dependencies, resources } = buildDependencies()
+    const resource = await createResource(resources)
+    const otherCompanyResource = await resources.create({
+      companyId: 'company-2',
+      name: 'Sala de outra empresa',
+      kind: RESOURCE_KIND.ROOM,
+      timezone: 'America/Sao_Paulo',
+    })
+
+    await expect(
+      new RequestBookingUseCase(dependencies).execute({
+        companyId: COMPANY_ID,
+        input: {
+          title: 'Reunião',
+          during: { start: FUTURE_START, end: FUTURE_END },
+          resourceIds: [resource.id],
+          participants: [
+            { participantRef: 'user-1', resourceId: otherCompanyResource.id, role: BOOKING_PARTICIPANT_ROLE.ATTENDEE },
+          ],
+        },
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFoundError)
+  })
+
   it('recusa serviço inexistente', async () => {
     const { dependencies, resources } = buildDependencies()
     const resource = await createResource(resources)
@@ -220,6 +246,8 @@ describe('RequestBookingUseCase', () => {
 
     expect(second.booking.id).toBe(first.booking.id)
     expect(bookings.rows).toHaveLength(1)
+    expect(first.created).toBe(true)
+    expect(second.created).toBe(false)
   })
 
   it('anexa link de vídeo quando a reserva nasce confirmed', async () => {
@@ -578,6 +606,32 @@ describe('RescheduleBookingUseCase', () => {
     expect(rescheduled.externalCalendarId ?? null).toBeNull()
     expect(upsertCalls).toHaveLength(0)
   })
+
+  it('F-019: recusa remarcar reserva já cancelada', async () => {
+    const { dependencies, resources } = buildDependencies()
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+    await new CancelBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: booking.id,
+      input: { cancelledBy: 'user-1' },
+    })
+
+    const newStart = new Date('2026-08-21T14:00:00.000Z')
+    const newEnd = new Date('2026-08-21T14:30:00.000Z')
+
+    await expect(
+      new RescheduleBookingUseCase(dependencies).execute({
+        companyId: COMPANY_ID,
+        id: booking.id,
+        input: { during: { start: newStart, end: newEnd } },
+      }),
+    ).rejects.toBeInstanceOf(BookingNotModifiableError)
+  })
 })
 
 describe('CancelBookingUseCase', () => {
@@ -747,6 +801,44 @@ describe('CancelBookingUseCase', () => {
 
     expect(cancelled.status).toBe(BOOKING_STATUS.CANCELLED)
   })
+
+  it('HIGH-1: recusa cancelar reserva já completed', async () => {
+    const { dependencies, resources } = buildDependencies()
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+    await new CompleteBookingUseCase(dependencies).execute({ companyId: COMPANY_ID, id: booking.id })
+
+    await expect(
+      new CancelBookingUseCase(dependencies).execute({
+        companyId: COMPANY_ID,
+        id: booking.id,
+        input: { cancelledBy: 'user-1' },
+      }),
+    ).rejects.toBeInstanceOf(BookingNotModifiableError)
+  })
+
+  it('HIGH-1: recusa cancelar reserva já no_show', async () => {
+    const { dependencies, resources } = buildDependencies()
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+    await new MarkNoShowUseCase(dependencies).execute({ companyId: COMPANY_ID, id: booking.id })
+
+    await expect(
+      new CancelBookingUseCase(dependencies).execute({
+        companyId: COMPANY_ID,
+        id: booking.id,
+        input: { cancelledBy: 'user-1' },
+      }),
+    ).rejects.toBeInstanceOf(BookingNotModifiableError)
+  })
 })
 
 describe('CompleteBookingUseCase / MarkNoShowUseCase', () => {
@@ -798,6 +890,44 @@ describe('CompleteBookingUseCase / MarkNoShowUseCase', () => {
 
     expect(noShow.status).toBe(BOOKING_STATUS.NO_SHOW)
     expect(noShowEvents).toEqual([booking.id])
+  })
+
+  it('F-020: recusa completar reserva já cancelada', async () => {
+    const { dependencies, resources } = buildDependencies()
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+    await new CancelBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: booking.id,
+      input: { cancelledBy: 'user-1' },
+    })
+
+    await expect(
+      new CompleteBookingUseCase(dependencies).execute({ companyId: COMPANY_ID, id: booking.id }),
+    ).rejects.toBeInstanceOf(BookingNotModifiableError)
+  })
+
+  it('F-020: recusa marcar no_show em reserva já cancelada', async () => {
+    const { dependencies, resources } = buildDependencies()
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+    await new CancelBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: booking.id,
+      input: { cancelledBy: 'user-1' },
+    })
+
+    await expect(
+      new MarkNoShowUseCase(dependencies).execute({ companyId: COMPANY_ID, id: booking.id }),
+    ).rejects.toBeInstanceOf(BookingNotModifiableError)
   })
 })
 

@@ -1,9 +1,5 @@
 /**
- * Copyright (c) 2026 Ada Technology. All rights reserved.
- *
- * This source code is proprietary and confidential. Unauthorized copying,
- * modification, distribution, or use of this file, via any medium, is
- * strictly prohibited without prior written permission from Ada Technology.
+ * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
 /**
@@ -26,6 +22,9 @@ export const WIDGET_STYLE = `
   --ada-touch: 44px;
   --ada-font: system-ui, sans-serif;
 
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   position: fixed;
   right: 12px;
   bottom: 12px;
@@ -140,6 +139,13 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   flex-direction: column;
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ada-booking-text);
+  margin-bottom: -4px;
 }
 
 .input {

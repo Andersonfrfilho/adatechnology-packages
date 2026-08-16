@@ -69,9 +69,18 @@ export type SchedulingUiConfig = {
   readonly locale: string
   /** 0 = domingo, 1 = segunda — só a grade de agenda (T7.3) e o editor de disponibilidade (T7.4) usam. */
   readonly weekStartsOn: 0 | 1
+  /**
+   * F-016: expediente exibido na grade de agenda (T7.3) — hora local, `[agendaStartHour,
+   * agendaEndHour)`. Cada host define o próprio; o pacote não presume horário comercial de
+   * nenhum produto.
+   */
+  readonly agendaStartHour: number
+  readonly agendaEndHour: number
 }
 
 export const DEFAULT_SCHEDULING_UI_CONFIG: SchedulingUiConfig = {
   locale: 'pt-BR',
   weekStartsOn: 1,
+  agendaStartHour: 7,
+  agendaEndHour: 20,
 }

@@ -249,6 +249,17 @@ for (const adapter of adapters) {
       expect(response.body).toEqual({ data: { name: 'valido' } })
     })
 
+    it('corpo maior que o teto do módulo devolve 413 nos dois adaptadores (H-B)', async () => {
+      const response = await authenticated({
+        method: 'POST',
+        path: '/v1/things',
+        headers: { authorization: 'Bearer x', 'content-type': 'application/json' },
+        body: { name: 'x'.repeat(1024 * 1024 + 1) },
+      })
+
+      expect(response.status).toBe(413)
+    })
+
     it('devolve 204 sem corpo', async () => {
       const response = await authenticated({
         method: 'DELETE',

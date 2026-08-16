@@ -48,7 +48,7 @@ function buildResourceRow(companyId: string): ResourceRow {
   } as ResourceRow
 }
 
-function buildRouter(params: { seed: ResourceRow[]; authCompanyId: string }) {
+function buildRouter(params: { seed: ResourceRow[]; authCompanyId: string; scopes?: readonly string[] }) {
   const resources = createInMemoryResources(params.seed)
   const dependencies = {
     repositories: {
@@ -74,7 +74,7 @@ function buildRouter(params: { seed: ResourceRow[]; authCompanyId: string }) {
 
   const authResolver: AuthContextResolverPort = {
     async resolve() {
-      return { companyId: params.authCompanyId, scopes: [] }
+      return { companyId: params.authCompanyId, scopes: params.scopes ?? ['scheduling:admin'] }
     },
   }
 
@@ -152,6 +152,35 @@ describe('o dono continua com acesso', () => {
 
     expect(updated.status).toBe(200)
     expect(resources.rows[0]?.name).toBe('Sala renomeada')
+  })
+})
+
+// H-A: `scope: 'admin'` sem `requiredScopes` deixava a checagem em `dispatchRoute` vacuamente
+// verdadeira para qualquer principal autenticado, mesmo sem nenhum escopo — qualquer tenant
+// autenticado tinha CRUD completo. `requiredScopes: ['scheduling:admin']` fecha isso.
+describe('H-A — escopo declarado não é decorativo', () => {
+  it('principal autenticado sem scheduling:admin recebe 403, não acesso', async () => {
+    const own = buildResourceRow(COMPANY_A)
+    const { router } = buildRouter({ seed: [own], authCompanyId: COMPANY_A, scopes: [] })
+
+    const response = await router.handle(new Request(`http://localhost/v1/resources/${own.id}`))
+
+    expect(response.status).toBe(403)
+  })
+
+  it('principal com outro escopo, sem scheduling:admin, também recebe 403', async () => {
+    const own = buildResourceRow(COMPANY_A)
+    const { router } = buildRouter({ seed: [own], authCompanyId: COMPANY_A, scopes: ['outro:escopo'] })
+
+    const response = await router.handle(
+      new Request(`http://localhost/v1/resources/${own.id}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Não deveria passar' }),
+      }),
+    )
+
+    expect(response.status).toBe(403)
   })
 })
 

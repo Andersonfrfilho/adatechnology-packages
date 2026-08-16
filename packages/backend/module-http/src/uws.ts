@@ -14,7 +14,14 @@
 
 import type { AuthContextResolverPort, LoggerPort, HttpResult, ModuleRouteTable, SseEvent } from './types'
 
-import { compileRoutes, dispatchRoute, type CompiledRoute } from './dispatchRoute'
+import {
+  compileRoutes,
+  dispatchRoute,
+  parseQueryParams,
+  MAX_REQUEST_BODY_BYTES,
+  type CompiledRoute,
+} from './dispatchRoute'
+import { errorNameOf } from './errorFilter'
 
 // Forma mínima do uWS que este adaptador consome — declarada por estrutura para o pacote não
 // depender do addon em tempo de tipo (quem não importa `/http/uws` não instala `uWebSockets.js`).
@@ -77,19 +84,49 @@ function formatSseChunk(event: SseEvent): string {
   return `${lines.join('\n')}\n\n`
 }
 
-function readRawBody(response: UwsResponse, hasBody: boolean): Promise<Uint8Array | undefined> {
+class RequestBodyTooLargeError extends Error {}
+
+// Handle mutável para o cancelamento externo (abort) alcançar a promise em andamento sem que
+// `mountModuleRoutes` precise registrar um segundo `onAborted` — o uWS só mantém um por resposta,
+// e um segundo registro substituiria silenciosamente o primeiro (que zera `aborted` para o resto
+// do handler).
+type AbortSignalBox = { onAbort?: () => void }
+
+function readRawBody(
+  response: UwsResponse,
+  hasBody: boolean,
+  abortBox: AbortSignalBox,
+): Promise<Uint8Array | undefined> {
   if (!hasBody) return Promise.resolve(undefined)
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const chunks: Uint8Array[] = []
+    let totalBytes = 0
+    let settled = false
+
+    abortBox.onAbort = () => {
+      if (settled) return
+      settled = true
+      reject(new Error('module.uws.request_aborted'))
+    }
+
     response.onData((chunk, isLast) => {
+      if (settled) return
+
+      totalBytes += chunk.byteLength
+      if (totalBytes > MAX_REQUEST_BODY_BYTES) {
+        settled = true
+        reject(new RequestBodyTooLargeError('module.uws.request_body_too_large'))
+        return
+      }
+
       // Cópia obrigatória: o ArrayBuffer que o uWS entrega é reaproveitado no próximo chunk, e
       // guardar a referência crua daria um corpo corrompido em requisição fragmentada.
       chunks.push(new Uint8Array(chunk.slice(0)))
       if (!isLast) return
 
-      const total = chunks.reduce((size, part) => size + part.length, 0)
-      const merged = new Uint8Array(total)
+      settled = true
+      const merged = new Uint8Array(totalBytes)
       let offset = 0
       for (const part of chunks) {
         merged.set(part, offset)
@@ -100,12 +137,8 @@ function readRawBody(response: UwsResponse, hasBody: boolean): Promise<Uint8Arra
   })
 }
 
-function parseQueryString(queryString: string): Record<string, string> {
-  const query: Record<string, string> = {}
-  new URLSearchParams(queryString).forEach((value, key) => {
-    query[key] = value
-  })
-  return query
+function parseQueryString(queryString: string): Record<string, string | string[]> {
+  return parseQueryParams(new URLSearchParams(queryString))
 }
 
 function writeStream(params: {
@@ -198,14 +231,16 @@ export function mountModuleRoutes(params: MountModuleRoutesParams): void {
       })
 
       let aborted = false
+      const abortBox: AbortSignalBox = {}
       response.onAborted(() => {
         aborted = true
+        abortBox.onAbort?.()
       })
       const isAborted = (): boolean => aborted
 
       const hasBody = method !== 'GET' && method !== 'DELETE'
 
-      void readRawBody(response, hasBody)
+      void readRawBody(response, hasBody, abortBox)
         .then((rawBody) =>
           dispatchRoute({
             compiledRoutes,
@@ -226,7 +261,12 @@ export function mountModuleRoutes(params: MountModuleRoutesParams): void {
           writeResult({ response, result, isAborted })
         })
         .catch((error: unknown) => {
-          params.logger?.error('module.uws.unhandled_error', { error: String(error) })
+          // `writeResult` já ignora chamada com `res` inválido (pós-abort) — nada extra a fazer.
+          if (error instanceof RequestBodyTooLargeError) {
+            writeResult({ response, result: { kind: 'empty', status: 413 }, isAborted })
+            return
+          }
+          params.logger?.error('module.uws.unhandled_error', { errorName: errorNameOf(error) })
           writeResult({ response, result: { kind: 'empty', status: 500 }, isAborted })
         })
     })

@@ -25,7 +25,9 @@
     "resourceTimezoneNote": "Fuso do profissional: {timezone}, {time}."
   },
   "details": {
+    "nameLabel": "Nome",
     "namePlaceholder": "Seu nome",
+    "contactLabel": "Telefone ou e-mail",
     "contactPlaceholder": "Telefone ou e-mail",
     "summary": "{service} com {resource} em {date}, {time} no seu horário.",
     "confirm": "Confirmar agendamento"

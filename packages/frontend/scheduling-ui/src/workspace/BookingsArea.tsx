@@ -9,13 +9,26 @@ import { BookingDrawer } from '../components/BookingDrawer'
 import { BookingsTable } from '../components/BookingsTable'
 import { useConfirmBooking } from '../hooks/useBookingMutations.mutation'
 import { useBookings } from '../hooks/useBookings.query'
+import { useBookingsTableState } from '../hooks/useBookingsTableState.hook'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+
+const PAGE_SIZE = 20
 
 export function BookingsArea() {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  const { data, isLoading, isError } = useBookings()
+  const [tableState, setTableState] = useBookingsTableState()
+  // H-F: `ListBookingsParams.status` aceita array — o servidor filtra por todos os selecionados
+  // (`inArray`), então a paginação (`data.totalPages`) já reflete o total pós-filtro.
+  const status = tableState.statusFilters.length > 0 ? tableState.statusFilters : undefined
+  const { data, isLoading, isError } = useBookings({
+    page: tableState.page,
+    pageSize: PAGE_SIZE,
+    status,
+    sortBy: tableState.sortColumn,
+    sortDirection: tableState.sortColumn ? tableState.sortDirection : undefined,
+  })
   const confirmBooking = useConfirmBooking()
 
   const [selectedBookingId, setSelectedBookingId] = useState<BookingId | undefined>(undefined)
@@ -38,6 +51,9 @@ export function BookingsArea() {
       ) : (
         <BookingsTable
           bookings={data?.data ?? []}
+          state={tableState}
+          onStateChange={setTableState}
+          pagination={data ? { totalPages: data.totalPages } : undefined}
           onRowClick={(booking) => setSelectedBookingId(booking.id)}
           bulkActions={[{ key: 'confirm', label: messages['booking.confirm'], onRun: bulkConfirm }]}
         />

@@ -5,6 +5,7 @@
   "common.remove": "Delete",
   "common.loading": "Loading…",
   "common.loadFailure": "Could not load",
+  "common.actionFailure": "Action failed. Try again.",
   "common.empty": "Nothing here yet",
   "common.clearFilters": "Clear filters",
   "common.selectAll": "Select all",

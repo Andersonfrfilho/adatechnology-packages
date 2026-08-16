@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react'
+import { MAX_PAGE_SIZE } from '@adatechnology/scheduling-contracts'
 import type { ResourceId } from '@adatechnology/scheduling-contracts'
 
 import { AgendaGrid } from '../components/AgendaGrid'
@@ -34,7 +35,9 @@ const NAV_BUTTON_CLASS =
 export function AgendaArea() {
   const { locale, weekStartsOn } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  const { data: resourcesPage } = useResources({ active: true })
+  // H-3: sem `pageSize`, o padrão de 20 corta a lista de recursos e a de reservas da semana no
+  // mesmo teto — `MAX_PAGE_SIZE` é o maior lote que o contrato aceita numa única página.
+  const { data: resourcesPage } = useResources({ active: true, pageSize: MAX_PAGE_SIZE })
 
   const [resourceId, setResourceId] = useState<ResourceId>('')
   const [view, setView] = useState<AgendaView>('day')
@@ -45,7 +48,11 @@ export function AgendaArea() {
   const from = days[0] as Date
   const until = new Date((days[days.length - 1] as Date).getTime() + DAY_IN_MS)
 
-  const { data: bookingsPage } = useBookings(resourceId ? { resourceId, from, until } : { from, until })
+  const { data: bookingsPage, isLoading, isError } = useBookings(
+    resourceId
+      ? { resourceId, from, until, pageSize: MAX_PAGE_SIZE }
+      : { from, until, pageSize: MAX_PAGE_SIZE },
+  )
 
   function shiftAnchor(days_: number): void {
     setAnchorDate((current) => new Date(current.getTime() + days_ * DAY_IN_MS))
@@ -102,7 +109,17 @@ export function AgendaArea() {
         </div>
       </div>
 
-      <AgendaGrid bookings={bookingsPage?.data ?? []} days={days} />
+      {isError && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.loadFailure']}
+        </p>
+      )}
+
+      {isLoading ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>
+      ) : (
+        <AgendaGrid bookings={bookingsPage?.data ?? []} days={days} />
+      )}
     </div>
   )
 }

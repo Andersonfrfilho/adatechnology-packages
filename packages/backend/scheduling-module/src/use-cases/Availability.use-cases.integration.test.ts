@@ -1,13 +1,13 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
- * Integração real contra Postgres — `AvailabilityRepository.resolveLocalInstant` (T3.2) usa
+ * Integração real contra Postgres — `AvailabilityRepository.resolveLocalInstants` (T3.2, F-008) usa
  * `AT TIME ZONE`, e só um banco de verdade prova que o deslocamento muda quando a data cruza uma
  * virada de horário de verão; um dublê em memória testaria a reimplementação, não a conversão que
  * protege produção (mesma razão documentada em `testing/inMemoryRepositories.ts`). Este arquivo
  * também prova a fórmula completa da disponibilidade (spec §7: regra − bloqueio + extra − reserva)
  * e o respeito a `validFrom`/`validUntil` (T3.4) fim a fim, porque as duas dependem do mesmo
- * `resolveLocalInstant`.
+ * `resolveLocalInstants`.
  *
  * Sem `DRIZZLE_TEST_DATABASE_URL`/`DATABASE_URL`, a suíte inteira é pulada.
  */
@@ -201,5 +201,36 @@ describeWithDatabase('ListAvailableSlotsUseCase (integração Postgres real)', (
     })
 
     expect(slots.map((slot) => slot.startsAt.toISOString())).toEqual(['2027-05-13T12:00:00.000Z'])
+  })
+
+  // F-014: `listExceptionsByResourceInRange` prometia `[from, until)` desde a assinatura, mas
+  // nunca filtrava — qualquer exceção `extra` do recurso virava candidato reservável em toda
+  // consulta de disponibilidade, mesmo anos fora da janela pedida. Sem regra nenhuma no recurso
+  // (só a exceção), o único jeito do slot aparecer é via `candidatesFromExtraExceptions`.
+  test('F-014: exceção extra fora da janela pedida não aparece como slot disponível', async () => {
+    const availabilityRepository = new AvailabilityRepository(db)
+    const { resource, service } = await createResourceAndService({
+      timezone: 'America/Sao_Paulo',
+      durationMinutes: 60,
+    })
+
+    await availabilityRepository.createException({
+      companyId,
+      resourceId: resource.id,
+      kind: AVAILABILITY_EXCEPTION_KIND.EXTRA,
+      duringStart: new Date('2028-01-10T12:00:00Z'),
+      duringEnd: new Date('2028-01-10T13:00:00Z'),
+      reason: null,
+    })
+
+    const slots = await useCase.execute({
+      companyId,
+      resourceId: resource.id,
+      serviceId: service.id,
+      from: new Date('2027-05-01T00:00:00Z'),
+      until: new Date('2027-05-08T00:00:00Z'),
+    })
+
+    expect(slots).toEqual([])
   })
 })

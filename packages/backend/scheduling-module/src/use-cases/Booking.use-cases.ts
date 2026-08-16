@@ -10,6 +10,7 @@ import {
   BOOKING_STATUS,
   BookingInPastError,
   BookingNotFoundError,
+  BookingNotModifiableError,
   CancellationTooLateError,
   ResourceNotFoundError,
   ServiceNotFoundError,
@@ -27,7 +28,8 @@ import {
 
 import type { BookingRow, NewBookingSlotRow, ServiceRow } from '../schema/schema'
 import { toBooking, toBookingSlot } from '../shared/toContract'
-import { nowOf, runHook, type SchedulingDependencies } from './schedulingModule.types'
+import { computeBlockingWindow } from './availabilitySlicing'
+import { errorNameOf, nowOf, runHook, type SchedulingDependencies } from './schedulingModule.types'
 
 const DEFAULT_PAGE = 1
 const DEFAULT_PAGE_SIZE = 20
@@ -37,13 +39,28 @@ function assertNotInPast(params: { startsAt: Date; now: Date; toleranceMinutes: 
   if (params.startsAt < earliestAllowed) throw new BookingInPastError(params.startsAt)
 }
 
-function computeBlockingWindow(params: { during: TimeRange; service?: ServiceRow }): TimeRange {
-  const bufferBeforeMinutes = params.service?.bufferBeforeMinutes ?? 0
-  const bufferAfterMinutes = params.service?.bufferAfterMinutes ?? 0
-  return {
-    start: new Date(params.during.start.getTime() - bufferBeforeMinutes * 60_000),
-    end: new Date(params.during.end.getTime() + bufferAfterMinutes * 60_000),
+// F-019/F-020: `cancelled`, `completed` e `no_show` são finais — sem esta checagem, remarcar uma
+// reserva cancelada tenta substituir slots que o cancelamento já apagou (`values([])` do driver
+// vira 500 cru), e completar/marcar `no_show` numa reserva cancelada sobrescreve o status sem
+// nenhum sinal de que a transição não fazia sentido.
+const TERMINAL_BOOKING_STATUSES: ReadonlySet<BookingStatus> = new Set([
+  BOOKING_STATUS.CANCELLED,
+  BOOKING_STATUS.COMPLETED,
+  BOOKING_STATUS.NO_SHOW,
+])
+
+function assertModifiable(existing: BookingRow): void {
+  if (TERMINAL_BOOKING_STATUSES.has(existing.status as BookingStatus)) {
+    throw new BookingNotModifiableError(existing.id, existing.status)
   }
+}
+
+function blockingWindowFor(params: { during: TimeRange; service?: ServiceRow }): TimeRange {
+  return computeBlockingWindow({
+    during: params.during,
+    bufferBeforeMinutes: params.service?.bufferBeforeMinutes ?? 0,
+    bufferAfterMinutes: params.service?.bufferAfterMinutes ?? 0,
+  })
 }
 
 async function assertResourcesExist(params: {
@@ -93,7 +110,7 @@ async function attachVideoMeeting(params: {
     })
     return updated ?? params.booking
   } catch (error) {
-    logger?.warn('scheduling.video_meeting_failed', { bookingId: params.booking.id, error: String(error) })
+    logger?.warn('scheduling.video_meeting_failed', { bookingId: params.booking.id, errorName: errorNameOf(error) })
     return params.booking
   }
 }
@@ -131,7 +148,7 @@ async function attachCalendarSync(params: {
     })
     return updated ?? params.booking
   } catch (error) {
-    logger?.warn('scheduling.calendar_sync_failed', { bookingId: params.booking.id, error: String(error) })
+    logger?.warn('scheduling.calendar_sync_failed', { bookingId: params.booking.id, errorName: errorNameOf(error) })
     return params.booking
   }
 }
@@ -147,7 +164,10 @@ async function detachCalendarSync(params: {
   try {
     await calendarSync.deleteEvent(params.booking.externalCalendarId)
   } catch (error) {
-    logger?.warn('scheduling.calendar_sync_delete_failed', { bookingId: params.booking.id, error: String(error) })
+    logger?.warn('scheduling.calendar_sync_delete_failed', {
+      bookingId: params.booking.id,
+      errorName: errorNameOf(error),
+    })
   }
 }
 
@@ -163,7 +183,7 @@ export class RequestBookingUseCase {
     companyId: string
     idempotencyKey?: string
     input: RequestBookingInput
-  }): Promise<{ booking: Booking; slots: BookingSlot[] }> {
+  }): Promise<{ booking: Booking; slots: BookingSlot[]; created: boolean }> {
     const { repositories, hooks } = this.dependencies
 
     if (params.idempotencyKey) {
@@ -173,7 +193,7 @@ export class RequestBookingUseCase {
       })
       if (existing) {
         const slots = await repositories.bookings.findSlotsByBooking({ bookingId: existing.id })
-        return { booking: toBooking(existing), slots: slots.map(toBookingSlot) }
+        return { booking: toBooking(existing), slots: slots.map(toBookingSlot), created: false }
       }
     }
 
@@ -184,10 +204,18 @@ export class RequestBookingUseCase {
       toleranceMinutes: this.dependencies.config.pastBookingToleranceMinutes ?? 0,
     })
 
+    // HIGH-2: `participant.resourceId` é um id livre vindo do cliente e `booking_participants` não
+    // carrega `companyId` — sem checar posse aqui, um id de recurso de outra empresa gravava sem
+    // erro (a FK só barra id inexistente, não id de outro tenant), e um id inexistente virava
+    // `23503` cru na resposta. Junta com `resourceIds` para uma única checagem de existência+posse.
+    const participantResourceIds = (params.input.participants ?? [])
+      .map((participant) => participant.resourceId)
+      .filter((resourceId): resourceId is string => resourceId !== undefined && resourceId !== null)
+
     await assertResourcesExist({
       dependencies: this.dependencies,
       companyId: params.companyId,
-      resourceIds: params.input.resourceIds,
+      resourceIds: [...params.input.resourceIds, ...participantResourceIds],
     })
 
     let service: ServiceRow | undefined
@@ -197,7 +225,7 @@ export class RequestBookingUseCase {
     }
 
     const status: BookingStatus = service?.requiresConfirmation ? BOOKING_STATUS.REQUESTED : BOOKING_STATUS.CONFIRMED
-    const blocking = computeBlockingWindow({ during: params.input.during, service })
+    const blocking = blockingWindowFor({ during: params.input.during, service })
 
     const slots: ReadonlyArray<Omit<NewBookingSlotRow, 'bookingId'>> = params.input.resourceIds.map((resourceId) => ({
       resourceId,
@@ -229,6 +257,12 @@ export class RequestBookingUseCase {
       slots,
       participants,
     })
+
+    // F-006: perdeu a corrida do `unique` de `Idempotency-Key` — a reserva devolvida é a
+    // vencedora, já processada por essa outra requisição. Replay não repete hook nem side effect.
+    if (!created.created) {
+      return { booking: toBooking(created.booking), slots: created.slots.map(toBookingSlot), created: false }
+    }
 
     await runHook({
       dependencies: this.dependencies,
@@ -262,7 +296,7 @@ export class RequestBookingUseCase {
       })
     }
 
-    return { booking: toBooking(booking), slots: created.slots.map(toBookingSlot) }
+    return { booking: toBooking(booking), slots: created.slots.map(toBookingSlot), created: true }
   }
 }
 
@@ -317,7 +351,7 @@ export class ConfirmBookingUseCase {
   }
 }
 
-/** T4.5/T4.8 — `replaceSlots` protege o novo horário contra sobreposição na mesma transação. */
+/** T4.5/T4.8/F-007 — `rescheduleWithSlotReplace` troca slots e status na mesma transação; a constraint `EXCLUDE` protege o novo horário contra sobreposição. */
 export class RescheduleBookingUseCase {
   constructor(private readonly dependencies: SchedulingDependencies) {}
 
@@ -330,6 +364,7 @@ export class RescheduleBookingUseCase {
 
     const existing = await repositories.bookings.findById({ companyId: params.companyId, id: params.id })
     if (!existing) throw new BookingNotFoundError(params.id)
+    assertModifiable(existing)
 
     const now = nowOf(this.dependencies)
     assertNotInPast({
@@ -344,7 +379,7 @@ export class RescheduleBookingUseCase {
     if (existing.serviceId) {
       service = await repositories.services.findById({ companyId: params.companyId, id: existing.serviceId })
     }
-    const blocking = computeBlockingWindow({ during: params.input.during, service })
+    const blocking = blockingWindowFor({ during: params.input.during, service })
 
     const newSlots: ReadonlyArray<Omit<NewBookingSlotRow, 'bookingId'>> = previousSlots.map((slot) => ({
       resourceId: slot.resourceId,
@@ -354,15 +389,16 @@ export class RescheduleBookingUseCase {
       blockingEnd: blocking.end,
     }))
 
-    const slots = await repositories.bookings.replaceSlots({ bookingId: params.id, slots: newSlots })
-
-    const updated = await repositories.bookings.updateStatus({
+    const result = await repositories.bookings.rescheduleWithSlotReplace({
       companyId: params.companyId,
       id: params.id,
       status: existing.status,
-      values: { startsAt: params.input.during.start, endsAt: params.input.during.end },
+      startsAt: params.input.during.start,
+      endsAt: params.input.during.end,
+      slots: newSlots,
     })
-    if (!updated) throw new BookingNotFoundError(params.id)
+    if (!result) throw new BookingNotFoundError(params.id)
+    const { booking: updated, slots } = result
 
     // Só re-sincroniza quem já tinha espelho — remarcar uma `requested` nunca cria evento novo.
     const booking = existing.externalCalendarId
@@ -405,6 +441,10 @@ export class CancelBookingUseCase {
     if (existing.status === BOOKING_STATUS.CANCELLED) {
       return { booking: toBooking(existing), slots: [] }
     }
+    // HIGH-1: só `cancelled` é replay idempotente — `completed`/`no_show` também são finais e
+    // caíam direto no fluxo de cancelamento normal, apagando o histórico de atendimento e
+    // disparando `onBookingCancelled` sobre uma reserva que já tinha chegado a um estado final.
+    assertModifiable(existing)
 
     const now = nowOf(this.dependencies)
 
@@ -470,6 +510,10 @@ async function transitionAndNotify(params: {
   hook?: (event: BookingTransitionEvent) => Promise<void> | void
 }): Promise<{ booking: Booking; slots: BookingSlot[] }> {
   const { repositories } = params.dependencies
+
+  const existing = await repositories.bookings.findById({ companyId: params.companyId, id: params.id })
+  if (!existing) throw new BookingNotFoundError(params.id)
+  assertModifiable(existing)
 
   const updated = await repositories.bookings.updateStatus({
     companyId: params.companyId,
@@ -580,6 +624,8 @@ export class ListBookingsUseCase {
       status: params.status,
       from: params.from,
       until: params.until,
+      sortBy: params.sortBy,
+      sortDirection: params.sortDirection,
     })
 
     return {

@@ -25,6 +25,7 @@ export function buildServiceRoutes(module: SchedulingModule): ModuleRoute[] {
       method: 'GET',
       path: '/services',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       querySchema: listServicesQuerySchema,
       operationId: 'listServices',
       summary: 'Lista serviços da empresa, paginado',
@@ -53,6 +54,7 @@ export function buildServiceRoutes(module: SchedulingModule): ModuleRoute[] {
       method: 'POST',
       path: '/services',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       bodySchema: createServiceSchema,
       operationId: 'createService',
       summary: 'Cadastra um serviço',
@@ -70,6 +72,7 @@ export function buildServiceRoutes(module: SchedulingModule): ModuleRoute[] {
       method: 'GET',
       path: '/services/:id',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       operationId: 'getService',
       summary: 'Detalhe de um serviço',
       async handler(context) {
@@ -83,6 +86,7 @@ export function buildServiceRoutes(module: SchedulingModule): ModuleRoute[] {
       method: 'PUT',
       path: '/services/:id',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       bodySchema: updateServiceSchema,
       operationId: 'updateService',
       summary: 'Atualiza um serviço',
@@ -101,6 +105,7 @@ export function buildServiceRoutes(module: SchedulingModule): ModuleRoute[] {
       method: 'DELETE',
       path: '/services/:id',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       operationId: 'deleteService',
       summary: 'Remove um serviço (soft delete)',
       async handler(context) {
@@ -114,6 +119,7 @@ export function buildServiceRoutes(module: SchedulingModule): ModuleRoute[] {
       method: 'PUT',
       path: '/services/:id/resources/:resourceId',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       operationId: 'linkResourceToService',
       summary: 'Vincula um recurso a um serviço',
       async handler(context) {
@@ -131,6 +137,7 @@ export function buildServiceRoutes(module: SchedulingModule): ModuleRoute[] {
       method: 'DELETE',
       path: '/services/:id/resources/:resourceId',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       operationId: 'unlinkResourceFromService',
       summary: 'Desvincula um recurso de um serviço',
       async handler(context) {

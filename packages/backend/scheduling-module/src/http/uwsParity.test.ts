@@ -49,7 +49,7 @@ function buildModule() {
 
 const authResolver: AuthContextResolverPort = {
   async resolve() {
-    return { companyId: COMPANY_ID, scopes: [] }
+    return { companyId: COMPANY_ID, scopes: ['scheduling:admin'] }
   },
 }
 

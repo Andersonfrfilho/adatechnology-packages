@@ -15,6 +15,11 @@ import type { AuthContext, AuthContextResolverPort, LoggerPort, HttpResult, Requ
 import { toErrorResult } from './errorFilter'
 import { compilePath, matchPath, type CompiledPath } from './pathMatcher'
 
+// H-5: 1 MiB cobre com folga qualquer body JSON legítimo deste módulo (o maior é a lista semanal
+// de disponibilidade) — upload de arquivo passa por URL pré-assinada de storage, nunca por aqui.
+// Compartilhada pelos dois adaptadores (H-B) para não duplicar o número mágico e a justificativa.
+export const MAX_REQUEST_BODY_BYTES = 1024 * 1024
+
 export type CompiledRoute = {
   readonly route: ModuleRoute
   readonly compiledPath: CompiledPath
@@ -23,10 +28,23 @@ export type CompiledRoute = {
 export type RawRequest = {
   readonly method: string
   readonly pathname: string
-  readonly query: Readonly<Record<string, string>>
+  readonly query: Readonly<Record<string, string | readonly string[]>>
   readonly headers: Readonly<Record<string, string>>
   readonly rawBody?: Uint8Array
   readonly ip?: string
+}
+
+/**
+ * Chave repetida na query string (`?status=a&status=b`) vira array; chave única continua string
+ * simples (H-F). Compartilhada pelos dois adaptadores para o parsing nunca divergir entre eles.
+ */
+export function parseQueryParams(searchParams: URLSearchParams): Record<string, string | string[]> {
+  const query: Record<string, string | string[]> = {}
+  for (const key of new Set(searchParams.keys())) {
+    const values = searchParams.getAll(key)
+    query[key] = values.length > 1 ? values : (values[0] ?? '')
+  }
+  return query
 }
 
 export function compileRoutes(routes: readonly ModuleRoute[], basePath: string): CompiledRoute[] {

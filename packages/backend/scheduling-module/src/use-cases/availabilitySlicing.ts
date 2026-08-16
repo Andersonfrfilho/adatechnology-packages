@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
  * Matemática pura de calendário e fatiamento (spec §7) — nenhuma função aqui toca o banco. A
- * única conversão hora-de-parede → instante fica em `AvailabilityRepository.resolveLocalInstant`,
+ * única conversão hora-de-parede → instante fica em `AvailabilityRepository.resolveLocalInstants`,
  * via `AT TIME ZONE` do Postgres (T3.2): é a parte que precisa de Postgres real para ser DST-safe,
  * e é a única. O resto (dia da semana, iteração de datas, corte em passos) é cálculo de
  * calendário — testável em memória, sem infraestrutura.
@@ -81,26 +81,54 @@ export function windowsOverlap(a: TimeWindow, b: TimeWindow): boolean {
 }
 
 /**
- * Corta `window` em candidatos de passo `stepMinutes` (duração + buffers, T3.3). O `blocking`
- * inteiro precisa caber na janela, não só o `during` — assim o buffer nunca invade fora do
- * expediente da regra, e dois candidatos vizinhos nunca ficam mais próximos que o buffer exige.
+ * Janela realmente bloqueada por um agendamento: `during` mais os buffers do serviço. Fonte única
+ * dessa matemática (F-005) — usada tanto para desenhar o candidato de disponibilidade quanto para
+ * gravar `blockingStart`/`blockingEnd` da reserva em `Booking.use-cases.ts`. Duplicar o cálculo foi
+ * o que deixou os dois caminhos divergentes: o buffer "antes" só encolhia o `blocking` aqui, sem
+ * nunca deslocar o `during` mostrado ao cliente — a reserva criada a partir do horário exibido
+ * acabava bloqueando um intervalo diferente do que a disponibilidade tinha checado.
+ */
+export function computeBlockingWindow(params: {
+  during: TimeWindow
+  bufferBeforeMinutes: number
+  bufferAfterMinutes: number
+}): TimeWindow {
+  return {
+    start: new Date(params.during.start.getTime() - params.bufferBeforeMinutes * 60_000),
+    end: new Date(params.during.end.getTime() + params.bufferAfterMinutes * 60_000),
+  }
+}
+
+/**
+ * Corta `window` em candidatos de passo duração + buffers (T3.3). O `blocking` inteiro precisa
+ * caber na janela, não só o `during` — assim o buffer nunca invade fora do expediente da regra, e
+ * dois candidatos vizinhos nunca ficam mais próximos que o buffer exige.
  */
 export function sliceIntoSteps(params: {
   window: TimeWindow
   durationMinutes: number
-  stepMinutes: number
+  bufferBeforeMinutes: number
+  bufferAfterMinutes: number
 }): AvailabilityCandidate[] {
-  const stepMs = params.stepMinutes * 60_000
+  const bufferBeforeMs = params.bufferBeforeMinutes * 60_000
   const durationMs = params.durationMinutes * 60_000
+  const stepMs = bufferBeforeMs + durationMs + params.bufferAfterMinutes * 60_000
   const endMs = params.window.end.getTime()
 
   const candidates: AvailabilityCandidate[] = []
   let cursorMs = params.window.start.getTime()
   while (cursorMs + stepMs <= endMs) {
-    const start = new Date(cursorMs)
+    const during = {
+      start: new Date(cursorMs + bufferBeforeMs),
+      end: new Date(cursorMs + bufferBeforeMs + durationMs),
+    }
     candidates.push({
-      during: { start, end: new Date(cursorMs + durationMs) },
-      blocking: { start, end: new Date(cursorMs + stepMs) },
+      during,
+      blocking: computeBlockingWindow({
+        during,
+        bufferBeforeMinutes: params.bufferBeforeMinutes,
+        bufferAfterMinutes: params.bufferAfterMinutes,
+      }),
     })
     cursorMs += stepMs
   }

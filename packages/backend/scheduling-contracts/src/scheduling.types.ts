@@ -46,6 +46,22 @@ export const BOOKING_STATUS = {
 } as const
 export type BookingStatus = (typeof BOOKING_STATUS)[keyof typeof BOOKING_STATUS]
 
+// H-2: colunas reais de `bookings` — a mesma lista que o repositório aceita em `orderBy`, para
+// ordenação de tabela ser aplicada no servidor e não só na página já buscada (`web.md` §7).
+export const BOOKING_SORT_COLUMN = {
+  TITLE: 'title',
+  STATUS: 'status',
+  STARTS_AT: 'startsAt',
+  ENDS_AT: 'endsAt',
+} as const
+export type BookingSortColumn = (typeof BOOKING_SORT_COLUMN)[keyof typeof BOOKING_SORT_COLUMN]
+
+export const SORT_DIRECTION = {
+  ASC: 'asc',
+  DESC: 'desc',
+} as const
+export type SortDirection = (typeof SORT_DIRECTION)[keyof typeof SORT_DIRECTION]
+
 export const BOOKING_PARTICIPANT_ROLE = {
   ORGANIZER: 'organizer',
   ATTENDEE: 'attendee',
@@ -275,9 +291,11 @@ export type ListBookingsParams = {
   readonly page?: number
   readonly pageSize?: number
   readonly resourceId?: ResourceId
-  readonly status?: BookingStatus
+  readonly status?: readonly BookingStatus[]
   readonly from?: Date
   readonly until?: Date
+  readonly sortBy?: BookingSortColumn
+  readonly sortDirection?: SortDirection
 }
 
 export type GetAvailabilityParams = {

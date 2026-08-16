@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
  * Comportamento dos use-cases de gestão de grade/exceção de disponibilidade contra os dublês em
- * memória. `ListAvailableSlotsUseCase` fica fora daqui — depende de `resolveLocalInstant`
+ * memória. `ListAvailableSlotsUseCase` fica fora daqui — depende de `resolveLocalInstants`
  * (Postgres real) e só tem teste de integração (`Availability.use-cases.integration.test.ts`).
  */
 

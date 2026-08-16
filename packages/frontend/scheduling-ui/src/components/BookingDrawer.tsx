@@ -49,16 +49,25 @@ export function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
 
   async function handleCancel(): Promise<void> {
     if (!cancelledBy) return
-    await cancelBooking.mutateAsync({
-      id: booking.id,
-      input: { cancelledBy, ...(cancellationReason ? { cancellationReason } : {}) },
-    })
-    onClose()
+    try {
+      await cancelBooking.mutateAsync({
+        id: booking.id,
+        input: { cancelledBy, ...(cancellationReason ? { cancellationReason } : {}) },
+      })
+      onClose()
+    } catch {
+      // H-G: sem isto a rejeição sobe sem tratamento até o `onClick`, que não tem `.catch()` —
+      // o alerta abaixo (cancelBooking.isError) já mostra a falha ao usuário.
+    }
   }
 
   async function handleReschedule(): Promise<void> {
-    await rescheduleBooking.mutateAsync({ id: booking.id, input: { during: { start: new Date(start), end: new Date(end) } } })
-    setIsRescheduling(false)
+    try {
+      await rescheduleBooking.mutateAsync({ id: booking.id, input: { during: { start: new Date(start), end: new Date(end) } } })
+      setIsRescheduling(false)
+    } catch {
+      // H-G: alerta abaixo (rescheduleBooking.isError) já mostra a falha ao usuário.
+    }
   }
 
   const isTerminal =
@@ -78,6 +87,16 @@ export function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
             {booking.startsAt.toLocaleString(locale)} → {booking.endsAt.toLocaleString(locale)}
           </p>
         </div>
+
+        {(confirmBooking.isError ||
+          completeBooking.isError ||
+          markNoShow.isError ||
+          cancelBooking.isError ||
+          rescheduleBooking.isError) && (
+          <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+            {messages['common.actionFailure']}
+          </p>
+        )}
 
         {!isTerminal && (
           <div className="flex flex-wrap gap-2">

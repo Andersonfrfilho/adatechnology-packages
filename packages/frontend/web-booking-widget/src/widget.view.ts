@@ -1,9 +1,5 @@
 /**
- * Copyright (c) 2026 Ada Technology. All rights reserved.
- *
- * This source code is proprietary and confidential. Unauthorized copying,
- * modification, distribution, or use of this file, via any medium, is
- * strictly prohibited without prior written permission from Ada Technology.
+ * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
 import { applyIcon } from './widget.icon'
@@ -45,7 +41,11 @@ export class WidgetView {
   #panel!: HTMLElement
   #backButton!: HTMLButtonElement
   #headerTitle!: HTMLElement
+  #closeButton!: HTMLButtonElement
   #body!: HTMLElement
+
+  #wasOpen = false
+  #previouslyFocused: HTMLElement | null = null
 
   constructor(root: ShadowRoot, locale: LocaleStrings, handlers: WidgetViewHandlers) {
     this.#root = root
@@ -58,6 +58,7 @@ export class WidgetView {
     const launcher = document.createElement('button')
     launcher.className = 'launcher'
     launcher.type = 'button'
+    launcher.setAttribute('aria-label', readLocale(this.#locale, 'launcher.open'))
     const launcherIcon = document.createElement('span')
     applyIcon(launcherIcon, 'calendar')
     launcher.append(launcherIcon, document.createElement('span'))
@@ -66,6 +67,10 @@ export class WidgetView {
     const panel = document.createElement('section')
     panel.className = 'panel'
     panel.hidden = true
+    panel.setAttribute('role', 'dialog')
+    panel.setAttribute('aria-modal', 'true')
+    panel.setAttribute('aria-labelledby', 'ada-booking-title')
+    panel.addEventListener('keydown', (event) => this.#handlePanelKeydown(event))
 
     const header = document.createElement('header')
     header.className = 'header'
@@ -78,6 +83,7 @@ export class WidgetView {
     backButton.addEventListener('click', () => this.#handlers.onBack())
 
     const headerTitle = document.createElement('h2')
+    headerTitle.id = 'ada-booking-title'
     headerTitle.className = 'header-title'
 
     const closeButton = document.createElement('button')
@@ -99,14 +105,63 @@ export class WidgetView {
     this.#panel = panel
     this.#backButton = backButton
     this.#headerTitle = headerTitle
+    this.#closeButton = closeButton
     this.#body = body
   }
 
+  /** Escape fecha; Tab no primeiro/último foco visível volta ao outro extremo — o painel é modal,
+   *  então o foco nunca deve escapar dele pelo teclado enquanto estiver aberto. */
+  #handlePanelKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      this.#handlers.onClose()
+      return
+    }
+
+    if (event.key !== 'Tab') return
+
+    const focusable = this.#focusableElements()
+    if (focusable.length === 0) return
+
+    const first = focusable[0] as HTMLElement
+    const last = focusable[focusable.length - 1] as HTMLElement
+    const active = this.#root.activeElement
+
+    if (event.shiftKey && active === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
+
+  #focusableElements(): HTMLElement[] {
+    return Array.from(
+      this.#panel.querySelectorAll<HTMLElement>(
+        'button:not([hidden]):not([disabled]), input:not([hidden]):not([disabled]), [href], select, textarea',
+      ),
+    )
+  }
+
   render(state: WidgetState): void {
+    const isOpening = state.isOpen && !this.#wasOpen
+    const isClosing = !state.isOpen && this.#wasOpen
+    this.#wasOpen = state.isOpen
+
     this.#launcher.hidden = state.isOpen
     this.#panel.hidden = !state.isOpen
     this.#backButton.hidden = state.step === WIDGET_STEP.SERVICE || state.step === WIDGET_STEP.CONFIRMED
     this.#headerTitle.textContent = readLocale(this.#locale, `step.${state.step}`)
+
+    if (isOpening) {
+      this.#previouslyFocused = this.#root.activeElement as HTMLElement | null
+      this.#closeButton.focus()
+    } else if (isClosing) {
+      const target = this.#previouslyFocused ?? this.#launcher
+      this.#previouslyFocused = null
+      target.focus()
+    }
 
     this.#body.replaceChildren()
 
@@ -266,13 +321,27 @@ export class WidgetView {
     const form = document.createElement('form')
     form.className = 'field'
 
+    // H-E: placeholder some ao digitar e não é nome acessível confiável em todo leitor de tela —
+    // o rótulo visível associado por `htmlFor`/`id` é o que garante que o campo continua identificável.
+    const nameLabel = document.createElement('label')
+    nameLabel.className = 'field-label'
+    nameLabel.htmlFor = 'ada-booking-name'
+    nameLabel.textContent = readLocale(this.#locale, 'details.nameLabel')
+
     const nameInput = document.createElement('input')
+    nameInput.id = 'ada-booking-name'
     nameInput.className = 'input'
     nameInput.type = 'text'
     nameInput.required = true
     nameInput.placeholder = readLocale(this.#locale, 'details.namePlaceholder')
 
+    const contactLabel = document.createElement('label')
+    contactLabel.className = 'field-label'
+    contactLabel.htmlFor = 'ada-booking-contact'
+    contactLabel.textContent = readLocale(this.#locale, 'details.contactLabel')
+
     const contactInput = document.createElement('input')
+    contactInput.id = 'ada-booking-contact'
     contactInput.className = 'input'
     contactInput.type = 'text'
     contactInput.required = true
@@ -283,7 +352,7 @@ export class WidgetView {
     submitButton.className = 'primary-button'
     submitButton.textContent = readLocale(this.#locale, 'details.confirm')
 
-    form.append(nameInput, contactInput, submitButton)
+    form.append(nameLabel, nameInput, contactLabel, contactInput, submitButton)
     form.addEventListener('submit', (event) => {
       event.preventDefault()
       this.#handlers.onSubmitDetails({ name: nameInput.value.trim(), contact: contactInput.value.trim() })

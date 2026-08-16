@@ -1,15 +1,10 @@
 name: Publish packages
 
 on:
-  push:
+  workflow_run:
+    workflows: ['CI']
     branches: [main]
-    paths:
-      - 'packages/**'
-      - 'package.json'
-      - 'pnpm-workspace.yaml'
-      - '.changeset/**'
-      - 'packages/**/package.json'
-      - '.github/workflows/publish.yml'
+    types: [completed]
   workflow_dispatch: {}
 
 env:
@@ -17,6 +12,10 @@ env:
 
 jobs:
   publish:
+    # Only publish once CI has actually passed on main. workflow_run fires whether CI
+    # succeeded or failed — without this guard a broken build (unrun tests, failed
+    # typecheck) would still publish.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -26,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
           fetch-depth: 0
 
       - name: Install pnpm

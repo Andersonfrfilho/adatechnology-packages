@@ -12,8 +12,10 @@
  */
 
 import { describe, expect, it } from 'bun:test'
-import { getTableColumns, type Table } from 'drizzle-orm'
+import type { Table } from 'drizzle-orm'
+import { getTableColumns, getTableName, isTable } from 'drizzle-orm'
 
+import * as schema from './schema/schema'
 import { bookingParticipants, bookings } from './schema/schema'
 
 const PII_NAME_PATTERNS: readonly RegExp[] = [
@@ -34,22 +36,53 @@ const PII_NAME_PATTERNS: readonly RegExp[] = [
 
 const DOCUMENTED_FREE_TEXT_EXCEPTIONS = new Set(['title', 'notes', 'cancellationReason'])
 
-function assertNoPiiColumnNames(table: Table, tableName: string): void {
-  const columnKeys = Object.keys(getTableColumns(table))
-  for (const columnKey of columnKeys) {
-    if (DOCUMENTED_FREE_TEXT_EXCEPTIONS.has(columnKey)) continue
-    const matchesPiiPattern = PII_NAME_PATTERNS.some((pattern) => pattern.test(columnKey))
-    expect(matchesPiiPattern, `${tableName}.${columnKey} parece nome de coluna de PII`).toBe(false)
+// F-017: descoberta dinâmica em vez de lista de tabelas escrita à mão — a versão anterior só
+// auditava `bookings`/`booking_participants`; uma tabela nova (ex.: um cadastro de cliente futuro)
+// nascia sem cobertura nenhuma, porque nada forçava alguém a lembrar de adicioná-la aqui. Iterar
+// sobre o que `./schema/schema` de fato exporta faz a tabela nova entrar na auditoria sozinha.
+function allSchemaTables(): ReadonlyArray<readonly [string, ReturnType<typeof getTableColumns>]> {
+  const tables: Table[] = []
+  for (const value of Object.values(schema)) {
+    if (isTable(value)) tables.push(value)
   }
+  return tables.map((table) => [getTableName(table), getTableColumns(table)] as const)
+}
+
+function undocumentedPiiColumns(columnKeys: readonly string[]): readonly string[] {
+  return columnKeys
+    .filter((columnKey) => !DOCUMENTED_FREE_TEXT_EXCEPTIONS.has(columnKey))
+    .filter((columnKey) => PII_NAME_PATTERNS.some((pattern) => pattern.test(columnKey)))
 }
 
 describe('auditoria de PII — schema', () => {
-  it('bookings não guarda nenhuma coluna com nome de dado pessoal', () => {
-    assertNoPiiColumnNames(bookings, 'bookings')
+  it('nenhuma tabela do módulo guarda coluna com nome de dado pessoal', () => {
+    for (const [tableName, columns] of allSchemaTables()) {
+      const leaked = undocumentedPiiColumns(Object.keys(columns))
+      expect(leaked, `${tableName}: ${leaked.join(', ')} parece(m) nome de coluna de PII`).toEqual([])
+    }
   })
 
-  it('booking_participants não guarda nenhuma coluna com nome de dado pessoal', () => {
-    assertNoPiiColumnNames(bookingParticipants, 'booking_participants')
+  // Prova negativa de que `undocumentedPiiColumns` não é tautológica: uma coluna de PII de verdade,
+  // não documentada como exceção, precisa derrubar a mesma função que a auditoria acima usa.
+  it('undocumentedPiiColumns detecta uma coluna de PII não documentada', () => {
+    const columnKeysWithLeakedPhone = [...Object.keys(getTableColumns(bookings)), 'phoneNumber']
+    expect(undocumentedPiiColumns(columnKeysWithLeakedPhone)).toEqual(['phoneNumber'])
+  })
+
+  it('a lista de tabelas do módulo não encolhe em silêncio', () => {
+    const tableNames = allSchemaTables().map(([tableName]) => tableName)
+    expect(tableNames.sort()).toEqual(
+      [
+        'resources',
+        'services',
+        'resource_services',
+        'availability_rules',
+        'availability_exceptions',
+        'bookings',
+        'booking_slots',
+        'booking_participants',
+      ].sort(),
+    )
   })
 
   it('as únicas colunas de texto livre em bookings são as documentadas na spec §6', () => {

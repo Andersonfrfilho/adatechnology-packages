@@ -17,6 +17,7 @@ import {
   type GetAvailabilityParams,
 } from '@adatechnology/scheduling-contracts'
 
+import { resolveLocalInstantsKey } from '../repositories/AvailabilityRepository'
 import type { AvailabilityExceptionRow, AvailabilityRuleRow } from '../schema/schema'
 import { toAvailabilityException, toAvailabilityRule } from '../shared/toContract'
 import {
@@ -62,11 +63,14 @@ export class ListAvailableSlotsUseCase {
       throw new ServiceNotOfferedByResourceError(params.resourceId, params.serviceId)
     }
 
-    const stepMinutes = service.durationMinutes + service.bufferBeforeMinutes + service.bufferAfterMinutes
-
     const [rules, exceptions, blockingSlots] = await Promise.all([
       availability.listRulesByResource({ companyId: params.companyId, resourceId: params.resourceId }),
-      availability.listExceptionsByResourceInRange({ companyId: params.companyId, resourceId: params.resourceId }),
+      availability.listExceptionsByResourceInRange({
+        companyId: params.companyId,
+        resourceId: params.resourceId,
+        from: params.from,
+        until: params.until,
+      }),
       bookings.listBlockingSlotsByResource({ resourceId: params.resourceId, from: params.from, until: params.until }),
     ])
 
@@ -77,13 +81,15 @@ export class ListAvailableSlotsUseCase {
       from: params.from,
       until: params.until,
       durationMinutes: service.durationMinutes,
-      stepMinutes,
+      bufferBeforeMinutes: service.bufferBeforeMinutes,
+      bufferAfterMinutes: service.bufferAfterMinutes,
       rules,
     })
     const extraCandidates = candidatesFromExtraExceptions({
       exceptions,
       durationMinutes: service.durationMinutes,
-      stepMinutes,
+      bufferBeforeMinutes: service.bufferBeforeMinutes,
+      bufferAfterMinutes: service.bufferAfterMinutes,
     })
 
     const blockWindows = exceptions
@@ -93,8 +99,13 @@ export class ListAvailableSlotsUseCase {
       (slot): TimeWindow => ({ start: slot.blockingStart, end: slot.blockingEnd }),
     )
 
+    // F-014: segunda barreira contra candidato fora da janela pedida — mesmo que uma exceção
+    // `extra` chegue aqui sem filtro (bug de outro caminho, driver diferente, chamada direta do
+    // repositório), nenhum candidato fora de `[from, until)` sai deste método.
+    const requestedWindow: TimeWindow = { start: params.from, end: params.until }
     const free = [...ruleCandidates, ...extraCandidates].filter(
       (candidate) =>
+        windowsOverlap(candidate.during, requestedWindow) &&
         !blockWindows.some((window) => windowsOverlap(candidate.blocking, window)) &&
         !bookedWindows.some((window) => windowsOverlap(candidate.blocking, window)),
     )
@@ -109,7 +120,11 @@ export class ListAvailableSlotsUseCase {
       }))
   }
 
-  /** Uma data local × uma regra do mesmo dia da semana = um instante resolvido pelo fuso do recurso (T3.2). */
+  /**
+   * Uma data local × uma regra do mesmo dia da semana = um instante resolvido pelo fuso do recurso
+   * (T3.2). F-008: início e fim de toda ocorrência da janela inteira resolvem numa única viagem ao
+   * banco (`resolveLocalInstants`) — antes eram 2 idas ao Postgres por ocorrência (N+1).
+   */
   private async candidatesFromRules(params: {
     companyId: string
     resourceId: string
@@ -117,46 +132,53 @@ export class ListAvailableSlotsUseCase {
     from: Date
     until: Date
     durationMinutes: number
-    stepMinutes: number
+    bufferBeforeMinutes: number
+    bufferAfterMinutes: number
     rules: readonly AvailabilityRuleRow[]
   }): Promise<AvailabilityCandidate[]> {
+    const { availability } = this.dependencies.repositories
     const dates = localDateRange({ from: params.from, until: params.until, timezone: params.timezone })
 
-    const perOccurrence = await Promise.all(
-      dates.flatMap((date) => {
-        const weekday = weekdayOfLocalDate(date)
-        return params.rules
-          .filter((rule) => rule.weekday === weekday)
-          .map((rule) => this.resolveRuleOccurrence({ ...params, date, rule }))
+    const occurrences = dates.flatMap((date) => {
+      const weekday = weekdayOfLocalDate(date)
+      return params.rules.filter((rule) => rule.weekday === weekday).map((rule) => ({ date, rule }))
+    })
+
+    const instants = await availability.resolveLocalInstants({
+      companyId: params.companyId,
+      resourceId: params.resourceId,
+      occurrences: occurrences.flatMap(({ date, rule }) => [
+        { localDate: formatLocalDate(date), localTime: rule.startsAtLocal },
+        { localDate: formatLocalDate(date), localTime: rule.endsAtLocal },
+      ]),
+    })
+
+    return occurrences.flatMap(({ date, rule }) =>
+      this.resolveRuleOccurrence({
+        date,
+        rule,
+        durationMinutes: params.durationMinutes,
+        bufferBeforeMinutes: params.bufferBeforeMinutes,
+        bufferAfterMinutes: params.bufferAfterMinutes,
+        instants,
       }),
     )
-
-    return perOccurrence.flat()
   }
 
-  private async resolveRuleOccurrence(params: {
-    companyId: string
-    resourceId: string
+  private resolveRuleOccurrence(params: {
     date: { year: number; month: number; day: number }
     rule: AvailabilityRuleRow
     durationMinutes: number
-    stepMinutes: number
-  }): Promise<AvailabilityCandidate[]> {
-    const { availability } = this.dependencies.repositories
-    const [start, end] = await Promise.all([
-      availability.resolveLocalInstant({
-        companyId: params.companyId,
-        resourceId: params.resourceId,
-        localDate: formatLocalDate(params.date),
-        localTime: params.rule.startsAtLocal,
-      }),
-      availability.resolveLocalInstant({
-        companyId: params.companyId,
-        resourceId: params.resourceId,
-        localDate: formatLocalDate(params.date),
-        localTime: params.rule.endsAtLocal,
-      }),
-    ])
+    bufferBeforeMinutes: number
+    bufferAfterMinutes: number
+    instants: Map<string, Date>
+  }): AvailabilityCandidate[] {
+    const localDate = formatLocalDate(params.date)
+    const start = params.instants.get(resolveLocalInstantsKey({ localDate, localTime: params.rule.startsAtLocal }))
+    const end = params.instants.get(resolveLocalInstantsKey({ localDate, localTime: params.rule.endsAtLocal }))
+    if (!start || !end) {
+      throw new Error('scheduling-module: instante local não resolvido para a ocorrência da regra')
+    }
 
     // T3.4: regra fora da validade nesta ocorrência não gera candidato — histórico do que valia
     // antes fica intacto, e o que passa a valer numa data futura não vaza para trás.
@@ -166,7 +188,8 @@ export class ListAvailableSlotsUseCase {
     return sliceIntoSteps({
       window: { start, end },
       durationMinutes: params.durationMinutes,
-      stepMinutes: params.stepMinutes,
+      bufferBeforeMinutes: params.bufferBeforeMinutes,
+      bufferAfterMinutes: params.bufferAfterMinutes,
     })
   }
 }
@@ -174,7 +197,8 @@ export class ListAvailableSlotsUseCase {
 function candidatesFromExtraExceptions(params: {
   exceptions: readonly AvailabilityExceptionRow[]
   durationMinutes: number
-  stepMinutes: number
+  bufferBeforeMinutes: number
+  bufferAfterMinutes: number
 }): AvailabilityCandidate[] {
   return params.exceptions
     .filter((exception) => exception.kind === AVAILABILITY_EXCEPTION_KIND.EXTRA)
@@ -182,7 +206,8 @@ function candidatesFromExtraExceptions(params: {
       sliceIntoSteps({
         window: { start: exception.duringStart, end: exception.duringEnd },
         durationMinutes: params.durationMinutes,
-        stepMinutes: params.stepMinutes,
+        bufferBeforeMinutes: params.bufferBeforeMinutes,
+        bufferAfterMinutes: params.bufferAfterMinutes,
       }),
     )
 }

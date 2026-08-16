@@ -142,4 +142,41 @@ describeWithDatabase('RequestBookingUseCase (integração Postgres real)', () =>
 
     expect(meetingC.id).not.toBe(meetingD.id)
   })
+
+  // F-018: `T4.1` provava a constraint `EXCLUDE`, mas de forma sequencial (`await` a primeira
+  // reserva completar antes de tentar a segunda) — nunca exercitava a corrida de verdade. Com duas
+  // transações realmente concorrentes inserindo tuplas conflitantes quase ao mesmo tempo, o
+  // Postgres às vezes resolve o impasse com `40P01` (deadlock) em vez de `23P01`; sem mapear os
+  // dois códigos, a perdedora da corrida recebia `DrizzleQueryError` cru (500), não
+  // `SlotUnavailableError` (409) — a proporção observada era de ~2 em 10 rodadas. Repetir várias
+  // rodadas é o que torna esse teste capaz de pegar a regressão; uma rodada só passaria na maioria
+  // das vezes mesmo com o bug presente.
+  test('F-018: duas reservas verdadeiramente simultâneas do mesmo recurso nunca vazam erro cru do Postgres', async () => {
+    const rounds = 8
+
+    for (let round = 0; round < rounds; round++) {
+      const resource = await createResource(`Sala F-018 rodada ${round}`)
+      const during = {
+        start: new Date(Date.UTC(2027, 7, 10 + round, 14, 0, 0)),
+        end: new Date(Date.UTC(2027, 7, 10 + round, 15, 0, 0)),
+      }
+
+      const [settledA, settledB] = await Promise.allSettled([
+        useCase.execute({ companyId, input: { title: 'Corte A', during, resourceIds: [resource.id] } }),
+        useCase.execute({ companyId, input: { title: 'Corte B', during, resourceIds: [resource.id] } }),
+      ])
+
+      const fulfilled = [settledA, settledB].filter((outcome) => outcome.status === 'fulfilled')
+      const rejected = [settledA, settledB].filter(
+        (outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected',
+      )
+
+      expect(fulfilled, `rodada ${round}: exatamente uma das duas deveria confirmar`).toHaveLength(1)
+      expect(rejected, `rodada ${round}: exatamente uma das duas deveria falhar`).toHaveLength(1)
+      expect(
+        rejected[0]?.reason,
+        `rodada ${round}: erro cru do Postgres vazou em vez de SlotUnavailableError`,
+      ).toBeInstanceOf(SlotUnavailableError)
+    }
+  })
 })

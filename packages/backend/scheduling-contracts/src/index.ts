@@ -6,6 +6,8 @@ export {
   RESOURCE_KIND,
   AVAILABILITY_EXCEPTION_KIND,
   BOOKING_STATUS,
+  BOOKING_SORT_COLUMN,
+  SORT_DIRECTION,
   BOOKING_PARTICIPANT_ROLE,
   BOOKING_PARTICIPANT_RESPONSE_STATUS,
 } from './scheduling.types'
@@ -22,6 +24,8 @@ export type {
   ResourceKind,
   AvailabilityExceptionKind,
   BookingStatus,
+  BookingSortColumn,
+  SortDirection,
   BookingParticipantRole,
   BookingParticipantResponseStatus,
   Resource,
@@ -50,6 +54,7 @@ export type {
 } from './scheduling.types'
 
 export {
+  MAX_PAGE_SIZE,
   ianaTimezoneSchema,
   createResourceSchema,
   updateResourceSchema,
@@ -124,4 +129,5 @@ export {
   ConfigMissingError,
   LookaheadWindowTooLargeError,
   CalendarSyncDisabledError,
+  BookingNotModifiableError,
 } from './errors'

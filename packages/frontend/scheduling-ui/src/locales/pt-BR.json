@@ -5,6 +5,7 @@
   "common.remove": "Excluir",
   "common.loading": "Carregando…",
   "common.loadFailure": "Não foi possível carregar",
+  "common.actionFailure": "Ação falhou. Tente novamente.",
   "common.empty": "Nada por aqui ainda",
   "common.clearFilters": "Limpar filtros",
   "common.selectAll": "Selecionar todos",

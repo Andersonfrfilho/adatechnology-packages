@@ -2,20 +2,19 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpDown } from 'lucide-react'
 import { useState } from 'react'
 import { BOOKING_STATUS } from '@adatechnology/scheduling-contracts'
 import type { Booking, BookingId, BookingStatus } from '@adatechnology/scheduling-contracts'
 
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
-import { useBookingsTableState } from '../hooks/useBookingsTableState.hook'
 import {
+  DEFAULT_BOOKINGS_TABLE_STATE,
   filterBookingsByStatus,
   isBookingsTableStateDefault,
-  sortBookings,
 } from './bookingsTableState.util'
-import type { BookingSortColumn } from './bookingsTableState.util'
+import type { BookingSortColumn, BookingsTableState } from './bookingsTableState.util'
 
 export type BookingsTableBulkAction = {
   readonly key: string
@@ -23,8 +22,15 @@ export type BookingsTableBulkAction = {
   readonly onRun: (selectedIds: readonly BookingId[]) => void
 }
 
+export type BookingsTablePagination = {
+  readonly totalPages: number
+}
+
 export type BookingsTableProps = {
   readonly bookings: readonly Booking[]
+  readonly state?: BookingsTableState
+  readonly onStateChange?: (state: BookingsTableState) => void
+  readonly pagination?: BookingsTablePagination
   readonly onRowClick?: (booking: Booking) => void
   readonly bulkActions?: readonly BookingsTableBulkAction[]
 }
@@ -44,32 +50,47 @@ function nextSortDirection(
   return currentDirection === 'asc' ? 'desc' : 'asc'
 }
 
-export function BookingsTable({ bookings, onRowClick, bulkActions = [] }: BookingsTableProps) {
+export function BookingsTable({
+  bookings,
+  state = DEFAULT_BOOKINGS_TABLE_STATE,
+  onStateChange,
+  pagination,
+  onRowClick,
+  bulkActions = [],
+}: BookingsTableProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  const [state, setState] = useBookingsTableState()
   const [selected, setSelected] = useState<ReadonlySet<BookingId>>(new Set())
 
-  const filtered = filterBookingsByStatus(bookings, state.statusFilters)
-  const visibleBookings = sortBookings(filtered, state.sortColumn, state.sortDirection)
+  // H-2/H-F: ordenação e filtro de status múltiplo já acontecem no servidor (`BookingsArea`
+  // repassa `sortBy`/`sortDirection`/`status[]`) — este filtro é só rede de segurança para quem
+  // consome `BookingsTable` direto, com dados que não passaram por `BookingsArea`.
+  const visibleBookings = filterBookingsByStatus(bookings, state.statusFilters)
   const allSelected = visibleBookings.length > 0 && visibleBookings.every((booking) => selected.has(booking.id))
 
   function toggleSort(column: BookingSortColumn): void {
-    setState({
+    onStateChange?.({
       ...state,
       sortColumn: column,
       sortDirection: nextSortDirection(column, state.sortColumn, state.sortDirection),
     })
   }
 
+  // Trocar o filtro muda o conjunto de reservas atrás da paginação — manter a página atual
+  // arrisca cair numa página vazia ou fora do novo total.
   function toggleStatusFilter(status: BookingStatus): void {
     const isActive = state.statusFilters.includes(status)
-    setState({
+    onStateChange?.({
       ...state,
       statusFilters: isActive
         ? state.statusFilters.filter((filterStatus) => filterStatus !== status)
         : [...state.statusFilters, status],
+      page: 1,
     })
+  }
+
+  function goToPage(page: number): void {
+    onStateChange?.({ ...state, page })
   }
 
   function toggleSelectAll(): void {
@@ -119,7 +140,7 @@ export function BookingsTable({ bookings, onRowClick, bulkActions = [] }: Bookin
         {!isBookingsTableStateDefault(state) && (
           <button
             type="button"
-            onClick={() => setState({ sortDirection: 'asc', statusFilters: [] })}
+            onClick={() => onStateChange?.(DEFAULT_BOOKINGS_TABLE_STATE)}
             className="min-h-11 px-3 text-sm font-medium text-brand-700 hover:underline"
           >
             {messages['common.clearFilters']}
@@ -192,6 +213,32 @@ export function BookingsTable({ bookings, onRowClick, bulkActions = [] }: Bookin
           <p className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{messages['common.empty']}</p>
         )}
       </div>
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            aria-label={messages['common.previousPage']}
+            disabled={state.page <= 1}
+            onClick={() => goToPage(state.page - 1)}
+            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 disabled:opacity-50"
+          >
+            <ArrowLeft aria-hidden="true" className="w-4 h-4" />
+          </button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {state.page} / {pagination.totalPages}
+          </span>
+          <button
+            type="button"
+            aria-label={messages['common.nextPage']}
+            disabled={state.page >= pagination.totalPages}
+            onClick={() => goToPage(state.page + 1)}
+            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 disabled:opacity-50"
+          >
+            <ArrowRight aria-hidden="true" className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

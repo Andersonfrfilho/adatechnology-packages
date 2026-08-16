@@ -89,6 +89,16 @@ describe('SweepDueRemindersUseCase', () => {
     expect(bookings.rows[0]?.reminderSentAt).toBeNull()
   })
 
+  it('H-C: ignora reserva confirmada cujo horário já passou', async () => {
+    const { dependencies, bookings } = buildDependencies({ config: { reminderAdvanceMinutes: 60 } })
+    await seedConfirmedBooking(bookings, { startsAt: new Date(NOW.getTime() - 24 * 60 * 60_000) })
+
+    const result = await new SweepDueRemindersUseCase(dependencies).execute()
+
+    expect(result.processed).toBe(0)
+    expect(bookings.rows[0]?.reminderSentAt).toBeNull()
+  })
+
   it('ignora reserva não confirmada', async () => {
     const { dependencies, bookings } = buildDependencies({ config: { reminderAdvanceMinutes: 60 } })
     const { booking } = await bookings.createWithSlots({

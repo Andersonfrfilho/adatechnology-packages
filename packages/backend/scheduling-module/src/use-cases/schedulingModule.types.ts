@@ -41,6 +41,14 @@ export function nowOf(dependencies: SchedulingDependencies): Date {
   return dependencies.clock ? dependencies.clock.now() : new Date()
 }
 
+// Nunca `String(error)`/`.message`: um erro não traduzido (driver, hook do host, provedor externo)
+// pode embutir SQL, parâmetros vinculados ou corpo de requisição — inclusive campos de texto livre
+// da reserva (`security.md` §1). Só o nome da classe do erro é seguro de logar sem inspecionar caso
+// a caso. Compartilhado por todos os use-cases do módulo, não só `runHook`.
+export function errorNameOf(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error
+}
+
 /**
  * Hooks são void-tolerantes (spec `SchedulingHooks`): falha de regra do produto no callback do
  * host nunca pode derrubar a operação de agendamento — loga e segue (molde de `catalog-module`).
@@ -53,6 +61,6 @@ export async function runHook(params: {
   try {
     await params.run()
   } catch (error) {
-    params.dependencies.logger?.warn('scheduling.hook_failed', { hook: params.name, error: String(error) })
+    params.dependencies.logger?.warn('scheduling.hook_failed', { hook: params.name, errorName: errorNameOf(error) })
   }
 }

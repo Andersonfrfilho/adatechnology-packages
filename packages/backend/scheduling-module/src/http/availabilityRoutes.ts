@@ -21,7 +21,10 @@ import type { SchedulingModule } from '../SchedulingModule'
 import { requireCompany } from './requireCompany'
 
 const setAvailabilityRulesSchema = z.object({
-  rules: z.array(createAvailabilityRuleSchema.omit({ resourceId: true })),
+  // F-015: teto arbitrário mas generoso (7 dias × várias janelas/dia) — sem ele, `rules` sem
+  // limite vira `occurrences` sem limite em `resolveLocalInstants` (uma regra por ocorrência de
+  // cada dia da janela pedida), estourando o teto de parâmetros do bind do Postgres.
+  rules: z.array(createAvailabilityRuleSchema.omit({ resourceId: true })).max(100),
 })
 
 const createAvailabilityExceptionBodySchema = createAvailabilityExceptionSchema.omit({ resourceId: true })
@@ -34,6 +37,7 @@ export function buildAvailabilityRoutes(module: SchedulingModule): ModuleRoute[]
       method: 'GET',
       path: '/availability',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       querySchema: getAvailabilityQuerySchema,
       operationId: 'listAvailableSlots',
       summary: 'Calcula os horários livres de um recurso para um serviço numa janela',
@@ -54,6 +58,7 @@ export function buildAvailabilityRoutes(module: SchedulingModule): ModuleRoute[]
       method: 'GET',
       path: '/resources/:id/availability-rules',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       operationId: 'listAvailabilityRules',
       summary: 'Lista a grade semanal vigente de um recurso',
       async handler(context) {
@@ -70,6 +75,7 @@ export function buildAvailabilityRoutes(module: SchedulingModule): ModuleRoute[]
       method: 'PUT',
       path: '/resources/:id/availability-rules',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       bodySchema: setAvailabilityRulesSchema,
       operationId: 'setAvailabilityRules',
       // PUT e não POST: substitui a grade inteira de uma vez — repetir a mesma chamada não muda
@@ -91,6 +97,7 @@ export function buildAvailabilityRoutes(module: SchedulingModule): ModuleRoute[]
       method: 'GET',
       path: '/resources/:id/availability-exceptions',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       operationId: 'listAvailabilityExceptions',
       summary: 'Lista as exceções vigentes de um recurso',
       async handler(context) {
@@ -107,6 +114,7 @@ export function buildAvailabilityRoutes(module: SchedulingModule): ModuleRoute[]
       method: 'POST',
       path: '/resources/:id/availability-exceptions',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       bodySchema: createAvailabilityExceptionBodySchema,
       operationId: 'addAvailabilityException',
       summary: 'Adiciona um bloqueio ou encaixe pontual fora da grade semanal',
@@ -125,6 +133,7 @@ export function buildAvailabilityRoutes(module: SchedulingModule): ModuleRoute[]
       method: 'DELETE',
       path: '/availability-exceptions/:id',
       scope: 'admin',
+      requiredScopes: ['scheduling:admin'],
       operationId: 'removeAvailabilityException',
       summary: 'Remove uma exceção de disponibilidade',
       async handler(context) {

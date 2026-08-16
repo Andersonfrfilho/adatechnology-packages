@@ -10,7 +10,9 @@
  * checar sobreposição. Teste de conflito de horário é teste de integração contra Postgres real
  * (ver `BookingRepository`), nunca unitário contra este dublê — um dublê "inteligente" que
  * reimplementasse a checagem em JS testaria a reimplementação, não a constraint que protege
- * produção.
+ * produção. Pela mesma razão, `createWithSlots` aqui nunca perde a corrida do `unique` de
+ * `Idempotency-Key` (F-006) — sempre devolve `created: true`; o replay por corrida também só é
+ * testado contra Postgres real.
  */
 
 import { randomUUID } from 'node:crypto'
@@ -190,7 +192,7 @@ export function createInMemoryServices(seed: ServiceRow[] = []) {
 }
 
 /**
- * `resolveLocalInstant` fica fora deste dublê de propósito: depende de `AT TIME ZONE` do Postgres
+ * `resolveLocalInstants` fica fora deste dublê de propósito: depende de `AT TIME ZONE` do Postgres
  * (spec §5.3), sem equivalente honesto em JS puro — mesmo raciocínio da constraint de
  * sobreposição documentada no topo do arquivo. Use-case que precisa dela (`ListAvailableSlotsUseCase`)
  * tem só teste de integração.
@@ -261,12 +263,20 @@ export function createInMemoryAvailability(
       exceptions.splice(index, 1)
       return true
     },
+    // F-014: espelha o filtro de janela do repositório real — `from`/`until` opcionais para a
+    // tela de gestão de exceções, sempre presentes na chamada do cálculo de disponibilidade.
     async listExceptionsByResourceInRange(params: {
       companyId: string
       resourceId: string
+      from?: Date
+      until?: Date
     }): Promise<AvailabilityExceptionRow[]> {
       return exceptions
         .filter((row) => row.companyId === params.companyId && row.resourceId === params.resourceId)
+        .filter((row) => {
+          if (!params.from || !params.until) return true
+          return row.duringStart < params.until && row.duringEnd > params.from
+        })
         .map((row) => ({ ...row }))
     },
   }
@@ -285,7 +295,7 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       booking: NewBookingRow
       slots: ReadonlyArray<Omit<NewBookingSlotRow, 'bookingId'>>
       participants?: ReadonlyArray<Omit<NewBookingParticipantRow, 'bookingId'>>
-    }): Promise<{ booking: BookingRow; slots: BookingSlotRow[] }> {
+    }): Promise<{ booking: BookingRow; slots: BookingSlotRow[]; created: boolean }> {
       const booking = {
         id: randomUUID(),
         serviceId: null,
@@ -324,7 +334,7 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
         participantsByBooking.set(booking.id, participants)
       }
 
-      return { booking, slots }
+      return { booking, slots, created: true }
     },
     async findById(params: { companyId: string; id: string }): Promise<BookingRow | undefined> {
       return snapshot(rows.find((row) => row.companyId === params.companyId && row.id === params.id))
@@ -361,13 +371,15 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       page: number
       pageSize: number
       resourceId?: string
-      status?: string
+      status?: readonly string[]
       from?: Date
       until?: Date
+      sortBy?: string
+      sortDirection?: string
     }): Promise<{ rows: BookingRow[]; total: number }> {
       const filtered = rows.filter((row) => {
         if (row.companyId !== query.companyId) return false
-        if (query.status && row.status !== query.status) return false
+        if (query.status && query.status.length > 0 && !query.status.includes(row.status)) return false
         if (query.from && row.startsAt < query.from) return false
         if (query.until && row.startsAt > query.until) return false
         if (query.resourceId) {
@@ -376,7 +388,17 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
         }
         return true
       })
-      const sorted = [...filtered].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      // H-2: espelha `BOOKING_SORT_COLUMNS` do repositório real, para o dublê ordenar como Postgres.
+      const sortKey =
+        query.sortBy === 'title' || query.sortBy === 'status' || query.sortBy === 'endsAt' ? query.sortBy : 'startsAt'
+      const direction = query.sortDirection === 'desc' ? -1 : 1
+      const sorted = [...filtered].sort((a, b) => {
+        const left = sortKey === 'startsAt' || sortKey === 'endsAt' ? a[sortKey].getTime() : a[sortKey]
+        const right = sortKey === 'startsAt' || sortKey === 'endsAt' ? b[sortKey].getTime() : b[sortKey]
+        if (left < right) return -1 * direction
+        if (left > right) return 1 * direction
+        return 0
+      })
       return {
         rows: sorted.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
         total: filtered.length,
@@ -393,15 +415,24 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       Object.assign(row, params.values, { status: params.status })
       return snapshot(row)
     },
-    async replaceSlots(params: {
-      bookingId: string
+    async rescheduleWithSlotReplace(params: {
+      companyId: string
+      id: string
+      status: string
+      startsAt: Date
+      endsAt: Date
       slots: ReadonlyArray<Omit<NewBookingSlotRow, 'bookingId'>>
-    }): Promise<BookingSlotRow[]> {
+    }): Promise<{ booking: BookingRow; slots: BookingSlotRow[] } | undefined> {
+      const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === params.id)
+      if (!row) return undefined
+
       const slots = params.slots.map(
-        (slot) => ({ id: randomUUID(), bookingId: params.bookingId, createdAt: EPOCH, ...slot }) as BookingSlotRow,
+        (slot) => ({ id: randomUUID(), bookingId: params.id, createdAt: EPOCH, ...slot }) as BookingSlotRow,
       )
-      slotsByBooking.set(params.bookingId, slots)
-      return slots.map((slot) => ({ ...slot }))
+      slotsByBooking.set(params.id, slots)
+      Object.assign(row, { status: params.status, startsAt: params.startsAt, endsAt: params.endsAt, updatedAt: EPOCH })
+
+      return { booking: snapshot(row)!, slots: slots.map((slot) => ({ ...slot })) }
     },
     async cancelWithSlotRelease(params: {
       companyId: string
@@ -430,7 +461,13 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
     async claimDueReminders(params: { now: Date; windowMinutes: number; limit?: number }): Promise<BookingRow[]> {
       const until = new Date(params.now.getTime() + params.windowMinutes * 60_000)
       const due = rows
-        .filter((row) => row.status === 'confirmed' && row.reminderSentAt === null && row.startsAt <= until)
+        .filter(
+          (row) =>
+            row.status === 'confirmed' &&
+            row.reminderSentAt === null &&
+            row.startsAt >= params.now &&
+            row.startsAt <= until,
+        )
         .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
         .slice(0, params.limit ?? 100)
 

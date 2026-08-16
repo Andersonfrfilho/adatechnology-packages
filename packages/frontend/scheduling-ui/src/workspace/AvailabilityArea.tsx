@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react'
+import { MAX_PAGE_SIZE } from '@adatechnology/scheduling-contracts'
 import type { ResourceId } from '@adatechnology/scheduling-contracts'
 
 import { AvailabilityEditor } from '../components/AvailabilityEditor'
@@ -13,7 +14,7 @@ import { resolveSchedulingMessages } from '../locales'
 export function AvailabilityArea() {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  const { data, isLoading } = useResources({ active: true })
+  const { data, isLoading, isError } = useResources({ active: true, pageSize: MAX_PAGE_SIZE })
   const [resourceId, setResourceId] = useState<ResourceId>('')
 
   const resources = data?.data ?? []
@@ -36,6 +37,12 @@ export function AvailabilityArea() {
           ))}
         </select>
       </label>
+
+      {isError && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.loadFailure']}
+        </p>
+      )}
 
       {isLoading && <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>}
 

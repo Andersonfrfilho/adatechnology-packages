@@ -58,8 +58,16 @@ describe('layoutDayBookings', () => {
 
 describe('toVisiblePercent', () => {
   it('limita o resultado entre 0 e 100', () => {
-    expect(toVisiblePercent(-1000)).toBe(0)
-    expect(toVisiblePercent(1_000_000)).toBe(100)
+    expect(toVisiblePercent({ minutesSinceDayStart: -1000, startHour: 7, endHour: 20 })).toBe(0)
+    expect(toVisiblePercent({ minutesSinceDayStart: 1_000_000, startHour: 7, endHour: 20 })).toBe(100)
+  })
+
+  // F-016: `startHour`/`endHour` mudam o resultado — nenhum expediente fixo embutido no cálculo.
+  it('respeita o expediente configurado pelo host', () => {
+    const minutesSinceDayStart = 9 * 60 // 09:00
+
+    expect(toVisiblePercent({ minutesSinceDayStart, startHour: 7, endHour: 20 })).toBeCloseTo((2 / 13) * 100)
+    expect(toVisiblePercent({ minutesSinceDayStart, startHour: 8, endHour: 18 })).toBeCloseTo((1 / 10) * 100)
   })
 })
 

@@ -8,9 +8,11 @@
 
 import { z } from 'zod'
 
-import { BOOKING_PARTICIPANT_ROLE, RESOURCE_KIND } from './scheduling.types'
+import { BOOKING_PARTICIPANT_ROLE, BOOKING_STATUS, RESOURCE_KIND } from './scheduling.types'
 
-const MAX_PAGE_SIZE = 100
+// H-3: exportado — telas que precisam da página inteira (agenda semanal) usam este teto real
+// em vez de reescrever `100` como literal solto (`code-standart.md` §16).
+export const MAX_PAGE_SIZE = 100
 const MAX_PRICE_IN_CENTS = 100_000_000 // R$ 1.000.000,00 — teto de sanidade, não regra de negócio
 
 /**
@@ -144,9 +146,17 @@ export const listBookingsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(20),
   resourceId: z.string().uuid().optional(),
-  status: z.enum(['requested', 'confirmed', 'cancelled', 'completed', 'no_show']).optional(),
+  // H-F: query string manda `status` repetido para seleção múltipla (`?status=a&status=b`); o
+  // adaptador HTTP (`module-http`) já entrega array quando a chave repete, string única quando não.
+  status: z.preprocess(
+    (value) => (value === undefined ? undefined : Array.isArray(value) ? value : [value]),
+    z.array(z.nativeEnum(BOOKING_STATUS)).optional(),
+  ),
   from: z.coerce.date().optional(),
   until: z.coerce.date().optional(),
+  // H-2: ordenação de tabela precisa acontecer no servidor — o cliente só tem a página corrente.
+  sortBy: z.enum(['title', 'status', 'startsAt', 'endsAt']).optional(),
+  sortDirection: z.enum(['asc', 'desc']).optional(),
 })
 export type ListBookingsQuery = z.infer<typeof listBookingsQuerySchema>
 
