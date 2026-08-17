@@ -111,6 +111,7 @@
     "notification-ui-jsx-runtime",
     "notification-workspaces",
     "object-storage-signed-download-disposition",
+    "outbound-audio-ogg-opus",
     "preview-and-testing-subpaths",
     "preview-bridge-client-no-secret",
     "preview-mic-from-client",
