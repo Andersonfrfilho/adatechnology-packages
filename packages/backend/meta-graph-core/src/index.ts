@@ -1,5 +1,6 @@
 export {
   MetaGraphError,
+  WhatsAppAudioTranscodeError,
   WhatsAppConfigError,
   WhatsAppConnectionError,
   WhatsAppRejectionError,

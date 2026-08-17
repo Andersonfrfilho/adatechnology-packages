@@ -38,6 +38,18 @@ export class WhatsAppRejectionError extends MetaGraphError {
   }
 }
 
+export class WhatsAppAudioTranscodeError extends MetaGraphError {
+  constructor(reason: string) {
+    super(
+      `Não foi possível converter o áudio para ogg/opus antes do envio: ${reason}`,
+      'WHATSAPP_AUDIO_TRANSCODE_FAILED',
+      reason,
+      null,
+    )
+    this.name = 'WhatsAppAudioTranscodeError'
+  }
+}
+
 export class WhatsAppTimeoutError extends MetaGraphError {
   constructor(operation: string) {
     super(`Timeout ao comunicar com o WhatsApp (${operation}) — tente novamente.`, 'WHATSAPP_TIMEOUT', 'timeout', null)

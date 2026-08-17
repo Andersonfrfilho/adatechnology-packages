@@ -1,6 +1,10 @@
 export { WhatsAppMessageProvider } from './WhatsAppMessageProvider'
 export { WhatsAppTemplateProvider } from './WhatsAppTemplateProvider'
 export { createWhatsAppProvider } from './WhatsAppProviderFactory'
+export { normalizeOutboundAudio, createFfmpegTranscoder, OPUS_MIME_TYPE } from './normalizeOutboundAudio'
+export type { AudioTranscoder, NormalizeOutboundAudioParams, NormalizedOutboundAudio } from './normalizeOutboundAudio'
+export { detectAudioContainer, isAcceptedByWhatsApp, AUDIO_CONTAINER } from './audioContainer'
+export type { AudioContainer } from './audioContainer'
 export type { WhatsAppProvider } from './WhatsAppProviderFactory'
 
 // Re-exporta os erros que os métodos deste pacote lançam. Eles moram em meta-graph-core (são
@@ -8,6 +12,7 @@ export type { WhatsAppProvider } from './WhatsAppProviderFactory'
 // pacote só para escrever um `catch` seria vazar detalhe de organização interna na API pública.
 export {
   MetaGraphError,
+  WhatsAppAudioTranscodeError,
   WhatsAppConfigError,
   WhatsAppConnectionError,
   WhatsAppRejectionError,
