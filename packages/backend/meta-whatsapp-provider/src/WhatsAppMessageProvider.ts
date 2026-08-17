@@ -18,13 +18,17 @@ import type {
   SendProductMessageParams,
   SendProductListMessageParams,
 } from './types'
+import { normalizeOutboundAudio, type AudioTranscoder } from './normalizeOutboundAudio'
 
 const WINDOW_EXPIRED_CODES = new Set(['131047', '131026', '131000'])
 const MAX_INTERACTIVE_BUTTONS = 3
 const MAX_INTERACTIVE_LIST_ROWS = 10
 
 export class WhatsAppMessageProvider {
-  constructor(private readonly config: WhatsAppProviderConfig) {}
+  constructor(
+    private readonly config: WhatsAppProviderConfig,
+    private readonly audioTranscoder?: AudioTranscoder,
+  ) {}
 
   private get phoneNumberId(): string {
     return assertConfigField(this.config.phoneNumberId, 'phoneNumberId')
@@ -67,7 +71,16 @@ export class WhatsAppMessageProvider {
   }
 
   async sendMedia(params: SendMediaParams): Promise<SendMessageResult> {
-    const { to, buffer, mimeType, filename, caption } = params
+    const { to, caption } = params
+    // A Meta recusa áudio cujo container ela não reconhece (erro 131053), e o mimeType declarado
+    // pelo gravador não denuncia isso — o MediaRecorder do Chrome anuncia `audio/mp4` e entrega
+    // um MP4 com brand `isom`, que ela trata como application/octet-stream.
+    const { buffer, mimeType, filename } = await normalizeOutboundAudio({
+      buffer: params.buffer,
+      mimeType: params.mimeType,
+      filename: params.filename,
+      ...(this.audioTranscoder ? { transcoder: this.audioTranscoder } : {}),
+    })
     const mediaId = await this.uploadMedia(buffer, mimeType, filename)
 
     const type = mimeType.startsWith('image/')
