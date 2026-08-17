@@ -81,6 +81,10 @@ describe('normalizeOutboundAudio', () => {
     expect(result.filename).toBe('gravacao.ogg')
   })
 
+  it('declara o mimeType sem parâmetro, que é o único que a Meta reconhece', () => {
+    expect(OPUS_MIME_TYPE).toBe('audio/ogg')
+  })
+
   it('não toca em mídia que não é áudio', async () => {
     const buffer = buildFtyp('isom')
     const result = await normalizeOutboundAudio({ buffer, mimeType: 'video/mp4', filename: 'clipe.mp4', transcoder })

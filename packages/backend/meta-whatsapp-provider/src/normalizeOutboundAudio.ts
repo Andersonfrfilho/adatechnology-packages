@@ -4,7 +4,10 @@ import { WhatsAppAudioTranscodeError } from '@adatechnology/meta-graph-core'
 
 import { detectAudioContainer, isAcceptedByWhatsApp } from './audioContainer'
 
-export const OPUS_MIME_TYPE = 'audio/ogg; codecs=opus'
+// Sem o parâmetro `; codecs=opus`: a Meta compara o valor recebido com a lista dela por igualdade
+// literal, e qualquer parâmetro faz o arquivo ser classificado como application/octet-stream e
+// recusado com 131053, ecoando de volta a string exata que foi enviada.
+export const OPUS_MIME_TYPE = 'audio/ogg'
 
 const TRANSCODE_TIMEOUT_MILLISECONDS = 30_000
 
