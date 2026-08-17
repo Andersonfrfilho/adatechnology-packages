@@ -54,6 +54,12 @@ export function createFfmpegTranscoder(ffmpegPath = process.env['FFMPEG_PATH'] ?
         '48000',
         '-ac',
         '1',
+        // Sem isto o ffmpeg copia os metadados do container de origem para o OpusTags, e a Meta
+        // recusa o arquivo com 131053 mesmo sendo ogg/opus válido. Isolado enviando o mesmo áudio
+        // com e sem a flag: com metadados falha, sem metadados chega. De quebra, o MP4 do navegador
+        // carrega `creation_time`, que não tem por que viajar junto com a mensagem.
+        '-map_metadata',
+        '-1',
         '-f',
         'ogg',
         'pipe:1',
