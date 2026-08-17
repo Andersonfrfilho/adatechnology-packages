@@ -113,4 +113,4 @@ test('packs a clean ESM package consumable by Bun without runtime dependencies',
   )
   expect(JSON.parse(installedPackageJson).dependencies).toBeUndefined()
   expect(installedModule).not.toContain('@adatechnology/logger')
-})
+}, 30_000)

@@ -13,6 +13,14 @@ import { ZodError } from 'zod'
 export const VALIDATION_ERROR_CODE = 'VALIDATION_ERROR'
 export const INTERNAL_ERROR_CODE = 'INTERNAL_ERROR'
 
+// Nunca `String(error)`/`.message` para um erro não traduzido: um erro de driver (ex.
+// `DrizzleQueryError`) embute a SQL inteira e os parâmetros vinculados na mensagem — inclusive
+// campos de texto livre do cliente (`security.md` §1). Só o nome da classe do erro é seguro de
+// logar sem inspecionar o conteúdo caso a caso. Compartilhado por todo sink de erro cru do módulo.
+export function errorNameOf(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error
+}
+
 export type ValidationIssue = {
   readonly path: string
   readonly message: string
@@ -51,6 +59,6 @@ export function toErrorResult(params: { error: unknown; logger?: LoggerPort }): 
   }
 
   // Erro desconhecido → 500 genérico, sem stack trace para o cliente (`code-standart.md` §7).
-  params.logger?.error('module.http.unhandled_error', { error: String(params.error) })
+  params.logger?.error('module.http.unhandled_error', { errorName: errorNameOf(params.error) })
   return errorResult({ status: 500, code: INTERNAL_ERROR_CODE, message: 'Erro interno.' })
 }

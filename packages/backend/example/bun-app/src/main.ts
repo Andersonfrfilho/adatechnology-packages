@@ -34,7 +34,7 @@ function getUser(id: string): string {
 
 const tracedGetUser = traceMethod('UserService.getUser', getUser);
 
-async function main() {
+export async function main(): Promise<void> {
   const ctx = createContext({ requestId: 'req-integrated-001' });
 
   await runWithContext(ctx, async () => {
@@ -98,4 +98,6 @@ async function main() {
   });
 }
 
-main().catch(console.error);
+if (import.meta.main) {
+  main().catch(console.error);
+}

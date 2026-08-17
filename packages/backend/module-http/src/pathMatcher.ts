@@ -32,14 +32,30 @@ export function compilePath(pattern: string): CompiledPath {
   return { pattern, regex: new RegExp(`^${source}$`), parameterNames }
 }
 
+// H-4: `%` malformado (`%`, `%zz`) faz `decodeURIComponent` lançar `URIError`. Sem captura aqui,
+// o erro escapa para o loop de roteamento do host antes de qualquer tratamento do módulo — e cada
+// adaptador (fetch síncrono vs. uWS assíncrono) reage diferente à mesma requisição. Tratar como
+// "não casou" (404) é a única resposta que os dois adaptadores dão de forma idêntica.
+function tryDecodeUriComponent(value: string): string | undefined {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return undefined
+  }
+}
+
 export function matchPath(compiled: CompiledPath, pathname: string): Record<string, string> | undefined {
   const match = compiled.regex.exec(pathname)
   if (!match) return undefined
 
   const params: Record<string, string> = {}
-  compiled.parameterNames.forEach((name, index) => {
+  for (let index = 0; index < compiled.parameterNames.length; index += 1) {
+    const name = compiled.parameterNames[index]
     const value = match[index + 1]
-    if (value !== undefined) params[name] = decodeURIComponent(value)
-  })
+    if (value === undefined || name === undefined) continue
+    const decoded = tryDecodeUriComponent(value)
+    if (decoded === undefined) return undefined
+    params[name] = decoded
+  }
   return params
 }

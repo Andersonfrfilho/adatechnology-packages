@@ -8,7 +8,14 @@
 
 import type { AuthContextResolverPort, LoggerPort, HttpResult, ModuleRouteTable, SseEvent } from './types'
 
-import { compileRoutes, dispatchRoute, findRoute, type CompiledRoute } from './dispatchRoute'
+import {
+  compileRoutes,
+  dispatchRoute,
+  findRoute,
+  parseQueryParams,
+  MAX_REQUEST_BODY_BYTES,
+  type CompiledRoute,
+} from './dispatchRoute'
 
 export type ModuleFetchRouter = {
   /** `true` quando o pedido pertence ao módulo — o host decide se delega antes do próprio 404. */
@@ -116,10 +123,7 @@ export function createModuleFetchRouter(params: CreateModuleFetchRouterParams): 
 
     async handle(request: Request): Promise<Response> {
       const url = new URL(request.url)
-      const query: Record<string, string> = {}
-      url.searchParams.forEach((value, key) => {
-        query[key] = value
-      })
+      const query = parseQueryParams(url.searchParams)
 
       // Lê os bytes crus e não `request.json()`: a assinatura HMAC do webhook é calculada sobre
       // eles, e reserializar o JSON muda espaçamento e ordem de chave.
@@ -127,6 +131,13 @@ export function createModuleFetchRouter(params: CreateModuleFetchRouterParams): 
         request.method === 'GET' || request.method === 'DELETE'
           ? undefined
           : new Uint8Array(await request.arrayBuffer())
+
+      // H-B: `uws.ts` rejeita cedo, por streaming; aqui o corpo já chegou inteiro (a Fetch API não
+      // dá gancho de leitura incremental), mas o teto continua o mesmo — sem isto, o adaptador
+      // fetch aceitava um corpo de qualquer tamanho que o uws.ts já recusava com 413.
+      if (rawBody !== undefined && rawBody.byteLength > MAX_REQUEST_BODY_BYTES) {
+        return toFetchResponse({ kind: 'empty', status: 413 }, request.signal)
+      }
 
       const result = await dispatchRoute({
         compiledRoutes,
