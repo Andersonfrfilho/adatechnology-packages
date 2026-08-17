@@ -48,7 +48,10 @@
     "@adatechnology/scheduling-contracts": "0.1.0-rc.0",
     "@adatechnology/scheduling-module": "0.1.0-rc.0",
     "@adatechnology/scheduling-ui": "0.1.0-rc.0",
-    "@adatechnology/web-booking-widget": "0.1.0-rc.0"
+    "@adatechnology/web-booking-widget": "0.1.0-rc.0",
+    "@adatechnology/caldav-calendar-provider": "0.1.0-rc.0",
+    "@adatechnology/google-calendar-provider": "0.1.0-rc.0",
+    "@adatechnology/microsoft-calendar-provider": "0.1.0-rc.0"
   },
   "changesets": [
     "agent-media-enters-document-library",
@@ -141,6 +144,7 @@
     "redactor-logger-http-sink",
     "restore-provider-factory",
     "rich-message-composer",
+    "scheduling-trio",
     "send-media-logger-port",
     "send-product-list-action",
     "simulator-any-channel",

@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/web-booking-widget",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0-rc.1",
   "description": "Agendamento de serviço como Web Component nativo — sem framework, plugável em qualquer página",
   "license": "MIT",
   "publishConfig": {
