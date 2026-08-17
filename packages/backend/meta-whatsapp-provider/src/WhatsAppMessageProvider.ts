@@ -21,6 +21,13 @@ import type {
 import { normalizeOutboundAudio, type AudioTranscoder } from './normalizeOutboundAudio'
 
 const WINDOW_EXPIRED_CODES = new Set(['131047', '131026', '131000'])
+
+// A Meta casa o mimeType do upload por igualdade literal com a lista dela. `audio/ogg; codecs=opus`
+// é um valor válido de Content-Type, mas para ela vira application/octet-stream e o envio falha
+// depois, no webhook de status.
+function stripMimeTypeParameters(mimeType: string): string {
+  return (mimeType.split(';')[0] ?? mimeType).trim()
+}
 const MAX_INTERACTIVE_BUTTONS = 3
 const MAX_INTERACTIVE_LIST_ROWS = 10
 
@@ -105,10 +112,11 @@ export class WhatsAppMessageProvider {
   }
 
   private async uploadMedia(buffer: Buffer, mimeType: string, filename: string): Promise<string> {
+    const declaredType = stripMimeTypeParameters(mimeType)
     const form = new FormData()
-    form.append('file', new Blob([new Uint8Array(buffer)], { type: mimeType }), filename)
+    form.append('file', new Blob([new Uint8Array(buffer)], { type: declaredType }), filename)
     form.append('messaging_product', 'whatsapp')
-    form.append('type', mimeType)
+    form.append('type', declaredType)
 
     const response = await graphFetch({
       url: buildGraphUrl(this.config.apiVersion, `${this.phoneNumberId}/media`, this.config.baseUrl),
