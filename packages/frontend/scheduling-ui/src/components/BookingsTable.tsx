@@ -41,13 +41,15 @@ const HEADER_BUTTON_CLASS =
   'inline-flex items-center gap-1 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400'
 const CHECKBOX_CELL_CLASS = 'px-3 py-2'
 
-function nextSortDirection(
+// L-007: sem estado neutro o clique nunca solta a coluna — cicla asc → desc → sem ordenação.
+function nextSortState(
   column: BookingSortColumn,
   currentColumn: BookingSortColumn | undefined,
   currentDirection: 'asc' | 'desc',
-): 'asc' | 'desc' {
-  if (currentColumn !== column) return 'asc'
-  return currentDirection === 'asc' ? 'desc' : 'asc'
+): { sortColumn: BookingSortColumn | undefined; sortDirection: 'asc' | 'desc' } {
+  if (currentColumn !== column) return { sortColumn: column, sortDirection: 'asc' }
+  if (currentDirection === 'asc') return { sortColumn: column, sortDirection: 'desc' }
+  return { sortColumn: undefined, sortDirection: 'asc' }
 }
 
 export function BookingsTable({
@@ -71,8 +73,7 @@ export function BookingsTable({
   function toggleSort(column: BookingSortColumn): void {
     onStateChange?.({
       ...state,
-      sortColumn: column,
-      sortDirection: nextSortDirection(column, state.sortColumn, state.sortDirection),
+      ...nextSortState(column, state.sortColumn, state.sortDirection),
     })
   }
 
@@ -114,8 +115,10 @@ export function BookingsTable({
   }
 
   function renderHeader(column: BookingSortColumn, labelKey: 'booking.column.title' | 'booking.column.status' | 'booking.column.startsAt' | 'booking.column.endsAt') {
+    const ariaSort: 'ascending' | 'descending' | 'none' =
+      state.sortColumn !== column ? 'none' : state.sortDirection === 'asc' ? 'ascending' : 'descending'
     return (
-      <th scope="col" className="px-3 py-2">
+      <th scope="col" className="px-3 py-2" aria-sort={ariaSort}>
         <button type="button" onClick={() => toggleSort(column)} className={HEADER_BUTTON_CLASS}>
           {messages[labelKey]}
           {renderSortIcon(column)}

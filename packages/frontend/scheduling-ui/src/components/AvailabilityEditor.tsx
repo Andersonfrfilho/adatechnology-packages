@@ -25,7 +25,7 @@ export function AvailabilityEditor({ resourceId, timezone }: AvailabilityEditorP
         {timezone}
       </p>
       <WeeklyRulesEditor resourceId={resourceId} />
-      <AvailabilityExceptionsEditor resourceId={resourceId} />
+      <AvailabilityExceptionsEditor resourceId={resourceId} timezone={timezone} />
     </div>
   )
 }

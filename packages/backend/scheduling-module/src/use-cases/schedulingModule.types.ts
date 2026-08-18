@@ -52,15 +52,19 @@ export function errorNameOf(error: unknown): string {
 /**
  * Hooks são void-tolerantes (spec `SchedulingHooks`): falha de regra do produto no callback do
  * host nunca pode derrubar a operação de agendamento — loga e segue (molde de `catalog-module`).
+ * O booleano de retorno deixa o chamador decidir o que fazer com a falha (ex.: `SweepDueRemindersUseCase`
+ * desfazendo a marcação de "enviado" — L-004) sem reintroduzir o `throw` que este helper existe para evitar.
  */
 export async function runHook(params: {
   readonly dependencies: Pick<SchedulingDependencies, 'logger'>
   readonly name: string
   readonly run: () => Promise<void> | void
-}): Promise<void> {
+}): Promise<boolean> {
   try {
     await params.run()
+    return true
   } catch (error) {
     params.dependencies.logger?.warn('scheduling.hook_failed', { hook: params.name, errorName: errorNameOf(error) })
+    return false
   }
 }

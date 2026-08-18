@@ -3,6 +3,7 @@
  */
 
 import { useState } from 'react'
+import { MAX_PAGE_SIZE } from '@adatechnology/scheduling-contracts'
 import type { BookingId } from '@adatechnology/scheduling-contracts'
 
 import { BookingDrawer } from '../components/BookingDrawer'
@@ -10,6 +11,7 @@ import { BookingsTable } from '../components/BookingsTable'
 import { useConfirmBooking } from '../hooks/useBookingMutations.mutation'
 import { useBookings } from '../hooks/useBookings.query'
 import { useBookingsTableState } from '../hooks/useBookingsTableState.hook'
+import { useResources } from '../hooks/useResources.query'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
 
@@ -30,9 +32,15 @@ export function BookingsArea() {
     sortDirection: tableState.sortColumn ? tableState.sortDirection : undefined,
   })
   const confirmBooking = useConfirmBooking()
+  // M-5 (T9.3): fonte do fuso do recurso para os campos `datetime-local` de remarcação no
+  // `BookingDrawer` — `Booking` só carrega `resourceIds`, o fuso vive em `Resource`.
+  const { data: resourcesData } = useResources({ pageSize: MAX_PAGE_SIZE })
 
   const [selectedBookingId, setSelectedBookingId] = useState<BookingId | undefined>(undefined)
   const selectedBooking = data?.data.find((booking) => booking.id === selectedBookingId)
+  const selectedBookingResourceTimezone = resourcesData?.data.find(
+    (resource) => resource.id === selectedBooking?.resourceIds[0],
+  )?.timezone
 
   function bulkConfirm(ids: readonly string[]): void {
     for (const id of ids) confirmBooking.mutate(id)
@@ -43,6 +51,12 @@ export function BookingsArea() {
       {isError && (
         <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
           {messages['common.loadFailure']}
+        </p>
+      )}
+
+      {confirmBooking.isError && (
+        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
+          {messages['common.actionFailure']}
         </p>
       )}
 
@@ -60,7 +74,12 @@ export function BookingsArea() {
       )}
 
       {selectedBooking && (
-        <BookingDrawer booking={selectedBooking} onClose={() => setSelectedBookingId(undefined)} />
+        <BookingDrawer
+          key={selectedBooking.id}
+          booking={selectedBooking}
+          resourceTimezone={selectedBookingResourceTimezone}
+          onClose={() => setSelectedBookingId(undefined)}
+        />
       )}
     </div>
   )

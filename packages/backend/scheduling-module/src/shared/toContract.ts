@@ -10,6 +10,7 @@ import type {
   BookingSlot,
   BookingStatus,
   Resource,
+  ResourceId,
   ResourceKind,
   Service,
 } from '@adatechnology/scheduling-contracts'
@@ -78,7 +79,7 @@ export function toAvailabilityException(row: AvailabilityExceptionRow): Availabi
   }
 }
 
-export function toBooking(row: BookingRow): Booking {
+export function toBooking(row: BookingRow, resourceIds: readonly ResourceId[]): Booking {
   return {
     id: row.id,
     companyId: row.companyId,
@@ -87,6 +88,7 @@ export function toBooking(row: BookingRow): Booking {
     status: row.status as BookingStatus,
     startsAt: row.startsAt,
     endsAt: row.endsAt,
+    resourceIds,
     customerRef: row.customerRef,
     organizerRef: row.organizerRef,
     meetingUrl: row.meetingUrl,

@@ -197,6 +197,7 @@ export class WidgetView {
   #renderStatus(message: string, isError: boolean): HTMLElement {
     const status = document.createElement('p')
     status.className = isError ? 'status status-error' : 'status'
+    if (isError) status.setAttribute('role', 'alert')
     status.textContent = message
     return status
   }

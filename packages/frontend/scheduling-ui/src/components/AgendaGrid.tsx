@@ -51,7 +51,7 @@ export function AgendaGrid({ bookings, days }: AgendaGridProps) {
         const dayStart = startOfDay(day)
 
         return (
-          <div key={day.toISOString()} className="flex-1 min-w-[160px] border-r border-gray-200 dark:border-gray-700 last:border-r-0">
+          <div key={day.toISOString()} className="flex-1 min-w-40 border-r border-gray-200 dark:border-gray-700 last:border-r-0">
             <div className="h-8 px-2 flex items-center text-xs font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
               {day.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' })}
             </div>

@@ -206,6 +206,14 @@ Contrato que **o host implementa**. O pacote nunca faz `fetch` direto — chama 
 **Nenhum método recebe `companyId`** — o host resolve o tenant do contexto autenticado antes de implementar a API
 (veja `security.md` §2, BOLA). Isso deixa o componente agnóstico sobre isolamento multi-empresa.
 
+> **Atenção — cache do `QueryClient` na troca de tenant.** As chaves de query do pacote
+> (`src/hooks/queryKeys.ts`) não carregam `companyId` — elas não têm como, já que a API não o
+> recebe. Se o host reusa a mesma instância de `QueryClient` para mais de uma empresa (ex.: um
+> operador trocando de tenant sem recarregar a página), dados da empresa anterior podem
+> aparecer em cache até a próxima invalidação. O host deve chamar `queryClient.clear()` (ou
+> `resetQueries()`) na troca de tenant, ou criar uma nova instância de `QueryClient` por sessão
+> de tenant.
+
 ### Recursos
 
 ```ts

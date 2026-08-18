@@ -11,6 +11,7 @@ function buildBooking(id: string, startsAt: string, endsAt: string): Booking {
     status: 'confirmed',
     startsAt: new Date(startsAt),
     endsAt: new Date(endsAt),
+    resourceIds: [],
   }
 }
 

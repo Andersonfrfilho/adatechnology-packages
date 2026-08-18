@@ -11,12 +11,19 @@ import { useCancelBooking, useCompleteBooking, useConfirmBooking, useMarkNoShow 
 import { useRescheduleBooking } from '../hooks/useRescheduleBooking.mutation'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+import { formatDateTimeLocalInTimeZone, parseDateTimeLocalInTimeZone } from './datetimeLocal.util'
 import { SidePanel } from './SidePanel'
 
 export type BookingDrawerProps = {
   readonly booking: Booking
+  /** Fuso do recurso da reserva — ausente quando o recurso não foi resolvido (ex.: excluído). */
+  readonly resourceTimezone?: string
   readonly onClose: () => void
 }
+
+// M-5 (T9.3): fallback para quando `resourceTimezone` não resolve — mesmo comportamento que o
+// código tinha antes desta correção, nunca pior.
+const BROWSER_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 
 const ACTION_BUTTON_CLASS =
   'min-h-11 px-3 rounded-lg text-sm font-medium border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
@@ -26,12 +33,7 @@ const DANGER_BUTTON_CLASS =
 const INPUT_CLASS =
   'min-h-11 w-full px-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm'
 
-function toLocalInputValue(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-export function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
+export function BookingDrawer({ booking, resourceTimezone, onClose }: BookingDrawerProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
   const confirmBooking = useConfirmBooking()
@@ -39,13 +41,14 @@ export function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
   const markNoShow = useMarkNoShow()
   const cancelBooking = useCancelBooking()
   const rescheduleBooking = useRescheduleBooking()
+  const timezone = resourceTimezone ?? BROWSER_TIME_ZONE
 
   const [isCancelling, setIsCancelling] = useState(false)
   const [cancelledBy, setCancelledBy] = useState('')
   const [cancellationReason, setCancellationReason] = useState('')
   const [isRescheduling, setIsRescheduling] = useState(false)
-  const [start, setStart] = useState(() => toLocalInputValue(booking.startsAt))
-  const [end, setEnd] = useState(() => toLocalInputValue(booking.endsAt))
+  const [start, setStart] = useState(() => formatDateTimeLocalInTimeZone(booking.startsAt, timezone))
+  const [end, setEnd] = useState(() => formatDateTimeLocalInTimeZone(booking.endsAt, timezone))
 
   async function handleCancel(): Promise<void> {
     if (!cancelledBy) return
@@ -63,7 +66,15 @@ export function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
 
   async function handleReschedule(): Promise<void> {
     try {
-      await rescheduleBooking.mutateAsync({ id: booking.id, input: { during: { start: new Date(start), end: new Date(end) } } })
+      await rescheduleBooking.mutateAsync({
+        id: booking.id,
+        input: {
+          during: {
+            start: parseDateTimeLocalInTimeZone(start, timezone),
+            end: parseDateTimeLocalInTimeZone(end, timezone),
+          },
+        },
+      })
       setIsRescheduling(false)
     } catch {
       // H-G: alerta abaixo (rescheduleBooking.isError) já mostra a falha ao usuário.
@@ -127,8 +138,20 @@ export function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
 
         {isRescheduling && (
           <div className="space-y-2 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-            <input type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} className={INPUT_CLASS} />
-            <input type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} className={INPUT_CLASS} />
+            <input
+              type="datetime-local"
+              aria-label={messages['booking.rescheduleStart']}
+              value={start}
+              onChange={(event) => setStart(event.target.value)}
+              className={INPUT_CLASS}
+            />
+            <input
+              type="datetime-local"
+              aria-label={messages['booking.rescheduleEnd']}
+              value={end}
+              onChange={(event) => setEnd(event.target.value)}
+              className={INPUT_CLASS}
+            />
             <button type="button" onClick={handleReschedule} disabled={rescheduleBooking.isPending} className={PRIMARY_BUTTON_CLASS}>
               {messages['common.save']}
             </button>

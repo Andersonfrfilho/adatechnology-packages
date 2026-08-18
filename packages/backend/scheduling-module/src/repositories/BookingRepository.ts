@@ -89,6 +89,30 @@ function isUniqueViolation(error: unknown): boolean {
   return hasErrorCode(error, POSTGRES_UNIQUE_VIOLATION)
 }
 
+// L-001: o driver embrulha o `detail` do Postgres do mesmo jeito que embrulha `code` (comentário de
+// `hasErrorCode` acima) — checar `error` e `error.cause` é o mesmo motivo, não uma cópia solta.
+function postgresDetailOf(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined
+  const candidate = error as { detail?: unknown }
+  if (typeof candidate.detail === 'string') return candidate.detail
+  if (error instanceof Error && error.cause !== undefined) return postgresDetailOf(error.cause)
+  return undefined
+}
+
+// L-001: numa reunião com 2+ recursos, a violação de `EXCLUDE` pode ser de qualquer um deles, não
+// só do primeiro — sem isto, `SlotUnavailableError` sempre nomeava `params.slots[0].resourceId`
+// mesmo quando o recurso 2 (ou 3, ...) era o que de fato colidiu. O `detail` do Postgres para
+// `booking_slot_no_overlap` (EXCLUDE em `resource_id`) começa com `Key (resource_id, blocking)=(<uuid>, ...)`.
+function conflictingResourceIdFrom(params: {
+  error: unknown
+  slots: ReadonlyArray<{ resourceId: string }>
+}): string | undefined {
+  const detail = postgresDetailOf(params.error)
+  const match = detail?.match(/^Key \(resource_id,[^)]*\)=\(([0-9a-fA-F-]+),/)
+  const resourceId = match?.[1]
+  return params.slots.some((slot) => slot.resourceId === resourceId) ? resourceId : undefined
+}
+
 export class BookingRepository {
   constructor(private readonly db: SchedulingDatabase) {}
 
@@ -140,7 +164,8 @@ export class BookingRepository {
         }
       }
       if (isExclusionViolation(error)) {
-        const conflicting = params.slots[0]
+        const conflictingResourceId = conflictingResourceIdFrom({ error, slots: params.slots })
+        const conflicting = params.slots.find((slot) => slot.resourceId === conflictingResourceId) ?? params.slots[0]
         throw new SlotUnavailableError(conflicting?.resourceId ?? '', {
           start: conflicting?.blockingStart ?? new Date(),
           end: conflicting?.blockingEnd ?? new Date(),
@@ -167,6 +192,12 @@ export class BookingRepository {
 
   async findSlotsByBooking(params: { bookingId: string }): Promise<BookingSlotRow[]> {
     return this.db.select().from(bookingSlots).where(eq(bookingSlots.bookingId, params.bookingId))
+  }
+
+  /** M-5 (T9.3): busca em lote para a listagem — uma query por página, não uma por linha. */
+  async findSlotsByBookingIds(params: { bookingIds: readonly string[] }): Promise<BookingSlotRow[]> {
+    if (params.bookingIds.length === 0) return []
+    return this.db.select().from(bookingSlots).where(inArray(bookingSlots.bookingId, params.bookingIds))
   }
 
   /**
@@ -240,6 +271,27 @@ export class BookingRepository {
   }
 
   /**
+   * M-2 (T9.3): grava campos vindos de um provedor externo (vídeo, calendário) sem nunca tocar na
+   * coluna `status` — o `await` para o provedor externo abre uma janela onde `status` pode ter
+   * mudado (ex.: cancelamento concorrente). `expectedStatus` no `WHERE` faz a gravação virar no-op
+   * (0 linhas, retorno `undefined`) se o status mudou nessa janela, em vez de sobrescrever com o
+   * valor capturado antes do `await` e ressuscitar um status que o cancelamento já tinha apagado.
+   */
+  async attachProviderFields(params: {
+    companyId: string
+    id: string
+    expectedStatus: string
+    values: Partial<NewBookingRow>
+  }): Promise<BookingRow | undefined> {
+    const [row] = await this.db
+      .update(bookings)
+      .set({ ...params.values, updatedAt: new Date() })
+      .where(and(bookingOwnedByCondition(params), eq(bookings.status, params.expectedStatus)))
+      .returning()
+    return row
+  }
+
+  /**
    * Substitui os `booking_slots` e atualiza `startsAt`/`endsAt` na mesma transação — mesma garantia
    * do `cancelWithSlotRelease` (F-007): nunca uma reserva com slots do novo horário mas ainda com o
    * `startsAt`/`endsAt` antigo (ou vice-versa) se o processo cair no meio da remarcação.
@@ -277,7 +329,8 @@ export class BookingRepository {
       })
     } catch (error) {
       if (isExclusionViolation(error)) {
-        const conflicting = params.slots[0]
+        const conflictingResourceId = conflictingResourceIdFrom({ error, slots: params.slots })
+        const conflicting = params.slots.find((slot) => slot.resourceId === conflictingResourceId) ?? params.slots[0]
         throw new SlotUnavailableError(conflicting?.resourceId ?? '', {
           start: conflicting?.blockingStart ?? new Date(),
           end: conflicting?.blockingEnd ?? new Date(),
@@ -326,6 +379,20 @@ export class BookingRepository {
 
       return due.map((row) => ({ ...row, reminderSentAt: params.now }))
     })
+  }
+
+  /**
+   * L-004: reverte `reminderSentAt` para nulo quando `onBookingReminderDue` falha — sem isto, o
+   * lembrete some para sempre depois da marcação em `claimDueReminders` (`runHook` só loga e
+   * segue, spec `SchedulingHooks`). Devolver ao estado "não enviado" deixa a próxima varredura
+   * reivindicar de novo, em vez de perda silenciosa e definitiva.
+   */
+  async releaseFailedReminders(params: { ids: readonly string[] }): Promise<void> {
+    if (params.ids.length === 0) return
+    await this.db
+      .update(bookings)
+      .set({ reminderSentAt: null, updatedAt: new Date() })
+      .where(inArray(bookings.id, params.ids))
   }
 
   /**

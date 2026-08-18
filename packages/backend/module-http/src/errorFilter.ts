@@ -12,6 +12,7 @@ import { ZodError } from 'zod'
 
 export const VALIDATION_ERROR_CODE = 'VALIDATION_ERROR'
 export const INTERNAL_ERROR_CODE = 'INTERNAL_ERROR'
+export const MALFORMED_JSON_BODY_CODE = 'MALFORMED_JSON_BODY'
 
 // Nunca `String(error)`/`.message` para um erro não traduzido: um erro de driver (ex.
 // `DrizzleQueryError`) embute a SQL inteira e os parâmetros vinculados na mensagem — inclusive
@@ -50,6 +51,17 @@ export function toValidationResult(error: ZodError): JsonResult {
 
 export function toErrorResult(params: { error: unknown; logger?: LoggerPort }): JsonResult {
   if (params.error instanceof ZodError) return toValidationResult(params.error)
+
+  // M-3 (T9.3): `JSON.parse` do corpo lança `SyntaxError` para JSON malformado — sem esta
+  // checagem ele caía no branch de erro desconhecido abaixo e virava 500, quando a causa é
+  // entrada do cliente (400), não falha do servidor.
+  if (params.error instanceof SyntaxError) {
+    return errorResult({
+      status: 400,
+      code: MALFORMED_JSON_BODY_CODE,
+      message: 'Corpo da requisição não é um JSON válido.',
+    })
+  }
 
   if (isDomainErrorShape(params.error)) {
     // `details` NÃO vai para a resposta: carrega userId, deviceId e afins, que são contexto de

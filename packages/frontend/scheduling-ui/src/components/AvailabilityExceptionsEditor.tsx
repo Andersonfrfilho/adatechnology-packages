@@ -14,15 +14,17 @@ import {
 } from '../hooks/useAvailabilityMutations.mutation'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+import { parseDateTimeLocalInTimeZone } from './datetimeLocal.util'
 
 export type AvailabilityExceptionsEditorProps = {
   readonly resourceId: ResourceId
+  readonly timezone: string
 }
 
 const SELECT_CLASS =
   'min-h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-sm'
 
-export function AvailabilityExceptionsEditor({ resourceId }: AvailabilityExceptionsEditorProps) {
+export function AvailabilityExceptionsEditor({ resourceId, timezone }: AvailabilityExceptionsEditorProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
   const { data, isLoading, isError: isLoadError } = useAvailabilityExceptions(resourceId)
@@ -39,7 +41,10 @@ export function AvailabilityExceptionsEditor({ resourceId }: AvailabilityExcepti
     try {
       await addException.mutateAsync({
         resourceId,
-        during: { start: new Date(from), end: new Date(until) },
+        during: {
+          start: parseDateTimeLocalInTimeZone(from, timezone),
+          end: parseDateTimeLocalInTimeZone(until, timezone),
+        },
         kind,
         ...(reason ? { reason } : {}),
       })

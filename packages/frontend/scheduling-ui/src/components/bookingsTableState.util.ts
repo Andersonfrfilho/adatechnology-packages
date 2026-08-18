@@ -5,7 +5,7 @@
  * compartilhar o link perde o estado da tabela.
  */
 
-import type { Booking, BookingStatus } from '@adatechnology/scheduling-contracts'
+import { BOOKING_STATUS, type Booking, type BookingStatus } from '@adatechnology/scheduling-contracts'
 
 export type BookingSortColumn = 'title' | 'status' | 'startsAt' | 'endsAt'
 export type SortDirection = 'asc' | 'desc'
@@ -25,8 +25,14 @@ export const DEFAULT_BOOKINGS_TABLE_STATE: BookingsTableState = {
 
 const SORT_COLUMNS: readonly BookingSortColumn[] = ['title', 'status', 'startsAt', 'endsAt']
 
+const BOOKING_STATUSES: readonly BookingStatus[] = Object.values(BOOKING_STATUS)
+
 function isBookingSortColumn(value: string | null): value is BookingSortColumn {
   return SORT_COLUMNS.includes(value as BookingSortColumn)
+}
+
+function isBookingStatus(value: string): value is BookingStatus {
+  return BOOKING_STATUSES.includes(value as BookingStatus)
 }
 
 function parsePage(value: string | null): number {
@@ -39,7 +45,7 @@ export function parseBookingsTableState(search: string): BookingsTableState {
   const sortColumnParam = params.get('sortBy')
   const sortColumn = isBookingSortColumn(sortColumnParam) ? sortColumnParam : undefined
   const sortDirection: SortDirection = params.get('sortDirection') === 'desc' ? 'desc' : 'asc'
-  const statusFilters = params.getAll('status') as BookingStatus[]
+  const statusFilters = params.getAll('status').filter(isBookingStatus)
   const page = parsePage(params.get('page'))
 
   return { ...(sortColumn ? { sortColumn } : {}), sortDirection, statusFilters, page }
@@ -69,8 +75,8 @@ export function sortBookings(
   const direction = sortDirection === 'asc' ? 1 : -1
 
   return [...bookings].sort((left, right) => {
-    const leftValue = left[sortColumn === 'startsAt' || sortColumn === 'endsAt' ? sortColumn : sortColumn]
-    const rightValue = right[sortColumn === 'startsAt' || sortColumn === 'endsAt' ? sortColumn : sortColumn]
+    const leftValue = left[sortColumn]
+    const rightValue = right[sortColumn]
     if (leftValue < rightValue) return -1 * direction
     if (leftValue > rightValue) return 1 * direction
     return 0
