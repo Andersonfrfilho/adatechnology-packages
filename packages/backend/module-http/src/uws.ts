@@ -199,6 +199,11 @@ function writeResult(params: { response: UwsResponse; result: HttpResult; isAbor
       response.end()
       return
     }
+    if (result.kind === 'text') {
+      response.writeHeader('Content-Type', 'text/plain; charset=utf-8')
+      response.end(result.body)
+      return
+    }
     response.writeHeader('Content-Type', 'application/json')
     response.end(JSON.stringify(result.body))
   })

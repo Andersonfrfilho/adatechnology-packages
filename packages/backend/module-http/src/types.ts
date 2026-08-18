@@ -97,7 +97,18 @@ export type EmptyResult = {
   readonly headers?: Readonly<Record<string, string>>
 }
 
-export type HttpResult = JsonResult | EmptyResult | StreamResult
+/**
+ * Texto puro. Existe para o desafio de verificação de webhook da Meta, que exige o `hub.challenge`
+ * ecoado cru — em JSON ele sai entre aspas e a Meta reprova a URL.
+ */
+export type TextResult = {
+  readonly kind: 'text'
+  readonly status: number
+  readonly body: string
+  readonly headers?: Readonly<Record<string, string>>
+}
+
+export type HttpResult = JsonResult | EmptyResult | TextResult | StreamResult
 
 export type ModuleRoute = {
   readonly method: HttpMethod

@@ -29,6 +29,8 @@ export const CATALOG_ERROR_CODES = {
   CONFIG_MISSING: 'CATALOG_CONFIG_MISSING',
   INVALID_IMAGE: 'CATALOG_INVALID_IMAGE',
   IMAGE_STORAGE_DISABLED: 'CATALOG_IMAGE_STORAGE_DISABLED',
+  INVALID_WEBHOOK_SIGNATURE: 'CATALOG_INVALID_WEBHOOK_SIGNATURE',
+  WEBHOOK_NOT_CONFIGURED: 'CATALOG_WEBHOOK_NOT_CONFIGURED',
 } as const
 
 export class ProductNotFoundError extends CatalogError {
@@ -119,5 +121,26 @@ export class InvalidProductImageError extends CatalogError {
 export class ImageStorageDisabledError extends CatalogError {
   constructor() {
     super('Upload de imagem está desligado para este módulo.', 409, CATALOG_ERROR_CODES.IMAGE_STORAGE_DISABLED)
+  }
+}
+
+/**
+ * Assinatura HMAC ausente ou divergente. 401 sem detalhe nenhum: dizer *por que* falhou entrega
+ * ao atacante se ele acertou o formato, o prefixo ou o segredo.
+ */
+export class InvalidCatalogWebhookSignatureError extends CatalogError {
+  constructor() {
+    super('Assinatura do webhook inválida.', 401, CATALOG_ERROR_CODES.INVALID_WEBHOOK_SIGNATURE)
+  }
+}
+
+/**
+ * A rota de webhook subiu sem segredo configurado. Fail-closed: sem o app secret não há como
+ * distinguir a Meta de qualquer um na internet, e um webhook aberto de catálogo aceita comando
+ * de mudança de produto.
+ */
+export class CatalogWebhookNotConfiguredError extends CatalogError {
+  constructor(missingField: string) {
+    super('Webhook de catálogo não configurado.', 503, CATALOG_ERROR_CODES.WEBHOOK_NOT_CONFIGURED, { missingField })
   }
 }

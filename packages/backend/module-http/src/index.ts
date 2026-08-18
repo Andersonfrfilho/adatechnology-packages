@@ -14,6 +14,7 @@ export type {
   StreamResult,
   JsonResult,
   EmptyResult,
+  TextResult,
   HttpResult,
   ModuleRoute,
   ModuleRouteTable,

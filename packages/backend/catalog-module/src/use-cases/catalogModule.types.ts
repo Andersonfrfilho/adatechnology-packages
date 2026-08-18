@@ -13,6 +13,7 @@ import type {
   MetaCatalogSyncPort,
   ProductImageStoragePort,
   ProductSuggestionPort,
+  WebhookNonceStorePort,
 } from '@adatechnology/catalog-contracts'
 
 import type { CatalogRepository } from '../repositories/CatalogRepository'
@@ -33,6 +34,7 @@ export type CatalogDependencies = CatalogRepositories & {
   readonly imageStorage?: ProductImageStoragePort
   readonly metaSync?: MetaCatalogSyncPort
   readonly productSuggestion?: ProductSuggestionPort
+  readonly webhookNonceStore?: WebhookNonceStorePort
 }
 
 /**
