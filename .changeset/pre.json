@@ -51,7 +51,8 @@
     "@adatechnology/web-booking-widget": "0.1.0-rc.0",
     "@adatechnology/caldav-calendar-provider": "0.1.0-rc.0",
     "@adatechnology/google-calendar-provider": "0.1.0-rc.0",
-    "@adatechnology/microsoft-calendar-provider": "0.1.0-rc.0"
+    "@adatechnology/microsoft-calendar-provider": "0.1.0-rc.0",
+    "frontend-example": "0.0.0"
   },
   "changesets": [
     "agent-media-enters-document-library",
@@ -67,6 +68,7 @@
     "catalog-list-products",
     "catalog-review-verdict",
     "catalog-trio",
+    "catalog-webhook-route",
     "cnpj-alfanumerico",
     "composed-workspaces",
     "composer-idle-action",
