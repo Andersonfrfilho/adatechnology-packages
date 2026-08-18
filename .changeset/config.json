@@ -7,6 +7,7 @@
   "commit": false,
   "ignore": [
     "example",
+    "frontend-example",
     "fiscal-example",
     "fiscal-example-frontend"
   ],
