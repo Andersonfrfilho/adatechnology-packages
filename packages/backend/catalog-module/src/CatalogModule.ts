@@ -16,6 +16,7 @@ import type {
   MetaCatalogSyncPort,
   ProductImageStoragePort,
   ProductSuggestionPort,
+  WebhookNonceStorePort,
 } from '@adatechnology/catalog-contracts'
 
 import type { CatalogDatabase } from './database.types'
@@ -43,6 +44,7 @@ import {
   SyncPendingToMetaUseCase,
   SyncProductToMetaUseCase,
 } from './use-cases/MetaSync.use-cases'
+import { ReceiveCatalogWebhookUseCase } from './use-cases/ReceiveCatalogWebhook.use-case'
 import { UploadProductImageUseCase } from './use-cases/UploadProductImage.use-case'
 import {
   CreateProductUseCase,
@@ -53,6 +55,8 @@ import {
 } from './use-cases/Product.use-cases'
 
 export type CatalogModuleProviders = {
+  /** Guarda de reentrega do webhook de catálogo. Ausente, evento reentregue é processado de novo. */
+  readonly webhookNonceStore?: WebhookNonceStorePort
   readonly imageStorage?: ProductImageStoragePort
   readonly metaSync?: MetaCatalogSyncPort
   readonly productSuggestion?: ProductSuggestionPort
@@ -98,7 +102,11 @@ export type CatalogModule = {
     readonly syncPendingToMeta: SyncPendingToMetaUseCase
     readonly retryFailedSyncs: RetryFailedSyncsUseCase
     readonly recordMetaReviewVerdict: RecordMetaReviewVerdictUseCase
+    /** Capacidade por ausência: sem `config.webhook`, a rota de webhook não existe. */
+    readonly receiveCatalogWebhook?: ReceiveCatalogWebhookUseCase
   }
+  /** Reexposta para as rotas decidirem o que montar sem receber a config por fora. */
+  readonly config: CatalogModuleConfig
   /** Descritores para o cron do host registrar; o módulo não abre timer próprio. */
   readonly schedules: readonly CatalogSchedule[]
   /** Projeção para o canal de conversa plugar no `CatalogPort` do `meta-whatsapp-module`. */
@@ -130,6 +138,7 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
     imageStorage: params.providers?.imageStorage,
     metaSync: params.providers?.metaSync,
     productSuggestion: params.providers?.productSuggestion,
+    webhookNonceStore: params.providers?.webhookNonceStore,
   }
 
   const createProduct = new CreateProductUseCase(dependencies)
@@ -161,7 +170,10 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       syncPendingToMeta,
       retryFailedSyncs: new RetryFailedSyncsUseCase(dependencies),
       recordMetaReviewVerdict: new RecordMetaReviewVerdictUseCase(dependencies),
+      ...(params.config.webhook ? { receiveCatalogWebhook: new ReceiveCatalogWebhookUseCase(dependencies) } : {}),
     },
+
+    config: params.config,
 
     schedules: wantsMetaSync
       ? [

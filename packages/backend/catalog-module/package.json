@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@adatechnology/catalog-contracts": "workspace:*",
+    "@adatechnology/meta-graph-core": "workspace:*",
     "zod": "^3.24.1",
     "@adatechnology/module-http": "workspace:*"
   },
