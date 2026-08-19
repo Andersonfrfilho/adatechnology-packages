@@ -155,9 +155,12 @@ export function WhatsAppMessageEditor({
 
       <div className="mt-2">
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{previewLabel}</p>
-        <div className="rounded-xl bg-[#e5ded8] dark:bg-gray-900 p-3">
-          <div className="inline-block max-w-full rounded-lg rounded-tl-none bg-white dark:bg-gray-800 shadow-sm px-3 py-2 text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap break-words">
-            {value.trim() ? renderWhatsApp(value) : <span className="text-gray-400 dark:text-gray-500">{emptyPreviewText}</span>}
+        <div className="rounded-2xl bg-[#e5ddd5] dark:bg-[#1a1a2e] p-3">
+          <div className="flex justify-end ml-auto" style={{ maxWidth: '85%' }}>
+            <div className="bg-[#dcf8c6] dark:bg-[#1b5e20] rounded-lg rounded-tr-none shadow-sm px-3 py-2 text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap break-words">
+              {value.trim() ? renderWhatsApp(value) : <span className="text-gray-400 dark:text-gray-500">{emptyPreviewText}</span>}
+              <p className="text-gray-400 dark:text-gray-400 mt-1 text-right text-[9px]">12:00 ✓✓</p>
+            </div>
           </div>
         </div>
       </div>
