@@ -17,7 +17,11 @@ export type NotificationBellProps = {
 
 const DEFAULT_MAX_BADGE_COUNT = 99
 
-export function NotificationBell({ onClick, className, maxBadgeCount = DEFAULT_MAX_BADGE_COUNT }: NotificationBellProps) {
+export function NotificationBell({
+  onClick,
+  className,
+  maxBadgeCount = DEFAULT_MAX_BADGE_COUNT,
+}: NotificationBellProps) {
   const { messages, theme } = useNotificationContext()
   const { data: unreadCount = 0 } = useUnreadCount()
 

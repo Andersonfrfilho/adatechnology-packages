@@ -89,9 +89,13 @@
 .adn-list {
   display: flex;
   flex-direction: column;
-  gap: var(--adn-space-2);
   background: var(--adn-color-surface);
+  /* Mesma borda dos painéis de configuração: sem ela a lista flutuava sobre o fundo do host e o
+     cabeçalho dela parecia ser da página. */
+  border: 1px solid var(--adn-color-border);
   border-radius: var(--adn-radius);
+  /* A linha e o cabeçalho vão até a borda; sem isto o canto reto vaza por cima do arredondado. */
+  overflow: hidden;
 }
 
 .adn-list__header {
@@ -104,10 +108,31 @@
   border-bottom: 1px solid var(--adn-color-border);
 }
 
+.adn-list__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-2);
+}
+
 .adn-list__title {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
+}
+
+/* O contador estava só no sino; quem abre a tela pelo menu não passa pelo sino. */
+.adn-list__count {
+  min-width: 20px;
+  padding: 0 var(--adn-space-1);
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--adn-color-accent) 16%, transparent);
+  color: var(--adn-color-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  /* Dígito de largura fixa: sem isto o contador muda de largura ao passar de 9 para 10. */
+  font-variant-numeric: tabular-nums;
 }
 
 .adn-list__bulk-action,
@@ -140,6 +165,43 @@
   width: 16px;
   height: 16px;
   color: currentColor;
+}
+
+.adn-list__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-3);
+  padding: var(--adn-space-3);
+}
+
+.adn-list__skeleton-row {
+  height: var(--adn-touch-target);
+  border-radius: var(--adn-radius);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--adn-color-muted) 10%, transparent),
+    color-mix(in srgb, var(--adn-color-muted) 22%, transparent),
+    color-mix(in srgb, var(--adn-color-muted) 10%, transparent)
+  );
+  background-size: 200% 100%;
+  animation: adn-skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes adn-skeleton {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.adn-list__footer {
+  display: flex;
+  justify-content: center;
+  padding: var(--adn-space-3);
+  border-top: 1px solid var(--adn-color-border);
 }
 
 .adn-list__items {
@@ -182,8 +244,21 @@
   border-bottom: 1px solid var(--adn-color-border);
 }
 
+.adn-item:last-child {
+  border-bottom: none;
+}
+
+/* A linha inteira é clicável — o ponteiro sozinho não é aviso suficiente de que ela responde. */
+.adn-item:hover {
+  background: color-mix(in srgb, var(--adn-color-muted) 8%, transparent);
+}
+
 .adn-item--unread {
   background: color-mix(in srgb, var(--adn-color-accent) 6%, transparent);
+}
+
+.adn-item--unread:hover {
+  background: color-mix(in srgb, var(--adn-color-accent) 12%, transparent);
 }
 
 .adn-item__main {
@@ -202,19 +277,43 @@
   text-align: left;
 }
 
+.adn-item__heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--adn-space-2);
+  width: 100%;
+}
+
 .adn-item__title {
+  flex: 1;
+  min-width: 0;
   font-weight: 600;
+  /* Título longo empurrava o horário para fora da linha. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adn-item__time {
+  flex-shrink: 0;
+  color: var(--adn-color-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .adn-item__body {
   color: var(--adn-color-muted);
   font-size: 0.875rem;
+  /* Duas linhas e reticências: corpo de aviso longo esticava a linha e desalinhava a lista. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .adn-item__unread-dot {
-  position: absolute;
-  top: var(--adn-space-3);
-  right: var(--adn-space-2);
+  flex-shrink: 0;
+  align-self: center;
   width: 8px;
   height: 8px;
   background: var(--adn-color-accent);
@@ -378,6 +477,10 @@
   .adn-item__action,
   .adn-list__bulk-action {
     transition: none;
+  }
+
+  .adn-list__skeleton-row {
+    animation: none;
   }
 }
 
