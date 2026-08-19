@@ -894,20 +894,16 @@
  * O Tailwind v4 trocou o padrão de `gray-200` por `currentColor`, e os componentes daqui foram
  * escritos no v3. Em produto que traz a base do shadcn nada aparece — ela já redefine isto; em
  * produto sem shadcn, cada `border` sai na cor do texto, e a tabela de documentos vinha com régua
- * azul-quase-preta em vez de cinza. Fica na camada `base`, então qualquer `border-*` do host ou
- * daqui continua ganhando, e a variável deixa o produto escolher outra cor sem editar o pacote.
+ * azul-quase-preta em vez de cinza. `:where()` zera a especificidade do seletor, então qualquer
+ * `border-*` do host ou daqui continua ganhando por especificidade — sem depender da camada
+ * `base` do Tailwind, que quebra o build de host que importa este arquivo fora do pipeline do
+ * Tailwind (erro do postcss: "`@layer base` is used but no matching `@tailwind base` directive").
  */
 :root { --cv-border-color: rgb(229 231 235); }
 .dark { --cv-border-color: rgb(51 65 85); }
 
-@layer base {
-  *,
-  ::before,
-  ::after,
-  ::backdrop,
-  ::file-selector-button {
-    border-color: var(--cv-border-color);
-  }
+:where(*, ::before, ::after, ::backdrop, ::file-selector-button) {
+  border-color: var(--cv-border-color);
 }
 
 /* Tabela de listagem: a moldura, o cabeçalho e a zebra que `web.md` §7 exige, no stylesheet pelo
