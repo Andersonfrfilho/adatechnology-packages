@@ -130,6 +130,28 @@ describe('MetaCatalogProvider.listCatalogs', () => {
   })
 })
 
+describe('MetaCatalogProvider.linkCatalogToWaba', () => {
+  test('posts the catalog id to the configured WABA product_catalogs endpoint', async () => {
+    const calls = mockFetchOnce({ success: true })
+    const provider = buildProvider()
+
+    await provider.linkCatalogToWaba({ catalogId: 'catalog-1' })
+
+    expect(calls).toHaveLength(1)
+    const [{ requestUrl, requestInit }] = calls
+    expect(requestUrl).toBe('https://graph.facebook.com/v21.0/waba-1/product_catalogs')
+    expect(requestInit.method).toBe('POST')
+    expect(JSON.parse(String(requestInit.body))).toEqual({ catalog_id: 'catalog-1' })
+  })
+
+  test('rejects with WhatsAppRejectionError when the Graph API refuses the link', async () => {
+    mockFetchOnce({ error: { code: 100, message: 'Invalid parameter' } }, 400)
+    const provider = buildProvider()
+
+    await expect(provider.linkCatalogToWaba({ catalogId: 'catalog-1' })).rejects.toBeInstanceOf(WhatsAppRejectionError)
+  })
+})
+
 describe('MetaCatalogProvider.deleteProduct', () => {
   test('sends a DELETE request to the product endpoint', async () => {
     const calls = mockFetchOnce({ success: true })

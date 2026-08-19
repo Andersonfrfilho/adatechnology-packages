@@ -3,6 +3,8 @@ import { WhatsAppUnexpectedResponseError } from './errors/MetaGraphError'
 
 export const idResponseSchema = z.object({ id: z.string() })
 
+export const successResponseSchema = z.object({ success: z.boolean() })
+
 export const catalogListResponseSchema = z.object({
   data: z.array(z.object({ id: z.string(), name: z.string() })),
 })
