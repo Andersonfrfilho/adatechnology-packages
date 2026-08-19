@@ -18,10 +18,11 @@ import {
   WhatsAppTemplatesSettings,
   type WhatsAppTemplatesSettingsLabels,
 } from './WhatsAppTemplatesSettings'
-import type {
-  WhatsAppTemplateSummary,
-  WhatsAppTemplateVariableSuggestion,
-  WhatsAppTemplateSettingsFormLabels,
+import {
+  WhatsAppTemplateSettingsForm,
+  type WhatsAppTemplateSummary,
+  type WhatsAppTemplateVariableSuggestion,
+  type WhatsAppTemplateSettingsFormLabels,
 } from './WhatsAppTemplateSettingsForm'
 import type {
   WhatsAppCreateTemplateFormLabels,
@@ -46,6 +47,20 @@ export interface TemplateSettings {
   variables: string[]
 }
 
+/**
+ * Papel adicional de template (ex.: despedida) além do principal (`getTemplateSettings`/
+ * `saveTemplateSettings`). Cada papel ganha seu próprio formulário empilhado na mesma aba, com
+ * carregamento e salvamento independentes — é o que permite hosts com mais de um papel (o
+ * financiamento tem boas-vindas + despedida) convergirem para este componente em vez de remontar
+ * a tela à parte.
+ */
+export interface MessagesWorkspaceTemplateRole {
+  readonly key: string
+  readonly labels: { sectionTitle: string; sectionDescription: string }
+  getSettings(): Promise<TemplateSettings>
+  saveSettings(settings: TemplateSettings): Promise<void>
+}
+
 export interface TranscriptionSettings {
   enabled: boolean
   mode: TranscriptionMode
@@ -61,6 +76,8 @@ export interface MessagesWorkspaceApi {
   /** Sem este par, a aba de templates não é desenhada. */
   getTemplateSettings?(): Promise<TemplateSettings>
   saveTemplateSettings?(settings: TemplateSettings): Promise<void>
+  /** Papéis adicionais de template (ex.: despedida) além do principal acima. */
+  templateRoles?: MessagesWorkspaceTemplateRole[]
   /**
    * Lista de templates aprovados na Meta. Ausente, a aba ainda existe (dá para salvar o nome
    * escolhido), mas nasce sem opções e sem botão de recarregar.
@@ -150,6 +167,9 @@ export interface MessagesWorkspaceProps {
   readonly availableVariables?: WhatsAppTemplateVariableSuggestion[]
   /** Aviso do produto acima da aba de templates (ex.: rota da Graph API ainda não implementada). */
   readonly renderTemplatesNotice?: () => ReactNode
+  /** Repassados ao formulário de criação — mesma prévia que `WhatsAppCreateTemplateForm` já suporta. */
+  readonly createTemplatePreviewCompanyName?: string
+  readonly createTemplateVariableExamples?: readonly string[]
   readonly className?: string
 }
 
@@ -160,9 +180,12 @@ export function MessagesWorkspace({
   farewellPlaceholders,
   availableVariables,
   renderTemplatesNotice,
+  createTemplatePreviewCompanyName,
+  createTemplateVariableExamples,
   className,
 }: MessagesWorkspaceProps) {
   const labels = { ...DEFAULT_LABELS, ...labelsOverride }
+  const templateRoles = api.templateRoles ?? []
 
   const hasTopics = Boolean(api.getTopics && api.saveTopics)
   const hasTemplates = Boolean(api.getTemplateSettings && api.saveTemplateSettings)
@@ -185,6 +208,10 @@ export function MessagesWorkspace({
   const [templatesError, setTemplatesError] = useState(false)
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateSaved, setTemplateSaved] = useState(false)
+
+  const [roleSettings, setRoleSettings] = useState<Record<string, TemplateSettings>>({})
+  const [savingRole, setSavingRole] = useState<Record<string, boolean>>({})
+  const [roleSaved, setRoleSaved] = useState<Record<string, boolean>>({})
 
   const [createTemplate, setCreateTemplate] = useState<WhatsAppCreateTemplateState>(EMPTY_CREATE_TEMPLATE)
   const [creatingTemplate, setCreatingTemplate] = useState(false)
@@ -211,17 +238,21 @@ export function MessagesWorkspace({
     let active = true
     async function load(): Promise<void> {
       try {
-        const [loadedMessages, loadedTopics, loadedTemplateSettings, loadedTranscription] = await Promise.all([
-          api.getMessages(),
-          api.getTopics?.(),
-          api.getTemplateSettings?.(),
-          api.getTranscription?.(),
-        ])
+        const roles = api.templateRoles ?? []
+        const [loadedMessages, loadedTopics, loadedTemplateSettings, loadedTranscription, loadedRoleSettings] =
+          await Promise.all([
+            api.getMessages(),
+            api.getTopics?.(),
+            api.getTemplateSettings?.(),
+            api.getTranscription?.(),
+            Promise.all(roles.map((role) => role.getSettings())),
+          ])
         if (!active) return
         setMessages(loadedMessages)
         if (loadedTopics) setTopics(loadedTopics)
         if (loadedTemplateSettings) setTemplateSettings(loadedTemplateSettings)
         if (loadedTranscription) setTranscription(loadedTranscription)
+        setRoleSettings(Object.fromEntries(roles.map((role, index) => [role.key, loadedRoleSettings[index]])))
         setLoadState('ready')
       } catch {
         if (active) setLoadState('error')
@@ -277,6 +308,42 @@ export function MessagesWorkspace({
     } finally {
       setSavingTemplate(false)
     }
+  }
+
+  function handleSaveRole(role: MessagesWorkspaceTemplateRole): (event: FormEvent) => Promise<void> {
+    return async (event: FormEvent) => {
+      event.preventDefault()
+      const settings = roleSettings[role.key]
+      if (!settings) return
+      setSavingRole((previous) => ({ ...previous, [role.key]: true }))
+      try {
+        await role.saveSettings(settings)
+        setRoleSaved((previous) => ({ ...previous, [role.key]: true }))
+        setTimeout(() => setRoleSaved((previous) => ({ ...previous, [role.key]: false })), SAVE_FEEDBACK_MS)
+      } finally {
+        setSavingRole((previous) => ({ ...previous, [role.key]: false }))
+      }
+    }
+  }
+
+  function handleSelectRoleTemplate(
+    role: MessagesWorkspaceTemplateRole,
+    name: string,
+    template: WhatsAppTemplateSummary | undefined,
+  ): void {
+    setRoleSettings((previous) => {
+      const current = previous[role.key] ?? EMPTY_TEMPLATE_SETTINGS
+      if (!template) return { ...previous, [role.key]: { ...current, templateName: name } }
+      const shouldSeedVariables = template.variableCount > 0 && current.variables.length === 0
+      return {
+        ...previous,
+        [role.key]: {
+          templateName: name,
+          templateLanguage: template.language,
+          variables: shouldSeedVariables ? Array.from({ length: template.variableCount }, () => '') : current.variables,
+        },
+      }
+    })
   }
 
   async function handleCreateTemplate(event: FormEvent): Promise<void> {
@@ -443,7 +510,43 @@ export function MessagesWorkspace({
                     submitting: creatingTemplate,
                     result: createResult,
                     labels: labels.createTemplate,
+                    ...(createTemplatePreviewCompanyName ? { previewCompanyName: createTemplatePreviewCompanyName } : {}),
+                    ...(createTemplateVariableExamples ? { variableExamples: createTemplateVariableExamples } : {}),
                   },
+                }
+              : {})}
+            {...(templateRoles.length > 0
+              ? {
+                  extraRoleForms: (
+                    <>
+                      {templateRoles.map((role) => {
+                        const settings = roleSettings[role.key] ?? EMPTY_TEMPLATE_SETTINGS
+                        return (
+                          <WhatsAppTemplateSettingsForm
+                            key={role.key}
+                            templates={templates}
+                            loadingTemplates={loadingTemplates}
+                            templatesError={templatesError}
+                            selectedTemplateName={settings.templateName}
+                            onSelectTemplate={(name, template) => handleSelectRoleTemplate(role, name, template)}
+                            variables={settings.variables}
+                            onVariablesChange={(variables) =>
+                              setRoleSettings((previous) => ({
+                                ...previous,
+                                [role.key]: { ...(previous[role.key] ?? EMPTY_TEMPLATE_SETTINGS), variables },
+                              }))
+                            }
+                            onSave={handleSaveRole(role)}
+                            saving={Boolean(savingRole[role.key])}
+                            saveSuccess={Boolean(roleSaved[role.key])}
+                            labels={{ ...labels.templateSettings, ...role.labels }}
+                            {...(api.listTemplates ? { onRefreshTemplates: () => void reloadTemplates() } : {})}
+                            {...(availableVariables ? { availableVariables } : {})}
+                          />
+                        )
+                      })}
+                    </>
+                  ),
                 }
               : {})}
           />

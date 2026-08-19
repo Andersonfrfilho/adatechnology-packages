@@ -8,7 +8,7 @@
  * Segue presentacional: nenhuma chamada de rede aqui. Templates, estado e handlers vêm por props.
  */
 
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import {
   WhatsAppTemplateSettingsForm,
   type WhatsAppTemplateSummary,
@@ -59,16 +59,25 @@ export interface WhatsAppTemplatesSettingsProps {
     submitting?: boolean
     result?: WhatsAppCreateTemplateResult | null
     labels?: Partial<WhatsAppCreateTemplateFormLabels>
+    /** Nome exibido na prévia do template criado; sem isto o form usa seu próprio fallback. */
+    previewCompanyName?: string
+    variableExamples?: readonly string[]
   }
   labels?: Partial<WhatsAppTemplatesSettingsLabels>
   /** Vocabulário do formulário de seleção — separado de `labels`, que nomeia só as abas daqui. */
   settingsLabels?: Partial<WhatsAppTemplateSettingsFormLabels>
+  /**
+   * Formulários extras de seleção (um por papel adicional de template, ex.: despedida), empilhados
+   * abaixo do principal na mesma sub-aba. Ausente = só o papel principal, comportamento de sempre.
+   */
+  extraRoleForms?: ReactNode
 }
 
 export function WhatsAppTemplatesSettings({
   labels: labelsOverride,
   settingsLabels,
   create,
+  extraRoleForms,
   ...settingsProps
 }: WhatsAppTemplatesSettingsProps) {
   const labels = { ...DEFAULT_TEMPLATES_SETTINGS_LABELS, ...labelsOverride }
@@ -105,7 +114,10 @@ export function WhatsAppTemplatesSettings({
       </nav>
 
       {tab === TEMPLATE_SETTINGS_TAB.SELECT ? (
-        <WhatsAppTemplateSettingsForm {...settingsProps} {...(settingsLabels ? { labels: settingsLabels } : {})} />
+        <div className="space-y-6">
+          <WhatsAppTemplateSettingsForm {...settingsProps} {...(settingsLabels ? { labels: settingsLabels } : {})} />
+          {extraRoleForms}
+        </div>
       ) : create ? (
         <WhatsAppCreateTemplateForm {...create} />
       ) : null}
