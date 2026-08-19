@@ -25,6 +25,9 @@ export { usePreferences, useUpdatePreferences, useTemplates, useUpsertTemplate }
 
 export { NOTIFICATION_QUERY_KEYS } from './hooks/queryKeys'
 
+/* Formatação de data é headless por natureza — quem monta a própria lista precisa dela igual. */
+export { formatNotificationTime, formatNotificationTimestamp } from './format/notificationTime'
+
 export { DEFAULT_LOCALE, resolveMessages } from './locales'
 export type { NotificationLocale, NotificationMessages } from './locales'
 

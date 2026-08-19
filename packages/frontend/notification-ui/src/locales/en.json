@@ -1,7 +1,8 @@
 {
   "bell.label": "Notifications",
   "bell.unreadSuffix": "unread",
-  "list.title": "Notifications",
+  "list.title": "Inbox",
+  "list.unread": "unread",
   "list.empty": "Nothing here yet.",
   "list.loading": "Loading…",
   "list.error": "We couldn't load your notifications.",

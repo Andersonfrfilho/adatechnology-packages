@@ -1,7 +1,8 @@
 {
   "bell.label": "Notificações",
   "bell.unreadSuffix": "não lidas",
-  "list.title": "Notificações",
+  "list.title": "Caixa de entrada",
+  "list.unread": "não lidas",
   "list.empty": "Nenhuma notificação por aqui.",
   "list.loading": "Carregando…",
   "list.error": "Não foi possível carregar suas notificações.",

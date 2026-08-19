@@ -7,6 +7,7 @@ import clsx from 'clsx'
 import type { NotificationSummary } from '@adatechnology/notification-contracts'
 
 import { useNotificationContext } from '../NotificationProvider'
+import { formatNotificationTime, formatNotificationTimestamp } from '../format/notificationTime'
 import { useDeleteNotification, useMarkAsRead } from '../hooks/useNotifications'
 
 export type NotificationItemProps = {
@@ -16,7 +17,7 @@ export type NotificationItemProps = {
 }
 
 export function NotificationItem({ notification, onSelect, className }: NotificationItemProps) {
-  const { messages } = useNotificationContext()
+  const { locale, messages } = useNotificationContext()
   const markAsRead = useMarkAsRead()
   const deleteNotification = useDeleteNotification()
 
@@ -32,9 +33,22 @@ export function NotificationItem({ notification, onSelect, className }: Notifica
       {/* Semântico: a linha inteira é clicável e precisa ser alcançável por teclado — `button`
           entrega Enter, Espaço e foco de graça, e um `div` com onClick não (web.md §Acessibilidade). */}
       <button type="button" className="adn-item__main" onClick={handleSelect}>
-        <span className="adn-item__title">{notification.title}</span>
+        <span className="adn-item__heading">
+          {/* Marcador à esquerda, na altura do título: sobreposto ao canto, ele cobria a última
+              palavra do texto em linha comprida. */}
+          {isUnread ? <span className="adn-item__unread-dot" aria-label={messages['item.unread']} /> : null}
+          <span className="adn-item__title">{notification.title}</span>
+          {/* `<time>` e não `<span>`: a data legível por máquina é o que um leitor de tela e um
+              agregador conseguem interpretar; o texto visível é o relativo, que é o que se lê. */}
+          <time
+            className="adn-item__time"
+            dateTime={notification.createdAt}
+            title={formatNotificationTimestamp(notification.createdAt, locale)}
+          >
+            {formatNotificationTime(notification.createdAt, locale, new Date())}
+          </time>
+        </span>
         <span className="adn-item__body">{notification.body}</span>
-        {isUnread ? <span className="adn-item__unread-dot" aria-label={messages['item.unread']} /> : null}
       </button>
 
       <div className="adn-item__actions">

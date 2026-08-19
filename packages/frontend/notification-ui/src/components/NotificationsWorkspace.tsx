@@ -39,6 +39,14 @@ export type NotificationsWorkspaceProps = {
   readonly settingsHref?: string | undefined
   /** Clique numa notificação. Ausente, a linha não é clicável. */
   readonly onSelectNotification?: (notification: NotificationSummary) => void
+  /**
+   * Substitui o cabeçalho padrão inteiro.
+   *
+   * O workspace desenha um `<h1>` porque ele é a tela; a página que já tem o título dela passava a
+   * ter dois `<h1>` dizendo a mesma palavra, e para leitor de tela duas primeiras manchetes é o
+   * mesmo que nenhuma. Ausente, o padrão continua desenhando — slot é substituição, não interruptor.
+   */
+  readonly renderHeader?: () => ReactNode
   /** Ações do produto no cabeçalho, ao lado do link de configuração. */
   readonly renderHeaderActions?: () => ReactNode
   /** Aviso ou filtro do produto, entre o cabeçalho e a lista. */
@@ -54,6 +62,7 @@ export function NotificationsWorkspace({
   showPreferences = true,
   settingsHref,
   onSelectNotification,
+  renderHeader,
   renderHeaderActions,
   renderAboveList,
   renderEmpty,
@@ -64,32 +73,38 @@ export function NotificationsWorkspace({
 
   return (
     <div className={`adn-workspace ${className ?? ''}`}>
-      <header className="adn-workspace__header">
-        <div>
-          <h1 className="adn-workspace__title">{label('workspace.title')}</h1>
-          <p className="adn-workspace__description">{label('workspace.description')}</p>
-        </div>
+      {renderHeader ? (
+        renderHeader()
+      ) : (
+        <header className="adn-workspace__header">
+          <div>
+            <h1 className="adn-workspace__title">{label('workspace.title')}</h1>
+            <p className="adn-workspace__description">{label('workspace.description')}</p>
+          </div>
 
-        <div className="adn-workspace__actions">
-          {renderHeaderActions?.()}
-          {/* Capacidade por ausência: sem href, sem link. */}
-          {settingsHref && (
-            <a href={settingsHref} className="adn-button adn-button--outline">
-              {label('workspace.settingsLink')}
-            </a>
-          )}
-        </div>
-      </header>
+          <div className="adn-workspace__actions">
+            {renderHeaderActions?.()}
+            {/* Capacidade por ausência: sem href, sem link. */}
+            {settingsHref && (
+              <a href={settingsHref} className="adn-button adn-button--outline">
+                {label('workspace.settingsLink')}
+              </a>
+            )}
+          </div>
+        </header>
+      )}
 
       {renderAboveList?.()}
 
       <div className={showPreferences ? 'adn-workspace__grid' : 'adn-workspace__grid--single'}>
         <section className="adn-workspace__inbox">
+          {/* O vazio desce para a lista, que é quem sabe se está vazia. Desenhado aqui, ele aparecia
+              ao lado das notificações — "nada por aqui" embaixo do que estava ali. */}
           <NotificationList
             {...(category ? { category } : {})}
             {...(onSelectNotification ? { onSelect: onSelectNotification } : {})}
+            {...(renderEmpty ? { renderEmpty } : {})}
           />
-          {renderEmpty?.()}
         </section>
 
         {showPreferences && (
