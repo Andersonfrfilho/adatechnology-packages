@@ -117,6 +117,7 @@
     "media-sample-fixtures",
     "media-types-and-valid-preview-files",
     "message-moderation",
+    "messages-workspace-template-roles",
     "meta-whatsapp-trio-rc",
     "notification-module-drizzle-1x",
     "notification-module-http",
