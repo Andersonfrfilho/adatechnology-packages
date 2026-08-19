@@ -6,6 +6,7 @@ import {
   graphFetch,
   parseGraphResponse,
   idResponseSchema,
+  successResponseSchema,
   catalogListResponseSchema,
   productListResponseSchema,
   productDetailResponseSchema,
@@ -25,6 +26,7 @@ import type {
   CreateCatalogParams,
   CreateCatalogResult,
   UpdateCatalogParams,
+  LinkCatalogToWabaParams,
 } from './types'
 
 const DEFAULT_AVAILABILITY = 'in stock'
@@ -230,6 +232,23 @@ export class MetaCatalogProvider {
     )
 
     return { id: response.id }
+  }
+
+  /**
+   * `owned_product_catalogs` só anexa o catálogo ao Business Manager — sem isso ele nunca
+   * aparece em `listCatalogs` (que lê `{waba}/product_catalogs`) e fica órfão para sempre,
+   * mesmo existindo de verdade na Meta.
+   */
+  async linkCatalogToWaba(params: LinkCatalogToWabaParams): Promise<void> {
+    parseGraphResponse(
+      successResponseSchema,
+      await graphFetch({
+        url: buildGraphUrl(this.config.apiVersion, `${this.wabaId}/product_catalogs`, this.config.baseUrl),
+        accessToken: this.config.accessToken,
+        method: 'POST',
+        jsonBody: { catalog_id: params.catalogId },
+      }),
+    )
   }
 
   async updateCatalog(params: UpdateCatalogParams): Promise<void> {

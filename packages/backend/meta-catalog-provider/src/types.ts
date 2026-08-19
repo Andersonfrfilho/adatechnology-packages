@@ -85,3 +85,7 @@ export type UpdateCatalogParams = {
   readonly catalogId: string
   readonly name: string
 }
+
+export type LinkCatalogToWabaParams = {
+  readonly catalogId: string
+}

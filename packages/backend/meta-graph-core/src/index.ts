@@ -13,6 +13,7 @@ export { graphFetch, buildGraphUrl } from './graphFetch'
 export { assertConfigField } from './assertConfigField'
 export {
   idResponseSchema,
+  successResponseSchema,
   catalogListResponseSchema,
   productListResponseSchema,
   productDetailResponseSchema,
