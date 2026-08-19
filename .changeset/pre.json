@@ -107,6 +107,7 @@
     "header-and-composer-fit",
     "inbox-components",
     "inbox-operations-and-pagination",
+    "inbox-reads-like-an-inbox",
     "interactive-message-formatting",
     "keycloak-admin-agnostic",
     "lazy-media-button",
