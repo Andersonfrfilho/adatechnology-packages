@@ -1,5 +1,6 @@
 ---
 '@adatechnology/meta-catalog-provider': minor
+'@adatechnology/meta-graph-core': minor
 ---
 
 `MetaCatalogProvider` ganha `getCommerceSettings`/`updateCommerceSettings` para o ícone do catálogo.
@@ -10,3 +11,6 @@ carrinho" fica disponível (`is_cart_enabled`), independente do catálogo já es
 sincronizado. Até agora essa troca só existia manualmente pelo Gerenciador do WhatsApp da Meta.
 
 `MetaCatalogProviderConfig` ganha `phoneNumberId` opcional, necessário só por esses dois métodos.
+
+`@adatechnology/meta-graph-core` exporta `commerceSettingsResponseSchema`, usado para validar a
+resposta desse endpoint.
