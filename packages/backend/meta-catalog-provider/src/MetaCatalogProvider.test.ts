@@ -19,6 +19,7 @@ function buildProvider(): MetaCatalogProvider {
     catalogId: 'catalog-1',
     wabaId: 'waba-1',
     businessId: 'business-1',
+    phoneNumberId: 'phone-1',
   })
 }
 
@@ -149,6 +150,51 @@ describe('MetaCatalogProvider.linkCatalogToWaba', () => {
     const provider = buildProvider()
 
     await expect(provider.linkCatalogToWaba({ catalogId: 'catalog-1' })).rejects.toBeInstanceOf(WhatsAppRejectionError)
+  })
+})
+
+describe('MetaCatalogProvider.getCommerceSettings', () => {
+  test('maps the Graph API response into the provider result shape', async () => {
+    const calls = mockFetchOnce({
+      data: [{ id: 'phone-1', is_cart_enabled: true, is_catalog_visible: false }],
+    })
+    const provider = buildProvider()
+
+    const result = await provider.getCommerceSettings()
+
+    expect(result).toEqual({ isCatalogVisible: false, isCartEnabled: true })
+    const [{ requestUrl }] = calls
+    expect(requestUrl.startsWith('https://graph.facebook.com/v21.0/phone-1/whatsapp_commerce_settings')).toBe(true)
+  })
+
+  test('throws WhatsAppConfigError when no phoneNumberId is configured', async () => {
+    const provider = new MetaCatalogProvider({ accessToken: 'fixture-token' })
+
+    await expect(provider.getCommerceSettings()).rejects.toBeInstanceOf(WhatsAppConfigError)
+  })
+})
+
+describe('MetaCatalogProvider.updateCommerceSettings', () => {
+  test('posts only the informed fields to the phone commerce settings endpoint', async () => {
+    const calls = mockFetchOnce({ success: true })
+    const provider = buildProvider()
+
+    await provider.updateCommerceSettings({ isCatalogVisible: true })
+
+    expect(calls).toHaveLength(1)
+    const [{ requestUrl, requestInit }] = calls
+    expect(requestUrl).toBe('https://graph.facebook.com/v21.0/phone-1/whatsapp_commerce_settings')
+    expect(requestInit.method).toBe('POST')
+    expect(JSON.parse(String(requestInit.body))).toEqual({ is_catalog_visible: true })
+  })
+
+  test('rejects with WhatsAppRejectionError when the Graph API refuses the update', async () => {
+    mockFetchOnce({ error: { code: 100, message: 'Invalid parameter' } }, 400)
+    const provider = buildProvider()
+
+    await expect(provider.updateCommerceSettings({ isCatalogVisible: true })).rejects.toBeInstanceOf(
+      WhatsAppRejectionError,
+    )
   })
 })
 
