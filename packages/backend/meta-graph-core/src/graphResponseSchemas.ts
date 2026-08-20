@@ -14,6 +14,10 @@ export const productListResponseSchema = z.object({
   paging: z.object({ next: z.string().optional() }).optional(),
 })
 
+export const commerceSettingsResponseSchema = z.object({
+  data: z.array(z.object({ id: z.string(), is_cart_enabled: z.boolean(), is_catalog_visible: z.boolean() })),
+})
+
 export const productDetailResponseSchema = z.object({
   id: z.string(),
   retailer_id: z.string(),

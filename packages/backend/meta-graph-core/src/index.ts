@@ -17,6 +17,7 @@ export {
   catalogListResponseSchema,
   productListResponseSchema,
   productDetailResponseSchema,
+  commerceSettingsResponseSchema,
   parseGraphResponse,
 } from './graphResponseSchemas'
 export {
