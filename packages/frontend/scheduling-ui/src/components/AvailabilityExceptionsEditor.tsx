@@ -32,10 +32,11 @@ export function AvailabilityExceptionsEditor({ resourceId, timezone }: Availabil
   const addException = useAddAvailabilityException()
   const removeException = useRemoveAvailabilityException()
 
-  // Campo separado sempre mostra um dia; comecar com texto vazio faria o botao recusar em silencio
-  // um formulario que parece preenchido.
-  const [from, setFrom] = useState(() => formatDateTimeLocalInTimeZone(new Date(), timezone))
-  const [until, setUntil] = useState(() => formatDateTimeLocalInTimeZone(new Date(), timezone))
+  // Campo separado sempre mostra um dia; texto vazio faria o botao recusar em silencio um
+  // formulario que parece preenchido. Vale no primeiro uso e depois de cada adicao.
+  const emptyValue = (): string => formatDateTimeLocalInTimeZone(new Date(), timezone)
+  const [from, setFrom] = useState(emptyValue)
+  const [until, setUntil] = useState(emptyValue)
   const [kind, setKind] = useState<AvailabilityExceptionKind>(AVAILABILITY_EXCEPTION_KIND.BLOCK)
   const [reason, setReason] = useState('')
 
@@ -51,8 +52,8 @@ export function AvailabilityExceptionsEditor({ resourceId, timezone }: Availabil
         kind,
         ...(reason ? { reason } : {}),
       })
-      setFrom('')
-      setUntil('')
+      setFrom(emptyValue())
+      setUntil(emptyValue())
       setReason('')
     } catch {
       // H-G: sem isto a rejeição sobe sem tratamento até o `onClick`, que não tem `.catch()` —
