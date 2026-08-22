@@ -154,6 +154,7 @@
     "rich-message-composer",
     "scheduling-composite-fk-order",
     "scheduling-datetime-field",
+    "scheduling-exception-reset",
     "scheduling-routes-export",
     "scheduling-trio",
     "send-media-logger-port",
