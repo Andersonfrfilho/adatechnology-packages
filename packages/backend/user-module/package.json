@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/user-module",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0-rc.1",
   "license": "MIT",
   "description": "Stateful user/authentication module — schema, migrations, repositories and use-cases behind pluggable auth providers",
   "publishConfig": {
@@ -38,10 +38,18 @@
   },
   "typesVersions": {
     "*": {
-      "schema": ["dist/schema/index.d.ts"],
-      "http/fetch": ["dist/http/fetch.d.ts"],
-      "http/uws": ["dist/http/uws.d.ts"],
-      "openapi": ["dist/openapi.d.ts"]
+      "schema": [
+        "dist/schema/index.d.ts"
+      ],
+      "http/fetch": [
+        "dist/http/fetch.d.ts"
+      ],
+      "http/uws": [
+        "dist/http/uws.d.ts"
+      ],
+      "openapi": [
+        "dist/openapi.d.ts"
+      ]
     }
   },
   "files": [

@@ -52,7 +52,10 @@
     "@adatechnology/caldav-calendar-provider": "0.1.0-rc.0",
     "@adatechnology/google-calendar-provider": "0.1.0-rc.0",
     "@adatechnology/microsoft-calendar-provider": "0.1.0-rc.0",
-    "frontend-example": "0.0.0"
+    "frontend-example": "0.0.0",
+    "@adatechnology/user-contracts": "0.1.0-rc.0",
+    "@adatechnology/user-module": "0.1.0-rc.0",
+    "@adatechnology/user-ui": "0.1.0-rc.0"
   },
   "changesets": [
     "agent-media-enters-document-library",
@@ -167,6 +170,7 @@
     "template-takes-over",
     "tooltip-layer",
     "transcription-long-collapsible",
+    "user-trio",
     "waiting-notifications-configurable",
     "wallpaper-self-contained",
     "web-chat-widget-icon-scale",
