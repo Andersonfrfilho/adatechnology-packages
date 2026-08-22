@@ -115,5 +115,8 @@ export {
   toService,
 } from './shared/toContract'
 
+export { createSchedulingRoutes } from './http/routes'
+export type { CreateSchedulingRoutesParams } from './http/routes'
+
 export { createSchedulingModule } from './SchedulingModule'
 export type { SchedulingModule, SchedulingModuleProviders, CreateSchedulingModuleParams } from './SchedulingModule'
