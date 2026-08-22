@@ -61,6 +61,8 @@ export type {
   LogMeta,
   CatalogModuleConfig,
   CatalogProductLookup,
+  CatalogWebhookConfig,
+  WebhookNonceStorePort,
 } from './providers'
 
 export { CATALOG_EVENT } from './events'
@@ -92,4 +94,15 @@ export {
   ConfigMissingError,
   InvalidProductImageError,
   ImageStorageDisabledError,
+  InvalidCatalogWebhookSignatureError,
+  CatalogWebhookNotConfiguredError,
 } from './errors'
+
+export { catalogWebhookChangeSchema, catalogWebhookEntrySchema, catalogWebhookEnvelopeSchema } from './webhook.types'
+export type {
+  CatalogWebhookEnvelope,
+  CatalogWebhookChange,
+  CatalogWebhookEvent,
+  UnhandledCatalogWebhookEventDescriptor,
+  ReceiveCatalogWebhookResult,
+} from './webhook.types'

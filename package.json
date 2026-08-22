@@ -61,32 +61,37 @@
     "axios": "^1.15.2",
     "rxjs": "^7.8.2"
   },
-  "pnpm": {
-    "overrides": {
-      "handlebars": ">=4.7.9",
-      "serialize-javascript": ">=7.0.3",
-      "flatted": ">=3.4.2",
-      "esbuild": ">=0.25.0",
-      "fast-uri": ">=3.1.2",
-      "picomatch@<2.3.2": ">=2.3.2",
-      "picomatch@>=4.0.0": ">=4.0.4",
-      "path-to-regexp@>=8.0.0": ">=8.4.0",
-      "vite": ">=6.4.2",
-      "follow-redirects": ">=1.16.0",
-      "lodash": ">=4.18.1",
-      "axios": ">=1.15.2",
-      "brace-expansion@1": "^1.1.13",
-      "brace-expansion@2": "^2.0.3",
-      "brace-expansion@>=4": "^5.0.6",
-      "postcss": ">=8.5.15",
-      "file-type": ">=21.3.2",
-      "@nestjs/core": ">=11.1.18",
-      "@nestjs/common": ">=11.1.18",
-      "@nestjs/platform-express": ">=11.1.18",
-      "ajv": ">=8.18.0",
-      "@eslint/eslintrc>ajv": "^6.14.0",
-      "eslint>ajv": "^6.14.0",
-      "qs": ">=6.15.2"
-    }
-  }
+  "overrides": {
+    "handlebars": ">=4.7.9",
+    "serialize-javascript": ">=7.0.3",
+    "flatted": ">=3.4.2",
+    "esbuild": ">=0.25.0",
+    "fast-uri": ">=3.1.2",
+    "picomatch@<2.3.2": ">=2.3.2",
+    "picomatch@>=4.0.0": ">=4.0.4",
+    "path-to-regexp@>=8.0.0": ">=8.4.0",
+    "vite": ">=6.4.2",
+    "follow-redirects": ">=1.16.0",
+    "lodash": ">=4.18.1",
+    "axios": ">=1.15.2",
+    "brace-expansion@1": "^1.1.13",
+    "brace-expansion@2": "^2.0.3",
+    "brace-expansion@>=4": "^5.0.6",
+    "postcss": ">=8.5.15",
+    "file-type": ">=21.3.2",
+    "@nestjs/core": ">=11.1.18",
+    "@nestjs/common": ">=11.1.18",
+    "@nestjs/platform-express": ">=11.1.18",
+    "ajv": ">=8.18.0",
+    "@eslint/eslintrc>ajv": "^6.14.0",
+    "eslint>ajv": "^6.14.0",
+    "qs": ">=6.15.2"
+  },
+  "workspaces": [
+    "packages/backend/nestjs/*",
+    "packages/backend/fiscal-provider/example/*",
+    "packages/backend/example/*",
+    "packages/backend/*",
+    "packages/frontend/*"
+  ]
 }

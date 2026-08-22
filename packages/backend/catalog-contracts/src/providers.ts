@@ -65,6 +65,18 @@ export interface ProductSuggestionPort {
   >
 }
 
+/**
+ * Guarda de reentrega do webhook. A Meta reentrega o mesmo evento quando o 200 demora ou se perde,
+ * e sem isto um evento de catálogo seria processado duas vezes.
+ *
+ * Porta e não implementação: o host já tem Redis (ou o que for) — o pacote não escolhe por ele.
+ * Ausente = sem proteção de reentrega, e o módulo diz isso no log em vez de fingir idempotência.
+ */
+export interface WebhookNonceStorePort {
+  /** `true` = a chave foi criada agora (entrega inédita); `false` = já existia (reentrega). */
+  setIfAbsent(key: string, ttlSeconds: number): Promise<boolean>
+}
+
 export interface ClockPort {
   now(): Date
 }
@@ -88,6 +100,19 @@ export type CatalogModuleConfig = {
    * manual — é o caso de quem vende sob encomenda e não quer sumir do catálogo por estar zerado.
    */
   readonly deriveAvailabilityFromInventory?: boolean
+  readonly webhook?: CatalogWebhookConfig
+}
+
+/**
+ * Webhook de catálogo. **Ausente = a rota não é publicada**, e não uma rota que aceita tudo: sem
+ * segredo não há como distinguir a Meta de qualquer um que descubra a URL (fail-closed, §3 da
+ * regra de segurança).
+ */
+export type CatalogWebhookConfig = {
+  /** Segredo do app Meta; assina o corpo em `X-Hub-Signature-256`. */
+  readonly appSecret: string
+  /** O token que a Meta devolve no desafio `GET` ao salvar a URL no painel. */
+  readonly verifyToken: string
 }
 
 /** Projeção usada pelo canal de conversa (`meta-whatsapp-module` pluga isto no `CatalogPort`). */

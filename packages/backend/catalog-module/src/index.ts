@@ -53,6 +53,11 @@ export {
 export { ConsumeInventoryUseCase, AdjustInventoryUseCase } from './use-cases/Inventory.use-cases'
 export { BulkImportProductsUseCase } from './use-cases/BulkImportProducts.use-case'
 export type { BulkImportParams } from './use-cases/BulkImportProducts.use-case'
+export {
+  ReceiveCatalogWebhookUseCase,
+  HANDLED_CATALOG_WEBHOOK_FIELDS,
+} from './use-cases/ReceiveCatalogWebhook.use-case'
+export type { ReceiveCatalogWebhookParams } from './use-cases/ReceiveCatalogWebhook.use-case'
 export type { CatalogDependencies } from './use-cases/catalogModule.types'
 
 export { deriveAvailability, crossedIntoOutOfStock, requiresMetaResync } from './shared/availability'
@@ -62,6 +67,7 @@ export { toProduct, toCatalog, toSection, toPaginated } from './shared/toContrac
 export type { ProductProjection } from './shared/toContract'
 
 export { createCatalogRoutes } from './http/routes'
+export { buildCatalogWebhookRoutes, CATALOG_WEBHOOK_PATH } from './http/webhookRoutes'
 export type { CreateCatalogRoutesParams } from './http/routes'
 export { requireCompany } from './http/requireCompany'
 

@@ -7,6 +7,7 @@
  */
 
 import type { CompanyId, ProductId, CatalogId, ProductSyncStatus } from './catalog.types'
+import type { CatalogWebhookEvent, UnhandledCatalogWebhookEventDescriptor } from './webhook.types'
 
 export const CATALOG_EVENT = {
   PRODUCT_CREATED: 'catalog.product.created',
@@ -72,4 +73,22 @@ export type CatalogHooks = {
   onSyncSucceeded?(event: SyncSucceededEvent): Promise<void> | void
   onSyncFailed?(event: SyncFailedEvent): Promise<void> | void
   onBulkImportFinished?(event: BulkImportFinishedEvent): Promise<void> | void
+
+  /**
+   * A Meta avisou que algo mudou no catálogo **do lado dela** (produto editado no painel, item
+   * reprovado na revisão, batch de importação concluído).
+   *
+   * É o sentido oposto da sincronização que já existe: hoje só empurramos daqui para lá, e uma
+   * edição feita no Commerce Manager fica invisível até alguém comparar na mão.
+   */
+  onCatalogWebhookEvent?(event: CatalogWebhookEvent): Promise<void> | void
+
+  /**
+   * Chegou um `field` que este módulo não sabe tratar — ou um que sabe, mas com corpo fora do
+   * schema (versão nova da API, campo assinado sem handler).
+   *
+   * Existe para que o webhook nunca seja um buraco negro: descartar em silêncio é indistinguível
+   * de webhook que parou de chegar. Observar aqui é do host; o módulo não decide que é erro.
+   */
+  onUnhandledCatalogWebhookEvent?(details: UnhandledCatalogWebhookEventDescriptor): Promise<void> | void
 }

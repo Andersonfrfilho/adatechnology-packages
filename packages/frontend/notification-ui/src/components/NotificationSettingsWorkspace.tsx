@@ -55,6 +55,8 @@ export type NotificationSettingsWorkspaceProps = {
     readonly value: string
     readonly onChange: (value: string) => void
   }) => ReactNode
+  /** Substitui o cabeçalho padrão — a página que já tem título próprio evita o segundo `<h1>`. */
+  readonly renderHeader?: () => ReactNode
   /** Ações do produto no cabeçalho. */
   readonly renderHeaderActions?: () => ReactNode
   readonly className?: string
@@ -67,6 +69,7 @@ export function NotificationSettingsWorkspace({
   previewPayload,
   templateLabelOf,
   renderChannelFields,
+  renderHeader,
   renderHeaderActions,
   className,
 }: NotificationSettingsWorkspaceProps) {
@@ -106,13 +109,17 @@ export function NotificationSettingsWorkspace({
 
   return (
     <div className={`adn-settings ${className ?? ''}`}>
-      <header className="adn-settings__header">
-        <div>
-          <h1 className="adn-settings__title">{label('settings.title')}</h1>
-          <p className="adn-settings__description">{label('settings.description')}</p>
-        </div>
-        {renderHeaderActions?.()}
-      </header>
+      {renderHeader ? (
+        renderHeader()
+      ) : (
+        <header className="adn-settings__header">
+          <div>
+            <h1 className="adn-settings__title">{label('settings.title')}</h1>
+            <p className="adn-settings__description">{label('settings.description')}</p>
+          </div>
+          {renderHeaderActions?.()}
+        </header>
+      )}
 
       <section className="adn-settings__channels">
         <h2 className="adn-settings__section-title">{label('settings.channelsTitle')}</h2>
@@ -203,7 +210,10 @@ export function NotificationSettingsWorkspace({
               <label className="adn-settings__field">
                 <span className="adn-settings__field-label">{label('settings.subject')}</span>
                 <span className="adn-settings__hint">{label('settings.subjectHint')}</span>
-                <input value={editor.draft.subject} onChange={(event) => editor.update({ subject: event.target.value })} />
+                <input
+                  value={editor.draft.subject}
+                  onChange={(event) => editor.update({ subject: event.target.value })}
+                />
               </label>
 
               <label className="adn-settings__field">

@@ -3,6 +3,8 @@ import { WhatsAppUnexpectedResponseError } from './errors/MetaGraphError'
 
 export const idResponseSchema = z.object({ id: z.string() })
 
+export const successResponseSchema = z.object({ success: z.boolean() })
+
 export const catalogListResponseSchema = z.object({
   data: z.array(z.object({ id: z.string(), name: z.string() })),
 })
@@ -10,6 +12,10 @@ export const catalogListResponseSchema = z.object({
 export const productListResponseSchema = z.object({
   data: z.array(z.object({ id: z.string(), retailer_id: z.string(), name: z.string().optional().default('') })),
   paging: z.object({ next: z.string().optional() }).optional(),
+})
+
+export const commerceSettingsResponseSchema = z.object({
+  data: z.array(z.object({ id: z.string(), is_cart_enabled: z.boolean(), is_catalog_visible: z.boolean() })),
 })
 
 export const productDetailResponseSchema = z.object({

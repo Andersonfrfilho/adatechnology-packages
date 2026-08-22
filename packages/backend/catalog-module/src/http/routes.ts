@@ -8,6 +8,7 @@ import type { ModuleRouteTable } from '@adatechnology/module-http'
 import type { CatalogModule } from '../CatalogModule'
 import { buildCatalogRoutes } from './catalogRoutes'
 import { buildProductRoutes } from './productRoutes'
+import { buildCatalogWebhookRoutes } from './webhookRoutes'
 import { buildSyncRoutes } from './syncRoutes'
 
 export type CreateCatalogRoutesParams = {
@@ -20,7 +21,12 @@ export type CreateCatalogRoutesParams = {
 }
 
 export function createCatalogRoutes(params: CreateCatalogRoutesParams): ModuleRouteTable {
-  const routes = [...buildProductRoutes(params.module), ...buildCatalogRoutes(params.module)]
+  const routes = [
+    ...buildProductRoutes(params.module),
+    ...buildCatalogRoutes(params.module),
+    // Fail-closed: sem `config.webhook` o array volta vazio e a URL simplesmente não existe.
+    ...buildCatalogWebhookRoutes(params.module),
+  ]
 
   const syncEnabled = params.metaSync?.products || params.metaSync?.catalogs
   return syncEnabled ? [...routes, ...buildSyncRoutes(params.module)] : routes

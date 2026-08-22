@@ -4,6 +4,7 @@ export type MetaCatalogProviderConfig = {
   readonly catalogId?: string
   readonly wabaId?: string
   readonly businessId?: string
+  readonly phoneNumberId?: string
   // Sobrescreve https://graph.facebook.com — usado para apontar para um mock local (ex.: WireMock)
   // em dev/teste. Em produção, deixe undefined para usar a Graph API real.
   readonly baseUrl?: string
@@ -85,3 +86,14 @@ export type UpdateCatalogParams = {
   readonly catalogId: string
   readonly name: string
 }
+
+export type LinkCatalogToWabaParams = {
+  readonly catalogId: string
+}
+
+export type CommerceSettings = {
+  readonly isCatalogVisible: boolean
+  readonly isCartEnabled: boolean
+}
+
+export type UpdateCommerceSettingsParams = Partial<CommerceSettings>

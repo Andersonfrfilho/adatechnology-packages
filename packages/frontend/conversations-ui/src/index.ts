@@ -146,6 +146,7 @@ export type {
   MessagesWorkspaceProps,
   MessagesWorkspaceApi,
   MessagesWorkspaceLabels,
+  MessagesWorkspaceTemplateRole,
   BotMessages,
   TemplateSettings,
   TranscriptionSettings,

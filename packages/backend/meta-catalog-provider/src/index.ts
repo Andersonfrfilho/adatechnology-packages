@@ -14,4 +14,7 @@ export type {
   CreateCatalogParams,
   CreateCatalogResult,
   UpdateCatalogParams,
+  LinkCatalogToWabaParams,
+  CommerceSettings,
+  UpdateCommerceSettingsParams,
 } from './types'

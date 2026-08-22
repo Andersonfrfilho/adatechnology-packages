@@ -19,6 +19,12 @@ export type NotificationTheme = {
 
 export type NotificationContextValue = {
   readonly client: NotificationClient
+  /**
+   * O idioma resolvido, e não só os textos dele: data e número não vivem no arquivo de locale —
+   * quem os formata é `Intl`, e `Intl` precisa da tag do idioma. Sem isto o item da lista teria de
+   * chutar um locale fixo, e a inbox mostraria "5 minutes ago" numa tela em português.
+   */
+  readonly locale: NotificationLocale
   readonly messages: NotificationMessages
   readonly theme: NotificationTheme
   /** Polling de fallback quando o SSE não está disponível (segundos); `0` desliga. */
@@ -48,6 +54,7 @@ export function NotificationProvider({
   const value = useMemo<NotificationContextValue>(
     () => ({
       client,
+      locale,
       messages: { ...resolveMessages(locale), ...messageOverrides },
       theme,
       pollIntervalSeconds,

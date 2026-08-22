@@ -6,9 +6,11 @@ import {
   graphFetch,
   parseGraphResponse,
   idResponseSchema,
+  successResponseSchema,
   catalogListResponseSchema,
   productListResponseSchema,
   productDetailResponseSchema,
+  commerceSettingsResponseSchema,
 } from '@adatechnology/meta-graph-core'
 import type {
   MetaCatalogProviderConfig,
@@ -25,6 +27,9 @@ import type {
   CreateCatalogParams,
   CreateCatalogResult,
   UpdateCatalogParams,
+  LinkCatalogToWabaParams,
+  CommerceSettings,
+  UpdateCommerceSettingsParams,
 } from './types'
 
 const DEFAULT_AVAILABILITY = 'in stock'
@@ -50,6 +55,10 @@ export class MetaCatalogProvider {
 
   private get businessId(): string {
     return assertConfigField(this.config.businessId, 'businessId')
+  }
+
+  private get phoneNumberId(): string {
+    return assertConfigField(this.config.phoneNumberId, 'phoneNumberId')
   }
 
   private toProductPayload(input: Partial<CatalogProductInput>): Record<string, unknown> {
@@ -232,6 +241,23 @@ export class MetaCatalogProvider {
     return { id: response.id }
   }
 
+  /**
+   * `owned_product_catalogs` só anexa o catálogo ao Business Manager — sem isso ele nunca
+   * aparece em `listCatalogs` (que lê `{waba}/product_catalogs`) e fica órfão para sempre,
+   * mesmo existindo de verdade na Meta.
+   */
+  async linkCatalogToWaba(params: LinkCatalogToWabaParams): Promise<void> {
+    parseGraphResponse(
+      successResponseSchema,
+      await graphFetch({
+        url: buildGraphUrl(this.config.apiVersion, `${this.wabaId}/product_catalogs`, this.config.baseUrl),
+        accessToken: this.config.accessToken,
+        method: 'POST',
+        jsonBody: { catalog_id: params.catalogId },
+      }),
+    )
+  }
+
   async updateCatalog(params: UpdateCatalogParams): Promise<void> {
     await graphFetch({
       url: buildGraphUrl(this.config.apiVersion, params.catalogId, this.config.baseUrl),
@@ -247,5 +273,45 @@ export class MetaCatalogProvider {
       accessToken: this.config.accessToken,
       method: 'DELETE',
     })
+  }
+
+  /**
+   * `whatsapp_commerce_settings` fica no número de telefone, não no catálogo — é o que decide se o
+   * ícone do catálogo aparece no cabeçalho da conversa e no perfil da empresa (`is_catalog_visible`)
+   * e se o botão "Adicionar ao carrinho" fica disponível (`is_cart_enabled`), independente do
+   * catálogo já estar vinculado e sincronizado.
+   */
+  async getCommerceSettings(): Promise<CommerceSettings> {
+    const url = `${buildGraphUrl(this.config.apiVersion, `${this.phoneNumberId}/whatsapp_commerce_settings`, this.config.baseUrl)}?fields=is_cart_enabled,is_catalog_visible`
+    const response = parseGraphResponse(
+      commerceSettingsResponseSchema,
+      await graphFetch({ url, accessToken: this.config.accessToken }),
+    )
+    const [settings] = response.data
+
+    return {
+      isCatalogVisible: settings?.is_catalog_visible ?? false,
+      isCartEnabled: settings?.is_cart_enabled ?? false,
+    }
+  }
+
+  async updateCommerceSettings(params: UpdateCommerceSettingsParams): Promise<void> {
+    const payload: Record<string, unknown> = {}
+    if (params.isCatalogVisible !== undefined) payload['is_catalog_visible'] = params.isCatalogVisible
+    if (params.isCartEnabled !== undefined) payload['is_cart_enabled'] = params.isCartEnabled
+
+    parseGraphResponse(
+      successResponseSchema,
+      await graphFetch({
+        url: buildGraphUrl(
+          this.config.apiVersion,
+          `${this.phoneNumberId}/whatsapp_commerce_settings`,
+          this.config.baseUrl,
+        ),
+        accessToken: this.config.accessToken,
+        method: 'POST',
+        jsonBody: payload,
+      }),
+    )
   }
 }

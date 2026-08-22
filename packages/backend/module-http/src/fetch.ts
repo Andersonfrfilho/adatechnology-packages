@@ -138,6 +138,12 @@ function toStreamResponse(result: Extract<HttpResult, { kind: 'stream' }>, signa
 export function toFetchResponse(result: HttpResult, signal: AbortSignal): Response {
   if (result.kind === 'stream') return toStreamResponse(result, signal)
   if (result.kind === 'empty') return new Response(null, { status: result.status, headers: result.headers })
+  if (result.kind === 'text') {
+    return new Response(result.body, {
+      status: result.status,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', ...result.headers },
+    })
+  }
 
   return new Response(JSON.stringify(result.body), {
     status: result.status,
