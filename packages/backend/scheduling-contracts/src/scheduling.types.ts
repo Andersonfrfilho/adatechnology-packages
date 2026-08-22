@@ -150,6 +150,12 @@ export type Booking = {
    */
   readonly startsAt: Date
   readonly endsAt: Date
+  /**
+   * Resumo de leitura dos `booking_slots` da reserva — vazio para reserva cancelada, cujos slots
+   * já foram liberados (spec §4.6). Não é a fonte de verdade de disputa de horário; para isso use
+   * `BookingSlot` (spec §5.1).
+   */
+  readonly resourceIds: readonly ResourceId[]
   /** Referências opacas — nome, telefone e e-mail ficam no produto (spec §6). */
   readonly customerRef?: string | null
   readonly organizerRef?: string | null

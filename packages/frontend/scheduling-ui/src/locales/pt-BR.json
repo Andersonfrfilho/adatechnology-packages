@@ -38,6 +38,7 @@
   "agenda.viewDay": "Dia",
   "agenda.viewWeek": "Semana",
   "agenda.empty": "Sem reservas neste período",
+  "agenda.moreResults": "Este período tem mais reservas do que as exibidas. Filtre por recurso ou reduza a janela para ver o restante.",
   "availability.weeklyRulesTitle": "Regras semanais",
   "availability.exceptionsTitle": "Exceções",
   "availability.resourceTimezone": "Fuso do recurso",
@@ -65,6 +66,8 @@
   "booking.complete": "Concluir",
   "booking.markNoShow": "Marcar não compareceu",
   "booking.reschedule": "Reagendar",
+  "booking.rescheduleStart": "Novo início",
+  "booking.rescheduleEnd": "Novo fim",
   "booking.detailTitle": "Detalhes da reserva",
   "booking.cancelReason": "Motivo do cancelamento",
   "booking.cancelledBy": "Cancelado por",
@@ -81,5 +84,9 @@
   "availability.startsAtLocal": "Início",
   "availability.endsAtLocal": "Fim",
   "availability.exceptionFrom": "De",
-  "availability.exceptionUntil": "Até"
+  "availability.exceptionUntil": "Até",
+  "datetime.year": "Ano",
+  "datetime.month": "Mês",
+  "datetime.day": "Dia",
+  "datetime.time": "Hora"
 }

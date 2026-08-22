@@ -4,6 +4,7 @@
 
 import { Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { MAX_PAGE_SIZE } from '@adatechnology/scheduling-contracts'
 import type { CreateServiceInput, Service, UpdateServiceInput } from '@adatechnology/scheduling-contracts'
 
 import { ServiceForm } from '../components/ServiceForm'
@@ -24,7 +25,9 @@ const BUTTON_DANGER = `${BUTTON_CLASS} text-red-700 hover:bg-red-50`
 export function ServicesArea() {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  const { data, isLoading, isError } = useServices()
+  // M-4 (T9.3): sem `pageSize`, o hook usa o default do BFF (20) e serviços além disso ficam
+  // invisíveis nesta tela — mesmo padrão já aplicado em `AvailabilityArea.tsx`/`AgendaArea.tsx`.
+  const { data, isLoading, isError } = useServices({ pageSize: MAX_PAGE_SIZE })
   const createService = useCreateService()
   const updateService = useUpdateService()
   const deleteService = useDeleteService()

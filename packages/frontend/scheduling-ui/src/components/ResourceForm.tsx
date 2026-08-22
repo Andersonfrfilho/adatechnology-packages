@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { RESOURCE_KIND, type CreateResourceInput, type Resource, type UpdateResourceInput } from '@adatechnology/scheduling-contracts'
 
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
@@ -23,6 +23,13 @@ export function ResourceForm({ initialValues, onSubmit }: ResourceFormProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
 
+  // L-013: id fixo colide se duas instâncias do formulário montarem ao mesmo tempo (ex.: criar
+  // recurso num modal enquanto outro já está aberto) — `useId()` gera um por instância de componente.
+  const formId = useId()
+  const nameId = `${formId}-name`
+  const kindId = `${formId}-kind`
+  const timezoneId = `${formId}-timezone`
+
   const [name, setName] = useState(initialValues?.name ?? '')
   const [kind, setKind] = useState(initialValues?.kind ?? RESOURCE_KIND.PERSON)
   const [timezone, setTimezone] = useState(initialValues?.timezone ?? 'America/Sao_Paulo')
@@ -42,11 +49,11 @@ export function ResourceForm({ initialValues, onSubmit }: ResourceFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label htmlFor="scheduling-resource-name" className={LABEL_CLASS}>
+        <label htmlFor={nameId} className={LABEL_CLASS}>
           {messages['resource.name']}
         </label>
         <input
-          id="scheduling-resource-name"
+          id={nameId}
           type="text"
           required
           value={name}
@@ -56,11 +63,11 @@ export function ResourceForm({ initialValues, onSubmit }: ResourceFormProps) {
       </div>
 
       <div>
-        <label htmlFor="scheduling-resource-kind" className={LABEL_CLASS}>
+        <label htmlFor={kindId} className={LABEL_CLASS}>
           {messages['resource.kind']}
         </label>
         <select
-          id="scheduling-resource-kind"
+          id={kindId}
           value={kind}
           onChange={(event) => setKind(event.target.value as typeof kind)}
           className={INPUT_CLASS}
@@ -72,11 +79,11 @@ export function ResourceForm({ initialValues, onSubmit }: ResourceFormProps) {
       </div>
 
       <div>
-        <label htmlFor="scheduling-resource-timezone" className={LABEL_CLASS}>
+        <label htmlFor={timezoneId} className={LABEL_CLASS}>
           {messages['resource.timezone']}
         </label>
         <input
-          id="scheduling-resource-timezone"
+          id={timezoneId}
           type="text"
           required
           value={timezone}

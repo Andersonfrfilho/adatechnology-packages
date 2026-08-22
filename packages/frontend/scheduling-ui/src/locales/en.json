@@ -38,6 +38,7 @@
   "agenda.viewDay": "Day",
   "agenda.viewWeek": "Week",
   "agenda.empty": "No bookings in this period",
+  "agenda.moreResults": "This period has more bookings than shown. Filter by resource or narrow the window to see the rest.",
   "availability.weeklyRulesTitle": "Weekly rules",
   "availability.exceptionsTitle": "Exceptions",
   "availability.resourceTimezone": "Resource timezone",
@@ -65,6 +66,8 @@
   "booking.complete": "Complete",
   "booking.markNoShow": "Mark no-show",
   "booking.reschedule": "Reschedule",
+  "booking.rescheduleStart": "New start",
+  "booking.rescheduleEnd": "New end",
   "booking.detailTitle": "Booking details",
   "booking.cancelReason": "Cancellation reason",
   "booking.cancelledBy": "Cancelled by",
@@ -81,5 +84,9 @@
   "availability.startsAtLocal": "Starts",
   "availability.endsAtLocal": "Ends",
   "availability.exceptionFrom": "From",
-  "availability.exceptionUntil": "Until"
+  "availability.exceptionUntil": "Until",
+  "datetime.year": "Year",
+  "datetime.month": "Month",
+  "datetime.day": "Day",
+  "datetime.time": "Time"
 }

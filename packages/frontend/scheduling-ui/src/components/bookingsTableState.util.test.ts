@@ -17,6 +17,7 @@ function buildBooking(id: string, title: string, status: Booking['status'], star
     status,
     startsAt: new Date(startsAt),
     endsAt: new Date(startsAt),
+    resourceIds: [],
   }
 }
 

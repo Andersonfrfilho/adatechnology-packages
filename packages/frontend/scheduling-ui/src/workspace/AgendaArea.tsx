@@ -118,7 +118,16 @@ export function AgendaArea() {
       {isLoading ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>
       ) : (
-        <AgendaGrid bookings={bookingsPage?.data ?? []} days={days} />
+        <>
+          {/* L-012: `pageSize: MAX_PAGE_SIZE` busca só a primeira página — sem isto o corte era
+              silencioso, e a grade parecia mostrar a agenda inteira do período. */}
+          {bookingsPage && bookingsPage.total > bookingsPage.data.length && (
+            <p className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+              {messages['agenda.moreResults']}
+            </p>
+          )}
+          <AgendaGrid bookings={bookingsPage?.data ?? []} days={days} />
+        </>
       )}
     </div>
   )

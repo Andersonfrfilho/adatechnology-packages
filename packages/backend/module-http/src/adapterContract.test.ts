@@ -101,16 +101,18 @@ type AdapterCall = (params: {
   path: string
   headers?: Record<string, string>
   body?: unknown
+  /** Bytes crus a enviar em vez de `JSON.stringify(body)` — usado para simular JSON malformado. */
+  rawBody?: string
 }) => Promise<AdapterResponse>
 
 function buildFetchAdapter(authResolver: AuthContextResolverPort): AdapterCall {
   const router = createModuleFetchRouter({ routes, basePath: '/v1', authResolver })
 
-  return async ({ method, path, headers, body }) => {
+  return async ({ method, path, headers, body, rawBody }) => {
     const request = new Request(`http://localhost${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
     })
     const response = await router.handle(request)
     const text = await response.text()
@@ -138,7 +140,7 @@ function buildUwsAdapter(authResolver: AuthContextResolverPort): AdapterCall {
 
   mountModuleRoutes({ app, routes, basePath: '/v1', authResolver })
 
-  return ({ method, path, headers, body }) =>
+  return ({ method, path, headers, body, rawBody }) =>
     new Promise<AdapterResponse>((resolve) => {
       const [pathname, queryString = ''] = path.split('?')
       // Encontra o padrão registrado que casa com este pathname (o uWS real faz o roteamento;
@@ -197,7 +199,8 @@ function buildUwsAdapter(authResolver: AuthContextResolverPort): AdapterCall {
 
       // O uWS entrega o corpo por `onData` depois que o handler registra o callback.
       if (dataCallback) {
-        const encoded = new TextEncoder().encode(body === undefined ? '' : JSON.stringify(body))
+        const payload = rawBody ?? (body === undefined ? '' : JSON.stringify(body))
+        const encoded = new TextEncoder().encode(payload)
         dataCallback(encoded.buffer as ArrayBuffer, true)
       }
     })
@@ -235,6 +238,18 @@ for (const adapter of adapters) {
       expect(response.status).toBe(400)
       expect((response.body as { error: { code: string } }).error.code).toBe('VALIDATION_ERROR')
       expect((response.body as { error: { issues: unknown[] } }).error.issues).toHaveLength(1)
+    })
+
+    it('M-3: corpo JSON malformado devolve 400, não 500', async () => {
+      const response = await authenticated({
+        method: 'POST',
+        path: '/v1/things',
+        headers: { authorization: 'Bearer x', 'content-type': 'application/json' },
+        rawBody: '{ "name": "valido"',
+      })
+
+      expect(response.status).toBe(400)
+      expect((response.body as { error: { code: string } }).error.code).toBe('MALFORMED_JSON_BODY')
     })
 
     it('aceita corpo válido e devolve 201', async () => {

@@ -39,6 +39,41 @@ function headersToRecord(headers: Headers): Record<string, string> {
   return record
 }
 
+/**
+ * L-002: a Fetch API expõe `Request.body` como `ReadableStream` — dá, sim, gancho de leitura
+ * incremental. Ler tudo com `arrayBuffer()` antes de checar o tamanho já materializava um corpo
+ * de qualquer tamanho na memória antes do 413; aqui o corte acontece assim que o total lido
+ * ultrapassa o teto, sem terminar de baixar o resto.
+ */
+async function readBodyWithLimit(request: Request, limitBytes: number): Promise<Uint8Array | 'too_large'> {
+  const body = request.body
+  if (!body) return new Uint8Array(0)
+
+  const reader = body.getReader()
+  const chunks: Uint8Array[] = []
+  let totalBytes = 0
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    totalBytes += value.byteLength
+    if (totalBytes > limitBytes) {
+      await reader.cancel()
+      return 'too_large'
+    }
+    chunks.push(value)
+  }
+
+  const merged = new Uint8Array(totalBytes)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return merged
+}
+
 function formatSseChunk(event: SseEvent): string {
   const lines: string[] = []
   if (event.id) lines.push(`id: ${event.id}`)
@@ -133,17 +168,17 @@ export function createModuleFetchRouter(params: CreateModuleFetchRouterParams): 
 
       // Lê os bytes crus e não `request.json()`: a assinatura HMAC do webhook é calculada sobre
       // eles, e reserializar o JSON muda espaçamento e ordem de chave.
-      const rawBody =
+      const bodyResult =
         request.method === 'GET' || request.method === 'DELETE'
           ? undefined
-          : new Uint8Array(await request.arrayBuffer())
+          : await readBodyWithLimit(request, MAX_REQUEST_BODY_BYTES)
 
-      // H-B: `uws.ts` rejeita cedo, por streaming; aqui o corpo já chegou inteiro (a Fetch API não
-      // dá gancho de leitura incremental), mas o teto continua o mesmo — sem isto, o adaptador
-      // fetch aceitava um corpo de qualquer tamanho que o uws.ts já recusava com 413.
-      if (rawBody !== undefined && rawBody.byteLength > MAX_REQUEST_BODY_BYTES) {
+      // H-B: `uws.ts` rejeita cedo, por streaming; aqui o corte é o mesmo, incremental — sem isto,
+      // o adaptador fetch aceitava um corpo de qualquer tamanho que o uws.ts já recusava com 413.
+      if (bodyResult === 'too_large') {
         return toFetchResponse({ kind: 'empty', status: 413 }, request.signal)
       }
+      const rawBody = bodyResult
 
       const result = await dispatchRoute({
         compiledRoutes,

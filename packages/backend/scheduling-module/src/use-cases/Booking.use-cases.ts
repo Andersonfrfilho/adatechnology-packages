@@ -13,7 +13,9 @@ import {
   BookingNotModifiableError,
   CancellationTooLateError,
   ResourceNotFoundError,
+  ResourceUnavailableError,
   ServiceNotFoundError,
+  ServiceNotOfferedByResourceError,
   type Booking,
   type BookingParticipantRole,
   type BookingSlot,
@@ -78,6 +80,34 @@ async function assertResourcesExist(params: {
   )
 }
 
+// M-1 (T9.3): `RequestBookingUseCase` gravava direto na base, contornando as checagens de
+// elegibilidade que `ListAvailableSlotsUseCase` já faz (recurso inativo, serviço não oferecido
+// pelo recurso) — quem lia a agenda via `ListAvailableSlots` nunca via esse horário como livre,
+// mas nada impedia reservar assim mesmo chamando `RequestBooking` direto.
+async function assertResourcesEligibleForService(params: {
+  dependencies: SchedulingDependencies
+  companyId: string
+  resourceIds: readonly string[]
+  service: ServiceRow
+}): Promise<void> {
+  const { resources, services } = params.dependencies.repositories
+  const offeredResourceIds = await services.listResourceIdsForService({
+    companyId: params.companyId,
+    serviceId: params.service.id,
+  })
+  const distinctIds = [...new Set(params.resourceIds)]
+  await Promise.all(
+    distinctIds.map(async (resourceId) => {
+      const resource = await resources.findById({ companyId: params.companyId, id: resourceId })
+      if (!resource) throw new ResourceNotFoundError(resourceId)
+      if (!resource.active) throw new ResourceUnavailableError(resourceId)
+      if (!offeredResourceIds.includes(resourceId)) {
+        throw new ServiceNotOfferedByResourceError(resourceId, params.service.id)
+      }
+    }),
+  )
+}
+
 /**
  * Vídeo nunca bloqueia a reserva (spec §9.6, T4.9): falha de rede ou de outcome `failed` só loga
  * — a reserva já está gravada quando esta função roda. Chamada tanto por `RequestBooking` (reunião
@@ -91,6 +121,11 @@ async function attachVideoMeeting(params: {
   const { videoMeeting, repositories, logger } = params.dependencies
   if (!videoMeeting) return params.booking
 
+  // M-2: capturado antes do `await` — `params.booking` pode ser o mesmo objeto que outra
+  // chamada concorrente muta em memória (ver dublê de teste), e ler `.status` depois do
+  // round-trip pegaria o valor já alterado, anulando a guarda de `attachProviderFields`.
+  const expectedStatus = params.booking.status
+
   try {
     const outcome = await videoMeeting.createMeeting({
       bookingId: params.booking.id,
@@ -102,10 +137,10 @@ async function attachVideoMeeting(params: {
       logger?.warn('scheduling.video_meeting_failed', { bookingId: params.booking.id, errorCode: outcome.errorCode })
       return params.booking
     }
-    const updated = await repositories.bookings.updateStatus({
+    const updated = await repositories.bookings.attachProviderFields({
       companyId: params.companyId,
       id: params.booking.id,
-      status: params.booking.status,
+      expectedStatus,
       values: { meetingUrl: outcome.meetingUrl },
     })
     return updated ?? params.booking
@@ -128,6 +163,10 @@ async function attachCalendarSync(params: {
   const { calendarSync, repositories, logger } = params.dependencies
   if (!calendarSync) return params.booking
 
+  // M-2: mesma razão de `attachVideoMeeting` — capturar antes do `await` evita ler um
+  // `.status` já mutado por escrita concorrente no mesmo objeto.
+  const expectedStatus = params.booking.status
+
   try {
     const outcome = await calendarSync.upsertEvent({
       externalCalendarId: params.booking.externalCalendarId ?? undefined,
@@ -140,10 +179,10 @@ async function attachCalendarSync(params: {
       logger?.warn('scheduling.calendar_sync_failed', { bookingId: params.booking.id, errorCode: outcome.errorCode })
       return params.booking
     }
-    const updated = await repositories.bookings.updateStatus({
+    const updated = await repositories.bookings.attachProviderFields({
       companyId: params.companyId,
       id: params.booking.id,
-      status: params.booking.status,
+      expectedStatus,
       values: { externalCalendarId: outcome.externalEventId },
     })
     return updated ?? params.booking
@@ -193,7 +232,7 @@ export class RequestBookingUseCase {
       })
       if (existing) {
         const slots = await repositories.bookings.findSlotsByBooking({ bookingId: existing.id })
-        return { booking: toBooking(existing), slots: slots.map(toBookingSlot), created: false }
+        return { booking: toBooking(existing, resourceIdsOf(slots)), slots: slots.map(toBookingSlot), created: false }
       }
     }
 
@@ -222,6 +261,13 @@ export class RequestBookingUseCase {
     if (params.input.serviceId) {
       service = await repositories.services.findById({ companyId: params.companyId, id: params.input.serviceId })
       if (!service) throw new ServiceNotFoundError(params.input.serviceId)
+
+      await assertResourcesEligibleForService({
+        dependencies: this.dependencies,
+        companyId: params.companyId,
+        resourceIds: params.input.resourceIds,
+        service,
+      })
     }
 
     const status: BookingStatus = service?.requiresConfirmation ? BOOKING_STATUS.REQUESTED : BOOKING_STATUS.CONFIRMED
@@ -261,7 +307,11 @@ export class RequestBookingUseCase {
     // F-006: perdeu a corrida do `unique` de `Idempotency-Key` — a reserva devolvida é a
     // vencedora, já processada por essa outra requisição. Replay não repete hook nem side effect.
     if (!created.created) {
-      return { booking: toBooking(created.booking), slots: created.slots.map(toBookingSlot), created: false }
+      return {
+        booking: toBooking(created.booking, resourceIdsOf(created.slots)),
+        slots: created.slots.map(toBookingSlot),
+        created: false,
+      }
     }
 
     await runHook({
@@ -296,7 +346,11 @@ export class RequestBookingUseCase {
       })
     }
 
-    return { booking: toBooking(booking), slots: created.slots.map(toBookingSlot), created: true }
+    return {
+      booking: toBooking(booking, resourceIdsOf(created.slots)),
+      slots: created.slots.map(toBookingSlot),
+      created: true,
+    }
   }
 }
 
@@ -313,7 +367,7 @@ export class ConfirmBookingUseCase {
     const slots = await repositories.bookings.findSlotsByBooking({ bookingId: params.id })
 
     if (existing.status !== BOOKING_STATUS.REQUESTED) {
-      return { booking: toBooking(existing), slots: slots.map(toBookingSlot) }
+      return { booking: toBooking(existing, resourceIdsOf(slots)), slots: slots.map(toBookingSlot) }
     }
 
     const confirmed = await repositories.bookings.updateStatus({
@@ -347,7 +401,7 @@ export class ConfirmBookingUseCase {
         }),
     })
 
-    return { booking: toBooking(withCalendar), slots: slots.map(toBookingSlot) }
+    return { booking: toBooking(withCalendar, resourceIdsOf(slots)), slots: slots.map(toBookingSlot) }
   }
 }
 
@@ -420,7 +474,7 @@ export class RescheduleBookingUseCase {
         }),
     })
 
-    return { booking: toBooking(booking), slots: slots.map(toBookingSlot) }
+    return { booking: toBooking(booking, resourceIdsOf(slots)), slots: slots.map(toBookingSlot) }
   }
 }
 
@@ -439,7 +493,7 @@ export class CancelBookingUseCase {
     if (!existing) throw new BookingNotFoundError(params.id)
 
     if (existing.status === BOOKING_STATUS.CANCELLED) {
-      return { booking: toBooking(existing), slots: [] }
+      return { booking: toBooking(existing, []), slots: [] }
     }
     // HIGH-1: só `cancelled` é replay idempotente — `completed`/`no_show` também são finais e
     // caíam direto no fluxo de cancelamento normal, apagando o histórico de atendimento e
@@ -489,7 +543,7 @@ export class CancelBookingUseCase {
         }),
     })
 
-    return { booking: toBooking(cancelled), slots: slots.map(toBookingSlot) }
+    return { booking: toBooking(cancelled, resourceIdsOf(slots)), slots: slots.map(toBookingSlot) }
   }
 }
 
@@ -539,7 +593,7 @@ async function transitionAndNotify(params: {
     })
   }
 
-  return { booking: toBooking(updated), slots: slots.map(toBookingSlot) }
+  return { booking: toBooking(updated, resourceIdsOf(slots)), slots: slots.map(toBookingSlot) }
 }
 
 /** T4.7 — marca a reserva `completed` depois que o horário passou. */
@@ -583,7 +637,7 @@ export class GetBookingUseCase {
     const booking = await bookings.findById({ companyId: params.companyId, id: params.id })
     if (!booking) throw new BookingNotFoundError(params.id)
     const slots = await bookings.findSlotsByBooking({ bookingId: params.id })
-    return { booking: toBooking(booking), slots: slots.map(toBookingSlot) }
+    return { booking: toBooking(booking, resourceIdsOf(slots)), slots: slots.map(toBookingSlot) }
   }
 }
 
@@ -604,7 +658,7 @@ export class SyncBookingCalendarUseCase {
     })
     const slots = await repositories.bookings.findSlotsByBooking({ bookingId: params.id })
 
-    return { booking: toBooking(booking), slots: slots.map(toBookingSlot) }
+    return { booking: toBooking(booking, resourceIdsOf(slots)), slots: slots.map(toBookingSlot) }
   }
 }
 
@@ -616,7 +670,8 @@ export class ListBookingsUseCase {
     const page = params.page ?? DEFAULT_PAGE
     const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE
 
-    const { rows, total } = await this.dependencies.repositories.bookings.list({
+    const { bookings } = this.dependencies.repositories
+    const { rows, total } = await bookings.list({
       companyId: params.companyId,
       page,
       pageSize,
@@ -628,8 +683,19 @@ export class ListBookingsUseCase {
       sortDirection: params.sortDirection,
     })
 
+    // M-5 (T9.3): sem isto, `Booking.resourceIds` ficava vazio na listagem — a única leitura que
+    // não passava por `findSlotsByBooking` — e o front não tinha como resolver o fuso do recurso
+    // para os campos `datetime-local` de remarcação (ver `BookingDrawer.tsx`).
+    const slots = await bookings.findSlotsByBookingIds({ bookingIds: rows.map((row) => row.id) })
+    const resourceIdsByBooking = new Map<string, string[]>()
+    for (const slot of slots) {
+      const resourceIds = resourceIdsByBooking.get(slot.bookingId) ?? []
+      resourceIds.push(slot.resourceId)
+      resourceIdsByBooking.set(slot.bookingId, resourceIds)
+    }
+
     return {
-      data: rows.map(toBooking),
+      data: rows.map((row) => toBooking(row, resourceIdsByBooking.get(row.id) ?? [])),
       total,
       page,
       pageSize,

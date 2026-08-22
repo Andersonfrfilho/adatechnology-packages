@@ -11,6 +11,7 @@
 import { sql } from 'drizzle-orm'
 import {
   boolean,
+  foreignKey,
   index,
   integer,
   pgSchema,
@@ -49,6 +50,9 @@ export const resources = schedulingSchema.table(
   (table) => [
     index('idx_resources_company_active').on(table.companyId, table.active),
     index('idx_resources_company_kind').on(table.companyId, table.kind),
+    // L-011 (T9.3): alvo da FK composta de `resource_services` — sem ela, nada no banco impede um
+    // `resource_services.company_id` divergente do `resources.company_id` do recurso vinculado.
+    uniqueIndex('idx_resources_id_company').on(table.id, table.companyId),
   ],
 )
 
@@ -75,7 +79,11 @@ export const services = schedulingSchema.table(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_services_company_active').on(table.companyId, table.active, table.sortOrder)],
+  (table) => [
+    index('idx_services_company_active').on(table.companyId, table.active, table.sortOrder),
+    // L-011 (T9.3): alvo da FK composta de `resource_services` (mesmo motivo de `idx_resources_id_company`).
+    uniqueIndex('idx_services_id_company').on(table.id, table.companyId),
+  ],
 )
 
 // Junção: quais recursos atendem qual serviço — filtra a fatia de disponibilidade (spec §7).
@@ -94,6 +102,19 @@ export const resourceServices = schedulingSchema.table(
   (table) => [
     uniqueIndex('idx_resource_services_pair').on(table.resourceId, table.serviceId),
     index('idx_resource_services_company_service').on(table.companyId, table.serviceId),
+    // L-011 (T9.3): antes desta constraint, tenancy do vínculo dependia só de
+    // `assertServiceAndResourceOwned` na camada de aplicação — nada no banco impedia um
+    // `resource_services` gravado (ou corrompido) com `company_id` diferente do recurso/serviço.
+    foreignKey({
+      columns: [table.resourceId, table.companyId],
+      foreignColumns: [resources.id, resources.companyId],
+      name: 'resource_services_resource_company_fk',
+    }).onDelete('cascade'),
+    foreignKey({
+      columns: [table.serviceId, table.companyId],
+      foreignColumns: [services.id, services.companyId],
+      name: 'resource_services_service_company_fk',
+    }).onDelete('cascade'),
   ],
 )
 

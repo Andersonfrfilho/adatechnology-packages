@@ -127,6 +127,7 @@ export {
   ResourceUnavailableError,
   ServiceNotOfferedByResourceError,
   ConfigMissingError,
+  UnauthenticatedError,
   LookaheadWindowTooLargeError,
   CalendarSyncDisabledError,
   BookingNotModifiableError,

@@ -347,6 +347,11 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
     async findSlotsByBooking(params: { bookingId: string }): Promise<BookingSlotRow[]> {
       return (slotsByBooking.get(params.bookingId) ?? []).map((slot) => ({ ...slot }))
     },
+    async findSlotsByBookingIds(params: { bookingIds: readonly string[] }): Promise<BookingSlotRow[]> {
+      return params.bookingIds.flatMap((bookingId) =>
+        (slotsByBooking.get(bookingId) ?? []).map((slot) => ({ ...slot })),
+      )
+    },
     async listBlockingSlotsByResource(params: {
       resourceId: string
       from: Date
@@ -415,6 +420,17 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       Object.assign(row, params.values, { status: params.status })
       return snapshot(row)
     },
+    async attachProviderFields(params: {
+      companyId: string
+      id: string
+      expectedStatus: string
+      values: Partial<NewBookingRow>
+    }): Promise<BookingRow | undefined> {
+      const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === params.id)
+      if (!row || row.status !== params.expectedStatus) return undefined
+      Object.assign(row, params.values)
+      return snapshot(row)
+    },
     async rescheduleWithSlotReplace(params: {
       companyId: string
       id: string
@@ -477,6 +493,14 @@ export function createInMemoryBookings(seed: BookingRow[] = []) {
       }
 
       return due.map((row) => ({ ...row }))
+    },
+    async releaseFailedReminders(params: { ids: readonly string[] }): Promise<void> {
+      for (const row of rows) {
+        if (params.ids.includes(row.id)) {
+          row.reminderSentAt = null
+          row.updatedAt = EPOCH
+        }
+      }
     },
   }
 }

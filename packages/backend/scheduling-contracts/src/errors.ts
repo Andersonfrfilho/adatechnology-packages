@@ -28,6 +28,7 @@ export const SCHEDULING_ERROR_CODES = {
   RESOURCE_UNAVAILABLE: 'SCHEDULING_RESOURCE_UNAVAILABLE',
   SERVICE_NOT_OFFERED_BY_RESOURCE: 'SCHEDULING_SERVICE_NOT_OFFERED_BY_RESOURCE',
   CONFIG_MISSING: 'SCHEDULING_CONFIG_MISSING',
+  UNAUTHENTICATED: 'SCHEDULING_UNAUTHENTICATED',
   LOOKAHEAD_WINDOW_TOO_LARGE: 'SCHEDULING_LOOKAHEAD_WINDOW_TOO_LARGE',
   CALENDAR_SYNC_DISABLED: 'SCHEDULING_CALENDAR_SYNC_DISABLED',
   BOOKING_NOT_MODIFIABLE: 'SCHEDULING_BOOKING_NOT_MODIFIABLE',
@@ -127,6 +128,18 @@ export class ServiceNotOfferedByResourceError extends SchedulingError {
 export class ConfigMissingError extends SchedulingError {
   constructor(public readonly field: string) {
     super(`Configuração obrigatória ausente: ${field}.`, 500, SCHEDULING_ERROR_CODES.CONFIG_MISSING, { field })
+  }
+}
+
+/**
+ * L-003: `requireCompany` lançava `ConfigMissingError`/`CONFIG_MISSING` (500) para requisição sem
+ * `context.auth.companyId` — código de configuração ausente do host, não de falha de autenticação
+ * do chamador. O host que filtra por `code` para decidir se é um bug seu (500) ou uma sessão
+ * inválida do cliente (401) recebia o sinal errado.
+ */
+export class UnauthenticatedError extends SchedulingError {
+  constructor() {
+    super('Rota exige contexto autenticado.', 401, SCHEDULING_ERROR_CODES.UNAUTHENTICATED)
   }
 }
 

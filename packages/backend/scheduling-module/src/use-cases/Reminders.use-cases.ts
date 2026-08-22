@@ -29,9 +29,13 @@ export class SweepDueRemindersUseCase {
       limit: params.limit ?? DEFAULT_CLAIM_LIMIT,
     })
 
+    // L-004: `onBookingReminderDue` que falha não pode deixar o lembrete perdido para sempre —
+    // `claimDueReminders` já marcou `reminderSentAt`, então aqui desfazemos a marcação das falhas
+    // para a próxima varredura reivindicar de novo.
+    const failedBookingIds: string[] = []
     for (const booking of claimed) {
       const slots = await repositories.bookings.findSlotsByBooking({ bookingId: booking.id })
-      await runHook({
+      const succeeded = await runHook({
         dependencies: this.dependencies,
         name: 'onBookingReminderDue',
         run: () =>
@@ -46,8 +50,13 @@ export class SweepDueRemindersUseCase {
             organizerRef: booking.organizerRef,
           }),
       })
+      if (!succeeded) failedBookingIds.push(booking.id)
     }
 
-    return { processed: claimed.length }
+    if (failedBookingIds.length > 0) {
+      await repositories.bookings.releaseFailedReminders({ ids: failedBookingIds })
+    }
+
+    return { processed: claimed.length - failedBookingIds.length }
   }
 }

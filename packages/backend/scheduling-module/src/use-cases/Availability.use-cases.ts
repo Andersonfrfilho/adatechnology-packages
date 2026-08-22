@@ -103,12 +103,16 @@ export class ListAvailableSlotsUseCase {
     // `extra` chegue aqui sem filtro (bug de outro caminho, driver diferente, chamada direta do
     // repositório), nenhum candidato fora de `[from, until)` sai deste método.
     const requestedWindow: TimeWindow = { start: params.from, end: params.until }
-    const free = [...ruleCandidates, ...extraCandidates].filter(
+    const filtered = [...ruleCandidates, ...extraCandidates].filter(
       (candidate) =>
         windowsOverlap(candidate.during, requestedWindow) &&
         !blockWindows.some((window) => windowsOverlap(candidate.blocking, window)) &&
         !bookedWindows.some((window) => windowsOverlap(candidate.blocking, window)),
     )
+
+    // L-005: uma regra semanal e uma exceção `extra` podem cobrir a mesma janela — sem isto o
+    // cliente via o mesmo horário duas vezes na lista de disponibilidade.
+    const free = dedupeCandidatesByWindow(filtered)
 
     return free
       .sort((a, b) => a.during.start.getTime() - b.during.start.getTime())
@@ -192,6 +196,16 @@ export class ListAvailableSlotsUseCase {
       bufferAfterMinutes: params.bufferAfterMinutes,
     })
   }
+}
+
+/** Chave por instante exato de `during` — candidato de regra e de exceção `extra` cobrindo o mesmo horário colapsam em um só. */
+function dedupeCandidatesByWindow(candidates: readonly AvailabilityCandidate[]): AvailabilityCandidate[] {
+  const seen = new Map<string, AvailabilityCandidate>()
+  for (const candidate of candidates) {
+    const key = `${candidate.during.start.getTime()}-${candidate.during.end.getTime()}`
+    if (!seen.has(key)) seen.set(key, candidate)
+  }
+  return [...seen.values()]
 }
 
 function candidatesFromExtraExceptions(params: {

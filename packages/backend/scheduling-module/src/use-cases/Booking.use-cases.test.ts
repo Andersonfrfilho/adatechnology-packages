@@ -97,6 +97,16 @@ async function createService(
   })
 }
 
+// M-1 (T9.3): `RequestBookingUseCase` agora exige o par recurso/serviço cadastrado
+// (`services.listResourceIdsForService`) — sem este link o dublê em memória nunca "oferece"
+// o serviço, e todo teste que reserva com `serviceId` precisa declarar o par primeiro.
+async function linkResourceService(
+  services: ReturnType<typeof createInMemoryServices>,
+  params: { resourceId: string; serviceId: string },
+): Promise<void> {
+  await services.linkResource({ companyId: COMPANY_ID, resourceId: params.resourceId, serviceId: params.serviceId })
+}
+
 const FUTURE_START = new Date('2026-08-20T14:00:00.000Z')
 const FUTURE_END = new Date('2026-08-20T14:30:00.000Z')
 
@@ -117,6 +127,7 @@ describe('RequestBookingUseCase', () => {
     const { dependencies, resources, services, bookings } = buildDependencies()
     const resource = await createResource(resources)
     const service = await createService(services, { requiresConfirmation: true })
+    await linkResourceService(services, { resourceId: resource.id, serviceId: service.id })
 
     const { booking, slots } = await new RequestBookingUseCase(dependencies).execute({
       companyId: COMPANY_ID,
@@ -283,6 +294,28 @@ describe('RequestBookingUseCase', () => {
     expect(booking.meetingUrl ?? null).toBeNull()
   })
 
+  it('M-2: cancelamento concorrente durante o round-trip de vídeo não é ressuscitado', async () => {
+    const { dependencies, resources, bookings } = buildDependencies({
+      videoMeeting: {
+        createMeeting: async (call) => {
+          // Simula outra requisição cancelando a reserva enquanto o provedor externo ainda responde.
+          await bookings.updateStatus({ companyId: COMPANY_ID, id: call.bookingId, status: BOOKING_STATUS.CANCELLED })
+          return { outcome: 'created', meetingUrl: 'https://video.example/race' }
+        },
+      },
+    })
+    const resource = await createResource(resources)
+
+    const { booking } = await new RequestBookingUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      input: { title: 'Reunião', during: { start: FUTURE_START, end: FUTURE_END }, resourceIds: [resource.id] },
+    })
+
+    const persisted = await bookings.findById({ companyId: COMPANY_ID, id: booking.id })
+    expect(persisted?.status).toBe(BOOKING_STATUS.CANCELLED)
+    expect(persisted?.meetingUrl ?? null).toBeNull()
+  })
+
   it('anexa evento de calendário quando a reserva nasce confirmed', async () => {
     const calendarSync: CalendarSyncPort = {
       upsertEvent: async () => ({ outcome: 'synced', externalEventId: 'ext-event-1' }),
@@ -365,6 +398,7 @@ describe('RequestBookingUseCase', () => {
     })
     const requestedResource = await createResource(requestedResources)
     const service = await createService(services, { requiresConfirmation: true })
+    await linkResourceService(services, { resourceId: requestedResource.id, serviceId: service.id })
 
     await new RequestBookingUseCase(requestedDependencies).execute({
       companyId: COMPANY_ID,
@@ -397,6 +431,7 @@ describe('ConfirmBookingUseCase', () => {
     })
     const resource = await createResource(resources)
     const service = await createService(services, { requiresConfirmation: true })
+    await linkResourceService(services, { resourceId: resource.id, serviceId: service.id })
 
     const { booking: requested } = await new RequestBookingUseCase(dependencies).execute({
       companyId: COMPANY_ID,
@@ -462,6 +497,7 @@ describe('ConfirmBookingUseCase', () => {
     const { dependencies, resources, services } = buildDependencies({ calendarSync })
     const resource = await createResource(resources)
     const service = await createService(services, { requiresConfirmation: true })
+    await linkResourceService(services, { resourceId: resource.id, serviceId: service.id })
 
     const { booking: requested } = await new RequestBookingUseCase(dependencies).execute({
       companyId: COMPANY_ID,
@@ -582,6 +618,7 @@ describe('RescheduleBookingUseCase', () => {
     const { dependencies, resources, services } = buildDependencies({ calendarSync })
     const resource = await createResource(resources)
     const service = await createService(services, { requiresConfirmation: true })
+    await linkResourceService(services, { resourceId: resource.id, serviceId: service.id })
 
     const { booking } = await new RequestBookingUseCase(dependencies).execute({
       companyId: COMPANY_ID,
@@ -639,6 +676,7 @@ describe('CancelBookingUseCase', () => {
     const { dependencies, resources, services } = buildDependencies()
     const resource = await createResource(resources)
     const service = await createService(services, { minCancellationNoticeMinutes: 120 })
+    await linkResourceService(services, { resourceId: resource.id, serviceId: service.id })
 
     const soonStart = new Date(NOW.getTime() + 30 * 60_000)
     const soonEnd = new Date(NOW.getTime() + 60 * 60_000)
@@ -665,6 +703,7 @@ describe('CancelBookingUseCase', () => {
     const { dependencies, resources, services } = buildDependencies()
     const resource = await createResource(resources)
     const service = await createService(services, { minCancellationNoticeMinutes: 0 })
+    await linkResourceService(services, { resourceId: resource.id, serviceId: service.id })
 
     const soonStart = new Date(NOW.getTime() + 5 * 60_000)
     const soonEnd = new Date(NOW.getTime() + 35 * 60_000)
