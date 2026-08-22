@@ -84,5 +84,9 @@
   "availability.startsAtLocal": "Início",
   "availability.endsAtLocal": "Fim",
   "availability.exceptionFrom": "De",
-  "availability.exceptionUntil": "Até"
+  "availability.exceptionUntil": "Até",
+  "datetime.year": "Ano",
+  "datetime.month": "Mês",
+  "datetime.day": "Dia",
+  "datetime.time": "Hora"
 }

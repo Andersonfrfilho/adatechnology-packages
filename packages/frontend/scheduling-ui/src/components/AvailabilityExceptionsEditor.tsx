@@ -14,7 +14,8 @@ import {
 } from '../hooks/useAvailabilityMutations.mutation'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
-import { parseDateTimeLocalInTimeZone } from './datetimeLocal.util'
+import { DateTimeField } from './DateTimeField'
+import { formatDateTimeLocalInTimeZone, parseDateTimeLocalInTimeZone } from './datetimeLocal.util'
 
 export type AvailabilityExceptionsEditorProps = {
   readonly resourceId: ResourceId
@@ -31,8 +32,10 @@ export function AvailabilityExceptionsEditor({ resourceId, timezone }: Availabil
   const addException = useAddAvailabilityException()
   const removeException = useRemoveAvailabilityException()
 
-  const [from, setFrom] = useState('')
-  const [until, setUntil] = useState('')
+  // Campo separado sempre mostra um dia; comecar com texto vazio faria o botao recusar em silencio
+  // um formulario que parece preenchido.
+  const [from, setFrom] = useState(() => formatDateTimeLocalInTimeZone(new Date(), timezone))
+  const [until, setUntil] = useState(() => formatDateTimeLocalInTimeZone(new Date(), timezone))
   const [kind, setKind] = useState<AvailabilityExceptionKind>(AVAILABILITY_EXCEPTION_KIND.BLOCK)
   const [reason, setReason] = useState('')
 
@@ -98,19 +101,15 @@ export function AvailabilityExceptionsEditor({ resourceId, timezone }: Availabil
       </ul>
 
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          aria-label={messages['availability.exceptionFrom']}
-          type="datetime-local"
+        <DateTimeField
+          label={messages['availability.exceptionFrom']}
           value={from}
-          onChange={(event) => setFrom(event.target.value)}
-          className={SELECT_CLASS}
+          onChange={setFrom}
         />
-        <input
-          aria-label={messages['availability.exceptionUntil']}
-          type="datetime-local"
+        <DateTimeField
+          label={messages['availability.exceptionUntil']}
           value={until}
-          onChange={(event) => setUntil(event.target.value)}
-          className={SELECT_CLASS}
+          onChange={setUntil}
         />
         <select
           aria-label={messages['availability.exceptionKind.blocked']}

@@ -11,6 +11,7 @@ import { useCancelBooking, useCompleteBooking, useConfirmBooking, useMarkNoShow 
 import { useRescheduleBooking } from '../hooks/useRescheduleBooking.mutation'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+import { DateTimeField } from './DateTimeField'
 import { formatDateTimeLocalInTimeZone, parseDateTimeLocalInTimeZone } from './datetimeLocal.util'
 import { SidePanel } from './SidePanel'
 
@@ -138,20 +139,12 @@ export function BookingDrawer({ booking, resourceTimezone, onClose }: BookingDra
 
         {isRescheduling && (
           <div className="space-y-2 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-            <input
-              type="datetime-local"
-              aria-label={messages['booking.rescheduleStart']}
+            <DateTimeField
+              label={messages['booking.rescheduleStart']}
               value={start}
-              onChange={(event) => setStart(event.target.value)}
-              className={INPUT_CLASS}
+              onChange={setStart}
             />
-            <input
-              type="datetime-local"
-              aria-label={messages['booking.rescheduleEnd']}
-              value={end}
-              onChange={(event) => setEnd(event.target.value)}
-              className={INPUT_CLASS}
-            />
+            <DateTimeField label={messages['booking.rescheduleEnd']} value={end} onChange={setEnd} />
             <button type="button" onClick={handleReschedule} disabled={rescheduleBooking.isPending} className={PRIMARY_BUTTON_CLASS}>
               {messages['common.save']}
             </button>

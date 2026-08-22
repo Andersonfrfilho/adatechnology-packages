@@ -84,5 +84,9 @@
   "availability.startsAtLocal": "Starts",
   "availability.endsAtLocal": "Ends",
   "availability.exceptionFrom": "From",
-  "availability.exceptionUntil": "Until"
+  "availability.exceptionUntil": "Until",
+  "datetime.year": "Year",
+  "datetime.month": "Month",
+  "datetime.day": "Day",
+  "datetime.time": "Time"
 }
