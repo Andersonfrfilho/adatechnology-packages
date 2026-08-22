@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/scheduling-module",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0-rc.3",
   "license": "MIT",
   "description": "Stateful scheduling module — schema, migrations, repositories and use-cases behind pluggable ports",
   "publishConfig": {
