@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/caldav-calendar-provider",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "description": "CalendarSyncPort backed by a generic CalDAV server (RFC 4791) — iCloud e servidores CalDAV genéricos",
   "type": "module",
   "main": "dist/index.js",

@@ -156,6 +156,7 @@
     "restore-provider-factory",
     "rich-message-composer",
     "scheduling-composite-fk-order",
+    "scheduling-contracts-unauthenticated",
     "scheduling-datetime-field",
     "scheduling-exception-reset",
     "scheduling-routes-export",
