@@ -10,8 +10,10 @@ import { describe, expect, it } from 'bun:test'
 import { InvalidWebhookSignatureError } from '@adatechnology/meta-whatsapp-contracts'
 import {
   claimWebhookDelivery,
+  confirmWebhookDelivery,
   verifyWebhookChallenge,
   verifyWebhookSignature,
+  WEBHOOK_CLAIM_TTL_SECONDS,
   WEBHOOK_NONCE_TTL_SECONDS,
   type NonceStoreInterface,
 } from './webhookSecurity'
@@ -23,14 +25,23 @@ function sign(body: string, secret = APP_SECRET): string {
 }
 
 // Store em memória, só para o teste — em produção precisa ser compartilhado entre instâncias.
-function createNonceStore(): NonceStoreInterface & { readonly keys: Set<string> } {
+function createNonceStore(): NonceStoreInterface & {
+  readonly keys: Set<string>
+  readonly writes: { key: string; ttlSeconds: number; phase: 'claim' | 'confirm' }[]
+} {
   const keys = new Set<string>()
+  const writes: { key: string; ttlSeconds: number; phase: 'claim' | 'confirm' }[] = []
   return {
     keys,
-    async setIfAbsent(key: string): Promise<boolean> {
+    writes,
+    async setIfAbsent(key: string, ttlSeconds: number): Promise<boolean> {
       if (keys.has(key)) return false
       keys.add(key)
+      writes.push({ key, ttlSeconds, phase: 'claim' })
       return true
+    },
+    async confirm(key: string, ttlSeconds: number): Promise<void> {
+      writes.push({ key, ttlSeconds, phase: 'confirm' })
     },
   }
 }
@@ -152,5 +163,40 @@ describe('claimWebhookDelivery', () => {
 
   it('expõe um TTL positivo para a janela anti-replay', () => {
     expect(WEBHOOK_NONCE_TTL_SECONDS).toBeGreaterThan(0)
+  })
+})
+
+describe('claim seguido de confirm', () => {
+  const signatureHeader = sign('corpo-para-confirmar')
+
+  it('reivindica com TTL curto e só estende para a janela cheia no confirm', async () => {
+    const nonceStore = createNonceStore()
+
+    await claimWebhookDelivery({ nonceStore, signatureHeader })
+    expect(nonceStore.writes).toEqual([
+      { key: [...nonceStore.keys][0]!, ttlSeconds: WEBHOOK_CLAIM_TTL_SECONDS, phase: 'claim' },
+    ])
+
+    await confirmWebhookDelivery({ nonceStore, signatureHeader })
+    expect(nonceStore.writes[1]).toEqual({
+      key: [...nonceStore.keys][0]!,
+      ttlSeconds: WEBHOOK_NONCE_TTL_SECONDS,
+      phase: 'confirm',
+    })
+  })
+
+  it('mantém o claim mais curto que a janela cheia, para a reentrega da Meta ainda ter porta', () => {
+    expect(WEBHOOK_CLAIM_TTL_SECONDS).toBeGreaterThan(0)
+    expect(WEBHOOK_CLAIM_TTL_SECONDS).toBeLessThan(WEBHOOK_NONCE_TTL_SECONDS)
+  })
+
+  it('não quebra com host que ainda não implementa confirm', async () => {
+    const semConfirm: NonceStoreInterface = {
+      async setIfAbsent(): Promise<boolean> {
+        return true
+      },
+    }
+    await claimWebhookDelivery({ nonceStore: semConfirm, signatureHeader })
+    expect(confirmWebhookDelivery({ nonceStore: semConfirm, signatureHeader })).resolves.toBeUndefined()
   })
 })

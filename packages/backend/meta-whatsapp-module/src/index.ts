@@ -31,9 +31,25 @@ export {
   verifyWebhookChallenge,
   verifyWebhookSignature,
   claimWebhookDelivery,
+  confirmWebhookDelivery,
+  WEBHOOK_CLAIM_TTL_SECONDS,
   WEBHOOK_NONCE_TTL_SECONDS,
 } from './channel/webhookSecurity'
 export type { NonceStoreInterface } from './channel/webhookSecurity'
+
+export {
+  InboundEffectsDispatcher,
+  ProcessInboundDispatchUseCase,
+  buildInboundJobId,
+  toSessionContract,
+} from './channel/inboundDispatch'
+export type {
+  InboundDispatchJob,
+  InboundDispatchQueueInterface,
+  InboundMediaDescriptor,
+  InboundMessageEffectsJob,
+  InboundStatusEffectsJob,
+} from './channel/inboundDispatch'
 
 export { IngestInboundMediaUseCase, extractMediaDescriptor } from './channel/IngestInboundMedia.use-case'
 export type {

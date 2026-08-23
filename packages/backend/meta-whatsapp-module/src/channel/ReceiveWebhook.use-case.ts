@@ -5,15 +5,25 @@ import {
   type WhatsAppMessage,
   type WhatsAppStatus,
   type MessageStatus,
-  type ConversationSession,
 } from '@adatechnology/meta-whatsapp-contracts'
 import type { MessageRepository } from '../repositories/MessageRepository'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
 import type { RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
-import type { SessionRow } from '../schema/schema'
-import { verifyWebhookSignature, claimWebhookDelivery, type NonceStoreInterface } from './webhookSecurity'
+import {
+  verifyWebhookSignature,
+  claimWebhookDelivery,
+  confirmWebhookDelivery,
+  type NonceStoreInterface,
+} from './webhookSecurity'
 import { extractMediaDescriptor } from './IngestInboundMedia.use-case'
+import {
+  InboundEffectsDispatcher,
+  buildInboundJobId,
+  extractAnswer,
+  type InboundDispatchJob,
+  type InboundDispatchQueueInterface,
+} from './inboundDispatch'
 
 export type ReceiveWebhookParams = {
   companyId: string
@@ -31,26 +41,6 @@ export type ReceiveWebhookResult = {
   ignoredForeignNumber: number
 }
 
-function toSessionContract(row: SessionRow): ConversationSession {
-  return {
-    id: row.id,
-    companyId: row.companyId,
-    whatsappNumber: row.whatsappNumber,
-    currentState: row.currentState,
-    flowKey: row.flowKey,
-    currentNodeId: row.currentNodeId,
-    context: row.context,
-    mode: row.mode as ConversationSession['mode'],
-    assignedUserId: row.assignedUserId,
-    humanRequestedAt: row.humanRequestedAt?.toISOString() ?? null,
-    lastInboundAt: row.lastInboundAt?.toISOString() ?? null,
-    lastAgentReadAt: row.lastAgentReadAt?.toISOString() ?? null,
-    lastActivity: row.lastActivity.toISOString(),
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  }
-}
-
 // Texto legível para o transcript. Uma mensagem interativa traz título E id; guardamos o título
 // (é o que o cliente viu), com o id como fallback quando a Meta não manda título.
 function extractContent(message: WhatsAppMessage): string | null {
@@ -63,15 +53,6 @@ function extractContent(message: WhatsAppMessage): string | null {
     return `Pedido: ${items} item(ns)`
   }
   return message.image?.caption ?? message.document?.caption ?? null
-}
-
-// A resposta que o motor de fluxo deve consumir: para interativo é o ID da opção (estável), não
-// o título (que muda quando alguém edita o texto do botão no editor).
-function extractAnswer(message: WhatsAppMessage): string | undefined {
-  const interactive = message.interactive
-  if (interactive?.button_reply) return interactive.button_reply.id
-  if (interactive?.list_reply) return interactive.list_reply.id
-  return message.text?.body
 }
 
 function extractPayload(message: WhatsAppMessage): Record<string, unknown> | null {
@@ -102,8 +83,21 @@ export class ReceiveWebhookUseCase {
       startState: SessionState
       hooks?: MetaWhatsAppHooks
       realtime?: RealtimeNotifierInterface
+      /**
+       * Sem fila o módulo se comporta como sempre: os hooks rodam dentro da requisição do webhook.
+       * Configurá-la é o que faz a conversa sobreviver a um deploy no meio do atendimento.
+       */
+      inboundQueue?: InboundDispatchQueueInterface
     },
-  ) {}
+  ) {
+    this.dispatcher = new InboundEffectsDispatcher({
+      sessionRepository: params.sessionRepository,
+      ...(params.hooks ? { hooks: params.hooks } : {}),
+      ...(params.realtime ? { realtime: params.realtime } : {}),
+    })
+  }
+
+  private readonly dispatcher: InboundEffectsDispatcher
 
   async execute(input: ReceiveWebhookParams): Promise<ReceiveWebhookResult> {
     verifyWebhookSignature({
@@ -149,10 +143,19 @@ export class ReceiveWebhookUseCase {
       }
     }
 
+    // Só aqui a entrega vira "processada". Se qualquer coisa acima lançar, o claim curto expira e
+    // a reentrega da Meta ainda encontra a porta aberta — que é o ponto de todo este desenho.
+    await confirmWebhookDelivery({
+      nonceStore: this.params.nonceStore,
+      signatureHeader: input.signatureHeader!,
+    })
+
     return { duplicate: false, messagesProcessed, statusesProcessed, ignoredForeignNumber }
   }
 
   private async handleMessage(companyId: string, message: WhatsAppMessage): Promise<void> {
+    // Persistir fica na requisição de propósito: é escrita local, custa pouco, e é o que garante
+    // que a mensagem do cliente existe no banco mesmo que tudo depois dela falhe.
     const saved = await this.params.logMessage.execute({
       companyId,
       whatsappNumber: message.from,
@@ -169,36 +172,15 @@ export class ReceiveWebhookUseCase {
     // regra de negócio do host rodaria duas vezes para a mesma mensagem do cliente.
     if (!saved) return
 
-    // Antes de qualquer retorno antecipado: os `return` abaixo (atendimento humano, sessão ausente)
-    // são sobre o FLUXO DO BOT, e mídia precisa ser copiada da Meta de qualquer forma. Justamente em
-    // atendimento humano é que o cliente manda documento para o atendente — deixar a ingestão
-    // depois desse `return` perderia esses arquivos, e a URL da Meta expira sem segunda chance.
     const media = extractMediaDescriptor(saved)
-    if (media) {
-      await this.params.hooks?.onMediaReceived?.({
-        companyId,
-        messageId: saved.id,
-        whatsappNumber: message.from,
-        sourceMediaId: media.sourceMediaId,
-        mimeType: media.mimeType,
-        ...(media.filename ? { filename: media.filename } : {}),
-      })
-    }
-
-    const sessionRow = await this.params.sessionRepository.getContext(companyId, message.from)
-    if (!sessionRow) return
-
-    // Conversa em atendimento humano não é processada pelo bot — o atendente responde.
-    if (sessionRow.mode === 'human') return
-
-    const outcome = await this.params.hooks?.onMessageReceived?.(message, toSessionContract(sessionRow))
-    // 'handled' = o host já respondeu e assumiu a mensagem; o módulo não segue com o fluxo.
-    if (outcome?.outcome === 'handled') return
-
-    // 'continue' (ou sem hook): quem dirige o motor de fluxo é o host via runFlowStep — o
-    // webhook só entrega o sinal. Expor a resposta extraída evita que cada host reimplemente
-    // a lógica de "qual é a resposta do cliente" para interativo vs texto.
-    void extractAnswer(message)
+    await this.dispatch({
+      kind: 'message',
+      companyId,
+      message,
+      savedMessageId: saved.id,
+      ...(media ? { media } : {}),
+      receivedAt: Date.now(),
+    })
   }
 
   private async handleStatus(companyId: string, status: WhatsAppStatus): Promise<void> {
@@ -214,8 +196,23 @@ export class ReceiveWebhookUseCase {
       status: status.status,
     })
 
-    const sessionRow = await this.params.sessionRepository.getContext(companyId, updated.whatsappNumber)
-    await this.params.hooks?.onStatusUpdate?.(status, sessionRow ? toSessionContract(sessionRow) : null)
+    await this.dispatch({
+      kind: 'status',
+      companyId,
+      status,
+      whatsappNumber: updated.whatsappNumber,
+      receivedAt: Date.now(),
+    })
+  }
+
+  // Com fila configurada, os efeitos saem da requisição do webhook; sem ela, rodam aqui mesmo e o
+  // comportamento é o de sempre. É o mesmo `InboundEffectsDispatcher` nos dois caminhos.
+  private async dispatch(job: InboundDispatchJob): Promise<void> {
+    if (this.params.inboundQueue) {
+      await this.params.inboundQueue.enqueue(job, { jobId: buildInboundJobId(job) })
+      return
+    }
+    await this.dispatcher.run(job)
   }
 }
 

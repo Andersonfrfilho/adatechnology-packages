@@ -12,6 +12,15 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
+/**
+ * A entrega vive dois tempos. Enquanto o processamento corre, a chave é reivindicada por pouco:
+ * se o processo morrer no meio — deploy, OOM, crash —, ela expira sozinha e a reentrega da Meta
+ * volta a valer. Gravar a janela cheia já no claim transformava a reentrega, que é a única rede de
+ * segurança que existe, no mecanismo que descartava a mensagem em definitivo.
+ */
+export const WEBHOOK_CLAIM_TTL_SECONDS = 60
+
+/** Janela anti-replay depois da entrega confirmada. */
 export const WEBHOOK_NONCE_TTL_SECONDS = 300
 
 /**
