@@ -111,7 +111,7 @@ describe('createUserModule — capability por ausência', () => {
         tenancy: { mode: 'single', defaultCompanyId: 'company-a' },
         accessToken: { secret: 'segredo-de-teste' },
       },
-      providers: { email: { driver: 'test', send: async () => ({ success: true }) } },
+      providers: { email: { driver: 'test', send: async () => ({ outcome: 'sent' as const }) } },
     })
     expect(userModule.hasEmail).toBe(true)
   })
