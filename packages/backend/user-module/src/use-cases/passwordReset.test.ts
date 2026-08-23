@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from 'bun:test'
+import type { SendEmailParams } from '@adatechnology/user-contracts'
 import {
   ConfigMissingError,
   ResetTokenAlreadyUsedError,
@@ -104,6 +105,70 @@ describe('RequestPasswordResetUseCase', () => {
     expect(events[0]?.email).toBe('ana@example.com')
     expect(events[0]?.resetUrl.startsWith('https://app.example.com/reset?token=')).toBe(true)
     expect(events[0]?.resetUrl).not.toContain('{token}')
+  })
+
+  it('com provider de e-mail: envia html e text com o link já resolvido', async () => {
+    const sent: SendEmailParams[] = []
+    const dependencies = buildDependencies({
+      email: { driver: 'test', send: async (params) => (sent.push(params), { outcome: 'sent' }) },
+    })
+    await createUser(dependencies)
+
+    await new RequestPasswordResetUseCase(dependencies).execute({ email: 'ana@example.com' })
+
+    expect(sent).toHaveLength(1)
+    expect(sent[0]?.to).toBe('ana@example.com')
+    // As duas partes são obrigatórias no `SendEmailParams` do ecossistema: cliente que bloqueia
+    // HTML precisa do texto, e um `text` vazio derruba a reputação de entrega.
+    expect(sent[0]?.html).toContain('https://app.example.com/reset?token=')
+    expect(sent[0]?.text).toContain('https://app.example.com/reset?token=')
+    expect(sent[0]?.html).not.toContain('{token}')
+  })
+
+  it('passwordReset.buildEmail do host substitui o texto padrão do módulo', async () => {
+    const sent: SendEmailParams[] = []
+    const dependencies = buildDependencies({
+      config: {
+        tenancy: { mode: 'single', defaultCompanyId: 'company-a' },
+        accessToken: { secret: 'test-secret-test-secret-test-secret' },
+        passwordReset: {
+          resetUrlTemplate: RESET_URL_TEMPLATE,
+          buildEmail: ({ resetUrl }) => ({ subject: 'Assunto do host', html: `<a href="${resetUrl}">ir</a>`, text: resetUrl }),
+        },
+      },
+      email: { driver: 'test', send: async (params) => (sent.push(params), { outcome: 'sent' }) },
+    })
+    await createUser(dependencies)
+
+    await new RequestPasswordResetUseCase(dependencies).execute({ email: 'ana@example.com' })
+
+    expect(sent[0]?.subject).toBe('Assunto do host')
+  })
+
+  it('falha de envio não aborta: token continua criado e o hook dispara mesmo assim', async () => {
+    const events: string[] = []
+    const warnings: Array<{ message: string; meta?: Record<string, unknown> }> = []
+    const dependencies = buildDependencies({
+      email: { driver: 'test', send: async () => ({ outcome: 'retriable', errorCode: 'smtp_timeout' }) },
+      hooks: { onPasswordResetRequested: (event) => void events.push(event.resetUrl) },
+      logger: {
+        error: () => undefined,
+        warn: (message, meta) => void warnings.push({ message, meta: meta as Record<string, unknown> }),
+        info: () => undefined,
+        debug: () => undefined,
+      },
+    })
+    await createUser(dependencies)
+
+    await new RequestPasswordResetUseCase(dependencies).execute({ email: 'ana@example.com' })
+
+    const tokens = (dependencies.passwordResetTokens as unknown as ReturnType<typeof createInMemoryPasswordResetTokens>).rows
+    expect(tokens).toHaveLength(1)
+    expect(events).toHaveLength(1)
+    expect(warnings[0]?.meta?.outcome).toBe('retriable')
+    expect(warnings[0]?.meta?.errorCode).toBe('smtp_timeout')
+    // LGPD: o log de falha correlaciona por id opaco, nunca pelo endereço de e-mail.
+    expect(JSON.stringify(warnings)).not.toContain('ana@example.com')
   })
 
   it('sem provider de e-mail injetado: ainda cria o token e dispara o hook — host precisa tratar o hook nesse caso', async () => {

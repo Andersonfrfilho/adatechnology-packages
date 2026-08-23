@@ -5,6 +5,7 @@
 import { ConfigMissingError, USER_EVENT } from '@adatechnology/user-contracts'
 
 import { DEFAULT_RESET_TOKEN_EXPIRES_IN_SECONDS } from '../shared/constants'
+import { buildDefaultPasswordResetEmail } from '../shared/passwordResetEmail'
 import { resolveScopeCompanyId } from '../shared/tenancy'
 import { generateRawToken, hashToken } from '../shared/tokenHash'
 import { nowOf, runHook, type UserDependencies } from './userModule.types'
@@ -45,13 +46,26 @@ export class RequestPasswordResetUseCase {
     const resetUrl = passwordReset.resetUrlTemplate.replace(RESET_TOKEN_PLACEHOLDER, rawToken)
 
     if (this.dependencies.email) {
+      const content = (passwordReset.buildEmail ?? buildDefaultPasswordResetEmail)({
+        resetUrl,
+        name: row.name,
+        expiresInSeconds,
+      })
       const result = await this.dependencies.email.send({
         to: row.email,
-        subject: 'Redefinição de senha',
-        body: `Use o link a seguir para redefinir sua senha: ${resetUrl}`,
+        subject: content.subject,
+        html: content.html,
+        text: content.text,
       })
-      if (!result.success) {
-        this.dependencies.logger?.warn('user.password_reset_email_failed', { userId: row.id, error: result.error })
+      // Falha de envio não aborta: o token já existe e o hook precisa disparar, senão o host que
+      // notifica por conta própria perde o pedido — e a resposta deixaria de ser uniforme, que é a
+      // defesa contra enumeração de conta. `userId` e `errorCode` no log, nunca o endereço.
+      if (result.outcome !== 'sent') {
+        this.dependencies.logger?.warn('user.password_reset_email_failed', {
+          userId: row.id,
+          outcome: result.outcome,
+          errorCode: result.errorCode,
+        })
       }
     }
 

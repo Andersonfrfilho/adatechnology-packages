@@ -50,18 +50,35 @@ export type RefreshTokenStorePort = {
   revokeAllForUser(params: { readonly userId: string }): Promise<void>
 }
 
+/**
+ * Forma **idêntica** à de `@adatechnology/notification-contracts` — redeclarada, e não importada,
+ * só para um pacote de contratos não arrastar outro domínio de runtime junto. Como o TypeScript é
+ * estrutural, qualquer driver de `@adatechnology/email-provider` (`createSmtpEmailProvider`,
+ * `createResendEmailProvider`, `createSesEmailProvider`) entra direto em `providers.email`, sem
+ * adapter no host.
+ *
+ * Divergir daqui é o que quebra essa troca: a redeclaração só serve se as duas formas forem a
+ * mesma, e nada no build de um pacote isolado avisa quando deixam de ser.
+ */
 export type SendEmailParams = {
   readonly to: string
   readonly subject: string
-  readonly body: string
-  readonly html?: string
+  readonly html: string
+  readonly text: string
+  readonly replyTo?: string
+  readonly idempotencyKey?: string
 }
 
-export type DeliveryAttemptResult = {
-  readonly success: boolean
-  readonly messageId?: string
-  readonly error?: string
-}
+/**
+ * União discriminada, não `{ success: boolean }`: quem chama precisa separar endereço inválido
+ * (suprimir, nunca reenviar) de falha temporária (reagendar com backoff) de falha definitiva.
+ * Colapsar isso num booleano joga fora justamente a informação que decide a ação seguinte.
+ */
+export type DeliveryAttemptResult =
+  | { readonly outcome: 'sent'; readonly providerMessageId?: string }
+  | { readonly outcome: 'invalid_target'; readonly errorCode: string }
+  | { readonly outcome: 'retriable'; readonly errorCode: string; readonly retryAfterSeconds?: number }
+  | { readonly outcome: 'permanent'; readonly errorCode: string }
 
 export type EmailDriverPort = {
   readonly driver: string
@@ -101,9 +118,28 @@ export type RefreshTokenConfig = {
   readonly expiresInSeconds?: number
 }
 
+export type PasswordResetEmailContent = {
+  readonly subject: string
+  readonly html: string
+  readonly text: string
+}
+
+export type PasswordResetEmailParams = {
+  readonly resetUrl: string
+  readonly name: string
+  readonly expiresInSeconds: number
+}
+
 export type PasswordResetConfig = {
   readonly resetUrlTemplate: string // must contain {token}
   readonly tokenExpiresInSeconds?: number
+  /**
+   * Texto do e-mail de redefinição. O módulo traz um padrão neutro, sem nome de produto e sem
+   * marca — copy é vocabulário do host (`pluggable-module.md`), e cinco produtos consomem este
+   * pacote. Quem quiser template versionado e pré-visualizável monta aqui em cima de
+   * `renderTemplate` do `@adatechnology/notification-contracts`.
+   */
+  readonly buildEmail?: (params: PasswordResetEmailParams) => PasswordResetEmailContent
 }
 
 export type KeycloakConfig = {
