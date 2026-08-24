@@ -32,7 +32,40 @@ export const NOTIFICATION_ERROR_CODES = {
   DEVICE_NOT_FOUND: 'NOTIFICATION_DEVICE_NOT_FOUND',
   THROTTLED: 'NOTIFICATION_THROTTLED',
   CONFIG_MISSING: 'NOTIFICATION_CONFIG_MISSING',
+  TEMPLATE_UNKNOWN_VARIABLE: 'NOTIFICATION_TEMPLATE_UNKNOWN_VARIABLE',
 } as const
+
+/** Busca por id, e não por identidade — o painel remove pela linha que listou. */
+export class TemplateIdNotFoundError extends NotificationError {
+  constructor(public readonly templateId: string) {
+    super(`Template não encontrado.`, 404, NOTIFICATION_ERROR_CODES.TEMPLATE_NOT_FOUND, { templateId })
+  }
+}
+
+/**
+ * O template referencia `{{campo}}` que o produto não promete enviar. Renderizaria vazio para
+ * sempre, sem log e sem erro — daí ser recusa na gravação, e não aviso.
+ *
+ * `details.fields` traz TODAS as desconhecidas, não a primeira: corrigir uma por vez transforma o
+ * salvamento em tentativa e erro (`apis.md`, Validação).
+ */
+export class UnknownTemplateVariablesError extends NotificationError {
+  constructor(
+    public readonly templateKey: string,
+    public readonly fields: readonly string[],
+  ) {
+    super(
+      `O template usa variáveis que não existem no catálogo desta notificação.`,
+      400,
+      NOTIFICATION_ERROR_CODES.TEMPLATE_UNKNOWN_VARIABLE,
+      {
+        templateKey,
+        fields: [...fields],
+        details: fields.map((field) => ({ field, message: 'variável desconhecida' })),
+      },
+    )
+  }
+}
 
 export class TemplateNotFoundError extends NotificationError {
   constructor(

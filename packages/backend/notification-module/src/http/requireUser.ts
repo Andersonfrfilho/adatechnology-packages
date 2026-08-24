@@ -17,3 +17,15 @@ export function requireUser(context: RequestContext): { companyId: string; userI
   }
   return { companyId: context.auth.companyId, userId: context.auth.userId }
 }
+
+/**
+ * Escopo `admin` garante empresa, não necessariamente um `userId`. O `?? ''` que estava nos
+ * handlers de template fazia uma requisição sem auth consultar a empresa de id vazio em vez de
+ * responder 401 — silencioso, e do lado errado do isolamento multiempresa.
+ */
+export function requireCompany(context: RequestContext): { companyId: string } {
+  if (!context.auth?.companyId) {
+    throw new NotificationError('Rota exige empresa autenticada.', 401, NOTIFICATION_ERROR_CODES.CONFIG_MISSING)
+  }
+  return { companyId: context.auth.companyId }
+}

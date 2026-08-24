@@ -22,6 +22,7 @@ import type {
   RealtimeNotifierPort,
   RecipientResolverPort,
   TemplateRendererPort,
+  TemplateVariableCatalog,
 } from '@adatechnology/notification-contracts'
 
 import type { NotificationDatabase } from './database.types'
@@ -53,6 +54,7 @@ import { PurgeExpiredNotificationsUseCase } from './use-cases/PurgeExpiredNotifi
 import { ReceiveDeliveryReceiptUseCase } from './use-cases/ReceiveDeliveryReceipt.use-case'
 import { SendNotificationUseCase } from './use-cases/SendNotification.use-case'
 import {
+  DeactivateTemplateUseCase,
   ListTemplatesUseCase,
   SeedDefaultTemplatesUseCase,
   UpsertTemplateUseCase,
@@ -72,6 +74,11 @@ export type NotificationModuleConfig = {
   readonly retry?: { readonly attempts: number; readonly backoffSeconds: number }
   readonly suppressionHmacKey: string
   readonly throttlePerHour?: Partial<Record<string, number>>
+  /**
+   * As variáveis que cada `templateKey` promete no payload. Alimenta a validação do `upsert` e a
+   * lista clicável do editor. Ausente, qualquer `{{campo}}` continua sendo aceito.
+   */
+  readonly templateVariables?: TemplateVariableCatalog
 }
 
 export type NotificationModuleProviders = {
@@ -122,8 +129,11 @@ export type NotificationModule = {
     readonly updatePreferences: UpdatePreferencesUseCase
     readonly upsertTemplate: UpsertTemplateUseCase
     readonly listTemplates: ListTemplatesUseCase
+    readonly deactivateTemplate: DeactivateTemplateUseCase
     readonly seedDefaultTemplates: SeedDefaultTemplatesUseCase
   }
+  /** Reexposto para a rota entregar o catálogo à tela sem o host repetir a config. */
+  readonly templateVariables: TemplateVariableCatalog
 }
 
 function assertFeaturePorts(features: NotificationModuleFeatures, channels: ChannelDrivers): void {
@@ -184,7 +194,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     retryBackoffSeconds: params.config.retry?.backoffSeconds ?? 30,
   })
 
-  const upsertTemplate = new UpsertTemplateUseCase(templates)
+  const upsertTemplate = new UpsertTemplateUseCase(templates, params.config.templateVariables)
 
   return {
     realtime,
@@ -225,7 +235,9 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
       updatePreferences: new UpdatePreferencesUseCase(preferences, params.hooks),
       upsertTemplate,
       listTemplates: new ListTemplatesUseCase(templates),
+      deactivateTemplate: new DeactivateTemplateUseCase(templates),
       seedDefaultTemplates: new SeedDefaultTemplatesUseCase(upsertTemplate),
     },
+    templateVariables: params.config.templateVariables ?? {},
   }
 }

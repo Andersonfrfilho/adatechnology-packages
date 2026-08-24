@@ -17,7 +17,7 @@ import type { ModuleRoute } from '@adatechnology/module-http'
 
 import type { NotificationModule } from '../NotificationModule'
 import { claimNotificationWebhookDelivery, verifyNotificationWebhookSignature } from '../shared/webhookSecurity'
-import { requireUser } from './requireUser'
+import { requireCompany, requireUser } from './requireUser'
 
 export function buildManagementRoutes(params: { module: NotificationModule; webhookSecret?: string }): ModuleRoute[] {
   const { useCases, cache, clock } = params.module
@@ -150,7 +150,7 @@ export function buildManagementRoutes(params: { module: NotificationModule; webh
       operationId: 'listNotificationTemplates',
       summary: 'Lista os templates da empresa',
       async handler(context) {
-        const templates = await useCases.listTemplates.execute({ companyId: context.auth?.companyId ?? '' })
+        const templates = await useCases.listTemplates.execute(requireCompany(context))
         return { kind: 'json', status: 200, body: { data: templates } }
       },
     },
@@ -164,10 +164,38 @@ export function buildManagementRoutes(params: { module: NotificationModule; webh
       summary: 'Cria uma nova versão de template',
       async handler(context) {
         const template = await useCases.upsertTemplate.execute({
-          companyId: context.auth?.companyId ?? '',
+          companyId: requireCompany(context).companyId,
           ...(context.body as never as { key: string; channel: string; locale: string; body: string; active: boolean }),
         })
         return { kind: 'json', status: 201, body: { data: template } }
+      },
+    },
+
+    {
+      method: 'DELETE',
+      path: '/notification-templates/:id',
+      scope: 'admin',
+      operationId: 'deactivateNotificationTemplate',
+      summary: 'Desativa um template (todas as versões ativas da identidade)',
+      async handler(context) {
+        await useCases.deactivateTemplate.execute({
+          companyId: requireCompany(context).companyId,
+          id: context.params.id ?? '',
+        })
+        return { kind: 'empty', status: 204 }
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/notification-template-variables',
+      scope: 'admin',
+      operationId: 'listNotificationTemplateVariables',
+      summary: 'Catálogo de variáveis por chave de notificação',
+      async handler(context) {
+        requireCompany(context)
+        // O catálogo é config do host, igual para toda empresa — não há leitura por tenant aqui.
+        return { kind: 'json', status: 200, body: { data: params.module.templateVariables } }
       },
     },
 
