@@ -42,7 +42,15 @@ import { useDeactivateTemplate, useTemplateVariables, useTemplates, useUpsertTem
 
 export type TemplateDraft = {
   readonly key: string
-  readonly channel: string
+  /**
+   * Canais, no plural: um aviso costuma sair por mais de um.
+   *
+   * No banco a identidade continua sendo `key`+`channel`+`locale` — uma linha por canal. Escolher
+   * varios aqui grava um template por canal com o MESMO texto, que e o comportamento certo para
+   * criar: escrever a mensagem uma vez e mandar por onde precisar. Depois, cada canal e editado
+   * sozinho pela lista, porque o texto tende a divergir (o SMS encurta, o WhatsApp perde o titulo).
+   */
+  readonly channels: readonly string[]
   readonly locale: string
   readonly subject: string
   readonly body: string
@@ -61,7 +69,7 @@ export type TemplatePreviewFrame = PreviewViewportSpec & {
 function toDraft(template: NotificationTemplate): TemplateDraft {
   return {
     key: template.key,
-    channel: template.channel,
+    channels: [template.channel],
     locale: template.locale,
     subject: template.subject ?? '',
     body: template.body,
@@ -70,7 +78,14 @@ function toDraft(template: NotificationTemplate): TemplateDraft {
 }
 
 function buildEmptyDraft(params: { channel: string; locale: string }): TemplateDraft {
-  return { key: '', channel: params.channel, locale: params.locale, subject: '', body: '', whatsappTemplateName: '' }
+  return {
+    key: '',
+    channels: [params.channel],
+    locale: params.locale,
+    subject: '',
+    body: '',
+    whatsappTemplateName: '',
+  }
 }
 
 export type UseTemplateEditorParams = {
@@ -106,6 +121,8 @@ export type UseTemplateEditorResult = {
   select: (template: NotificationTemplate) => void
   startNew: () => void
   update: (patch: Partial<TemplateDraft>) => void
+  /** Liga ou desliga um canal do rascunho. Nunca esvazia para nada: sem canal nao ha o que gravar. */
+  toggleChannel: (channel: string) => void
   /** Insere `{{nome}}` na posição do cursor. O operador nunca digita o nome à mão. */
   insertVariable: (params: { name: string; field: TemplateDraftField; cursorIndex: number }) => void
   save: () => void
@@ -158,14 +175,18 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
   const previews = useMemo<readonly TemplatePreviewFrame[]>(() => {
     if (!draft) return []
     const payload = { ...buildPreviewPayload(variables), ...(params.previewPayload ?? {}) }
-    const rendered = renderTemplate({
-      channel: draft.channel,
-      subject: draft.subject || undefined,
-      body: draft.body,
-      payload,
+    /** Um conjunto de quadros por canal escolhido: e o que permite comparar como o mesmo texto
+     *  chega no e-mail e no WhatsApp sem salvar antes. */
+    return draft.channels.flatMap((channel) => {
+      const rendered = renderTemplate({
+        channel,
+        subject: draft.subject || undefined,
+        body: draft.body,
+        payload,
+      })
+      const viewports = PREVIEW_VIEWPORT_BY_CHANNEL[channel as NotificationChannel] ?? []
+      return viewports.map((viewport) => ({ ...viewport, channel, rendered }))
     })
-    const viewports = PREVIEW_VIEWPORT_BY_CHANNEL[draft.channel as NotificationChannel] ?? []
-    return viewports.map((viewport) => ({ ...viewport, channel: draft.channel, rendered }))
   }, [draft, variables, params.previewPayload])
 
   const isDirty = useMemo(() => {
@@ -192,7 +213,8 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
     isDirty,
     // A variável desconhecida é recusada pelo servidor com 400; bloquear o botão evita a ida
     // perdida, sem virar a única defesa — a validação continua sendo a da rota.
-    canSave: Boolean(draft?.key && draft.body) && variableDiff.unknown.length === 0,
+    canSave:
+      Boolean(draft?.key && draft.body && draft.channels.length > 0) && variableDiff.unknown.length === 0,
 
     select(template) {
       setSelectedId(template.id)
@@ -210,6 +232,16 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
       setDraft((current) => (current ? { ...current, ...patch } : current))
     },
 
+    toggleChannel(channel) {
+      setDraft((current) => {
+        if (!current) return current
+        const next = current.channels.includes(channel)
+          ? current.channels.filter((each) => each !== channel)
+          : [...current.channels, channel]
+        return { ...current, channels: next }
+      })
+    },
+
     insertVariable({ name, field, cursorIndex }) {
       setDraft((current) => {
         if (!current) return current
@@ -221,22 +253,30 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
 
     save() {
       if (!draft) return
-      const body: UpsertTemplateBody = {
+
+      /** Um `upsert` por canal, em serie: o servidor versiona por identidade, e o numero da versao
+       *  de um canal nao pode depender da ordem de chegada do outro. */
+      const bodies: UpsertTemplateBody[] = draft.channels.map((channel) => ({
         key: draft.key,
-        channel: draft.channel as UpsertTemplateBody['channel'],
+        channel: channel as UpsertTemplateBody['channel'],
         locale: draft.locale,
         active: true,
         body: draft.body,
         ...(draft.subject ? { subject: draft.subject } : {}),
         ...(draft.whatsappTemplateName ? { whatsappTemplateName: draft.whatsappTemplateName } : {}),
-      }
-      upsert.mutate(body, {
-        onSuccess: () => {
+      }))
+
+      void bodies
+        .reduce(
+          (queue, body) => queue.then(() => upsert.mutateAsync(body).then(() => undefined)),
+          Promise.resolve<void>(undefined),
+        )
+        .then(() => {
           setSelectedId(undefined)
           setDraft(undefined)
           setIsNew(false)
-        },
-      })
+        })
+        .catch(() => undefined)
     },
 
     deactivate(id) {

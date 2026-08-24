@@ -1263,11 +1263,21 @@
  */
 
 .adn-preview-phone {
-  width: 375px;
   border: 8px solid var(--adn-preview-bezel, #1e2532);
-  border-radius: 28px;
   overflow: hidden;
   background: #ffffff;
+}
+
+/* iOS e mais arredondado e mais largo; Android e mais reto e mais estreito. Nao e enfeite: a
+   largura muda onde a linha quebra, e e por isso que os dois ficam lado a lado. */
+.adn-preview-phone--ios {
+  width: 375px;
+  border-radius: 34px;
+}
+
+.adn-preview-phone--android {
+  width: 360px;
+  border-radius: 18px;
 }
 
 .adn-preview-phone--dark { background: var(--adn-preview-lockscreen, #0b1220); }
@@ -1453,3 +1463,147 @@
 .adn-preview-inbox__text { display: flex; flex-direction: column; gap: 3px; }
 .adn-preview-inbox__title { font-size: 14px; font-weight: 600; }
 .adn-preview-inbox__body { font-size: 13px; line-height: 1.5; color: var(--adn-color-muted); white-space: pre-wrap; }
+
+/* SMS: o balao do Android e menos arredondado e tem a ponta presa no canto. */
+.adn-preview-phone--android .adn-preview-sms__bubble {
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  background: var(--adn-preview-sms-bubble-android, #e8eaed);
+}
+
+/* Push: no Android o cartao e mais reto e o nome do app vem em caixa alta menor. */
+.adn-preview-phone--android .adn-preview-push__card {
+  border-radius: 24px;
+}
+
+.adn-preview-phone--ios .adn-preview-push__card {
+  border-radius: 14px;
+}
+
+.adn-preview-phone--android .adn-preview-push__title {
+  font-weight: 500;
+}
+
+/* WhatsApp no Android usa raio menor no balao. */
+.adn-preview-phone--android .adn-preview-wa__bubble {
+  border-radius: 6px;
+  border-top-left-radius: 0;
+}
+
+/* ── Alinhamento dos campos ──────────────────────────────────────────────────────────────────
+ *
+ * Os campos vinham cada um com a sua altura e o seu espacamento porque `label`, `fieldset` e o
+ * bloco de identidade eram estilizados em lugares diferentes. Uma so regra para todos: rotulo,
+ * dica e controle na mesma pilha, com a mesma distancia — e a linha de baixo do controle bate
+ * entre colunas vizinhas.
+ */
+
+.adn-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.adn-settings__field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0;
+}
+
+/* A dica fica presa ao rotulo, e nao flutuando com o mesmo peso do campo. */
+.adn-settings__field .adn-settings__hint {
+  margin: -2px 0 2px;
+  line-height: 1.4;
+}
+
+/* Altura igual nos tres controles, senao a linha de baixo nao bate entre colunas. */
+.adn-settings__field input,
+.adn-settings__field select {
+  min-height: 40px;
+}
+
+.adn-settings__field textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+/* Identidade: chave larga, canais e idioma ao lado, alinhados pelo TOPO — com `stretch` o bloco
+   de canais esticava e empurrava os vizinhos. */
+.adn-settings__identity {
+  align-items: start;
+  gap: var(--adn-space-3, 12px);
+}
+
+@media (min-width: 640px) {
+  .adn-settings__identity {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
+.adn-settings__channel-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__channel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  background: var(--adn-color-surface);
+  cursor: pointer;
+}
+
+.adn-settings__channel-chip:hover {
+  border-color: var(--adn-color-accent-line);
+}
+
+/* O chip marcado se anuncia inteiro, e nao so pelo quadradinho. */
+.adn-settings__channel-chip:has(input:checked) {
+  border-color: var(--adn-color-accent);
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+  font-weight: 500;
+}
+
+.adn-settings__channel-chip input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--adn-color-accent);
+}
+
+/* Tres quadros lado a lado (navegador, iPhone, Android) somam mais que dois: a escala desce para
+   caber sem quebrar a comparacao, que e a razao de eles ficarem juntos. */
+.adn-settings__preview-frames {
+  --adn-preview-scale: 0.46;
+  gap: var(--adn-space-3, 12px);
+}
+
+.adn-settings__preview-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2, 8px);
+  padding-top: var(--adn-space-3, 12px);
+}
+
+.adn-settings__preview-group + .adn-settings__preview-group {
+  border-top: 1px dashed var(--adn-color-border);
+}
+
+.adn-settings__preview-channel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--adn-color-accent);
+}

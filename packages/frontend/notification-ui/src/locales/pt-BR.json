@@ -54,8 +54,6 @@
   "settings.variablesTitle": "Variáveis",
   "settings.variablesHint": "Clique para inserir no ponto onde o cursor estava.",
   "settings.unknownVariables": "Variáveis que não existem nesta notificação:",
-  "settings.viewport.desktop": "Computador",
-  "settings.viewport.mobile": "Celular",
   "settings.constraint.title": "Assunto passa do limite do canal:",
   "settings.constraint.body": "Texto passa do limite do canal:",
   "settings.tab.messages": "Mensagens",
@@ -66,5 +64,9 @@
   "settings.discard": "Descartar",
   "preview.to": "para você",
   "preview.now": "agora",
-  "preview.mailbox": "caixa de entrada"
+  "preview.mailbox": "caixa de entrada",
+  "settings.viewport.browser": "Navegador",
+  "settings.viewport.ios": "iPhone",
+  "settings.viewport.android": "Android",
+  "settings.channelHint": "Pode marcar mais de um — o mesmo texto é gravado para cada canal."
 }

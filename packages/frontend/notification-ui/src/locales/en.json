@@ -54,8 +54,6 @@
   "settings.variablesTitle": "Variables",
   "settings.variablesHint": "Click to insert where the cursor was.",
   "settings.unknownVariables": "Variables this notification does not have:",
-  "settings.viewport.desktop": "Desktop",
-  "settings.viewport.mobile": "Mobile",
   "settings.constraint.title": "Subject exceeds the channel limit:",
   "settings.constraint.body": "Body exceeds the channel limit:",
   "settings.tab.messages": "Messages",
@@ -66,5 +64,9 @@
   "settings.discard": "Discard",
   "preview.to": "to you",
   "preview.now": "now",
-  "preview.mailbox": "inbox"
+  "preview.mailbox": "inbox",
+  "settings.viewport.browser": "Browser",
+  "settings.viewport.ios": "iPhone",
+  "settings.viewport.android": "Android",
+  "settings.channelHint": "Pick more than one — the same text is saved for each channel."
 }

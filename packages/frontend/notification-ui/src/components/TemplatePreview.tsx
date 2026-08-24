@@ -32,10 +32,26 @@ export type PreviewLabels = {
   readonly mailbox: string
 }
 
-function Phone({ children, tone }: { children: React.ReactNode; tone?: 'dark' }) {
+/**
+ * O aparelho. `os` muda mais que a largura: o raio da moldura, o raio dos balões e o desenho do
+ * cartão de push são diferentes em cada sistema, e é por isso que os dois aparecem lado a lado.
+ *
+ * Sem barra de status falsa: no aparelho real ela é desenhada por cima, e a pintada fica dobrada.
+ */
+function Phone({
+  children,
+  os,
+  tone,
+}: {
+  children: React.ReactNode
+  os: string
+  tone?: 'dark'
+}) {
+  const classes = ['adn-preview-phone', `adn-preview-phone--${os === 'android' ? 'android' : 'ios'}`]
+  if (tone === 'dark') classes.push('adn-preview-phone--dark')
+
   return (
-    <div className={tone === 'dark' ? 'adn-preview-phone adn-preview-phone--dark' : 'adn-preview-phone'}>
-      {/* Sem barra de status falsa: no aparelho real ela é desenhada por cima, e a pintada fica dobrada. */}
+    <div className={classes.join(' ')}>
       <div className="adn-preview-phone__screen">{children}</div>
     </div>
   )
@@ -73,9 +89,17 @@ function EmailDesktop({
 }
 
 /** No celular o assunto é o que decide se a pessoa abre — ele vem antes, e cortado. */
-function EmailMobile({ rendered, senderName }: { rendered: RenderedTemplatePreview; senderName: string }) {
+function EmailMobile({
+  rendered,
+  senderName,
+  os,
+}: {
+  rendered: RenderedTemplatePreview
+  senderName: string
+  os: string
+}) {
   return (
-    <Phone>
+    <Phone os={os}>
       <div className="adn-preview-mail adn-preview-mail--compact">
         <div className="adn-preview-mail__from">
           <span className="adn-preview-avatar">{senderName.slice(0, 1)}</span>
@@ -89,9 +113,17 @@ function EmailMobile({ rendered, senderName }: { rendered: RenderedTemplatePrevi
 }
 
 /** Balão recebido sobre o papel de parede da conversa — sem assunto, porque o canal não tem. */
-function WhatsAppPreview({ rendered, labels }: { rendered: RenderedTemplatePreview; labels: PreviewLabels }) {
+function WhatsAppPreview({
+  rendered,
+  labels,
+  os,
+}: {
+  rendered: RenderedTemplatePreview
+  labels: PreviewLabels
+  os: string
+}) {
   return (
-    <Phone>
+    <Phone os={os}>
       <div className="adn-preview-wa">
         <div className="adn-preview-wa__bubble">
           <div className="adn-preview-wa__text">{rendered.body}</div>
@@ -102,9 +134,9 @@ function WhatsAppPreview({ rendered, labels }: { rendered: RenderedTemplatePrevi
   )
 }
 
-function SmsPreview({ rendered }: { rendered: RenderedTemplatePreview }) {
+function SmsPreview({ rendered, os }: { rendered: RenderedTemplatePreview; os: string }) {
   return (
-    <Phone>
+    <Phone os={os}>
       <div className="adn-preview-sms">
         <div className="adn-preview-sms__bubble">{rendered.body}</div>
       </div>
@@ -117,13 +149,15 @@ function PushPreview({
   rendered,
   senderName,
   labels,
+  os,
 }: {
   rendered: RenderedTemplatePreview
   senderName: string
   labels: PreviewLabels
+  os: string
 }) {
   return (
-    <Phone tone="dark">
+    <Phone os={os} tone="dark">
       <div className="adn-preview-push">
         <div className="adn-preview-push__card">
           <div className="adn-preview-push__app">
@@ -156,14 +190,16 @@ export function TemplatePreview({ channel, viewport, rendered, senderName, label
   /** Sem nome do produto, o remetente vira a inicial do assunto — nunca um literal inventado. */
   const sender = senderName ?? rendered.title.slice(0, 1).toUpperCase()
 
-  if (channel === 'whatsapp') return <WhatsAppPreview rendered={rendered} labels={labels} />
-  if (channel === 'sms') return <SmsPreview rendered={rendered} />
-  if (channel === 'push') return <PushPreview rendered={rendered} senderName={sender} labels={labels} />
+  if (channel === 'whatsapp') return <WhatsAppPreview rendered={rendered} labels={labels} os={viewport} />
+  if (channel === 'sms') return <SmsPreview rendered={rendered} os={viewport} />
+  if (channel === 'push') {
+    return <PushPreview rendered={rendered} senderName={sender} labels={labels} os={viewport} />
+  }
   if (channel === 'inbox') return <InboxPreview rendered={rendered} />
 
-  return viewport === 'mobile' ? (
-    <EmailMobile rendered={rendered} senderName={sender} />
-  ) : (
+  return viewport === 'browser' ? (
     <EmailDesktop rendered={rendered} senderName={sender} labels={labels} />
+  ) : (
+    <EmailMobile rendered={rendered} senderName={sender} os={viewport} />
   )
 }

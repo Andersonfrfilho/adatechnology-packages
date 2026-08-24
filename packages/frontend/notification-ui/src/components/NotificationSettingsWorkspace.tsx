@@ -13,7 +13,7 @@
  * produto sobre a própria operação.
  */
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { NotificationPreference, NotificationTemplate } from '@adatechnology/notification-contracts'
 
@@ -300,7 +300,7 @@ export function NotificationSettingsWorkspace({
                     {editor.selected ? (templateLabelOf?.(editor.selected) ?? editor.selected.key) : ''}
                   </h2>
                   <p className="adn-settings__hint">
-                    {editor.draft.channel} · {editor.draft.locale} · {label('settings.version')}
+                    {editor.draft.channels.join(' · ')} · {editor.draft.locale} · {label('settings.version')}
                     {editor.selected?.version}
                   </p>
                 </div>
@@ -317,19 +317,24 @@ export function NotificationSettingsWorkspace({
                     <input value={editor.draft.key} onChange={(event) => editor.update({ key: event.target.value })} />
                   </label>
 
-                  <label className="adn-settings__field">
-                    <span className="adn-settings__field-label">{label('settings.channel')}</span>
-                    <select
-                      value={editor.draft.channel}
-                      onChange={(event) => editor.update({ channel: event.target.value })}
-                    >
+                  {/* Multipla escolha, e nao `select`: o mesmo aviso costuma sair por mais de um
+                      canal, e escolher um de cada vez obrigaria a reescrever o texto. */}
+                  <fieldset className="adn-settings__field adn-settings__field--channels">
+                    <legend className="adn-settings__field-label">{label('settings.channel')}</legend>
+                    <span className="adn-settings__hint">{label('settings.channelHint')}</span>
+                    <div className="adn-settings__channel-picker">
                       {channels.map((channel) => (
-                        <option key={channel.id} value={channel.id}>
-                          {channel.label}
-                        </option>
+                        <label key={channel.id} className="adn-settings__channel-chip">
+                          <input
+                            type="checkbox"
+                            checked={editor.draft?.channels.includes(channel.id) ?? false}
+                            onChange={() => editor.toggleChannel(channel.id)}
+                          />
+                          <span>{channel.label}</span>
+                        </label>
                       ))}
-                    </select>
-                  </label>
+                    </div>
+                  </fieldset>
 
                   <label className="adn-settings__field">
                     <span className="adn-settings__field-label">{label('settings.locale')}</span>
@@ -399,48 +404,65 @@ export function NotificationSettingsWorkspace({
               </label>
 
               {/* Slot: campo que só um canal tem, e que o pacote não deve conhecer por nome. */}
-              {renderChannelFields?.({
-                channel: editor.draft.channel,
-                value: editor.draft.whatsappTemplateName,
-                onChange: (value) => editor.update({ whatsappTemplateName: value }),
-              })}
+              {/* Um slot por canal escolhido: o campo do WhatsApp so faz sentido se o WhatsApp
+                  estiver marcado, e com multipla escolha isso deixou de ser um valor unico. */}
+              {editor.draft.channels.map((channel) => (
+                <Fragment key={channel}>
+                  {renderChannelFields?.({
+                    channel,
+                    value: editor.draft?.whatsappTemplateName ?? '',
+                    onChange: (value) => editor.update({ whatsappTemplateName: value }),
+                  })}
+                </Fragment>
+              ))}
 
               {editor.previews.length > 0 && (
                 <div className="adn-settings__previews">
                   <p className="adn-settings__preview-title">{label('settings.previewTitle')}</p>
-                  <div className="adn-settings__preview-frames">
-                    {editor.previews.map((frame) => (
-                      <figure key={frame.viewport} className="adn-settings__preview">
-                        <figcaption className="adn-settings__hint">
-                          {label(`settings.viewport.${frame.viewport}`)} · {frame.width}px
-                        </figcaption>
-                        <div
-                          className="adn-settings__preview-frame"
-                          /* A largura e a REAL do canal; o CSS reduz o conjunto para caber. */
-                          style={{ '--adn-preview-width': `${frame.width}px` } as CSSProperties}
-                        >
-                          <TemplatePreview
-                            channel={frame.channel}
-                            viewport={frame.viewport}
-                            rendered={frame.rendered}
-                            labels={{
-                              to: label('preview.to'),
-                              now: label('preview.now'),
-                              mailbox: label('preview.mailbox'),
-                            }}
-                            {...(senderName ? { senderName } : {})}
-                          />
+                  {channels
+                    .filter((channel) => editor.draft?.channels.includes(channel.id))
+                    .map((channel) => (
+                      <section key={channel.id} className="adn-settings__preview-group">
+                        {/* Com mais de um canal marcado os quadros se misturam: sem este titulo
+                            nao da para saber qual iPhone e o e-mail e qual e o WhatsApp. */}
+                        <h3 className="adn-settings__preview-channel">{channel.label}</h3>
+                        <div className="adn-settings__preview-frames">
+                          {editor.previews
+                            .filter((frame) => frame.channel === channel.id)
+                            .map((frame) => (
+                              <figure key={`${frame.channel}:${frame.viewport}`} className="adn-settings__preview">
+                                <figcaption className="adn-settings__hint">
+                                  {label(`settings.viewport.${frame.viewport}`)} · {frame.width}px
+                                </figcaption>
+                                <div
+                                  className="adn-settings__preview-frame"
+                                  style={{ '--adn-preview-width': `${frame.width}px` } as CSSProperties}
+                                >
+                                  <TemplatePreview
+                                    channel={frame.channel}
+                                    viewport={frame.viewport}
+                                    rendered={frame.rendered}
+                                    labels={{
+                                      to: label('preview.to'),
+                                      now: label('preview.now'),
+                                      mailbox: label('preview.mailbox'),
+                                    }}
+                                    {...(senderName ? { senderName } : {})}
+                                  />
+                                </div>
+                                {frame.rendered.constraints
+                                  .filter((constraint) => constraint.exceeded)
+                                  .map((constraint) => (
+                                    <p key={constraint.field} className="adn-settings__preview-warning">
+                                      {label(`settings.constraint.${constraint.field}`)} {constraint.actual}/
+                                      {constraint.limit}
+                                    </p>
+                                  ))}
+                              </figure>
+                            ))}
                         </div>
-                        {frame.rendered.constraints
-                          .filter((constraint) => constraint.exceeded)
-                          .map((constraint) => (
-                            <p key={constraint.field} className="adn-settings__preview-warning">
-                              {label(`settings.constraint.${constraint.field}`)} {constraint.actual}/{constraint.limit}
-                            </p>
-                          ))}
-                      </figure>
+                      </section>
                     ))}
-                  </div>
                 </div>
               )}
 
