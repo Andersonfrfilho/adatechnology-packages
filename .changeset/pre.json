@@ -126,6 +126,7 @@
     "messages-workspace-template-roles",
     "meta-whatsapp-trio-rc",
     "notification-category-policies",
+    "notification-migration-format",
     "notification-module-drizzle-1x",
     "notification-module-http",
     "notification-template-admin",
