@@ -42,6 +42,7 @@ export type PreviewLabels = {
   readonly compose: string
   readonly reply: string
   readonly forward: string
+  readonly replyAll: string
 }
 
 /**
@@ -156,6 +157,8 @@ const ICON = {
   call: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1',
   mic: 'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3M5 11a7 7 0 0 0 14 0M12 18v3',
   forward: 'M15 17h5V7M20 7l-7 7M4 17v-3a6 6 0 0 1 6-6h10',
+  replyAll: 'M7 17H3V9M3 9l5 5M11 17H8V9M8 9l5 5M20 17v-3a6 6 0 0 0-6-6H8',
+  chevron: 'm6 9 6 6 6-6',
   settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L6.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1',
 } as const
 
@@ -270,7 +273,14 @@ function EmailDesktop({
   )
 }
 
-/** A mesma mensagem no app de e-mail do aparelho: barra de ações fixa, mensagem rolando por baixo. */
+/**
+ * A mensagem aberta no app de e-mail do aparelho.
+ *
+ * Não é a tela do navegador encolhida — a anatomia é outra: a barra de ações fica fixa no topo, o
+ * assunto vem antes do remetente, a linha do remetente traz avatar grande, horário e estrela na
+ * mesma altura, o destinatário fica numa linha que se expande, e as ações de resposta ficam no fim
+ * da mensagem em vez de numa barra lateral.
+ */
 function EmailMobile({
   rendered,
   senderName,
@@ -285,32 +295,49 @@ function EmailMobile({
   return (
     <Phone os={os} time={labels.time}>
       <div className="adn-preview-mailapp__actions">
-        <Icon d={ICON.back} />
+        <Icon d={ICON.back} size={18} />
         <span className="adn-preview-mailapp__spacer" />
-        <Icon d={ICON.archive} />
-        <Icon d={ICON.trash} />
-        <Icon d={ICON.unread} />
-        <Icon d={ICON.more} />
+        <Icon d={ICON.archive} size={18} />
+        <Icon d={ICON.trash} size={18} />
+        <Icon d={ICON.unread} size={18} />
+        <Icon d={ICON.more} size={18} />
       </div>
+
       <div className="adn-preview-mailapp__scroll">
         <div className="adn-preview-mail adn-preview-mail--compact">
-          <div className="adn-preview-mail__subject">{rendered.title}</div>
-          <span className="adn-preview-mail__folder">{labels.folder}</span>
-          <div className="adn-preview-mail__from">
-            <span className="adn-preview-avatar">{senderName.slice(0, 1)}</span>
-            <span className="adn-preview-mail__identity">
-              <span className="adn-preview-mail__sender">{senderName}</span>
-              <span className="adn-preview-mail__to">{labels.to}</span>
-            </span>
-            <span className="adn-preview-mail__time">{labels.now}</span>
+          <div className="adn-preview-mail__subject-row">
+            <div className="adn-preview-mail__subject">{rendered.title}</div>
           </div>
+          <span className="adn-preview-mail__folder">{labels.folder}</span>
+
+          <div className="adn-preview-mail__from adn-preview-mail__from--mobile">
+            <span className="adn-preview-avatar adn-preview-avatar--large">{senderName.slice(0, 1)}</span>
+            <span className="adn-preview-mail__identity">
+              <span className="adn-preview-mail__sender-row">
+                <span className="adn-preview-mail__sender">{senderName}</span>
+                <span className="adn-preview-mail__time">{labels.now}</span>
+              </span>
+              {/* Linha do destinatário que expande — é assim que o app esconde os detalhes. */}
+              <span className="adn-preview-mail__recipients">
+                {labels.to}
+                <Icon d={ICON.chevron} size={12} />
+              </span>
+            </span>
+            <span className="adn-preview-mail__from-actions">
+              <Icon d={ICON.star} size={17} />
+            </span>
+          </div>
+
           <div className="adn-preview-mail__body">{rendered.body}</div>
 
-          {/* No celular as ações de resposta ficam no fim da mensagem, não numa barra lateral. */}
           <div className="adn-preview-mail__reply">
             <span className="adn-preview-mail__reply-button">
               <Icon d={ICON.reply} size={14} />
               {labels.reply}
+            </span>
+            <span className="adn-preview-mail__reply-button">
+              <Icon d={ICON.replyAll} size={14} />
+              {labels.replyAll}
             </span>
             <span className="adn-preview-mail__reply-button">
               <Icon d={ICON.forward} size={14} />

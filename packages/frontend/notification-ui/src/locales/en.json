@@ -79,5 +79,6 @@
   "preview.today": "today",
   "preview.compose": "Message",
   "preview.reply": "Reply",
-  "preview.forward": "Forward"
+  "preview.forward": "Forward",
+  "preview.replyAll": "Reply all"
 }

@@ -79,5 +79,6 @@
   "preview.today": "hoje",
   "preview.compose": "Mensagem",
   "preview.reply": "Responder",
-  "preview.forward": "Encaminhar"
+  "preview.forward": "Encaminhar",
+  "preview.replyAll": "Responder a todos"
 }

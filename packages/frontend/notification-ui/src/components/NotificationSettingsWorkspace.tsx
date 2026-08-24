@@ -514,6 +514,7 @@ export function NotificationSettingsWorkspace({
                                       compose: label('preview.compose'),
                                       reply: label('preview.reply'),
                                       forward: label('preview.forward'),
+                                      replyAll: label('preview.replyAll'),
                                     }}
                                     {...(senderName ? { senderName } : {})}
                                   />

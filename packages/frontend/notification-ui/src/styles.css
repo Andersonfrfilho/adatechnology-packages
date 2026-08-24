@@ -2134,3 +2134,45 @@
 .adn-settings__policies .adn-settings__category + .adn-settings__category {
   margin-top: var(--adn-space-2, 8px);
 }
+
+/* ── App de e-mail no aparelho ───────────────────────────────────────────────────────────────
+ * Anatomia propria: assunto grande antes do remetente, avatar maior, horario e estrela na linha do
+ * remetente, destinatario numa linha que expande, e as respostas no fim.
+ */
+
+.adn-preview-mail--compact { padding: 16px 16px 20px; gap: 10px; }
+
+.adn-preview-mail--compact .adn-preview-mail__subject {
+  font-size: 22px;
+  line-height: 1.25;
+  -webkit-line-clamp: 3;
+}
+
+.adn-preview-avatar--large { width: 36px; height: 36px; font-size: 15px; }
+
+.adn-preview-mail__from--mobile { gap: 12px; padding-top: 4px; }
+
+.adn-preview-mail__from--mobile .adn-preview-mail__sender-row {
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.adn-preview-mail__from--mobile .adn-preview-mail__sender { font-size: 14px; font-weight: 600; }
+
+.adn-preview-mail__recipients {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mail--compact .adn-preview-mail__body { font-size: 15px; line-height: 1.65; }
+
+.adn-preview-mail__reply { flex-wrap: wrap; padding-top: var(--adn-space-4, 16px); }
+
+.adn-preview-mail--compact .adn-preview-mail__reply-button {
+  padding: 8px 14px;
+  font-size: 12px;
+}
