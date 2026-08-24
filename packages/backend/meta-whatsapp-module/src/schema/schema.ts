@@ -223,6 +223,14 @@ export const flowMedia = metaWhatsAppSchema.table(
     // Desligar sem desanexar: trocar o material da campanha é o caso comum, e apagar a linha
     // perderia a ordem e a legenda já ajustadas.
     active: boolean('active').notNull().default(true),
+    // Id do arquivo já subido para a Meta, por número remetente. Sem isto, o MESMO binário subia de
+    // novo para cada cliente que passava pelo nó: a Meta aceita reusar o id por 30 dias.
+    //
+    // Mapa por `phone_number_id`, e não coluna única: o id é escopado ao número que envia, e uma
+    // instalação com dois números mandaria o id de um pelo outro. A validade não é gravada de
+    // propósito — confiar em "30 dias" calculados erra nos casos de borda, e quem decide é a
+    // recusa da Meta, que devolve ao caminho de subir o binário.
+    metaMediaIds: jsonb('meta_media_ids').$type<Record<string, string>>().notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

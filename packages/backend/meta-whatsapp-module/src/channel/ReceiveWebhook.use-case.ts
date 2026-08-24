@@ -1,6 +1,10 @@
 import {
   whatsAppWebhookPayloadSchema,
+  whatsAppTemplateStatusUpdateSchema,
+  whatsAppPhoneNumberQualityUpdateSchema,
+  WHATSAPP_WEBHOOK_FIELDS,
   type MetaWhatsAppHooks,
+  type WhatsAppWebhookChange,
   type SessionState,
   type WhatsAppMessage,
   type WhatsAppStatus,
@@ -39,6 +43,18 @@ export type ReceiveWebhookResult = {
   // Eventos de outro número da mesma WABA. Contados em vez de silenciados: um filtro que descarta
   // sem deixar rastro é indistinguível de um webhook que parou de chegar.
   ignoredForeignNumber: number
+  // Eventos de conta (template, qualidade do número) entregues aos hooks do host.
+  accountEventsProcessed: number
+  // Chegaram e não foram tratados — field sem handler, ou corpo fora do schema.
+  unhandledEvents: number
+}
+
+const EMPTY_RESULT: Omit<ReceiveWebhookResult, 'duplicate'> = {
+  messagesProcessed: 0,
+  statusesProcessed: 0,
+  ignoredForeignNumber: 0,
+  accountEventsProcessed: 0,
+  unhandledEvents: 0,
 }
 
 // Texto legível para o transcript. Uma mensagem interativa traz título E id; guardamos o título
@@ -66,6 +82,15 @@ function extractPayload(message: WhatsAppMessage): Record<string, unknown> | nul
   if (message.sticker) payload['sticker'] = message.sticker
   if (message.context?.referred_product) payload['referredProduct'] = message.context.referred_product
   return Object.keys(payload).length > 0 ? payload : null
+}
+
+const ACCOUNT_EVENT_FIELDS: readonly string[] = [
+  WHATSAPP_WEBHOOK_FIELDS.TEMPLATE_STATUS_UPDATE,
+  WHATSAPP_WEBHOOK_FIELDS.PHONE_NUMBER_QUALITY_UPDATE,
+]
+
+function isAccountEventField(field: string | undefined): boolean {
+  return field !== undefined && ACCOUNT_EVENT_FIELDS.includes(field)
 }
 
 // T5.1 — porta de entrada do canal. Ordem deliberada: assinatura → anti-replay → parse → efeito.
@@ -110,17 +135,41 @@ export class ReceiveWebhookUseCase {
       nonceStore: this.params.nonceStore,
       signatureHeader: input.signatureHeader!,
     })
-    if (!claimed) return { duplicate: true, messagesProcessed: 0, statusesProcessed: 0, ignoredForeignNumber: 0 }
+    if (!claimed) return { duplicate: true, ...EMPTY_RESULT }
 
     const rawText = typeof input.rawBody === 'string' ? input.rawBody : input.rawBody.toString('utf8')
-    const payload = whatsAppWebhookPayloadSchema.parse(JSON.parse(rawText))
+    // `safeParse`, não `parse`: um envelope que não bate com o schema não pode derrubar a entrega
+    // inteira. A Meta desativa webhook que responde erro com frequência, e o corpo já veio
+    // autenticado pela assinatura — então o que resta é reportar ao host e responder 200.
+    const parsed = whatsAppWebhookPayloadSchema.safeParse(JSON.parse(rawText))
+    if (!parsed.success) {
+      await this.params.hooks?.onUnhandledWebhookEvent?.({
+        field: undefined,
+        reason: 'invalid-shape',
+        value: rawText,
+      })
+      return { duplicate: false, ...EMPTY_RESULT, unhandledEvents: 1 }
+    }
+    const payload = parsed.data
 
     let messagesProcessed = 0
     let statusesProcessed = 0
     let ignoredForeignNumber = 0
+    let accountEventsProcessed = 0
+    let unhandledEvents = 0
 
     for (const entry of payload.entry) {
       for (const change of entry.changes) {
+        // Eventos de conta são resolvidos antes do filtro de número: eles não têm `metadata`, e o
+        // filtro abaixo depende dele. O `phone_number_quality_update` traz o número no próprio
+        // corpo (`display_phone_number`), não em `metadata`.
+        if (isAccountEventField(change.field)) {
+          const handled = await this.handleAccountEvent(change)
+          if (handled) accountEventsProcessed++
+          else unhandledEvents++
+          continue
+        }
+
         // Uma WABA comporta vários números, e a Meta entrega os eventos de TODOS eles para cada app
         // inscrito na conta — a inscrição é por WABA, não por número. Sem este filtro, uma instância
         // responde o cliente de um número que não é dela e grava esse contato na própria base.
@@ -140,6 +189,21 @@ export class ReceiveWebhookUseCase {
           await this.handleStatus(input.companyId, status)
           statusesProcessed++
         }
+
+        // Field desconhecido que também não trouxe nada de conversa: sem isto, um campo assinado
+        // por engano no painel seria indistinguível de webhook mudo.
+        const carriedConversationData =
+          (change.value.messages?.length ?? 0) > 0 ||
+          (change.value.message_echoes?.length ?? 0) > 0 ||
+          (change.value.statuses?.length ?? 0) > 0
+        if (!carriedConversationData) {
+          unhandledEvents++
+          await this.params.hooks?.onUnhandledWebhookEvent?.({
+            field: change.field,
+            reason: 'unknown-field',
+            value: change.value,
+          })
+        }
       }
     }
 
@@ -150,7 +214,44 @@ export class ReceiveWebhookUseCase {
       signatureHeader: input.signatureHeader!,
     })
 
-    return { duplicate: false, messagesProcessed, statusesProcessed, ignoredForeignNumber }
+    return {
+      duplicate: false,
+      messagesProcessed,
+      statusesProcessed,
+      ignoredForeignNumber,
+      accountEventsProcessed,
+      unhandledEvents,
+    }
+  }
+
+  // Devolve `false` quando o corpo não bate com o schema do field — o chamador conta como não
+  // tratado. O host é avisado nos dois casos, mas com `reason` diferente.
+  private async handleAccountEvent(change: WhatsAppWebhookChange): Promise<boolean> {
+    if (change.field === WHATSAPP_WEBHOOK_FIELDS.TEMPLATE_STATUS_UPDATE) {
+      const update = whatsAppTemplateStatusUpdateSchema.safeParse(change.value)
+      if (!update.success) {
+        await this.params.hooks?.onUnhandledWebhookEvent?.({
+          field: change.field,
+          reason: 'invalid-shape',
+          value: change.value,
+        })
+        return false
+      }
+      await this.params.hooks?.onTemplateStatusUpdate?.(update.data)
+      return true
+    }
+
+    const quality = whatsAppPhoneNumberQualityUpdateSchema.safeParse(change.value)
+    if (!quality.success) {
+      await this.params.hooks?.onUnhandledWebhookEvent?.({
+        field: change.field,
+        reason: 'invalid-shape',
+        value: change.value,
+      })
+      return false
+    }
+    await this.params.hooks?.onPhoneNumberQualityUpdate?.(quality.data)
+    return true
   }
 
   private async handleMessage(companyId: string, message: WhatsAppMessage): Promise<void> {

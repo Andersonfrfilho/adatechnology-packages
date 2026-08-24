@@ -79,16 +79,33 @@ export class WhatsAppMessageProvider {
 
   async sendMedia(params: SendMediaParams): Promise<SendMessageResult> {
     const { to, caption } = params
-    // A Meta recusa áudio cujo container ela não reconhece (erro 131053), e o mimeType declarado
-    // pelo gravador não denuncia isso — o MediaRecorder do Chrome anuncia `audio/mp4` e entrega
-    // um MP4 com brand `isom`, que ela trata como application/octet-stream.
-    const { buffer, mimeType, filename } = await normalizeOutboundAudio({
-      buffer: params.buffer,
-      mimeType: params.mimeType,
-      filename: params.filename,
-      ...(this.audioTranscoder ? { transcoder: this.audioTranscoder } : {}),
-    })
-    const mediaId = await this.uploadMedia(buffer, mimeType, filename)
+
+    let mediaId: string
+    let mimeType: string
+    let filename: string
+
+    // Sem binário, o arquivo já está na Meta: não há o que normalizar nem o que subir, e o tipo e o
+    // nome vêm como o chamador declarou. A checagem é pelo `buffer` porque é ela que estreita a
+    // união — sem binário, o id é obrigatório.
+    if (params.buffer === undefined) {
+      mediaId = params.mediaId
+      mimeType = params.mimeType
+      filename = params.filename
+    } else {
+      // A Meta recusa áudio cujo container ela não reconhece (erro 131053), e o mimeType declarado
+      // pelo gravador não denuncia isso — o MediaRecorder do Chrome anuncia `audio/mp4` e entrega
+      // um MP4 com brand `isom`, que ela trata como application/octet-stream.
+      const normalized = await normalizeOutboundAudio({
+        buffer: params.buffer,
+        mimeType: params.mimeType,
+        filename: params.filename,
+        ...(this.audioTranscoder ? { transcoder: this.audioTranscoder } : {}),
+      })
+      mimeType = normalized.mimeType
+      filename = normalized.filename
+      // Id conhecido pula o upload — é o binário inteiro que deixa de subir, não uma chamada a menos.
+      mediaId = params.mediaId ?? (await this.uploadMedia(normalized.buffer, mimeType, filename))
+    }
 
     const type = mimeType.startsWith('image/')
       ? 'image'
@@ -102,13 +119,15 @@ export class WhatsAppMessageProvider {
     if (type === 'document') mediaBody['filename'] = filename
     if (caption && (type === 'image' || type === 'video' || type === 'document')) mediaBody['caption'] = caption
 
-    return this.postMessage({
+    const result = await this.postMessage({
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
       type,
       [type]: mediaBody,
     })
+
+    return { ...result, mediaId }
   }
 
   private async uploadMedia(buffer: Buffer, mimeType: string, filename: string): Promise<string> {

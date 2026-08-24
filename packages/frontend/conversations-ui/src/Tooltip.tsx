@@ -52,7 +52,7 @@ export function tooltipPositionOf({ targetRect, viewportWidth }: TooltipPosition
   }
 }
 
-function tooltipStateFor(target: HTMLElement, text: string): TooltipState {
+function tooltipStateFor(target: Element, text: string): TooltipState {
   const position = tooltipPositionOf({
     targetRect: target.getBoundingClientRect(),
     viewportWidth: window.innerWidth,
@@ -102,8 +102,11 @@ export function TooltipLayer() {
     function handleEnter(event: Event) {
       const origin = event.target
       if (!(origin instanceof Element)) return
+      // `Element`, e não `HTMLElement`: ícone é `<svg>`, que não é HTMLElement. Exigir HTMLElement
+      // fazia a dica de um ícone não só falhar — ela ENGOLIA a do card ao redor, porque o
+      // `closest` já tinha parado no svg e a busca não continuava para cima.
       const target = origin.closest(`[${TOOLTIP_ATTRIBUTE}]`)
-      if (!(target instanceof HTMLElement)) {
+      if (!target) {
         hide()
         return
       }

@@ -6,7 +6,14 @@ export {
   whatsAppMessageEchoSchema,
   whatsAppMessageStatusSchema,
   whatsAppStatusSchema,
+  whatsAppWebhookValueSchema,
+  whatsAppWebhookChangeSchema,
   whatsAppWebhookPayloadSchema,
+  whatsAppTemplateStatusEventSchema,
+  whatsAppTemplateStatusUpdateSchema,
+  whatsAppQualityEventSchema,
+  whatsAppPhoneNumberQualityUpdateSchema,
+  WHATSAPP_WEBHOOK_FIELDS,
 } from './webhook.types'
 export type {
   WhatsAppMedia,
@@ -16,7 +23,14 @@ export type {
   WhatsAppMessageEcho,
   WhatsAppMessageStatusValue,
   WhatsAppStatus,
+  WhatsAppWebhookValue,
+  WhatsAppWebhookChange,
   WhatsAppWebhookPayload,
+  WhatsAppWebhookField,
+  WhatsAppTemplateStatusEvent,
+  WhatsAppTemplateStatusUpdate,
+  WhatsAppQualityEvent,
+  WhatsAppPhoneNumberQualityUpdate,
 } from './webhook.types'
 
 export type {
@@ -41,6 +55,7 @@ export {
   flowNodeDataSchema,
   flowGraphNodesSchema,
 } from './flow.types'
+export type { SendChannelMediaParams } from './providers'
 export type {
   FlowNodeType,
   FlowQuestionType,
@@ -67,6 +82,7 @@ export type {
   MessageHookOutcome,
   InboundMediaDescriptor,
   TranscriptionDeferredDescriptor,
+  UnhandledWebhookEventDescriptor,
 } from './events'
 
 export { WHATSAPP_CHOICE_LIMIT } from './providers'

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Plus, Trash2, Save, X, AlertTriangle, AlertCircle } from 'lucide-react'
 import { FlowWhatsAppPreview } from './FlowWhatsAppPreview'
 import { nodeLabel } from './FlowNodeCard'
-import { CROSS_FLOW_PREFIX, CONDITION_OPERATORS, BUILT_IN_ACTION_KINDS } from './flowGraph'
+import { CROSS_FLOW_PREFIX, CONDITION_OPERATORS, BUILT_IN_ACTION_KINDS, PASS_THROUGH_ACTION_KINDS } from './flowGraph'
 import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
 import type { FlowGraphData, FlowNodeData, GraphIssue } from './flowGraph'
 
@@ -102,6 +102,7 @@ export function FlowNodePanel({
   const isFixedLogic = draft.type === 'entrada_choice'
   const isAction = draft.type === 'action'
   const isSendMedia = isAction && draft.actionKind === BUILT_IN_ACTION_KINDS.SEND_MEDIA
+  const isPassThroughAction = isAction && Boolean(draft.actionKind && PASS_THROUGH_ACTION_KINDS.includes(draft.actionKind))
   const isCondition = draft.type === 'condition'
   const isStart = graph.startNodeId === node.id
   const nodeIssues = issues.filter((i) => i.nodeId === node.id)
@@ -386,7 +387,9 @@ export function FlowNodePanel({
           </div>
         )}
 
-        {!isAction && (
+        {/* Ação de passagem também escolhe destino: sem isto, o material era enviado e a conversa
+            parava ali, sem caminho para o atendimento. Ação terminal continua sem o campo. */}
+        {(!isAction || isPassThroughAction) && (
           <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
             <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.next}</label>
             <p className="text-[11px] text-gray-400 dark:text-gray-500 mb-1">{labels.nodePanel.nextHint}</p>

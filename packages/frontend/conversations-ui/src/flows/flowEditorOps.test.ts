@@ -15,6 +15,7 @@ import type { FlowGraphData, FlowNodeData } from '@adatechnology/meta-whatsapp-c
 
 import {
   applyConnection,
+  clearConnection,
   isGraphDirty,
   mergedFlowKeysFrom,
   namespaceNodeId,
@@ -237,5 +238,39 @@ describe('rascunho sujo', () => {
     // confirmação de descarte antes de o usuário ter tocado em nada.
     expect(isGraphDirty(undefined, published)).toBe(false)
     expect(isGraphDirty(published, undefined)).toBe(false)
+  })
+})
+
+/**
+ * Desligar um fio é a operação que o relato de campo pegou errada: o card sumia. Some porque a
+ * opção deixa de existir no `byAnswer`, não porque alguém apagou o nó — e o teste fixa isso.
+ */
+describe('clearConnection', () => {
+  it('saída única vira destino vazio, e o nó continua lá', () => {
+    expect(clearConnection(node('a', 'b'), 'next').next).toBe('')
+  })
+
+  it('desligar uma opção NÃO apaga a chave — a opção sumindo levaria junto o botão do WhatsApp', () => {
+    const branching = node('a', { byAnswer: { sim: 'b', nao: 'c' }, default: 'd' })
+
+    const result = clearConnection(branching, 'sim')
+
+    expect(result.next).toEqual({ byAnswer: { sim: '', nao: 'c' }, default: 'd' })
+  })
+
+  it('desligar o fallback preserva as opções', () => {
+    const branching = node('a', { byAnswer: { sim: 'b' }, default: 'd' })
+
+    expect(clearConnection(branching, '__default').next).toEqual({ byAnswer: { sim: 'b' }, default: '' })
+  })
+
+  it('handle inexistente não inventa ramificação nem derruba as existentes', () => {
+    const branching = node('a', { byAnswer: { sim: 'b' }, default: 'd' })
+
+    expect(clearConnection(branching, 'talvez').next).toEqual({ byAnswer: { sim: 'b', talvez: '' }, default: 'd' })
+  })
+
+  it('nó sem next algum não quebra', () => {
+    expect(clearConnection(node('a'), 'next').next).toBe('')
   })
 })

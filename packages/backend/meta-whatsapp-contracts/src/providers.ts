@@ -17,15 +17,30 @@ export const WHATSAPP_CHOICE_LIMIT = {
 
 // Separa "conversa" (agnóstica de canal) de "canal" (WhatsApp/Meta) — quem envia/recebe pela
 // Graph API implementa esta porta; o motor de conversa/fluxo nunca fala com a Graph API direto.
+type SendChannelMediaCommon = {
+  to: string
+  mimeType: string
+  filename: string
+  caption?: string
+}
+
+/**
+ * Ou o binário, ou um `mediaId` já conhecido — nunca nenhum dos dois.
+ *
+ * União em vez de dois campos opcionais: com ambos opcionais, "esqueci de passar os dois" compila e
+ * só quebra na chamada à Meta, em produção.
+ */
+export type SendChannelMediaParams =
+  | (SendChannelMediaCommon & { buffer: Buffer; mediaId?: string | undefined })
+  | (SendChannelMediaCommon & { buffer?: undefined; mediaId: string })
+
 export interface ChannelAdapterInterface {
   sendText(to: string, body: string): Promise<{ externalMessageId: string | null }>
-  sendMedia(params: {
-    to: string
-    buffer: Buffer
-    mimeType: string
-    filename: string
-    caption?: string
-  }): Promise<{ externalMessageId: string | null }>
+  /**
+   * Envia arquivo. Com `mediaId` conhecido, o binário não sobe de novo — a Meta aceita reusar o id
+   * por 30 dias, e o `mediaId` devolvido é o que permite guardá-lo para os próximos destinatários.
+   */
+  sendMedia(params: SendChannelMediaParams): Promise<{ externalMessageId: string | null; mediaId?: string | undefined }>
   sendTemplate(params: {
     to: string
     templateName: string
