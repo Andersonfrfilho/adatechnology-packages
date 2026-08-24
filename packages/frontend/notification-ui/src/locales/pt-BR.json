@@ -64,9 +64,10 @@
   "settings.discard": "Descartar",
   "preview.to": "para você",
   "preview.now": "agora",
-  "preview.mailbox": "caixa de entrada",
+  "preview.mailbox": "Buscar no e-mail",
   "settings.viewport.browser": "Navegador",
   "settings.viewport.ios": "iPhone",
   "settings.viewport.android": "Android",
-  "settings.channelHint": "Pode marcar mais de um — o mesmo texto é gravado para cada canal."
+  "settings.channelHint": "Pode marcar mais de um — o mesmo texto é gravado para cada canal.",
+  "preview.time": "9:41"
 }

@@ -1607,3 +1607,121 @@
   font-weight: 600;
   color: var(--adn-color-accent);
 }
+
+/* ── Aparelho completo ───────────────────────────────────────────────────────────────────────
+ * Barra de status, recorte de camera e barra de gesto. Aqui a barra pintada e correta: isto e o
+ * RETRATO de um aparelho, nao uma tela rodando num aparelho — sem ela o quadro nao se le como
+ * celular.
+ */
+
+.adn-preview-phone__screen {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.adn-preview-phone--ios .adn-preview-phone__screen { border-radius: 26px; }
+.adn-preview-phone--android .adn-preview-phone__screen { border-radius: 10px; }
+
+.adn-preview-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adn-preview-status, #111827);
+  flex-shrink: 0;
+}
+
+.adn-preview-phone--dark .adn-preview-status { color: #ffffff; }
+
+.adn-preview-status__time { min-width: 34px; }
+
+.adn-preview-status__icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Ilha central no iOS, furo a esquerda no Android — e o que identifica o aparelho de relance. */
+.adn-preview-phone__island {
+  width: 62px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--adn-preview-bezel, #1e2532);
+  margin: 0 auto;
+}
+
+.adn-preview-phone__punch {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--adn-preview-bezel, #1e2532);
+  margin-left: 6px;
+}
+
+.adn-preview-phone__content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.adn-preview-phone__gesture {
+  width: 108px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--adn-preview-gesture, rgba(17, 24, 39, 0.35));
+  margin: 6px auto 7px;
+  flex-shrink: 0;
+}
+
+.adn-preview-phone--dark .adn-preview-phone__gesture { background: rgba(255, 255, 255, 0.5); }
+.adn-preview-phone--android .adn-preview-phone__gesture { width: 88px; }
+
+/* ── Cliente de e-mail ───────────────────────────────────────────────────────────────────────
+ * Layout de leitor de e-mail — busca, conta, remetente, assunto, acoes. Sao convencoes que todos
+ * os clientes compartilham; nenhuma marca de terceiro e reproduzida.
+ */
+
+.adn-preview-mailapp { display: flex; flex-direction: column; }
+
+.adn-preview-mailapp__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-preview-mailapp__menu { display: inline-flex; flex-direction: column; gap: 3px; }
+
+.adn-preview-mailapp__menu span {
+  width: 15px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--adn-preview-mail-text, #334155);
+  display: block;
+}
+
+.adn-preview-mailapp__search {
+  flex: 1;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  font-size: 12px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mailapp__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  color: var(--adn-preview-mail-text, #334155);
+  border-bottom: 1px solid var(--adn-color-border);
+  flex-shrink: 0;
+}
+
+.adn-preview-mailapp__spacer { flex: 1; }
+
+.adn-preview-mail__time { margin-left: auto; font-size: 12px; color: var(--adn-color-muted); }

@@ -446,6 +446,7 @@ export function NotificationSettingsWorkspace({
                                       to: label('preview.to'),
                                       now: label('preview.now'),
                                       mailbox: label('preview.mailbox'),
+                                      time: label('preview.time'),
                                     }}
                                     {...(senderName ? { senderName } : {})}
                                   />
