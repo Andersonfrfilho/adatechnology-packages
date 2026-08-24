@@ -69,5 +69,10 @@
   "settings.viewport.ios": "iPhone",
   "settings.viewport.android": "Android",
   "settings.channelHint": "Pick more than one — the same text is saved for each channel.",
-  "preview.time": "9:41"
+  "preview.time": "9:41",
+  "preview.address": "inbox",
+  "preview.counter": "1 of 1,248",
+  "preview.folder": "Inbox",
+  "preview.senderAddress": "<no-reply@example.com>",
+  "preview.unsubscribe": "Unsubscribe"
 }

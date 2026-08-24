@@ -69,5 +69,10 @@
   "settings.viewport.ios": "iPhone",
   "settings.viewport.android": "Android",
   "settings.channelHint": "Pode marcar mais de um — o mesmo texto é gravado para cada canal.",
-  "preview.time": "9:41"
+  "preview.time": "9:41",
+  "preview.address": "caixa de entrada",
+  "preview.counter": "1 de 1.248",
+  "preview.folder": "Caixa de entrada",
+  "preview.senderAddress": "<nao-responda@exemplo.com>",
+  "preview.unsubscribe": "Cancelar inscrição"
 }

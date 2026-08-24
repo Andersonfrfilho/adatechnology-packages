@@ -32,6 +32,11 @@ export type PreviewLabels = {
   readonly mailbox: string
   /** Hora da barra de status do aparelho. */
   readonly time: string
+  readonly address: string
+  readonly counter: string
+  readonly folder: string
+  readonly senderAddress: string
+  readonly unsubscribe: string
 }
 
 /**
@@ -87,6 +92,11 @@ function Phone({
 
   return (
     <div className={classes.join(' ')}>
+      {/* Botoes laterais: e o que faz a silhueta parecer um aparelho e nao um retangulo. */}
+      <span className="adn-preview-phone__btn adn-preview-phone__btn--mute" />
+      <span className="adn-preview-phone__btn adn-preview-phone__btn--up" />
+      <span className="adn-preview-phone__btn adn-preview-phone__btn--down" />
+      <span className="adn-preview-phone__btn adn-preview-phone__btn--power" />
       <div className="adn-preview-phone__screen">
         <div className="adn-preview-status">
           <span className="adn-preview-status__time">{time}</span>
@@ -100,7 +110,54 @@ function Phone({
   )
 }
 
-/** Caixa de entrada num navegador: é onde o e-mail é lido no computador. */
+/** Ícone traçado de 20px, no mesmo estilo do resto — nunca emoji (web.md §9). */
+function Icon({ d, size = 16 }: { d: string; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  )
+}
+
+const ICON = {
+  back: 'M19 12H5M12 19l-7-7 7-7',
+  archive: 'M3 8h18v12H3zM3 4h18v4H3M10 12h4',
+  report: 'M12 8v5M12 16.5v.01M12 3 2 20h20Z',
+  trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6',
+  unread: 'M3 5h18v14H3zM3 5l9 7 9-7',
+  move: 'M3 7h6l2 2h10v10H3zM3 7V5h6l2 2',
+  more: 'M12 6v.01M12 12v.01M12 18v.01',
+  prev: 'M15 19l-7-7 7-7',
+  next: 'M9 5l7 7-7 7',
+  print: 'M6 9V3h12v6M6 18H4v-6h16v6h-2M8 14h8v7H8z',
+  popout: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
+  star: 'm12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9Z',
+  reply: 'M9 17H4V7M4 7l7 7M20 17v-3a6 6 0 0 0-6-6H4',
+  pencil: 'M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z',
+  inbox: 'M3 12h5l2 3h4l2-3h5M3 12l2-7h14l2 7v7H3z',
+  search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-3.5-3.5',
+  help: 'M12 17v.01M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7',
+  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L6.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1',
+} as const
+
+/**
+ * A mensagem aberta num leitor de e-mail no computador.
+ *
+ * A anatomia é a que todo cliente compartilha — trilho de ações à esquerda, barra de ferramentas
+ * da mensagem, contador de posição, assunto grande com o rótulo da pasta, e a linha do remetente
+ * com endereço, horário e ações. Nenhuma marca de terceiro é reproduzida: sem logotipo, sem
+ * wordmark, sem a paleta de nenhum produto.
+ */
 function EmailDesktop({
   rendered,
   senderName,
@@ -116,10 +173,9 @@ function EmailDesktop({
         <span className="adn-preview-browser__dot" />
         <span className="adn-preview-browser__dot" />
         <span className="adn-preview-browser__dot" />
-        <div className="adn-preview-browser__address">{labels.mailbox}</div>
+        <div className="adn-preview-browser__address">{labels.address}</div>
       </div>
-      {/* Cabeçalho de cliente de e-mail: busca e conta. É a convenção que todos compartilham —
-          nenhuma marca de terceiro é reproduzida aqui. */}
+
       <div className="adn-preview-mailapp">
         <div className="adn-preview-mailapp__bar">
           <span className="adn-preview-mailapp__menu" aria-hidden="true">
@@ -127,25 +183,85 @@ function EmailDesktop({
             <span />
             <span />
           </span>
-          <div className="adn-preview-mailapp__search">{labels.mailbox}</div>
-          <span className="adn-preview-avatar adn-preview-avatar--small">{senderName.slice(0, 1)}</span>
-        </div>
-        <div className="adn-preview-mail">
-          <div className="adn-preview-mail__subject">{rendered.title}</div>
-          <div className="adn-preview-mail__from">
-            <span className="adn-preview-avatar">{senderName.slice(0, 1)}</span>
-            <span className="adn-preview-mail__sender">{senderName}</span>
-            <span className="adn-preview-mail__to">{labels.to}</span>
-            <span className="adn-preview-mail__time">{labels.now}</span>
+          <div className="adn-preview-mailapp__search">
+            <Icon d={ICON.search} size={15} />
+            <span>{labels.mailbox}</span>
           </div>
-          <div className="adn-preview-mail__body">{rendered.body}</div>
+          <span className="adn-preview-mailapp__account">
+            <Icon d={ICON.help} size={15} />
+            <Icon d={ICON.settings} size={15} />
+            <span className="adn-preview-avatar adn-preview-avatar--small">{senderName.slice(0, 1)}</span>
+          </span>
+        </div>
+
+        <div className="adn-preview-mailapp__split">
+          <nav className="adn-preview-mailapp__rail" aria-hidden="true">
+            <span className="adn-preview-mailapp__compose">
+              <Icon d={ICON.pencil} size={16} />
+            </span>
+            <span className="adn-preview-mailapp__rail-item adn-preview-mailapp__rail-item--active">
+              <Icon d={ICON.inbox} size={16} />
+            </span>
+            <span className="adn-preview-mailapp__rail-item">
+              <Icon d={ICON.star} size={16} />
+            </span>
+          </nav>
+
+          <div className="adn-preview-browser__viewport">
+            <div className="adn-preview-mailapp__toolbar">
+              <Icon d={ICON.back} />
+              <span className="adn-preview-mailapp__divider" />
+              <Icon d={ICON.archive} />
+              <Icon d={ICON.report} />
+              <Icon d={ICON.trash} />
+              <span className="adn-preview-mailapp__divider" />
+              <Icon d={ICON.unread} />
+              <Icon d={ICON.move} />
+              <Icon d={ICON.more} />
+              <span className="adn-preview-mailapp__spacer" />
+              <span className="adn-preview-mailapp__counter">{labels.counter}</span>
+              <Icon d={ICON.prev} size={14} />
+              <Icon d={ICON.next} size={14} />
+            </div>
+
+            <div className="adn-preview-mail">
+              <div className="adn-preview-mail__subject-row">
+                <div className="adn-preview-mail__subject">{rendered.title}</div>
+                <span className="adn-preview-mail__folder">{labels.folder}</span>
+                <span className="adn-preview-mail__subject-actions">
+                  <Icon d={ICON.print} size={15} />
+                  <Icon d={ICON.popout} size={15} />
+                </span>
+              </div>
+
+              <div className="adn-preview-mail__from">
+                <span className="adn-preview-avatar">{senderName.slice(0, 1)}</span>
+                <span className="adn-preview-mail__identity">
+                  <span className="adn-preview-mail__sender-row">
+                    <span className="adn-preview-mail__sender">{senderName}</span>
+                    <span className="adn-preview-mail__address">{labels.senderAddress}</span>
+                    <span className="adn-preview-mail__unsubscribe">{labels.unsubscribe}</span>
+                  </span>
+                  <span className="adn-preview-mail__to">{labels.to}</span>
+                </span>
+                <span className="adn-preview-mail__from-actions">
+                  <span className="adn-preview-mail__time">{labels.now}</span>
+                  <Icon d={ICON.star} size={15} />
+                  <Icon d={ICON.reply} size={15} />
+                  <Icon d={ICON.more} size={15} />
+                </span>
+              </div>
+
+              <div className="adn-preview-mail__body">{rendered.body}</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-/** No celular o assunto é o que decide se a pessoa abre — ele vem antes, e cortado. */
+/** A mesma mensagem no app de e-mail do aparelho: barra de ações fixa, mensagem rolando por baixo. */
 function EmailMobile({
   rendered,
   senderName,
@@ -160,25 +276,27 @@ function EmailMobile({
   return (
     <Phone os={os} time={labels.time}>
       <div className="adn-preview-mailapp__actions">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M19 12H5M12 19l-7-7 7-7" />
-        </svg>
+        <Icon d={ICON.back} />
         <span className="adn-preview-mailapp__spacer" />
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-        </svg>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <path d="M4 4h16v16H4zM4 8h16" />
-        </svg>
+        <Icon d={ICON.archive} />
+        <Icon d={ICON.trash} />
+        <Icon d={ICON.unread} />
+        <Icon d={ICON.more} />
       </div>
-      <div className="adn-preview-mail adn-preview-mail--compact">
-        <div className="adn-preview-mail__subject">{rendered.title}</div>
-        <div className="adn-preview-mail__from">
-          <span className="adn-preview-avatar">{senderName.slice(0, 1)}</span>
-          <span className="adn-preview-mail__sender">{senderName}</span>
-          <span className="adn-preview-mail__time">{labels.now}</span>
+      <div className="adn-preview-mailapp__scroll">
+        <div className="adn-preview-mail adn-preview-mail--compact">
+          <div className="adn-preview-mail__subject">{rendered.title}</div>
+          <span className="adn-preview-mail__folder">{labels.folder}</span>
+          <div className="adn-preview-mail__from">
+            <span className="adn-preview-avatar">{senderName.slice(0, 1)}</span>
+            <span className="adn-preview-mail__identity">
+              <span className="adn-preview-mail__sender">{senderName}</span>
+              <span className="adn-preview-mail__to">{labels.to}</span>
+            </span>
+            <span className="adn-preview-mail__time">{labels.now}</span>
+          </div>
+          <div className="adn-preview-mail__body">{rendered.body}</div>
         </div>
-        <div className="adn-preview-mail__body">{rendered.body}</div>
       </div>
     </Phone>
   )

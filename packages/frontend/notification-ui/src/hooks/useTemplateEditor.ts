@@ -52,10 +52,24 @@ export type TemplateDraft = {
    */
   readonly channels: readonly string[]
   readonly locale: string
+  /**
+   * Texto POR CANAL, e não um só copiado para todos.
+   *
+   * Os canais não são o mesmo recado em molduras diferentes: o WhatsApp ignora o assunto, o SMS
+   * cobra por segmento de 160 e encurta, o push corta em duas linhas. Um texto único obrigaria a
+   * escrever para o pior canal e mandar isso a todos. No banco cada canal já é uma linha própria
+   * (`key`+`channel`+`locale`) — aqui a tela passa a refletir isso.
+   */
+  readonly byChannel: Readonly<Record<string, ChannelDraft>>
+}
+
+export type ChannelDraft = {
   readonly subject: string
   readonly body: string
   readonly whatsappTemplateName: string
 }
+
+const EMPTY_CHANNEL: ChannelDraft = { subject: '', body: '', whatsappTemplateName: '' }
 
 export type TemplateDraftField = 'subject' | 'body'
 
@@ -71,9 +85,13 @@ function toDraft(template: NotificationTemplate): TemplateDraft {
     key: template.key,
     channels: [template.channel],
     locale: template.locale,
-    subject: template.subject ?? '',
-    body: template.body,
-    whatsappTemplateName: template.whatsappTemplateName ?? '',
+    byChannel: {
+      [template.channel]: {
+        subject: template.subject ?? '',
+        body: template.body,
+        whatsappTemplateName: template.whatsappTemplateName ?? '',
+      },
+    },
   }
 }
 
@@ -82,9 +100,7 @@ function buildEmptyDraft(params: { channel: string; locale: string }): TemplateD
     key: '',
     channels: [params.channel],
     locale: params.locale,
-    subject: '',
-    body: '',
-    whatsappTemplateName: '',
+    byChannel: { [params.channel]: EMPTY_CHANNEL },
   }
 }
 
@@ -121,10 +137,17 @@ export type UseTemplateEditorResult = {
   select: (template: NotificationTemplate) => void
   startNew: () => void
   update: (patch: Partial<TemplateDraft>) => void
+  /** Edita o texto de UM canal. */
+  updateChannel: (channel: string, patch: Partial<ChannelDraft>) => void
   /** Liga ou desliga um canal do rascunho. Nunca esvazia para nada: sem canal nao ha o que gravar. */
   toggleChannel: (channel: string) => void
   /** Insere `{{nome}}` na posição do cursor. O operador nunca digita o nome à mão. */
-  insertVariable: (params: { name: string; field: TemplateDraftField; cursorIndex: number }) => void
+  insertVariable: (params: {
+    name: string
+    field: TemplateDraftField
+    cursorIndex: number
+    channel: string
+  }) => void
   save: () => void
   deactivate: (id: string) => void
   clear: () => void
@@ -162,8 +185,9 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
   const variableDiff = useMemo(
     () =>
       diffTemplateVariables({
-        body: draft?.body ?? '',
-        subject: draft?.subject || undefined,
+        /** Junta o texto de todos os canais: variavel errada em qualquer um recusa a gravacao. */
+        body: draft ? draft.channels.map((c) => draft.byChannel[c]?.body ?? '').join('\n') : '',
+        subject: draft ? draft.channels.map((c) => draft.byChannel[c]?.subject ?? '').join('\n') : undefined,
         // Chave sem entrada no catálogo é catálogo não declarado, não catálogo vazio — o servidor
         // aceita qualquer variável nesse caso, e a tela não pode acusar o que a rota vai gravar.
         variables: draft && variablesQuery.data?.[draft.key] ? variables : undefined,
@@ -178,10 +202,11 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
     /** Um conjunto de quadros por canal escolhido: e o que permite comparar como o mesmo texto
      *  chega no e-mail e no WhatsApp sem salvar antes. */
     return draft.channels.flatMap((channel) => {
+      const content = draft.byChannel[channel] ?? EMPTY_CHANNEL
       const rendered = renderTemplate({
         channel,
-        subject: draft.subject || undefined,
-        body: draft.body,
+        subject: content.subject || undefined,
+        body: content.body,
         payload,
       })
       const viewports = PREVIEW_VIEWPORT_BY_CHANNEL[channel as NotificationChannel] ?? []
@@ -191,10 +216,12 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
 
   const isDirty = useMemo(() => {
     if (!draft) return false
-    if (isNew) return draft.key.length > 0 || draft.body.length > 0
+    const temTexto = draft.channels.some((channel) => (draft.byChannel[channel]?.body ?? '').length > 0)
+    if (isNew) return draft.key.length > 0 || temTexto
     if (!selected) return false
-    const original = toDraft(selected)
-    return (Object.keys(original) as (keyof TemplateDraft)[]).some((field) => original[field] !== draft[field])
+    const original = toDraft(selected).byChannel[selected.channel] ?? EMPTY_CHANNEL
+    const atual = draft.byChannel[selected.channel] ?? EMPTY_CHANNEL
+    return (Object.keys(original) as (keyof ChannelDraft)[]).some((field) => original[field] !== atual[field])
   }, [draft, selected, isNew])
 
   return {
@@ -213,8 +240,12 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
     isDirty,
     // A variável desconhecida é recusada pelo servidor com 400; bloquear o botão evita a ida
     // perdida, sem virar a única defesa — a validação continua sendo a da rota.
+    /** Todo canal marcado precisa do proprio texto — senao a gravacao criaria template vazio. */
     canSave:
-      Boolean(draft?.key && draft.body && draft.channels.length > 0) && variableDiff.unknown.length === 0,
+      Boolean(draft?.key) &&
+      (draft?.channels.length ?? 0) > 0 &&
+      (draft?.channels.every((channel) => (draft.byChannel[channel]?.body ?? '').length > 0) ?? false) &&
+      variableDiff.unknown.length === 0,
 
     select(template) {
       setSelectedId(template.id)
@@ -232,22 +263,42 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
       setDraft((current) => (current ? { ...current, ...patch } : current))
     },
 
-    toggleChannel(channel) {
+    updateChannel(channel, patch) {
       setDraft((current) => {
         if (!current) return current
-        const next = current.channels.includes(channel)
-          ? current.channels.filter((each) => each !== channel)
-          : [...current.channels, channel]
-        return { ...current, channels: next }
+        const atual = current.byChannel[channel] ?? EMPTY_CHANNEL
+        return { ...current, byChannel: { ...current.byChannel, [channel]: { ...atual, ...patch } } }
       })
     },
 
-    insertVariable({ name, field, cursorIndex }) {
+    toggleChannel(channel) {
       setDraft((current) => {
         if (!current) return current
-        const text = current[field]
+        if (current.channels.includes(channel)) {
+          /** O texto do canal desmarcado fica guardado: remarcar nao pode apagar o que foi escrito. */
+          return { ...current, channels: current.channels.filter((each) => each !== channel) }
+        }
+        return {
+          ...current,
+          channels: [...current.channels, channel],
+          byChannel: { ...current.byChannel, [channel]: current.byChannel[channel] ?? EMPTY_CHANNEL },
+        }
+      })
+    },
+
+    insertVariable({ name, field, cursorIndex, channel }) {
+      setDraft((current) => {
+        if (!current) return current
+        const atual = current.byChannel[channel] ?? EMPTY_CHANNEL
+        const text = atual[field]
         const at = Math.min(Math.max(cursorIndex, 0), text.length)
-        return { ...current, [field]: `${text.slice(0, at)}{{${name}}}${text.slice(at)}` }
+        return {
+          ...current,
+          byChannel: {
+            ...current.byChannel,
+            [channel]: { ...atual, [field]: `${text.slice(0, at)}{{${name}}}${text.slice(at)}` },
+          },
+        }
       })
     },
 
@@ -256,15 +307,18 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
 
       /** Um `upsert` por canal, em serie: o servidor versiona por identidade, e o numero da versao
        *  de um canal nao pode depender da ordem de chegada do outro. */
-      const bodies: UpsertTemplateBody[] = draft.channels.map((channel) => ({
-        key: draft.key,
-        channel: channel as UpsertTemplateBody['channel'],
-        locale: draft.locale,
-        active: true,
-        body: draft.body,
-        ...(draft.subject ? { subject: draft.subject } : {}),
-        ...(draft.whatsappTemplateName ? { whatsappTemplateName: draft.whatsappTemplateName } : {}),
-      }))
+      const bodies: UpsertTemplateBody[] = draft.channels.map((channel) => {
+        const content = draft.byChannel[channel] ?? EMPTY_CHANNEL
+        return {
+          key: draft.key,
+          channel: channel as UpsertTemplateBody['channel'],
+          locale: draft.locale,
+          active: true,
+          body: content.body,
+          ...(content.subject ? { subject: content.subject } : {}),
+          ...(content.whatsappTemplateName ? { whatsappTemplateName: content.whatsappTemplateName } : {}),
+        }
+      })
 
       void bodies
         .reduce(

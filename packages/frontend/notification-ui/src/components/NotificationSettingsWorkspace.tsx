@@ -103,6 +103,11 @@ export function NotificationSettingsWorkspace({
     cursorIndex: 0,
   })
 
+  /** Em qual canal o cursor estava: com um editor por canal, inserir variavel precisa saber onde. */
+  const [cursorChannel, setCursorChannel] = useState<string | undefined>(undefined)
+  /** Aba de canal aberta. `undefined` cai no primeiro marcado, para nunca abrir em branco. */
+  const [activeChannel, setActiveChannel] = useState<string | undefined>(undefined)
+
   function rememberCursor(field: TemplateDraftField, cursorIndex: number | null): void {
     setCursor({ field, cursorIndex: cursorIndex ?? 0 })
   }
@@ -328,7 +333,11 @@ export function NotificationSettingsWorkspace({
                           <input
                             type="checkbox"
                             checked={editor.draft?.channels.includes(channel.id) ?? false}
-                            onChange={() => editor.toggleChannel(channel.id)}
+                            onChange={() => {
+                              editor.toggleChannel(channel.id)
+                              /* Marcar um canal abre a aba dele: senao a pessoa marca e nada muda na tela. */
+                              if (!editor.draft?.channels.includes(channel.id)) setActiveChannel(channel.id)
+                            }}
                           />
                           <span>{channel.label}</span>
                         </label>
@@ -365,7 +374,13 @@ export function NotificationSettingsWorkspace({
                             ]
                               .filter(Boolean)
                               .join(' ')}
-                            onClick={() => editor.insertVariable({ ...cursor, name: variable.name })}
+                            onClick={() =>
+                              editor.insertVariable({
+                                ...cursor,
+                                name: variable.name,
+                                channel: cursorChannel ?? editor.draft?.channels[0] ?? '',
+                              })
+                            }
                           >
                             <span className="adn-settings__variable-name">{`{{${variable.name}}}`}</span>
                             <span className="adn-settings__hint">{variable.example}</span>
@@ -383,53 +398,95 @@ export function NotificationSettingsWorkspace({
                 </p>
               )}
 
-              <label className="adn-settings__field">
-                <span className="adn-settings__field-label">{label('settings.subject')}</span>
-                <span className="adn-settings__hint">{label('settings.subjectHint')}</span>
-                <input
-                  value={editor.draft.subject}
-                  onChange={(event) => editor.update({ subject: event.target.value })}
-                  onSelect={(event) => rememberCursor('subject', event.currentTarget.selectionStart)}
-                />
-              </label>
+              {/**
+                * Um bloco por canal: texto, campos do canal e o preview dele, juntos.
+                *
+                * Os canais nao sao o mesmo recado em molduras diferentes — o WhatsApp ignora o
+                * assunto, o SMS cobra por segmento e encurta. Com um editor so, escrever para o
+                * pior canal e mandar isso a todos era a unica saida.
+                */}
+              {/**
+                * Abas por canal, e nao blocos empilhados.
+                *
+                * Com tres canais marcados, empilhado obriga a rolar por tres aparelhos do e-mail
+                * para chegar ao WhatsApp. A aba mantem o preview grande e o trabalho focado num
+                * canal por vez — e a comparacao que importa (entre APARELHOS) continua lado a lado
+                * dentro da aba.
+                *
+                * O ponto no rotulo e o que impede o efeito colateral: canal sem texto, ou com
+                * variavel desconhecida, bloqueia o salvar — e escondido atras de uma aba fechada,
+                * bloquearia sem explicar. */}
+              <div className="adn-settings__channel-tabs" role="tablist">
+                {channels
+                  .filter((channel) => editor.draft?.channels.includes(channel.id))
+                  .map((channel) => {
+                    const vazio = (editor.draft?.byChannel[channel.id]?.body ?? '').length === 0
+                    const ativo = (activeChannel ?? editor.draft?.channels[0]) === channel.id
 
-              <label className="adn-settings__field">
-                <span className="adn-settings__field-label">{label('settings.body')}</span>
-                <textarea
-                  rows={4}
-                  value={editor.draft.body}
-                  onChange={(event) => editor.update({ body: event.target.value })}
-                  onSelect={(event) => rememberCursor('body', event.currentTarget.selectionStart)}
-                />
-              </label>
-
-              {/* Slot: campo que só um canal tem, e que o pacote não deve conhecer por nome. */}
-              {/* Um slot por canal escolhido: o campo do WhatsApp so faz sentido se o WhatsApp
-                  estiver marcado, e com multipla escolha isso deixou de ser um valor unico. */}
-              {editor.draft.channels.map((channel) => (
-                <Fragment key={channel}>
-                  {renderChannelFields?.({
-                    channel,
-                    value: editor.draft?.whatsappTemplateName ?? '',
-                    onChange: (value) => editor.update({ whatsappTemplateName: value }),
+                    return (
+                      <button
+                        key={channel.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={ativo}
+                        className={ativo ? 'adn-settings__tab adn-settings__tab--active' : 'adn-settings__tab'}
+                        onClick={() => setActiveChannel(channel.id)}
+                      >
+                        {channel.label}
+                        {vazio && <span className="adn-settings__tab-dot" aria-hidden="true" />}
+                      </button>
+                    )
                   })}
-                </Fragment>
-              ))}
+              </div>
 
-              {editor.previews.length > 0 && (
-                <div className="adn-settings__previews">
-                  <p className="adn-settings__preview-title">{label('settings.previewTitle')}</p>
-                  {channels
-                    .filter((channel) => editor.draft?.channels.includes(channel.id))
-                    .map((channel) => (
-                      <section key={channel.id} className="adn-settings__preview-group">
-                        {/* Com mais de um canal marcado os quadros se misturam: sem este titulo
-                            nao da para saber qual iPhone e o e-mail e qual e o WhatsApp. */}
+              {channels
+                .filter((channel) => editor.draft?.channels.includes(channel.id))
+                .filter((channel) => (activeChannel ?? editor.draft?.channels[0]) === channel.id)
+                .map((channel) => {
+                  const content = editor.draft?.byChannel[channel.id]
+                  const frames = editor.previews.filter((frame) => frame.channel === channel.id)
+
+                  return (
+                    <section key={channel.id} className="adn-settings__channel-block">
+                      <header className="adn-settings__channel-block-header">
                         <h3 className="adn-settings__preview-channel">{channel.label}</h3>
-                        <div className="adn-settings__preview-frames">
-                          {editor.previews
-                            .filter((frame) => frame.channel === channel.id)
-                            .map((frame) => (
+                        {channel.hint && <span className="adn-settings__hint">{channel.hint}</span>}
+                      </header>
+
+                      <label className="adn-settings__field">
+                        <span className="adn-settings__field-label">{label('settings.subject')}</span>
+                        <span className="adn-settings__hint">{label('settings.subjectHint')}</span>
+                        <input
+                          value={content?.subject ?? ''}
+                          onChange={(event) => editor.updateChannel(channel.id, { subject: event.target.value })}
+                          onSelect={(event) => rememberCursor('subject', event.currentTarget.selectionStart)}
+                          onFocus={() => setCursorChannel(channel.id)}
+                        />
+                      </label>
+
+                      <label className="adn-settings__field">
+                        <span className="adn-settings__field-label">{label('settings.body')}</span>
+                        <textarea
+                          rows={5}
+                          value={content?.body ?? ''}
+                          onChange={(event) => editor.updateChannel(channel.id, { body: event.target.value })}
+                          onSelect={(event) => rememberCursor('body', event.currentTarget.selectionStart)}
+                          onFocus={() => setCursorChannel(channel.id)}
+                        />
+                      </label>
+
+                      {/* Slot do host: campo que só um canal tem, e que o pacote não conhece por nome. */}
+                      {renderChannelFields?.({
+                        channel: channel.id,
+                        value: content?.whatsappTemplateName ?? '',
+                        onChange: (value) => editor.updateChannel(channel.id, { whatsappTemplateName: value }),
+                      })}
+
+                      {frames.length > 0 && (
+                        <div className="adn-settings__previews">
+                          <p className="adn-settings__preview-title">{label('settings.previewTitle')}</p>
+                          <div className="adn-settings__preview-frames">
+                            {frames.map((frame) => (
                               <figure key={`${frame.channel}:${frame.viewport}`} className="adn-settings__preview">
                                 <figcaption className="adn-settings__hint">
                                   {label(`settings.viewport.${frame.viewport}`)} · {frame.width}px
@@ -447,6 +504,11 @@ export function NotificationSettingsWorkspace({
                                       now: label('preview.now'),
                                       mailbox: label('preview.mailbox'),
                                       time: label('preview.time'),
+                                      address: label('preview.address'),
+                                      counter: label('preview.counter'),
+                                      folder: label('preview.folder'),
+                                      senderAddress: label('preview.senderAddress'),
+                                      unsubscribe: label('preview.unsubscribe'),
                                     }}
                                     {...(senderName ? { senderName } : {})}
                                   />
@@ -461,11 +523,12 @@ export function NotificationSettingsWorkspace({
                                   ))}
                               </figure>
                             ))}
+                          </div>
                         </div>
-                      </section>
-                    ))}
-                </div>
-              )}
+                      )}
+                    </section>
+                  )
+                })}
 
               {editor.error && <p className="adn-settings__error">{editor.error}</p>}
 

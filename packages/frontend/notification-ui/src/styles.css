@@ -1725,3 +1725,264 @@
 .adn-preview-mailapp__spacer { flex: 1; }
 
 .adn-preview-mail__time { margin-left: auto; font-size: 12px; color: var(--adn-color-muted); }
+
+/* ── Rolagem dentro do quadro ────────────────────────────────────────────────────────────────
+ *
+ * O quadro tem altura fixa (e o aparelho tem altura de aparelho): mensagem longa era simplesmente
+ * cortada, sem jeito de ver o resto. Quem escreve precisa chegar ao fim do texto no proprio
+ * preview. A rolagem fica DENTRO do aparelho, como no aparelho de verdade.
+ */
+
+.adn-preview-phone__content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.adn-preview-mailapp__body-scroll,
+.adn-preview-wa,
+.adn-preview-sms {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Altura de aparelho: sem isto a moldura cresce com o texto e deixa de parecer um celular. */
+.adn-preview-phone--ios .adn-preview-phone__screen { height: 760px; }
+.adn-preview-phone--android .adn-preview-phone__screen { height: 740px; }
+
+.adn-preview-browser__viewport {
+  height: 620px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A fileira de quadros rola na horizontal quando o canal tem tres — a pagina nunca rola. */
+.adn-settings__preview-frames {
+  overflow-x: auto;
+  padding-bottom: var(--adn-space-2, 8px);
+}
+
+/* ── Silhueta do aparelho ────────────────────────────────────────────────────────────────────
+ * Moldura fina e botoes laterais, como num mockup de aparelho — sem eles a caixa preta nao se le
+ * como celular por mais arredondada que seja.
+ */
+
+.adn-preview-phone { position: relative; border-width: 5px; }
+
+.adn-preview-phone__btn {
+  position: absolute;
+  background: var(--adn-preview-bezel, #1e2532);
+  border-radius: 2px;
+}
+
+.adn-preview-phone__btn--mute { left: -7px; top: 96px; width: 3px; height: 26px; }
+.adn-preview-phone__btn--up { left: -7px; top: 140px; width: 3px; height: 46px; }
+.adn-preview-phone__btn--down { left: -7px; top: 198px; width: 3px; height: 46px; }
+.adn-preview-phone__btn--power { right: -7px; top: 160px; width: 3px; height: 70px; }
+
+.adn-preview-phone--android .adn-preview-phone__btn--mute { display: none; }
+.adn-preview-phone--android .adn-preview-phone__btn--up { top: 120px; height: 40px; }
+.adn-preview-phone--android .adn-preview-phone__btn--down { top: 168px; height: 40px; }
+
+/* ── Leitor de e-mail: barra de acoes e identidade do remetente ─────────────────────────────── */
+
+.adn-preview-mailapp__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 20px;
+  color: var(--adn-preview-mail-icon, #5f6368);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-preview-mailapp__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mail__identity { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.adn-preview-mail__from { align-items: flex-start; }
+
+.adn-preview-mail__subject {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Bloco por canal: cada um com o proprio texto e o proprio preview. */
+.adn-settings__channel-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-3, 12px);
+  padding: var(--adn-space-4, 16px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-canvas);
+}
+
+.adn-settings__channel-block-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--adn-space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.adn-settings__channel-block .adn-settings__previews {
+  border-top: 1px solid var(--adn-color-border);
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.adn-settings__channel-block input,
+.adn-settings__channel-block textarea {
+  background: var(--adn-color-surface);
+}
+
+/* Abas de canal dentro do editor — o mesmo desenho das abas do topo, um nivel abaixo. */
+.adn-settings__channel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-1, 4px);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-settings__channel-tabs .adn-settings__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--adn-color-muted);
+  min-height: 40px;
+}
+
+.adn-settings__channel-tabs .adn-settings__tab--active {
+  border-bottom-color: var(--adn-color-accent);
+  color: var(--adn-color-accent);
+}
+
+/* Ponto: este canal ainda nao tem texto, e e ele que segura o salvar. */
+.adn-settings__tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--adn-color-danger);
+}
+
+/* Sem aba, o bloco perde a borda: ele ja esta dentro do painel da aba. */
+.adn-settings__channel-block {
+  border: 0;
+  background: transparent;
+  padding: var(--adn-space-3, 12px) 0 0;
+}
+
+/* ── Leitor de e-mail: anatomia completa ─────────────────────────────────────────────────────
+ * Trilho de acoes, barra de ferramentas, contador, assunto com pasta, e a linha do remetente com
+ * endereco e acoes. Convencoes compartilhadas por todo cliente — nenhuma marca reproduzida.
+ */
+
+.adn-preview-mailapp__account { display: inline-flex; align-items: center; gap: 12px; color: var(--adn-preview-mail-icon, #5f6368); }
+
+.adn-preview-mailapp__split { display: flex; min-height: 0; }
+
+.adn-preview-mailapp__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  color: var(--adn-preview-mail-icon, #5f6368);
+  flex-shrink: 0;
+}
+
+.adn-preview-mailapp__compose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+}
+
+.adn-preview-mailapp__rail-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+}
+
+.adn-preview-mailapp__rail-item--active {
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+}
+
+.adn-preview-mailapp__divider {
+  width: 1px;
+  height: 16px;
+  background: var(--adn-color-border);
+}
+
+.adn-preview-mailapp__toolbar { gap: 12px; }
+
+.adn-preview-mailapp__counter {
+  font-size: 11px;
+  color: var(--adn-color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adn-preview-mail__subject-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adn-preview-mail__folder {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  color: var(--adn-color-muted);
+  white-space: nowrap;
+}
+
+.adn-preview-mail__subject-actions,
+.adn-preview-mail__from-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  color: var(--adn-preview-mail-icon, #5f6368);
+  flex-shrink: 0;
+}
+
+.adn-preview-mail__sender-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.adn-preview-mail__address { font-size: 12px; color: var(--adn-color-muted); }
+
+.adn-preview-mail__unsubscribe {
+  font-size: 12px;
+  color: var(--adn-color-accent);
+  font-weight: 500;
+}
+
+/* Celular: a barra de acoes nao rola com a mensagem. */
+.adn-preview-mailapp__actions { position: sticky; top: 0; z-index: 1; background: var(--adn-color-surface); }
+
+.adn-preview-mailapp__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
+/* Com a barra fixa, quem rola e o miolo — nao o conteudo inteiro do aparelho. */
+.adn-preview-phone__content { overflow: hidden; }
