@@ -1005,8 +1005,11 @@
   padding-bottom: var(--adn-space-3, 12px);
 }
 
-.adn-settings__list-header .adn-settings__new {
-  align-self: flex-start;
+.adn-settings__list-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--adn-space-3, 12px);
 }
 
 /* Linha da lista: cartao proprio, e o selecionado se anuncia pela borda do acento. */
@@ -1252,3 +1255,201 @@
   --adn-color-faint: color-mix(in srgb, var(--adn-color-muted) 40%, #0f172a);
   --adn-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
+
+/* ── Molduras de preview por canal ───────────────────────────────────────────────────────────
+ *
+ * Ver `TemplatePreview.tsx` para o porquê: o enquadramento e o corte SAO a informacao. Estes
+ * tamanhos sao os reais do canal, e o `zoom` do quadro reduz o conjunto para caber no painel.
+ */
+
+.adn-preview-phone {
+  width: 375px;
+  border: 8px solid var(--adn-preview-bezel, #1e2532);
+  border-radius: 28px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.adn-preview-phone--dark { background: var(--adn-preview-lockscreen, #0b1220); }
+
+.adn-preview-phone__screen { min-height: 260px; display: flex; flex-direction: column; }
+
+.adn-preview-browser {
+  width: 600px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.adn-preview-browser__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-preview-browser__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--adn-preview-chrome-dot, #cbd5e1);
+}
+
+.adn-preview-browser__address {
+  flex: 1;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid var(--adn-color-border);
+  font-size: 11px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mail { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.adn-preview-mail--compact { padding: 14px 16px; gap: 8px; }
+
+.adn-preview-mail__subject {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  /* Duas linhas: o cliente de e-mail corta o assunto, e e ai que o limite do canal aparece. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.adn-preview-mail__from { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.adn-preview-mail__sender { font-weight: 500; }
+.adn-preview-mail__to { color: var(--adn-color-muted); }
+
+.adn-preview-mail__body {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--adn-preview-mail-text, #334155);
+  white-space: pre-wrap;
+}
+
+.adn-preview-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--adn-color-accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.adn-preview-avatar--small { width: 18px; height: 18px; font-size: 10px; }
+
+/* WhatsApp: papel de parede da conversa e balao recebido, com a ponta a esquerda. */
+.adn-preview-wa {
+  flex: 1;
+  padding: 16px 12px;
+  background: var(--adn-preview-wa-wallpaper, #efeae2);
+  display: flex;
+}
+
+.adn-preview-wa__bubble {
+  position: relative;
+  max-width: 85%;
+  background: #ffffff;
+  border-radius: 8px;
+  border-top-left-radius: 0;
+  padding: 8px 10px 6px;
+  box-shadow: 0 1px 1px var(--adn-preview-wa-shadow, rgba(11, 20, 26, 0.13));
+  align-self: flex-start;
+}
+
+.adn-preview-wa__text { font-size: 15px; line-height: 1.45; color: var(--adn-preview-wa-text, #111b21); white-space: pre-wrap; }
+.adn-preview-wa__time { font-size: 11px; color: var(--adn-preview-wa-time, #667781); text-align: right; margin-top: 2px; }
+
+/* SMS: sem assunto, sem formatacao — e o canal mais cru dos cinco. */
+.adn-preview-sms { flex: 1; padding: 16px 12px; background: #ffffff; display: flex; }
+
+.adn-preview-sms__bubble {
+  max-width: 85%;
+  background: var(--adn-preview-sms-bubble, #e9e9eb);
+  color: var(--adn-preview-sms-text, #000000);
+  border-radius: 18px;
+  padding: 9px 13px;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  align-self: flex-start;
+}
+
+/* Push: tela bloqueada, e o corte de duas linhas que o sistema aplica. */
+.adn-preview-push {
+  flex: 1;
+  padding: 40px 12px 16px;
+  background: var(--adn-preview-lockscreen-bg, linear-gradient(160deg, #172033, #0b1220));
+  display: flex;
+  align-items: flex-start;
+}
+
+.adn-preview-push__card {
+  width: 100%;
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: var(--adn-preview-push-card, rgba(255, 255, 255, 0.92));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.adn-preview-push__app {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--adn-preview-push-app, #4b5563);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adn-preview-push__time { margin-left: auto; text-transform: none; letter-spacing: 0; }
+.adn-preview-push__title { font-size: 14px; font-weight: 600; color: var(--adn-preview-push-title, #111827); }
+
+.adn-preview-push__body {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--adn-preview-push-body, #374151);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Inbox: o cartao da propria lista de notificacoes do produto. */
+.adn-preview-inbox {
+  width: 480px;
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--adn-color-surface);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+}
+
+.adn-preview-inbox__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--adn-color-accent);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.adn-preview-inbox__text { display: flex; flex-direction: column; gap: 3px; }
+.adn-preview-inbox__title { font-size: 14px; font-weight: 600; }
+.adn-preview-inbox__body { font-size: 13px; line-height: 1.5; color: var(--adn-color-muted); white-space: pre-wrap; }

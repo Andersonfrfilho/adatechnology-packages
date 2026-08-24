@@ -20,6 +20,7 @@ import type { NotificationPreference, NotificationTemplate } from '@adatechnolog
 import { useNotificationContext } from '../NotificationProvider'
 import { usePreferences, useUpdatePreferences } from '../hooks/usePreferences'
 import { useCategoryPolicies } from '../hooks/useCategoryPolicies'
+import { TemplatePreview } from './TemplatePreview'
 import { useTemplateEditor } from '../hooks/useTemplateEditor'
 import type { TemplateDraftField } from '../hooks/useTemplateEditor'
 
@@ -63,6 +64,11 @@ export type NotificationSettingsWorkspaceProps = {
   /** Ações do produto no cabeçalho. */
   readonly renderHeaderActions?: () => ReactNode
   readonly className?: string
+  /**
+   * Nome do produto no preview: e o remetente do e-mail e o app do push. O pacote nao sabe de
+   * quem e a marca, e "Aviso" generico faria o preview mentir sobre o que a pessoa ve.
+   */
+  readonly senderName?: string
 }
 
 export function NotificationSettingsWorkspace({
@@ -75,6 +81,7 @@ export function NotificationSettingsWorkspace({
   renderHeader,
   renderHeaderActions,
   className,
+  senderName,
 }: NotificationSettingsWorkspaceProps) {
   const { messages } = useNotificationContext()
   const label = (key: string): string => labelsOverride?.[key] ?? (messages as Record<string, string>)[key] ?? key
@@ -232,13 +239,15 @@ export function NotificationSettingsWorkspace({
       <div className="adn-settings__templates">
         <section className="adn-settings__template-list">
           <header className="adn-settings__list-header">
-            <div>
+            {/* Titulo e acao na MESMA linha; a explicacao desce inteira embaixo. Com os tres lado a
+                lado numa coluna de 320px a explicacao quebrava em tres linhas e empurrava o botao. */}
+            <div className="adn-settings__list-header-row">
               <h2 className="adn-settings__section-title">{label('settings.templatesTitle')}</h2>
-              <p className="adn-settings__hint">{label('settings.templatesHint')}</p>
+              <button type="button" className="adn-settings__new" onClick={editor.startNew}>
+                {label('settings.newTemplate')}
+              </button>
             </div>
-            <button type="button" className="adn-settings__new" onClick={editor.startNew}>
-              {label('settings.newTemplate')}
-            </button>
+            <p className="adn-settings__hint">{label('settings.templatesHint')}</p>
           </header>
 
           {editor.isLoading && <p className="adn-settings__hint">{label('list.loading')}</p>}
@@ -405,16 +414,22 @@ export function NotificationSettingsWorkspace({
                         <figcaption className="adn-settings__hint">
                           {label(`settings.viewport.${frame.viewport}`)} · {frame.width}px
                         </figcaption>
-                        {/* Largura fixa é o ponto: é ela que revela o corte que só acontece num
-                            dos dois. O texto sai como nó de texto — nunca innerHTML, mesmo já
-                            escapado pelo renderer. */}
                         <div
                           className="adn-settings__preview-frame"
-                          /* A largura e a REAL do canal; o CSS reduz para caber e compensa a sobra. */
-                          style={{ width: frame.width, '--adn-preview-width': `${frame.width}px` } as CSSProperties}
+                          /* A largura e a REAL do canal; o CSS reduz o conjunto para caber. */
+                          style={{ '--adn-preview-width': `${frame.width}px` } as CSSProperties}
                         >
-                          <p className="adn-settings__preview-subject">{frame.rendered.title}</p>
-                          <p className="adn-settings__preview-body">{frame.rendered.body}</p>
+                          <TemplatePreview
+                            channel={frame.channel}
+                            viewport={frame.viewport}
+                            rendered={frame.rendered}
+                            labels={{
+                              to: label('preview.to'),
+                              now: label('preview.now'),
+                              mailbox: label('preview.mailbox'),
+                            }}
+                            {...(senderName ? { senderName } : {})}
+                          />
                         </div>
                         {frame.rendered.constraints
                           .filter((constraint) => constraint.exceeded)

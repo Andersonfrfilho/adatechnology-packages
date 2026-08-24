@@ -63,5 +63,8 @@
   "settings.policiesTitle": "Allowed channels per topic",
   "settings.policiesHint": "Company decision. A channel turned off here never sends, even if the recipient opted in.",
   "settings.savePolicies": "Save routing",
-  "settings.discard": "Discard"
+  "settings.discard": "Discard",
+  "preview.to": "to you",
+  "preview.now": "now",
+  "preview.mailbox": "inbox"
 }

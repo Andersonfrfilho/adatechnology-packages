@@ -63,5 +63,8 @@
   "settings.policiesTitle": "Canais permitidos por assunto",
   "settings.policiesHint": "Decisão da empresa. Canal desligado aqui não sai, mesmo que o destinatário tenha pedido.",
   "settings.savePolicies": "Salvar roteamento",
-  "settings.discard": "Descartar"
+  "settings.discard": "Descartar",
+  "preview.to": "para você",
+  "preview.now": "agora",
+  "preview.mailbox": "caixa de entrada"
 }

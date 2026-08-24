@@ -52,6 +52,9 @@ export type TemplateDraft = {
 export type TemplateDraftField = 'subject' | 'body'
 
 export type TemplatePreviewFrame = PreviewViewportSpec & {
+  /** O canal viaja com o quadro: a moldura do preview depende dele, e ler do rascunho dentro do
+   *  `map` perde a garantia de que o rascunho existe. */
+  readonly channel: string
   readonly rendered: RenderedTemplatePreview
 }
 
@@ -162,7 +165,7 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
       payload,
     })
     const viewports = PREVIEW_VIEWPORT_BY_CHANNEL[draft.channel as NotificationChannel] ?? []
-    return viewports.map((viewport) => ({ ...viewport, rendered }))
+    return viewports.map((viewport) => ({ ...viewport, channel: draft.channel, rendered }))
   }, [draft, variables, params.previewPayload])
 
   const isDirty = useMemo(() => {

@@ -29,11 +29,18 @@ const MOBILE: PreviewViewportSpec = { viewport: PREVIEW_VIEWPORT.MOBILE, width: 
  * a mensagem aparece no desktop. `sms` não tem desktop — a mensagem é a mesma no aparelho e ponto.
  */
 export const PREVIEW_VIEWPORT_BY_CHANNEL: Readonly<Record<NotificationChannel, readonly PreviewViewportSpec[]>> = {
+  /** O unico canal lido nos dois lugares — e o assunto corta diferente em cada um. */
   [NOTIFICATION_CHANNEL.EMAIL]: [{ viewport: PREVIEW_VIEWPORT.DESKTOP, width: 600 }, MOBILE],
-  [NOTIFICATION_CHANNEL.PUSH]: [{ viewport: PREVIEW_VIEWPORT.DESKTOP, width: 360 }, MOBILE],
-  [NOTIFICATION_CHANNEL.WHATSAPP]: [{ viewport: PREVIEW_VIEWPORT.DESKTOP, width: 400 }, MOBILE],
-  [NOTIFICATION_CHANNEL.INBOX]: [{ viewport: PREVIEW_VIEWPORT.DESKTOP, width: 480 }, MOBILE],
+  /**
+   * Push, WhatsApp e SMS sao de aparelho. Um quadro largo ao lado sugeriria uma leitura em tela
+   * grande que nao existe — e o corte que importa (duas linhas no push, 160 caracteres no SMS)
+   * so acontece no celular.
+   */
+  [NOTIFICATION_CHANNEL.PUSH]: [MOBILE],
+  [NOTIFICATION_CHANNEL.WHATSAPP]: [MOBILE],
   [NOTIFICATION_CHANNEL.SMS]: [MOBILE],
+  /** Inbox e a tela do proprio produto, que e de computador neste ecossistema. */
+  [NOTIFICATION_CHANNEL.INBOX]: [{ viewport: PREVIEW_VIEWPORT.DESKTOP, width: 480 }],
 }
 
 export type TemplateConstraintField = 'title' | 'body'
