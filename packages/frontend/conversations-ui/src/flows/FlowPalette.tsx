@@ -28,21 +28,117 @@ const QUESTION_TYPES: FlowQuestionType[] = ['text', 'money', 'date', 'int', 'cpf
 // Paridade com financiamento-imobiliario-bot/apps/web/src/components/flows/FlowPalette.tsx —
 // botão "Adicionar" com submenus por categoria (Pergunta/Decisão/Condição/Ação). Sem
 // dependência de dropdown externa — menu simples com fechamento por clique fora.
-export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: FlowPaletteProps) {
-  const labels = { ...DEFAULT_FLOW_EDITOR_LABELS, ...labelsOverride }
+export interface FlowPaletteMenuProps {
+  onSelect: (spec: NewNodeSpec) => void
+  labels: FlowEditorLabels
+  actionOptions?: FlowPaletteActionOption[]
+}
+
+/**
+ * A lista de tipos de nó, sem o botão que a abre.
+ *
+ * Separada porque o "+" do card abre exatamente esta lista: duplicar os itens era garantir que um
+ * tipo novo aparecesse num caminho e faltasse no outro.
+ */
+export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPaletteMenuProps) {
   const resolvedActionOptions = actionOptions ?? [
     { actionKind: 'handoff', label: labels.actionKindLabels.handoff ?? 'Encaminhar para atendimento' },
   ]
-
-  const [open, setOpen] = useState(false)
   const [submenu, setSubmenu] = useState<'question' | 'action' | null>(null)
+
+  function select(spec: NewNodeSpec) {
+    onSelect(spec)
+    setSubmenu(null)
+  }
+
+  return (
+    <>
+      <div className="relative">
+        <button
+          data-cv-tooltip={labels.palette.question} aria-label={labels.palette.question}
+          onMouseEnter={() => setSubmenu('question')}
+          onClick={() => setSubmenu(submenu === 'question' ? null : 'question')}
+          className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          <span className="flex items-center gap-2">
+            <MessageCircleQuestion size={15} className="text-blue-500" /> {labels.palette.question}
+          </span>
+          <ChevronRight size={13} className="text-gray-400" />
+        </button>
+        {submenu === 'question' && (
+          <div className="absolute left-full top-0 ml-1 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
+            {QUESTION_TYPES.map((qt) => (
+              <button
+                data-cv-tooltip={labels.questionTypeLabels[qt]} aria-label={labels.questionTypeLabels[qt]}
+                key={qt}
+                onClick={() => select({ kind: 'question', questionType: qt })}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                {labels.questionTypeLabels[qt]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <button
+        data-cv-tooltip={labels.palette.decision} aria-label={labels.palette.decision}
+        onMouseEnter={() => setSubmenu(null)}
+        onClick={() => select({ kind: 'decision' })}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+      >
+        <GitBranch size={15} className="text-purple-500" /> {labels.palette.decision}
+      </button>
+
+      <button
+        onMouseEnter={() => setSubmenu(null)}
+        onClick={() => select({ kind: 'condition' })}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+        data-cv-tooltip={labels.palette.conditionHint} aria-label={labels.palette.conditionHint}
+      >
+        <Diamond size={15} className="text-cyan-500" /> {labels.palette.condition}
+      </button>
+
+      <div className="relative">
+        <button
+          data-cv-tooltip={labels.palette.action} aria-label={labels.palette.action}
+          onMouseEnter={() => setSubmenu('action')}
+          onClick={() => setSubmenu(submenu === 'action' ? null : 'action')}
+          className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          <span className="flex items-center gap-2">
+            <Zap size={15} className="text-orange-500" /> {labels.palette.action}
+          </span>
+          <ChevronRight size={13} className="text-gray-400" />
+        </button>
+        {submenu === 'action' && (
+          <div className="absolute left-full top-0 ml-1 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
+            {resolvedActionOptions.map((option) => (
+              <button
+                data-cv-tooltip={option.label} aria-label={option.label}
+                key={option.actionKind}
+                onClick={() => select({ kind: 'action', actionKind: option.actionKind })}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
+export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: FlowPaletteProps) {
+  const labels = { ...DEFAULT_FLOW_EDITOR_LABELS, ...labelsOverride }
+  const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false)
-        setSubmenu(null)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -52,7 +148,6 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
   function select(spec: NewNodeSpec) {
     onAdd(spec)
     setOpen(false)
-    setSubmenu(null)
   }
 
   return (
@@ -67,79 +162,11 @@ export function FlowPalette({ onAdd, labels: labelsOverride, actionOptions }: Fl
 
       {open && (
         <div className="absolute left-0 top-full mt-1.5 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-1">
-          <div className="relative">
-            <button
-              data-cv-tooltip={labels.palette.question} aria-label={labels.palette.question}
-              onMouseEnter={() => setSubmenu('question')}
-              onClick={() => setSubmenu(submenu === 'question' ? null : 'question')}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              <span className="flex items-center gap-2">
-                <MessageCircleQuestion size={15} className="text-blue-500" /> {labels.palette.question}
-              </span>
-              <ChevronRight size={13} className="text-gray-400" />
-            </button>
-            {submenu === 'question' && (
-              <div className="absolute left-full top-0 ml-1 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
-                {QUESTION_TYPES.map((qt) => (
-                  <button
-                    data-cv-tooltip={labels.questionTypeLabels[qt]} aria-label={labels.questionTypeLabels[qt]}
-                    key={qt}
-                    onClick={() => select({ kind: 'question', questionType: qt })}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    {labels.questionTypeLabels[qt]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button
-            data-cv-tooltip={labels.palette.decision} aria-label={labels.palette.decision}
-            onMouseEnter={() => setSubmenu(null)}
-            onClick={() => select({ kind: 'decision' })}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-          >
-            <GitBranch size={15} className="text-purple-500" /> {labels.palette.decision}
-          </button>
-
-          <button
-            onMouseEnter={() => setSubmenu(null)}
-            onClick={() => select({ kind: 'condition' })}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-            data-cv-tooltip={labels.palette.conditionHint} aria-label={labels.palette.conditionHint}
-          >
-            <Diamond size={15} className="text-cyan-500" /> {labels.palette.condition}
-          </button>
-
-          <div className="relative">
-            <button
-              data-cv-tooltip={labels.palette.action} aria-label={labels.palette.action}
-              onMouseEnter={() => setSubmenu('action')}
-              onClick={() => setSubmenu(submenu === 'action' ? null : 'action')}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              <span className="flex items-center gap-2">
-                <Zap size={15} className="text-orange-500" /> {labels.palette.action}
-              </span>
-              <ChevronRight size={13} className="text-gray-400" />
-            </button>
-            {submenu === 'action' && (
-              <div className="absolute left-full top-0 ml-1 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
-                {resolvedActionOptions.map((option) => (
-                  <button
-                    data-cv-tooltip={option.label} aria-label={option.label}
-                    key={option.actionKind}
-                    onClick={() => select({ kind: 'action', actionKind: option.actionKind })}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <FlowPaletteMenu
+            onSelect={select}
+            labels={labels}
+            {...(actionOptions ? { actionOptions } : {})}
+          />
         </div>
       )}
     </div>
