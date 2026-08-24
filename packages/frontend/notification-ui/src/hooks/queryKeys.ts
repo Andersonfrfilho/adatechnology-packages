@@ -12,4 +12,5 @@ export const NOTIFICATION_QUERY_KEYS = {
   unreadCount: () => ['notifications', 'unread-count'] as const,
   preferences: () => ['notifications', 'preferences'] as const,
   templates: () => ['notifications', 'templates'] as const,
+  templateVariables: () => ['notifications', 'template-variables'] as const,
 } as const

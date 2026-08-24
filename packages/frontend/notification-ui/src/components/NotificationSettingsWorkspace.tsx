@@ -13,12 +13,14 @@
  * produto sobre a própria operação.
  */
 
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { NotificationPreference, NotificationTemplate } from '@adatechnology/notification-contracts'
 
 import { useNotificationContext } from '../NotificationProvider'
 import { usePreferences, useUpdatePreferences } from '../hooks/usePreferences'
 import { useTemplateEditor } from '../hooks/useTemplateEditor'
+import type { TemplateDraftField } from '../hooks/useTemplateEditor'
 
 export type NotificationChannelOption = {
   readonly id: string
@@ -78,7 +80,24 @@ export function NotificationSettingsWorkspace({
 
   const preferencesQuery = usePreferences()
   const updatePreferences = useUpdatePreferences()
-  const editor = useTemplateEditor(previewPayload ? { previewPayload } : {})
+  const editor = useTemplateEditor({
+    ...(previewPayload ? { previewPayload } : {}),
+    ...(channels[0] ? { defaultChannel: channels[0].id } : {}),
+  })
+
+  /**
+   * Onde inserir a variável. Guardado no `onSelect` dos campos porque o hook não pode conhecer o
+   * DOM — e sem isso o clique na variável só saberia concatenar no fim, que é justamente o lugar
+   * errado quando se está corrigindo o meio de uma frase.
+   */
+  const [cursor, setCursor] = useState<{ field: TemplateDraftField; cursorIndex: number }>({
+    field: 'body',
+    cursorIndex: 0,
+  })
+
+  function rememberCursor(field: TemplateDraftField, cursorIndex: number | null): void {
+    setCursor({ field, cursorIndex: cursorIndex ?? 0 })
+  }
 
   /**
    * Preferência ausente é o estado inicial normal — o módulo devolve só o que foi gravado. O default
@@ -152,9 +171,14 @@ export function NotificationSettingsWorkspace({
 
       <div className="adn-settings__templates">
         <section className="adn-settings__template-list">
-          <header>
-            <h2 className="adn-settings__section-title">{label('settings.templatesTitle')}</h2>
-            <p className="adn-settings__hint">{label('settings.templatesHint')}</p>
+          <header className="adn-settings__list-header">
+            <div>
+              <h2 className="adn-settings__section-title">{label('settings.templatesTitle')}</h2>
+              <p className="adn-settings__hint">{label('settings.templatesHint')}</p>
+            </div>
+            <button type="button" className="adn-settings__new" onClick={editor.startNew}>
+              {label('settings.newTemplate')}
+            </button>
           </header>
 
           {editor.isLoading && <p className="adn-settings__hint">{label('list.loading')}</p>}
@@ -164,7 +188,7 @@ export function NotificationSettingsWorkspace({
 
           <ul>
             {editor.templates.map((template) => (
-              <li key={template.id}>
+              <li key={template.id} className="adn-settings__row">
                 <button
                   type="button"
                   onClick={() => editor.select(template)}
@@ -181,6 +205,15 @@ export function NotificationSettingsWorkspace({
                     {label('settings.version')}
                     {template.version}
                   </span>
+                </button>
+                <button
+                  type="button"
+                  className="adn-settings__remove"
+                  aria-label={`${label('settings.remove')} ${template.key}`}
+                  disabled={editor.isDeactivating}
+                  onClick={() => editor.deactivate(template.id)}
+                >
+                  {label('settings.remove')}
                 </button>
               </li>
             ))}
@@ -207,12 +240,82 @@ export function NotificationSettingsWorkspace({
                 </button>
               </header>
 
+              {!editor.isIdentityLocked && (
+                <div className="adn-settings__identity">
+                  <label className="adn-settings__field">
+                    <span className="adn-settings__field-label">{label('settings.key')}</span>
+                    <span className="adn-settings__hint">{label('settings.keyHint')}</span>
+                    <input value={editor.draft.key} onChange={(event) => editor.update({ key: event.target.value })} />
+                  </label>
+
+                  <label className="adn-settings__field">
+                    <span className="adn-settings__field-label">{label('settings.channel')}</span>
+                    <select
+                      value={editor.draft.channel}
+                      onChange={(event) => editor.update({ channel: event.target.value })}
+                    >
+                      {channels.map((channel) => (
+                        <option key={channel.id} value={channel.id}>
+                          {channel.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="adn-settings__field">
+                    <span className="adn-settings__field-label">{label('settings.locale')}</span>
+                    <input
+                      value={editor.draft.locale}
+                      onChange={(event) => editor.update({ locale: event.target.value })}
+                    />
+                  </label>
+                </div>
+              )}
+
+              {editor.variables.length > 0 && (
+                <div className="adn-settings__variables">
+                  <p className="adn-settings__field-label">{label('settings.variablesTitle')}</p>
+                  <p className="adn-settings__hint">{label('settings.variablesHint')}</p>
+                  <ul>
+                    {editor.variables.map((variable) => {
+                      const used = editor.variableDiff.used.includes(variable.name)
+                      const missing = editor.variableDiff.missingRequired.includes(variable.name)
+                      return (
+                        <li key={variable.name}>
+                          <button
+                            type="button"
+                            className={[
+                              'adn-settings__variable',
+                              used ? 'adn-settings__variable--used' : '',
+                              missing ? 'adn-settings__variable--missing' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            onClick={() => editor.insertVariable({ ...cursor, name: variable.name })}
+                          >
+                            <span className="adn-settings__variable-name">{`{{${variable.name}}}`}</span>
+                            <span className="adn-settings__hint">{variable.example}</span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {editor.variableDiff.unknown.length > 0 && (
+                <p className="adn-settings__error">
+                  {label('settings.unknownVariables')} {editor.variableDiff.unknown.join(', ')}
+                </p>
+              )}
+
               <label className="adn-settings__field">
                 <span className="adn-settings__field-label">{label('settings.subject')}</span>
                 <span className="adn-settings__hint">{label('settings.subjectHint')}</span>
                 <input
                   value={editor.draft.subject}
                   onChange={(event) => editor.update({ subject: event.target.value })}
+                  onSelect={(event) => rememberCursor('subject', event.currentTarget.selectionStart)}
                 />
               </label>
 
@@ -222,6 +325,7 @@ export function NotificationSettingsWorkspace({
                   rows={4}
                   value={editor.draft.body}
                   onChange={(event) => editor.update({ body: event.target.value })}
+                  onSelect={(event) => rememberCursor('body', event.currentTarget.selectionStart)}
                 />
               </label>
 
@@ -232,18 +336,39 @@ export function NotificationSettingsWorkspace({
                 onChange: (value) => editor.update({ whatsappTemplateName: value }),
               })}
 
-              {editor.preview && (
-                <div className="adn-settings__preview">
+              {editor.previews.length > 0 && (
+                <div className="adn-settings__previews">
                   <p className="adn-settings__preview-title">{label('settings.previewTitle')}</p>
-                  <p className="adn-settings__preview-subject">{editor.preview.title}</p>
-                  <p className="adn-settings__preview-body">{editor.preview.body}</p>
+                  <div className="adn-settings__preview-frames">
+                    {editor.previews.map((frame) => (
+                      <figure key={frame.viewport} className="adn-settings__preview">
+                        <figcaption className="adn-settings__hint">
+                          {label(`settings.viewport.${frame.viewport}`)} · {frame.width}px
+                        </figcaption>
+                        {/* Largura fixa é o ponto: é ela que revela o corte que só acontece num
+                            dos dois. O texto sai como nó de texto — nunca innerHTML, mesmo já
+                            escapado pelo renderer. */}
+                        <div className="adn-settings__preview-frame" style={{ width: frame.width }}>
+                          <p className="adn-settings__preview-subject">{frame.rendered.title}</p>
+                          <p className="adn-settings__preview-body">{frame.rendered.body}</p>
+                        </div>
+                        {frame.rendered.constraints
+                          .filter((constraint) => constraint.exceeded)
+                          .map((constraint) => (
+                            <p key={constraint.field} className="adn-settings__preview-warning">
+                              {label(`settings.constraint.${constraint.field}`)} {constraint.actual}/{constraint.limit}
+                            </p>
+                          ))}
+                      </figure>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {editor.error && <p className="adn-settings__error">{editor.error}</p>}
 
               <div className="adn-settings__actions">
-                <button type="button" onClick={editor.save} disabled={!editor.isDirty || editor.isSaving}>
+                <button type="button" onClick={editor.save} disabled={!editor.isDirty || !editor.canSave || editor.isSaving}>
                   {editor.isSaving ? label('settings.saving') : label('settings.save')}
                 </button>
                 {/* Diz por que está desabilitado, em vez de deixar o botão inerte sem explicação. */}

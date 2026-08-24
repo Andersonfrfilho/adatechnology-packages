@@ -44,5 +44,18 @@
   "settings.saving": "Salvando…",
   "settings.unchanged": "Nada mudou ainda.",
   "settings.close": "Fechar",
-  "settings.version": "v"
+  "settings.version": "v",
+  "settings.newTemplate": "Nova mensagem",
+  "settings.remove": "Remover",
+  "settings.key": "Chave da notificação",
+  "settings.keyHint": "Não muda depois de criada — é por ela que o envio acha a mensagem.",
+  "settings.channel": "Canal",
+  "settings.locale": "Idioma",
+  "settings.variablesTitle": "Variáveis",
+  "settings.variablesHint": "Clique para inserir no ponto onde o cursor estava.",
+  "settings.unknownVariables": "Variáveis que não existem nesta notificação:",
+  "settings.viewport.desktop": "Computador",
+  "settings.viewport.mobile": "Celular",
+  "settings.constraint.title": "Assunto passa do limite do canal:",
+  "settings.constraint.body": "Texto passa do limite do canal:"
 }

@@ -59,3 +59,34 @@ export function useUpsertTemplate() {
     },
   })
 }
+
+/**
+ * O catálogo é config do host: muda com deploy, não com uso. `staleTime: Infinity` evita refetch a
+ * cada foco de janela por um dado que não muda durante a sessão.
+ */
+export function useTemplateVariables() {
+  const { client } = useNotificationContext()
+
+  return useQuery({
+    queryKey: NOTIFICATION_QUERY_KEYS.templateVariables(),
+    queryFn: () => client.listTemplateVariables(),
+    staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+/**
+ * Desativa o template. Invalida a lista pelo mesmo motivo do upsert: o servidor derruba TODAS as
+ * versões ativas da identidade, e um cache otimista que removesse só a linha clicada mostraria a
+ * versão anterior de volta na tela.
+ */
+export function useDeactivateTemplate() {
+  const { client } = useNotificationContext()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => client.deactivateTemplate(id),
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEYS.templates() })
+    },
+  })
+}

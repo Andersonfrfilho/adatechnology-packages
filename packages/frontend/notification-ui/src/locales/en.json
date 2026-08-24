@@ -44,5 +44,18 @@
   "settings.saving": "Saving…",
   "settings.unchanged": "Nothing changed yet.",
   "settings.close": "Close",
-  "settings.version": "v"
+  "settings.version": "v",
+  "settings.newTemplate": "New message",
+  "settings.remove": "Remove",
+  "settings.key": "Notification key",
+  "settings.keyHint": "Fixed once created — sending looks the message up by it.",
+  "settings.channel": "Channel",
+  "settings.locale": "Language",
+  "settings.variablesTitle": "Variables",
+  "settings.variablesHint": "Click to insert where the cursor was.",
+  "settings.unknownVariables": "Variables this notification does not have:",
+  "settings.viewport.desktop": "Desktop",
+  "settings.viewport.mobile": "Mobile",
+  "settings.constraint.title": "Subject exceeds the channel limit:",
+  "settings.constraint.body": "Body exceeds the channel limit:"
 }
