@@ -10,6 +10,7 @@ import {
   deliveryWebhookSchema,
   registerDeviceSchema,
   sendNotificationSchema,
+  updateCategoryPoliciesSchema,
   updatePreferencesSchema,
   upsertTemplateSchema,
 } from '@adatechnology/notification-contracts'
@@ -140,6 +141,35 @@ export function buildManagementRoutes(params: { module: NotificationModule; webh
           preferences: body.preferences,
         })
         return { kind: 'json', status: 200, body: { data: preferences } }
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/notification-category-policies',
+      scope: 'admin',
+      operationId: 'getNotificationCategoryPolicies',
+      summary: 'Política de canais por categoria da empresa',
+      async handler(context) {
+        const policies = await useCases.getCategoryPolicies.execute(requireCompany(context))
+        return { kind: 'json', status: 200, body: { data: policies } }
+      },
+    },
+
+    {
+      method: 'PUT',
+      path: '/notification-category-policies',
+      scope: 'admin',
+      bodySchema: updateCategoryPoliciesSchema,
+      operationId: 'updateNotificationCategoryPolicies',
+      summary: 'Substitui a política das categorias enviadas',
+      async handler(context) {
+        const body = context.body as { policies: { category: string; channel: string; enabled: boolean }[] }
+        const policies = await useCases.updateCategoryPolicies.execute({
+          companyId: requireCompany(context).companyId,
+          policies: body.policies,
+        })
+        return { kind: 'json', status: 200, body: { data: policies } }
       },
     },
 

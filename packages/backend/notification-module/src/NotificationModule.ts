@@ -31,6 +31,7 @@ import { DeviceRepository } from './repositories/DeviceRepository'
 import { NotificationRepository } from './repositories/NotificationRepository'
 import { PreferenceRepository } from './repositories/PreferenceRepository'
 import { SuppressionRepository } from './repositories/SuppressionRepository'
+import { CategoryPolicyRepository } from './repositories/CategoryPolicyRepository'
 import { TemplateRepository } from './repositories/TemplateRepository'
 import { createDefaultTemplateRenderer } from './shared/DefaultTemplateRenderer'
 import { createInProcessQueue } from './shared/InProcessQueue'
@@ -59,6 +60,7 @@ import {
   SeedDefaultTemplatesUseCase,
   UpsertTemplateUseCase,
 } from './use-cases/Template.use-cases'
+import { GetCategoryPoliciesUseCase, UpdateCategoryPoliciesUseCase } from './use-cases/CategoryPolicy.use-cases'
 
 export type NotificationModuleFeatures = {
   readonly push?: boolean
@@ -130,6 +132,8 @@ export type NotificationModule = {
     readonly upsertTemplate: UpsertTemplateUseCase
     readonly listTemplates: ListTemplatesUseCase
     readonly deactivateTemplate: DeactivateTemplateUseCase
+    readonly getCategoryPolicies: GetCategoryPoliciesUseCase
+    readonly updateCategoryPolicies: UpdateCategoryPoliciesUseCase
     readonly seedDefaultTemplates: SeedDefaultTemplatesUseCase
   }
   /** Reexposto para a rota entregar o catálogo à tela sem o host repetir a config. */
@@ -157,6 +161,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
   const devices = new DeviceRepository(params.db)
   const preferences = new PreferenceRepository(params.db)
   const templates = new TemplateRepository(params.db)
+  const categoryPolicies = new CategoryPolicyRepository(params.db)
   const suppressions = new SuppressionRepository(params.db)
 
   const queue = params.providers.queue ?? createInProcessQueue()
@@ -168,6 +173,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     deliveries,
     templates,
     preferences,
+    categoryPolicies,
     suppressions,
     devices,
     recipientResolver: params.providers.recipientResolver,
@@ -236,6 +242,8 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
       upsertTemplate,
       listTemplates: new ListTemplatesUseCase(templates),
       deactivateTemplate: new DeactivateTemplateUseCase(templates),
+      getCategoryPolicies: new GetCategoryPoliciesUseCase(categoryPolicies),
+      updateCategoryPolicies: new UpdateCategoryPoliciesUseCase(categoryPolicies),
       seedDefaultTemplates: new SeedDefaultTemplatesUseCase(upsertTemplate),
     },
     templateVariables: params.config.templateVariables ?? {},

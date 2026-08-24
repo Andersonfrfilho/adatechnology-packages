@@ -21,6 +21,9 @@ export type { UseNotificationsOptions } from './hooks/useNotifications'
 export { useNotificationStream } from './hooks/useNotificationStream'
 export type { UseNotificationStreamOptions } from './hooks/useNotificationStream'
 
+export { useCategoryPolicies } from './hooks/useCategoryPolicies'
+export type { UseCategoryPoliciesResult } from './hooks/useCategoryPolicies'
+
 export {
   usePreferences,
   useUpdatePreferences,

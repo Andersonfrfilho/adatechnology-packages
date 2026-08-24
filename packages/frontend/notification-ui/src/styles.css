@@ -900,3 +900,28 @@
     grid-template-columns: 2fr 1fr 1fr;
   }
 }
+
+.adn-settings__tabs {
+  display: flex;
+  gap: var(--adn-space-2, 8px);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-settings__tab {
+  padding: var(--adn-space-2, 8px) var(--adn-space-3, 12px);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__tab--active {
+  border-bottom-color: var(--adn-color-accent);
+  color: var(--adn-color-text);
+}
+
+.adn-settings__category-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-3, 12px);
+}

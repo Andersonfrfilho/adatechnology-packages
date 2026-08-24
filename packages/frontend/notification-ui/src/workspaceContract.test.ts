@@ -40,7 +40,7 @@ describe('superfície composta', () => {
   })
 
   it('criação, remoção e catálogo de variáveis também saem pela camada headless', () => {
-    for (const hook of ['useTemplateVariables', 'useDeactivateTemplate']) {
+    for (const hook of ['useTemplateVariables', 'useDeactivateTemplate', 'useCategoryPolicies']) {
       expect(typeof (headless as Record<string, unknown>)[hook], hook).toBe('function')
     }
   })

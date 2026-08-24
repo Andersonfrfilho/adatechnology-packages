@@ -11,6 +11,7 @@ import type {
   NotificationPreference,
   NotificationSummary,
   NotificationTemplate,
+  NotificationCategoryPolicy,
   TemplateVariableCatalog,
   UpsertTemplateBody,
 } from '@adatechnology/notification-contracts'
@@ -76,6 +77,12 @@ export type NotificationClient = {
   unregisterDevice(id: string): Promise<void>
   getPreferences(): Promise<readonly NotificationPreference[]>
   updatePreferences(preferences: readonly NotificationPreference[]): Promise<readonly NotificationPreference[]>
+  /** O teto de canais da empresa por categoria — acima da preferência de quem recebe. */
+  getCategoryPolicies(): Promise<readonly NotificationCategoryPolicy[]>
+  /** Substitui a política das categorias enviadas; as demais ficam intactas. */
+  updateCategoryPolicies(
+    policies: readonly NotificationCategoryPolicy[],
+  ): Promise<readonly NotificationCategoryPolicy[]>
   listTemplates(): Promise<readonly NotificationTemplate[]>
   /**
    * Cria uma VERSÃO nova do template, não edita a atual.
@@ -206,6 +213,23 @@ export function createNotificationClient(config: NotificationClientConfig): Noti
       const payload = await request<{ data: NotificationTemplate[] }>({
         method: 'GET',
         path: '/notification-templates',
+      })
+      return payload?.data ?? []
+    },
+
+    async getCategoryPolicies(): Promise<readonly NotificationCategoryPolicy[]> {
+      const payload = await request<{ data: NotificationCategoryPolicy[] }>({
+        method: 'GET',
+        path: '/notification-category-policies',
+      })
+      return payload?.data ?? []
+    },
+
+    async updateCategoryPolicies(policies): Promise<readonly NotificationCategoryPolicy[]> {
+      const payload = await request<{ data: NotificationCategoryPolicy[] }>({
+        method: 'PUT',
+        path: '/notification-category-policies',
+        body: { policies },
       })
       return payload?.data ?? []
     },

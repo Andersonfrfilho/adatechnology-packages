@@ -57,5 +57,11 @@
   "settings.viewport.desktop": "Computador",
   "settings.viewport.mobile": "Celular",
   "settings.constraint.title": "Assunto passa do limite do canal:",
-  "settings.constraint.body": "Texto passa do limite do canal:"
+  "settings.constraint.body": "Texto passa do limite do canal:",
+  "settings.tab.messages": "Mensagens",
+  "settings.tab.routing": "Roteamento",
+  "settings.policiesTitle": "Canais permitidos por assunto",
+  "settings.policiesHint": "Decisão da empresa. Canal desligado aqui não sai, mesmo que o destinatário tenha pedido.",
+  "settings.savePolicies": "Salvar roteamento",
+  "settings.discard": "Descartar"
 }

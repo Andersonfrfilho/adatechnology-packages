@@ -57,5 +57,11 @@
   "settings.viewport.desktop": "Desktop",
   "settings.viewport.mobile": "Mobile",
   "settings.constraint.title": "Subject exceeds the channel limit:",
-  "settings.constraint.body": "Body exceeds the channel limit:"
+  "settings.constraint.body": "Body exceeds the channel limit:",
+  "settings.tab.messages": "Messages",
+  "settings.tab.routing": "Routing",
+  "settings.policiesTitle": "Allowed channels per topic",
+  "settings.policiesHint": "Company decision. A channel turned off here never sends, even if the recipient opted in.",
+  "settings.savePolicies": "Save routing",
+  "settings.discard": "Discard"
 }

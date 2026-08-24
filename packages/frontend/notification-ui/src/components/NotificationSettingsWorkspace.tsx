@@ -19,6 +19,7 @@ import type { NotificationPreference, NotificationTemplate } from '@adatechnolog
 
 import { useNotificationContext } from '../NotificationProvider'
 import { usePreferences, useUpdatePreferences } from '../hooks/usePreferences'
+import { useCategoryPolicies } from '../hooks/useCategoryPolicies'
 import { useTemplateEditor } from '../hooks/useTemplateEditor'
 import type { TemplateDraftField } from '../hooks/useTemplateEditor'
 
@@ -99,6 +100,9 @@ export function NotificationSettingsWorkspace({
     setCursor({ field, cursorIndex: cursorIndex ?? 0 })
   }
 
+  const policies = useCategoryPolicies()
+  const [tab, setTab] = useState<'messages' | 'routing'>('messages')
+
   /**
    * Preferência ausente é o estado inicial normal — o módulo devolve só o que foi gravado. O default
    * é ligado: comportamento de fábrica é avisar, e um destinatário que não recebeu porque a linha não
@@ -140,6 +144,60 @@ export function NotificationSettingsWorkspace({
         </header>
       )}
 
+      <div className="adn-settings__tabs" role="tablist">
+        {(['messages', 'routing'] as const).map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            className={tab === id ? 'adn-settings__tab adn-settings__tab--active' : 'adn-settings__tab'}
+            onClick={() => setTab(id)}
+          >
+            {label(`settings.tab.${id}`)}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'routing' && (
+        <section className="adn-settings__policies">
+          <h2 className="adn-settings__section-title">{label('settings.policiesTitle')}</h2>
+          <p className="adn-settings__hint">{label('settings.policiesHint')}</p>
+
+          {categories.map((category) => (
+            <div key={category.id} className="adn-settings__category">
+              <p className="adn-settings__category-title">{category.label}</p>
+              <div className="adn-settings__category-channels">
+                {channels.map((channel) => (
+                  <label key={channel.id} className="adn-settings__toggle">
+                    <input
+                      type="checkbox"
+                      checked={policies.isAllowed({ category: category.id, channel: channel.id })}
+                      onChange={() => policies.toggle({ category: category.id, channel: channel.id })}
+                    />
+                    <span className="adn-settings__channel-label">{channel.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {policies.error && <p className="adn-settings__error">{policies.error}</p>}
+
+          <div className="adn-settings__actions">
+            <button type="button" onClick={policies.save} disabled={!policies.isDirty || policies.isSaving}>
+              {policies.isSaving ? label('settings.saving') : label('settings.savePolicies')}
+            </button>
+            {policies.isDirty && (
+              <button type="button" onClick={policies.reset}>
+                {label('settings.discard')}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
+      {tab === 'routing' && (
       <section className="adn-settings__channels">
         <h2 className="adn-settings__section-title">{label('settings.channelsTitle')}</h2>
         <p className="adn-settings__hint">{label('settings.channelsHint')}</p>
@@ -168,7 +226,9 @@ export function NotificationSettingsWorkspace({
           </div>
         ))}
       </section>
+      )}
 
+      {tab === 'messages' && (
       <div className="adn-settings__templates">
         <section className="adn-settings__template-list">
           <header className="adn-settings__list-header">
@@ -378,6 +438,7 @@ export function NotificationSettingsWorkspace({
           )}
         </section>
       </div>
+      )}
     </div>
   )
 }

@@ -194,7 +194,10 @@ export function createInMemoryTemplates(seed: TemplateRow[] = []) {
           row.locale === params.locale,
       )
       const row = buildTemplateRow({
-        ...(params as never),
+        companyId: params.companyId,
+        key: params.key,
+        channel: params.channel,
+        locale: params.locale,
         version: Math.max(0, ...previous.map((each) => each.version)) + 1,
       })
       seed.push(row)

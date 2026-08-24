@@ -50,6 +50,30 @@ export const templates = notificationSchema.table(
   ],
 )
 
+/**
+ * O teto de canais da EMPRESA por categoria, acima da preferência do usuário.
+ *
+ * Sem esta tabela só existiam dois lugares para decidir por onde a notificação sai: o chamador
+ * enumerando canais em cada `sendNotification`, ou a preferência de quem recebe. Faltava "cobrança
+ * nunca sai por SMS" — uma decisão do produto que não cabe em nenhum dos dois.
+ *
+ * Linha ausente significa permitido: fechar por omissão calaria toda categoria existente no deploy
+ * que criasse a tabela.
+ */
+export const categoryPolicies = notificationSchema.table(
+  'category_policies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    companyId: COMPANY_ID,
+    category: varchar('category', { length: 64 }).notNull(),
+    channel: CHANNEL.notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('idx_category_policies_identity').on(table.companyId, table.category, table.channel)],
+)
+
 export const notifications = notificationSchema.table(
   'notifications',
   {
@@ -184,6 +208,9 @@ export const suppressions = notificationSchema.table(
   },
   (table) => [uniqueIndex('idx_suppressions_identity').on(table.companyId, table.channel, table.targetHash)],
 )
+
+export type CategoryPolicyRow = typeof categoryPolicies.$inferSelect
+export type NewCategoryPolicyRow = typeof categoryPolicies.$inferInsert
 
 export type TemplateRow = typeof templates.$inferSelect
 export type NewTemplateRow = typeof templates.$inferInsert
