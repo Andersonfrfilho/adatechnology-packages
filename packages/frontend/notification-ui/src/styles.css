@@ -1986,3 +1986,151 @@
 
 /* Com a barra fixa, quem rola e o miolo — nao o conteudo inteiro do aparelho. */
 .adn-preview-phone__content { overflow: hidden; }
+
+/* ── WhatsApp: a tela da conversa ────────────────────────────────────────────────────────────
+ * Cabecalho, papel de parede, balao recebido e barra de digitar. O balao sozinho nao enquadra o
+ * texto no tamanho que ele ocupa de verdade.
+ */
+
+.adn-preview-wa__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--adn-preview-wa-header, #075e54);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.adn-preview-wa__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.adn-preview-wa__contact { display: flex; flex-direction: column; min-width: 0; }
+.adn-preview-wa__name { font-size: 14px; font-weight: 500; }
+.adn-preview-wa__status { font-size: 11px; opacity: 0.85; }
+.adn-preview-wa__header-actions { display: inline-flex; align-items: center; gap: 14px; margin-left: auto; }
+
+.adn-preview-wa {
+  flex: 1;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.adn-preview-wa__day {
+  align-self: center;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--adn-preview-wa-time, #667781);
+}
+
+/* A ponta do balao: e o que faz o retangulo virar mensagem recebida. */
+.adn-preview-wa__bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 0;
+  width: 8px;
+  height: 13px;
+  background: #ffffff;
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+
+.adn-preview-wa__composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--adn-preview-wa-wallpaper, #efeae2);
+  flex-shrink: 0;
+}
+
+.adn-preview-wa__input {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  font-size: 13px;
+  color: var(--adn-preview-wa-time, #667781);
+}
+
+.adn-preview-wa__send {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--adn-preview-wa-send, #00a884);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── E-mail no celular: outra tela, nao a do navegador encolhida ─────────────────────────────── */
+
+.adn-preview-mail__reply {
+  display: flex;
+  gap: 10px;
+  padding-top: var(--adn-space-3, 12px);
+}
+
+.adn-preview-mail__reply-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--adn-preview-mail-text, #334155);
+}
+
+/* ── Respiro interno ─────────────────────────────────────────────────────────────────────────
+ * A area de preview e a de canais encostavam nas bordas do cartao.
+ */
+
+.adn-settings__previews {
+  padding: var(--adn-space-4, 16px);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-canvas);
+}
+
+.adn-settings__channel-block .adn-settings__previews {
+  background: var(--adn-color-canvas);
+  padding: var(--adn-space-4, 16px);
+}
+
+.adn-settings__field--channels {
+  padding: var(--adn-space-3, 12px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-surface);
+}
+
+.adn-settings__channel-tabs {
+  padding: 0 var(--adn-space-1, 4px);
+  margin-top: var(--adn-space-2, 8px);
+}
+
+.adn-settings__channel-block {
+  padding: var(--adn-space-4, 16px) var(--adn-space-1, 4px) 0;
+}
+
+.adn-settings__policies .adn-settings__category + .adn-settings__category {
+  margin-top: var(--adn-space-2, 8px);
+}

@@ -37,6 +37,11 @@ export type PreviewLabels = {
   readonly folder: string
   readonly senderAddress: string
   readonly unsubscribe: string
+  readonly online: string
+  readonly today: string
+  readonly compose: string
+  readonly reply: string
+  readonly forward: string
 }
 
 /**
@@ -147,6 +152,10 @@ const ICON = {
   inbox: 'M3 12h5l2 3h4l2-3h5M3 12l2-7h14l2 7v7H3z',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M20 20l-3.5-3.5',
   help: 'M12 17v.01M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7',
+  video: 'M3 7h11v10H3zM14 10l7-3v10l-7-3',
+  call: 'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1',
+  mic: 'M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3M5 11a7 7 0 0 0 14 0M12 18v3',
+  forward: 'M15 17h5V7M20 7l-7 7M4 17v-3a6 6 0 0 1 6-6h10',
   settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L6.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1',
 } as const
 
@@ -296,29 +305,71 @@ function EmailMobile({
             <span className="adn-preview-mail__time">{labels.now}</span>
           </div>
           <div className="adn-preview-mail__body">{rendered.body}</div>
+
+          {/* No celular as ações de resposta ficam no fim da mensagem, não numa barra lateral. */}
+          <div className="adn-preview-mail__reply">
+            <span className="adn-preview-mail__reply-button">
+              <Icon d={ICON.reply} size={14} />
+              {labels.reply}
+            </span>
+            <span className="adn-preview-mail__reply-button">
+              <Icon d={ICON.forward} size={14} />
+              {labels.forward}
+            </span>
+          </div>
         </div>
       </div>
     </Phone>
   )
 }
 
-/** Balão recebido sobre o papel de parede da conversa — sem assunto, porque o canal não tem. */
+/**
+ * A tela da conversa, e não um balão solto.
+ *
+ * O balão sozinho não diz como a mensagem chega: quem escreve precisa ver o cabeçalho com o
+ * remetente, o balão recebido com a ponta à esquerda sobre o papel de parede, e a barra de digitar
+ * embaixo — é isso que enquadra o texto no tamanho real que ele ocupa na conversa.
+ */
 function WhatsAppPreview({
   rendered,
   labels,
   os,
+  senderName,
 }: {
   rendered: RenderedTemplatePreview
   labels: PreviewLabels
   os: string
+  senderName: string
 }) {
   return (
     <Phone os={os} time={labels.time}>
+      <div className="adn-preview-wa__header">
+        <Icon d={ICON.back} size={18} />
+        <span className="adn-preview-wa__avatar">{senderName.slice(0, 1)}</span>
+        <span className="adn-preview-wa__contact">
+          <span className="adn-preview-wa__name">{senderName}</span>
+          <span className="adn-preview-wa__status">{labels.online}</span>
+        </span>
+        <span className="adn-preview-wa__header-actions">
+          <Icon d={ICON.video} size={17} />
+          <Icon d={ICON.call} size={17} />
+          <Icon d={ICON.more} size={17} />
+        </span>
+      </div>
+
       <div className="adn-preview-wa">
+        <div className="adn-preview-wa__day">{labels.today}</div>
         <div className="adn-preview-wa__bubble">
           <div className="adn-preview-wa__text">{rendered.body}</div>
           <div className="adn-preview-wa__time">{labels.now}</div>
         </div>
+      </div>
+
+      <div className="adn-preview-wa__composer">
+        <span className="adn-preview-wa__input">{labels.compose}</span>
+        <span className="adn-preview-wa__send">
+          <Icon d={ICON.mic} size={16} />
+        </span>
       </div>
     </Phone>
   )
@@ -388,7 +439,9 @@ export function TemplatePreview({ channel, viewport, rendered, senderName, label
   /** Sem nome do produto, o remetente vira a inicial do assunto — nunca um literal inventado. */
   const sender = senderName ?? rendered.title.slice(0, 1).toUpperCase()
 
-  if (channel === 'whatsapp') return <WhatsAppPreview rendered={rendered} labels={labels} os={viewport} />
+  if (channel === 'whatsapp') {
+    return <WhatsAppPreview rendered={rendered} labels={labels} os={viewport} senderName={sender} />
+  }
   if (channel === 'sms') return <SmsPreview rendered={rendered} os={viewport} labels={labels} />
   if (channel === 'push') {
     return <PushPreview rendered={rendered} senderName={sender} labels={labels} os={viewport} />

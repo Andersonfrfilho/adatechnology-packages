@@ -509,6 +509,11 @@ export function NotificationSettingsWorkspace({
                                       folder: label('preview.folder'),
                                       senderAddress: label('preview.senderAddress'),
                                       unsubscribe: label('preview.unsubscribe'),
+                                      online: label('preview.online'),
+                                      today: label('preview.today'),
+                                      compose: label('preview.compose'),
+                                      reply: label('preview.reply'),
+                                      forward: label('preview.forward'),
                                     }}
                                     {...(senderName ? { senderName } : {})}
                                   />

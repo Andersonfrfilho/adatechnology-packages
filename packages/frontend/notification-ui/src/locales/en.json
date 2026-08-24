@@ -74,5 +74,10 @@
   "preview.counter": "1 of 1,248",
   "preview.folder": "Inbox",
   "preview.senderAddress": "<no-reply@example.com>",
-  "preview.unsubscribe": "Unsubscribe"
+  "preview.unsubscribe": "Unsubscribe",
+  "preview.online": "online",
+  "preview.today": "today",
+  "preview.compose": "Message",
+  "preview.reply": "Reply",
+  "preview.forward": "Forward"
 }

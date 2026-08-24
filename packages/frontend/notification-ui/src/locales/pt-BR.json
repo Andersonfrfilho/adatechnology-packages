@@ -74,5 +74,10 @@
   "preview.counter": "1 de 1.248",
   "preview.folder": "Caixa de entrada",
   "preview.senderAddress": "<nao-responda@exemplo.com>",
-  "preview.unsubscribe": "Cancelar inscrição"
+  "preview.unsubscribe": "Cancelar inscrição",
+  "preview.online": "online",
+  "preview.today": "hoje",
+  "preview.compose": "Mensagem",
+  "preview.reply": "Responder",
+  "preview.forward": "Encaminhar"
 }
