@@ -4,6 +4,7 @@ import {
   WindowExpiredError,
   type ChannelAdapterInterface,
   type ObjectStorageInterface,
+  type SendChannelMediaParams,
 } from '@adatechnology/meta-whatsapp-contracts'
 import { resolvePreviewUploadId } from './previewMedia'
 
@@ -55,15 +56,12 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     return { externalMessageId: result.waMessageId }
   }
 
-  async sendMedia(params: {
-    to: string
-    buffer: Buffer
-    mimeType: string
-    filename: string
-    caption?: string
-  }): Promise<{ externalMessageId: string | null }> {
+  async sendMedia(params: SendChannelMediaParams): Promise<{
+    externalMessageId: string | null
+    mediaId?: string | undefined
+  }> {
     const result = await this.translateErrors(() => this.messages.sendMedia(params))
-    return { externalMessageId: result.waMessageId }
+    return { externalMessageId: result.waMessageId, mediaId: result.mediaId }
   }
 
   async sendTemplate(params: {
