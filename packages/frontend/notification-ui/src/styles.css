@@ -12,12 +12,24 @@
 .adn-workspace,
 .adn-settings {
   --adn-color-surface: var(--adn-surface, #ffffff);
-  --adn-color-text: var(--adn-text, #111827);
-  --adn-color-muted: var(--adn-muted, #6b7280);
-  --adn-color-accent: var(--adn-accent, #3b82f6);
-  --adn-color-danger: var(--adn-danger, #dc2626);
-  --adn-color-border: var(--adn-border, #e5e7eb);
-  --adn-radius: var(--adn-radius-md, 8px);
+  --adn-color-text: var(--adn-text, #0f172a);
+  --adn-color-muted: var(--adn-muted, #64748b);
+  --adn-color-accent: var(--adn-accent, #2f4bd8);
+  --adn-color-danger: var(--adn-danger, #b91c1c);
+  --adn-color-border: var(--adn-border, #e2e8f0);
+  /**
+   * Tres tons derivados, e nao mais um token para o host preencher: e o que faz a tela ter
+   * hierarquia sem configuracao nenhuma. `color-mix` tinge com o proprio acento do host, entao
+   * quem sobrescreve `--adn-accent` ganha a familia inteira de graca.
+   */
+  --adn-color-canvas: var(--adn-canvas, color-mix(in srgb, var(--adn-color-accent) 4%, #ffffff));
+  --adn-color-accent-soft: color-mix(in srgb, var(--adn-color-accent) 8%, #ffffff);
+  --adn-color-accent-line: color-mix(in srgb, var(--adn-color-accent) 28%, #ffffff);
+  --adn-color-faint: color-mix(in srgb, var(--adn-color-muted) 60%, #ffffff);
+  --adn-shadow-card: 0 1px 2px color-mix(in srgb, var(--adn-color-text) 6%, transparent);
+  --adn-radius: var(--adn-radius-md, 12px);
+  --adn-radius-sm: 8px;
+  --adn-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   /* Grade base de 4px (web.md §8) — múltiplos, nunca pixel mágico. */
   --adn-space-1: 4px;
   --adn-space-2: 8px;
@@ -582,8 +594,16 @@
     grid-template-columns: 2fr 1fr;
   }
 
+  /**
+   * Lista com largura FIXA, e nao uma fracao.
+   *
+   * Com `2fr 3fr` o editor encolhia junto com a janela, e os dois quadros do preview — que tem
+   * largura real, 600px e 375px — deixavam de caber lado a lado e empilhavam. Empilhados eles nao
+   * comparam nada, que e a unica coisa que o preview duplo existe para fazer. A lista nao precisa
+   * de mais de 320px; todo o resto vai para quem precisa.
+   */
   .adn-settings__templates {
-    grid-template-columns: 2fr 3fr;
+    grid-template-columns: 320px minmax(0, 1fr);
   }
 
   /* Botão volta ao tamanho de mouse: 44px existe para o dedo. */
@@ -924,4 +944,311 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--adn-space-3, 12px);
+}
+
+/* ── Acabamento da tela de templates ─────────────────────────────────────────────────────────
+ *
+ * O pacote passou a trazer o visual pronto, em vez de fallback neutro que so ficava apresentavel
+ * depois de o host preencher os `--adn-*`. Nenhum produto tinha preenchido, entao a tela chegava
+ * sem hierarquia em todos eles — mesmo problema, tres vezes. Tudo aqui deriva do acento: quem
+ * sobrescreve `--adn-accent` continua ganhando a familia inteira.
+ */
+
+.adn-settings__templates {
+  align-items: start;
+}
+
+/* Sem `min-width: 0` a coluna cresce com o conteudo e o botao Remover vaza para fora dela. */
+.adn-settings__template-list,
+.adn-settings__editor {
+  min-width: 0;
+}
+
+.adn-settings__template-list .adn-settings__row > button:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* O cartao do editor ganha corpo: e onde a pessoa passa o tempo. */
+.adn-settings__editor {
+  box-shadow: var(--adn-shadow-card);
+  padding: 0;
+  overflow: hidden;
+}
+
+.adn-settings__editor > * {
+  padding-left: var(--adn-space-4, 16px);
+  padding-right: var(--adn-space-4, 16px);
+}
+
+.adn-settings__editor-header {
+  padding-top: var(--adn-space-4, 16px);
+  padding-bottom: var(--adn-space-4, 16px);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+/* Rotulo de secao: maiuscula pequena separa blocos sem precisar de mais uma borda. */
+.adn-settings__section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adn-color-muted);
+}
+
+/* Empilhado: com titulo, explicacao e botao na mesma linha, a explicacao quebrava em tres linhas
+   e empurrava o botao para fora do cartao numa coluna de 320px. */
+.adn-settings__list-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--adn-space-2, 8px);
+  padding-bottom: var(--adn-space-3, 12px);
+}
+
+.adn-settings__list-header .adn-settings__new {
+  align-self: flex-start;
+}
+
+/* Linha da lista: cartao proprio, e o selecionado se anuncia pela borda do acento. */
+.adn-settings__template-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__template-list li + li {
+  border-top: 0;
+}
+
+.adn-settings__row > button:first-child {
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-surface);
+  padding: var(--adn-space-3, 12px);
+  text-align: left;
+}
+
+.adn-settings__row > button:first-child:hover {
+  border-color: var(--adn-color-accent-line);
+}
+
+.adn-settings__row--active {
+  border-color: var(--adn-color-accent) !important;
+  box-shadow: var(--adn-shadow-card);
+}
+
+.adn-settings__row-title {
+  font-family: var(--adn-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.adn-settings__row-body {
+  /* Duas linhas: o suficiente para reconhecer a mensagem, sem a lista virar um paredao. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.45;
+}
+
+.adn-settings__badge {
+  border: 1px solid var(--adn-color-accent-line);
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.adn-settings__version {
+  font-size: 0.6875rem;
+  color: var(--adn-color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adn-settings__new {
+  white-space: nowrap;
+  border: 0;
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-accent);
+  color: #ffffff;
+  font-weight: 500;
+  padding: 7px 12px;
+}
+
+/**
+ * `width: auto` desfaz o `width: 100%` da regra generica de botao da lista, que valia para o
+ * Remover tambem: ele esticava para os 286px da coluna e espremia a linha de selecao em 26px.
+ */
+/* Seletor composto de proposito: `.adn-settings__template-list button` tem especificidade maior
+   que uma classe sozinha, e vencia o `width: auto` toda vez. */
+.adn-settings__template-list .adn-settings__remove {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  align-self: stretch;
+  border: 1px solid color-mix(in srgb, var(--adn-color-danger) 30%, #ffffff);
+  border-radius: var(--adn-radius-sm);
+  background: transparent;
+  padding: 0 var(--adn-space-3, 12px);
+}
+
+.adn-settings__template-list .adn-settings__remove:hover {
+  background: color-mix(in srgb, var(--adn-color-danger) 6%, transparent);
+}
+
+/* Variavel: chip com estado, nao link solto. */
+.adn-settings__variable {
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-surface);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__variable:hover {
+  border-color: var(--adn-color-accent);
+}
+
+.adn-settings__variable-name {
+  font-family: var(--adn-font-mono);
+  font-weight: 600;
+  color: var(--adn-color-accent);
+}
+
+.adn-settings__variable--used {
+  background: var(--adn-color-accent-soft);
+}
+
+/* Campos com altura de toque e foco visivel — o default do navegador some no cartao branco. */
+.adn-settings__field input,
+.adn-settings__field textarea,
+.adn-settings__field select {
+  border: 1px solid color-mix(in srgb, var(--adn-color-border) 70%, var(--adn-color-muted));
+  border-radius: var(--adn-radius-sm);
+  padding: 9px 12px;
+  font: inherit;
+  color: inherit;
+  background: var(--adn-color-surface);
+}
+
+.adn-settings__field input:focus-visible,
+.adn-settings__field textarea:focus-visible,
+.adn-settings__field select:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: -1px;
+  border-color: var(--adn-color-accent);
+}
+
+/**
+ * O preview reduz para caber, e o rotulo diz a medida REAL.
+ *
+ * 600px + 375px nao cabem lado a lado dentro de um painel que ja tem barra lateral. Sem a reducao
+ * os quadros quebram para baixo e a comparacao morre — entao a escala e o que preserva a unica
+ * coisa que este preview faz: mostrar o corte que so acontece num dos dois.
+ */
+.adn-settings__previews {
+  background: var(--adn-color-canvas);
+  border-top: 1px solid var(--adn-color-border);
+  padding-top: var(--adn-space-4, 16px);
+  padding-bottom: var(--adn-space-4, 16px);
+}
+
+.adn-settings__preview-frames {
+  /* 0.52 e nao 0.62: a 0.62 os dois quadros somavam 673px num container de 654 e quebravam para
+     baixo — empilhados eles nao comparam nada, que e a unica coisa que o preview duplo faz. */
+  --adn-preview-scale: 0.52;
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.adn-settings__preview-frame {
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-surface);
+  width: var(--adn-preview-width, 600px);
+  /**
+   * `zoom`, e nao `transform: scale()`.
+   *
+   * `transform` desenha menor mas nao encolhe a caixa no layout: o quadro continuava reservando
+   * 600px de largura e a altura inteira, deixando um rombo branco ao lado e embaixo — foi o que
+   * apareceu na primeira montagem. `zoom` reduz de verdade, e as duas medidas acompanham sem
+   * margem negativa para compensar.
+   */
+  zoom: var(--adn-preview-scale);
+}
+
+.adn-settings__preview-subject {
+  font-weight: 600;
+}
+
+.adn-settings__preview-warning {
+  font-weight: 500;
+}
+
+/* Rodape: a acao e a consequencia dela no mesmo lugar. */
+.adn-settings__actions {
+  border-top: 1px solid var(--adn-color-border);
+  background: var(--adn-color-canvas);
+  padding-top: var(--adn-space-3, 12px);
+  padding-bottom: var(--adn-space-3, 12px);
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-3, 12px);
+}
+
+.adn-settings__actions button:first-child {
+  border: 0;
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+
+.adn-settings__actions button:first-child:disabled {
+  background: var(--adn-color-faint);
+  color: #ffffff;
+}
+
+/* Abas: sublinhado do acento em vez de dois botoes iguais. */
+.adn-settings__tab {
+  font-weight: 500;
+  min-height: 40px;
+}
+
+.adn-settings__tab--active {
+  font-weight: 600;
+}
+
+/* Politica de canal: cada assunto e uma linha, nao um amontoado. */
+.adn-settings__policies .adn-settings__category {
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-surface);
+  padding: var(--adn-space-3, 12px) var(--adn-space-4, 16px);
+}
+
+.adn-settings__category-title {
+  font-weight: 500;
+  margin: 0 0 var(--adn-space-2, 8px);
+}
+
+/* ── Tema escuro ──────────────────────────────────────────────────────────────────────────── */
+
+.dark .adn-bell,
+.dark .adn-list,
+.dark .adn-preferences,
+.dark .adn-workspace,
+.dark .adn-settings {
+  --adn-color-surface: var(--adn-surface, #0f172a);
+  --adn-color-text: var(--adn-text, #e2e8f0);
+  --adn-color-muted: var(--adn-muted, #94a3b8);
+  --adn-color-border: var(--adn-border, #1e293b);
+  --adn-color-canvas: var(--adn-canvas, #0b1220);
+  --adn-color-accent-soft: color-mix(in srgb, var(--adn-color-accent) 22%, #0f172a);
+  --adn-color-accent-line: color-mix(in srgb, var(--adn-color-accent) 45%, #0f172a);
+  --adn-color-faint: color-mix(in srgb, var(--adn-color-muted) 40%, #0f172a);
+  --adn-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

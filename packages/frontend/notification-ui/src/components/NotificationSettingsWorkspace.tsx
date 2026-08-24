@@ -14,7 +14,7 @@
  */
 
 import { useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { NotificationPreference, NotificationTemplate } from '@adatechnology/notification-contracts'
 
 import { useNotificationContext } from '../NotificationProvider'
@@ -408,7 +408,11 @@ export function NotificationSettingsWorkspace({
                         {/* Largura fixa é o ponto: é ela que revela o corte que só acontece num
                             dos dois. O texto sai como nó de texto — nunca innerHTML, mesmo já
                             escapado pelo renderer. */}
-                        <div className="adn-settings__preview-frame" style={{ width: frame.width }}>
+                        <div
+                          className="adn-settings__preview-frame"
+                          /* A largura e a REAL do canal; o CSS reduz para caber e compensa a sobra. */
+                          style={{ width: frame.width, '--adn-preview-width': `${frame.width}px` } as CSSProperties}
+                        >
                           <p className="adn-settings__preview-subject">{frame.rendered.title}</p>
                           <p className="adn-settings__preview-body">{frame.rendered.body}</p>
                         </div>
