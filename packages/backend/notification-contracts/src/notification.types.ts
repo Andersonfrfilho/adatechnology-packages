@@ -18,6 +18,16 @@ export const INTRUSIVE_CHANNELS: readonly NotificationChannel[] = [
   NOTIFICATION_CHANNEL.SMS,
 ]
 
+/**
+ * O teto de canais da empresa por categoria, acima da preferência do usuário. Linha ausente
+ * significa permitido — fechar por omissão calaria toda categoria existente.
+ */
+export type NotificationCategoryPolicy = {
+  readonly category: string
+  readonly channel: NotificationChannel
+  readonly enabled: boolean
+}
+
 export const NOTIFICATION_STATUS = {
   PENDING: 'pending',
   SCHEDULED: 'scheduled',

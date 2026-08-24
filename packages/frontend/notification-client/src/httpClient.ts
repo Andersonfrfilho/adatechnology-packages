@@ -11,6 +11,8 @@ import type {
   NotificationPreference,
   NotificationSummary,
   NotificationTemplate,
+  NotificationCategoryPolicy,
+  TemplateVariableCatalog,
   UpsertTemplateBody,
 } from '@adatechnology/notification-contracts'
 
@@ -75,6 +77,12 @@ export type NotificationClient = {
   unregisterDevice(id: string): Promise<void>
   getPreferences(): Promise<readonly NotificationPreference[]>
   updatePreferences(preferences: readonly NotificationPreference[]): Promise<readonly NotificationPreference[]>
+  /** O teto de canais da empresa por categoria — acima da preferência de quem recebe. */
+  getCategoryPolicies(): Promise<readonly NotificationCategoryPolicy[]>
+  /** Substitui a política das categorias enviadas; as demais ficam intactas. */
+  updateCategoryPolicies(
+    policies: readonly NotificationCategoryPolicy[],
+  ): Promise<readonly NotificationCategoryPolicy[]>
   listTemplates(): Promise<readonly NotificationTemplate[]>
   /**
    * Cria uma VERSÃO nova do template, não edita a atual.
@@ -84,6 +92,13 @@ export type NotificationClient = {
    * — o que a tela de configuração precisa para alguém corrigir um texto sem medo.
    */
   upsertTemplate(input: UpsertTemplateBody): Promise<NotificationTemplate>
+  /**
+   * "Remover" é desativar: o servidor derruba todas as versões ativas da identidade e mantém as
+   * linhas, porque entrega já enviada precisa continuar auditável com o texto que usou.
+   */
+  deactivateTemplate(id: string): Promise<void>
+  /** O catálogo de variáveis por chave — é o que a tela mostra como lista clicável. */
+  listTemplateVariables(): Promise<TemplateVariableCatalog>
   /** Base + headers, para o assinante de SSE reaproveitar a mesma configuração. */
   resolveStreamRequest(): Promise<{ url: string; headers: Record<string, string> }>
 }
@@ -200,6 +215,35 @@ export function createNotificationClient(config: NotificationClientConfig): Noti
         path: '/notification-templates',
       })
       return payload?.data ?? []
+    },
+
+    async getCategoryPolicies(): Promise<readonly NotificationCategoryPolicy[]> {
+      const payload = await request<{ data: NotificationCategoryPolicy[] }>({
+        method: 'GET',
+        path: '/notification-category-policies',
+      })
+      return payload?.data ?? []
+    },
+
+    async updateCategoryPolicies(policies): Promise<readonly NotificationCategoryPolicy[]> {
+      const payload = await request<{ data: NotificationCategoryPolicy[] }>({
+        method: 'PUT',
+        path: '/notification-category-policies',
+        body: { policies },
+      })
+      return payload?.data ?? []
+    },
+
+    async deactivateTemplate(id): Promise<void> {
+      await request({ method: 'DELETE', path: `/notification-templates/${encodeURIComponent(id)}` })
+    },
+
+    async listTemplateVariables(): Promise<TemplateVariableCatalog> {
+      const payload = await request<{ data: TemplateVariableCatalog }>({
+        method: 'GET',
+        path: '/notification-template-variables',
+      })
+      return payload?.data ?? {}
     },
 
     async upsertTemplate(input: UpsertTemplateBody): Promise<NotificationTemplate> {

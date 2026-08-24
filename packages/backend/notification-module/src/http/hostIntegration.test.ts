@@ -76,14 +76,14 @@ describe('integração mínima no host', () => {
     const routes = createNotificationRoutes({ module: buildModuleWithOneUnread() })
 
     // Sem `webhookSecret` a rota de webhook não é publicada (fail-closed).
-    expect(routes).toHaveLength(13)
+    expect(routes).toHaveLength(17)
     expect(routes.every((route) => route.operationId.length > 0)).toBe(true)
   })
 
   it('com segredo configurado, a rota de webhook entra na tabela', () => {
     const routes = createNotificationRoutes({ module: buildModuleWithOneUnread(), webhookSecret: 'segredo' })
 
-    expect(routes).toHaveLength(14)
+    expect(routes).toHaveLength(18)
     expect(routes.some((route) => route.path.startsWith('/notification-webhooks'))).toBe(true)
   })
 

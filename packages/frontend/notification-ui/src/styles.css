@@ -802,3 +802,126 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* ── Painel de templates: criação, remoção, variáveis e preview em dois viewports ───────────── */
+
+.adn-settings__list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--adn-space-3, 12px);
+}
+
+.adn-settings__row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__row > button:first-child {
+  flex: 1;
+}
+
+.adn-settings__remove {
+  color: var(--adn-color-danger);
+}
+
+.adn-settings__identity {
+  display: grid;
+  gap: var(--adn-space-3, 12px);
+  grid-template-columns: 1fr;
+}
+
+.adn-settings__variables ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-2, 8px);
+  margin: var(--adn-space-2, 8px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adn-settings__variable {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--adn-space-1, 4px);
+  padding: var(--adn-space-2, 8px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+}
+
+.adn-settings__variable-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+}
+
+.adn-settings__variable--used {
+  border-color: var(--adn-color-accent);
+}
+
+/* Obrigatória que o texto ainda não usa — destaque, não erro: o salvamento passa. */
+.adn-settings__variable--missing {
+  border-style: dashed;
+  border-color: var(--adn-color-danger);
+}
+
+.adn-settings__preview-frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-4, 16px);
+  /* Os quadros têm largura fixa por definição; o scroll fica aqui dentro para a PÁGINA nunca
+     rolar na horizontal (web.md §10). */
+  overflow-x: auto;
+  margin: 0;
+}
+
+.adn-settings__preview-frames figure {
+  margin: 0;
+}
+
+.adn-settings__preview-frame {
+  max-width: 100%;
+  margin-top: var(--adn-space-2, 8px);
+  padding: var(--adn-space-3, 12px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: color-mix(in srgb, var(--adn-color-muted) 8%, transparent);
+}
+
+.adn-settings__preview-warning {
+  margin: var(--adn-space-1, 4px) 0 0;
+  font-size: 0.75rem;
+  color: var(--adn-color-danger);
+}
+
+@media (min-width: 640px) {
+  .adn-settings__identity {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+}
+
+.adn-settings__tabs {
+  display: flex;
+  gap: var(--adn-space-2, 8px);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-settings__tab {
+  padding: var(--adn-space-2, 8px) var(--adn-space-3, 12px);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__tab--active {
+  border-bottom-color: var(--adn-color-accent);
+  color: var(--adn-color-text);
+}
+
+.adn-settings__category-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-3, 12px);
+}

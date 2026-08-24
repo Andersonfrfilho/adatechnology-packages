@@ -12,6 +12,10 @@
  * lendo o MESMO código. Divergência deixa de ser possível em vez de ser improvável.
  */
 
+import { TEMPLATE_CONSTRAINTS_BY_CHANNEL } from './previewViewport'
+import type { TemplateConstraintField } from './previewViewport'
+import type { NotificationChannel } from './notification.types'
+
 const PLACEHOLDER_PATTERN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g
 const DEFAULT_TITLE_MAX_LENGTH = 120
 
@@ -49,10 +53,47 @@ export function extractTemplatePlaceholders(template: string): readonly string[]
   return [...found]
 }
 
+export type TemplateConstraintCheck = {
+  readonly field: TemplateConstraintField
+  readonly limit: number
+  readonly actual: number
+  readonly exceeded: boolean
+}
+
 export type RenderedTemplatePreview = {
   readonly title: string
   readonly body: string
   readonly html?: string
+  /**
+   * O que o canal corta. Vazio quando o canal não declara limite. O editor usa isto para avisar
+   * antes de salvar, e o preview para marcar onde o texto some — sem isso, dois quadros de
+   * larguras diferentes só provariam que CSS quebra linha.
+   */
+  readonly constraints: readonly TemplateConstraintCheck[]
+}
+
+/**
+ * `\r` e `\n` no assunto são o vetor clássico de injeção de header em e-mail. Os providers atuais
+ * (Resend e SES são API JSON, nodemailer codifica) já barram, mas o assunto vem de painel agora:
+ * a defesa fica onde o texto é produzido, não na esperança de que todo provider futuro trate.
+ */
+function sanitizeTitle(title: string): string {
+  return title.replace(/[\r\n]+/g, ' ').trim()
+}
+
+function checkConstraints(params: { channel: string; title: string; body: string }): TemplateConstraintCheck[] {
+  const limits = TEMPLATE_CONSTRAINTS_BY_CHANNEL[params.channel as NotificationChannel]
+  if (!limits) return []
+
+  const checks: TemplateConstraintCheck[] = []
+  const values: Record<TemplateConstraintField, string> = { title: params.title, body: params.body }
+  for (const field of ['title', 'body'] as const) {
+    const limit = limits[field]
+    if (limit === undefined) continue
+    const actual = values[field].length
+    checks.push({ field, limit, actual, exceeded: actual > limit })
+  }
+  return checks
 }
 
 /**
@@ -66,12 +107,15 @@ export function renderTemplate(params: {
   readonly payload: Readonly<Record<string, unknown>>
 }): RenderedTemplatePreview {
   const body = interpolateTemplate(params.body, params.payload)
-  const title = params.subject ? interpolateTemplate(params.subject, params.payload) : deriveTitleFromBody(body)
+  const title = sanitizeTitle(
+    params.subject ? interpolateTemplate(params.subject, params.payload) : deriveTitleFromBody(body),
+  )
+  const constraints = checkConstraints({ channel: params.channel, title, body })
 
-  if (params.channel !== 'email') return { title, body }
+  if (params.channel !== 'email') return { title, body, constraints }
 
   // Escapa o resultado já interpolado (texto do template e valores do payload juntos), depois troca
   // quebra de linha por <br> — quem quer HTML rico troca o renderer, em vez de descobrir por um bug
   // de escape.
-  return { title, body, html: escapeTemplateHtml(body).replace(/\n/g, '<br>') }
+  return { title, body, constraints, html: escapeTemplateHtml(body).replace(/\n/g, '<br>') }
 }

@@ -29,6 +29,7 @@ export type {
   DeviceRegistration,
   NotificationPreference,
   NotificationTemplate,
+  NotificationCategoryPolicy,
   SendNotificationParams,
   SendNotificationResult,
   ListNotificationsParams,
@@ -73,6 +74,8 @@ export {
   registerDeviceSchema,
   preferenceEntrySchema,
   updatePreferencesSchema,
+  updateCategoryPoliciesSchema,
+  categoryPolicyEntrySchema,
   upsertTemplateSchema,
   listNotificationsQuerySchema,
   deliveryWebhookSchema,
@@ -81,6 +84,7 @@ export type {
   SendNotificationBody,
   RegisterDeviceBody,
   UpdatePreferencesBody,
+  UpdateCategoryPoliciesBody,
   UpsertTemplateBody,
   ListNotificationsQuery,
   DeliveryWebhookBody,
@@ -114,6 +118,8 @@ export {
   DeviceNotFoundError,
   ThrottledError,
   ConfigMissingError,
+  UnknownTemplateVariablesError,
+  TemplateIdNotFoundError,
 } from './errors'
 
 export { createWhatsAppDriverFromChannel } from './whatsappDriver'
@@ -126,4 +132,20 @@ export {
   interpolateTemplate,
   renderTemplate,
 } from './templateRender'
-export type { RenderedTemplatePreview } from './templateRender'
+export type { RenderedTemplatePreview, TemplateConstraintCheck } from './templateRender'
+
+export { buildPreviewPayload, diffTemplateVariables } from './templateVariables'
+export type {
+  DiffTemplateVariablesParams,
+  TemplateVariableCatalog,
+  TemplateVariableDefinition,
+  TemplateVariableDiff,
+} from './templateVariables'
+
+export { PREVIEW_VIEWPORT, PREVIEW_VIEWPORT_BY_CHANNEL, TEMPLATE_CONSTRAINTS_BY_CHANNEL } from './previewViewport'
+export type {
+  PreviewViewport,
+  PreviewViewportSpec,
+  TemplateConstraintField,
+  TemplateConstraintLimits,
+} from './previewViewport'

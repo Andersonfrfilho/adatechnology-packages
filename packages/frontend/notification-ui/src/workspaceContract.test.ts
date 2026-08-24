@@ -18,6 +18,8 @@ import { describe, expect, it } from 'bun:test'
 
 import * as surface from './index'
 import * as headless from './headless'
+import en from './locales/en.json'
+import ptBR from './locales/pt-BR.json'
 
 describe('superfície composta', () => {
   it('exporta as duas telas inteiras', () => {
@@ -35,6 +37,28 @@ describe('superfície composta', () => {
 
   it('a lógica do editor é headless, para o produto trocar só o visual', () => {
     expect(typeof headless.useTemplateEditor).toBe('function')
+  })
+
+  it('criação, remoção e catálogo de variáveis também saem pela camada headless', () => {
+    for (const hook of ['useTemplateVariables', 'useDeactivateTemplate', 'useCategoryPolicies']) {
+      expect(typeof (headless as Record<string, unknown>)[hook], hook).toBe('function')
+    }
+  })
+})
+
+/**
+ * O modo de falha aqui é mudo: a chave sem tradução cai no fallback do `label`, que devolve a
+ * própria chave — e `settings.viewport.mobile` aparece escrito na tela do cliente.
+ */
+describe('locales', () => {
+  it('pt-BR e en têm exatamente as mesmas chaves', () => {
+    expect(Object.keys(en).sort()).toEqual(Object.keys(ptBR).sort())
+  })
+
+  it('nenhuma tradução ficou vazia', () => {
+    for (const [key, value] of Object.entries({ ...en, ...ptBR })) {
+      expect(String(value).length, key).toBeGreaterThan(0)
+    }
   })
 })
 

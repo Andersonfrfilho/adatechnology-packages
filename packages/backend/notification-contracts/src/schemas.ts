@@ -55,6 +55,17 @@ export const updatePreferencesSchema = z.object({
 })
 export type UpdatePreferencesBody = z.infer<typeof updatePreferencesSchema>
 
+export const categoryPolicyEntrySchema = z.object({
+  category: z.string().min(1).max(64),
+  channel: z.nativeEnum(NOTIFICATION_CHANNEL),
+  enabled: z.boolean(),
+})
+
+export const updateCategoryPoliciesSchema = z.object({
+  policies: z.array(categoryPolicyEntrySchema).max(500),
+})
+export type UpdateCategoryPoliciesBody = z.infer<typeof updateCategoryPoliciesSchema>
+
 export const upsertTemplateSchema = z.object({
   key: z.string().min(1).max(128),
   channel: z.nativeEnum(NOTIFICATION_CHANNEL),
