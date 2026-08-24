@@ -29,5 +29,19 @@ A Meta aceita reusar um `media_id` por 30 dias. Agora dá para guardá-lo:
   Sem isso, um id vencido pararia de entregar material em silêncio.
 - **Só grava depois do envio confirmado**, e só se a resposta trouxe o id.
 
-O store é porta, então cada host escolhe onde guardar (coluna, Redis, memória). Nada muda para quem
-não passar o cache.
+**E vem ligado por padrão, sem host nenhum precisar escrever código.** A tabela `flow_media` é do
+módulo, a coluna nova (`meta_media_ids`, migration `0010`) é do módulo, e o módulo já registra a
+action `send_media` sozinho — então ele passa o próprio `FlowMediaIdRepository` e o `phoneNumberId`
+que já tem em mãos. Exigir que cada host escrevesse o repositório faria todos reescreverem o mesmo
+código e, até escreverem, o binário continuaria subindo por cliente.
+
+O store continua sendo porta: quem quiser guardar noutro lugar (Redis) troca o `store`. Quem não
+fizer nada já sai sem ressubir.
+
+A coluna é um mapa `phone_number_id → media_id`, gravado com `jsonb_set` no banco em vez de
+ler-alterar-escrever na aplicação: dois clientes passando pelo nó ao mesmo tempo por números
+diferentes leriam o mesmo mapa e o último gravaria por cima, apagando o id do outro. A validade não
+é guardada de propósito — confiar em "30 dias" calculados erra nos casos de borda, e quem decide é a
+recusa da Meta, que devolve ao caminho de subir o binário.
+
+A migration é aditiva com default: linha existente nasce com mapa vazio e cai no caminho antigo.

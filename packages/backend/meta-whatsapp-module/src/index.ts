@@ -124,6 +124,7 @@ export type {
 export { createSendProductListAction, PRODUCT_LIST_LIMIT } from './flows/createSendProductListAction'
 export type { CreateSendProductListActionParams } from './flows/createSendProductListAction'
 export { createSendMediaAction } from './flows/createSendMediaAction'
+export { FlowMediaIdRepository } from './repositories/FlowMediaIdRepository'
 export type {
   CreateSendMediaActionParams,
   FlowMediaIdCache,

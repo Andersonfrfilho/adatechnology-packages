@@ -42,6 +42,7 @@ import { FlowInterpreter } from './flows/FlowInterpreter'
 import { createSendMediaAction } from './flows/createSendMediaAction'
 import { createSendProductListAction } from './flows/createSendProductListAction'
 import { FlowMediaRepository } from './repositories/FlowMediaRepository'
+import { FlowMediaIdRepository } from './repositories/FlowMediaIdRepository'
 import { WhatsAppChannelAdapter, type PreviewMediaSupport } from './channel/WhatsAppChannelAdapter'
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
 import { IngestInboundMediaUseCase } from './channel/IngestInboundMedia.use-case'
@@ -239,6 +240,11 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
         objectStorage: providers.objectStorage as Parameters<typeof createSendMediaAction>[0]['objectStorage'],
         logMessage,
         startState,
+        // Cache ligado por padrão, com o store do próprio módulo: a tabela é daqui e a coluna é
+        // daqui, então exigir que cada host escrevesse o repositório faria todos reescreverem o
+        // mesmo código — e, até escreverem, o mesmo binário continuaria subindo por cliente. Quem
+        // quiser outro lugar (Redis) troca o `store`; quem não fizer nada já sai sem ressubir.
+        mediaIdCache: { store: new FlowMediaIdRepository(db), senderKey: config.phoneNumberId },
         onError: hooks?.onFlowMediaError,
       }),
     )
