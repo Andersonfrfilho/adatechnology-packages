@@ -80,5 +80,9 @@
   "preview.compose": "Mensagem",
   "preview.reply": "Responder",
   "preview.forward": "Encaminhar",
-  "preview.replyAll": "Responder a todos"
+  "preview.replyAll": "Responder a todos",
+  "settings.searchLabel": "Buscar mensagem",
+  "settings.searchPlaceholder": "Buscar por chave ou texto…",
+  "settings.clearFilters": "Limpar filtros",
+  "settings.noResults": "Nenhuma mensagem para esse filtro."
 }

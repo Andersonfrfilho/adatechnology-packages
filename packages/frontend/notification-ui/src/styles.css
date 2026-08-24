@@ -2176,3 +2176,103 @@
   padding: 8px 14px;
   font-size: 12px;
 }
+
+/* ── Lista: busca, filtros e grupos ──────────────────────────────────────────────────────────
+ * Com uma notificacao a lista era um cartao; com trinta vira um paredao. Busca sobre chave e
+ * texto, filtro por categoria e por canal, e grupos pela categoria da chave.
+ */
+
+.adn-settings__list-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2, 8px);
+  padding-bottom: var(--adn-space-3, 12px);
+}
+
+.adn-settings__search input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius-sm);
+  font: inherit;
+  color: inherit;
+  background: var(--adn-color-surface);
+}
+
+.adn-settings__search input:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: -1px;
+}
+
+.adn-settings__filter-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Composto pelo mesmo motivo do Remover: `.adn-settings__template-list button` tem especificidade
+   maior e estica todo botao da coluna para 100%, empilhando os filtros um por linha. */
+.adn-settings__template-list .adn-settings__filter {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 999px;
+  background: var(--adn-color-surface);
+  font-size: 0.75rem;
+  color: var(--adn-color-muted);
+  min-height: 30px;
+}
+
+.adn-settings__template-list .adn-settings__filter:hover { border-color: var(--adn-color-accent-line); }
+
+.adn-settings__template-list .adn-settings__filter--on {
+  border-color: var(--adn-color-accent);
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+  font-weight: 500;
+}
+
+.adn-settings__template-list .adn-settings__clear {
+  width: auto;
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  font-size: 0.75rem;
+  color: var(--adn-color-accent);
+  text-decoration: underline;
+  min-height: auto;
+}
+
+.adn-settings__group { display: flex; flex-direction: column; gap: var(--adn-space-2, 8px); }
+.adn-settings__group + .adn-settings__group { margin-top: var(--adn-space-4, 16px); }
+
+.adn-settings__group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__group-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rotulo lido por leitor de tela, invisivel na tela — o campo de busca ja tem placeholder. */
+.adn-settings__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

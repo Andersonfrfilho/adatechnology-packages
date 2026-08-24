@@ -80,5 +80,9 @@
   "preview.compose": "Message",
   "preview.reply": "Reply",
   "preview.forward": "Forward",
-  "preview.replyAll": "Reply all"
+  "preview.replyAll": "Reply all",
+  "settings.searchLabel": "Search message",
+  "settings.searchPlaceholder": "Search by key or text…",
+  "settings.clearFilters": "Clear filters",
+  "settings.noResults": "No message matches this filter."
 }

@@ -69,6 +69,8 @@ export type NotificationSettingsWorkspaceProps = {
    * quem e a marca, e "Aviso" generico faria o preview mentir sobre o que a pessoa ve.
    */
   readonly senderName?: string
+  /** Rótulo humano de uma categoria (`auth` → "Acesso"). Ausente, mostra a própria chave. */
+  readonly categoryLabelOf?: (category: string) => string
 }
 
 export function NotificationSettingsWorkspace({
@@ -82,6 +84,7 @@ export function NotificationSettingsWorkspace({
   renderHeaderActions,
   className,
   senderName,
+  categoryLabelOf,
 }: NotificationSettingsWorkspaceProps) {
   const { messages } = useNotificationContext()
   const label = (key: string): string => labelsOverride?.[key] ?? (messages as Record<string, string>)[key] ?? key
@@ -255,43 +258,118 @@ export function NotificationSettingsWorkspace({
             <p className="adn-settings__hint">{label('settings.templatesHint')}</p>
           </header>
 
+          {/* Busca sobre chave E texto: quem procura costuma lembrar do que a mensagem diz, não
+              da chave técnica. */}
+          <div className="adn-settings__list-filters">
+            <label className="adn-settings__search">
+              <span className="adn-settings__field-label adn-settings__visually-hidden">
+                {label('settings.searchLabel')}
+              </span>
+              <input
+                type="search"
+                value={editor.search}
+                placeholder={label('settings.searchPlaceholder')}
+                onChange={(event) => editor.setSearch(event.target.value)}
+              />
+            </label>
+
+            {editor.categories.length > 1 && (
+              <div className="adn-settings__filter-row">
+                {editor.categories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    aria-pressed={editor.categoryFilter.includes(category)}
+                    className={
+                      editor.categoryFilter.includes(category)
+                        ? 'adn-settings__filter adn-settings__filter--on'
+                        : 'adn-settings__filter'
+                    }
+                    onClick={() => editor.toggleCategoryFilter(category)}
+                  >
+                    {categoryLabelOf?.(category) ?? category}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="adn-settings__filter-row">
+              {channels.map((channel) => (
+                <button
+                  key={channel.id}
+                  type="button"
+                  aria-pressed={editor.channelFilter.includes(channel.id)}
+                  className={
+                    editor.channelFilter.includes(channel.id)
+                      ? 'adn-settings__filter adn-settings__filter--on'
+                      : 'adn-settings__filter'
+                  }
+                  onClick={() => editor.toggleChannelFilter(channel.id)}
+                >
+                  {channel.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Só aparece quando há o que limpar (web.md §7). */}
+            {editor.hasFilters && (
+              <button type="button" className="adn-settings__clear" onClick={editor.clearFilters}>
+                {label('settings.clearFilters')}
+              </button>
+            )}
+          </div>
+
           {editor.isLoading && <p className="adn-settings__hint">{label('list.loading')}</p>}
-          {!editor.isLoading && editor.templates.length === 0 && (
+
+          {/* "Nada cadastrado" e "nada encontrado" são estados diferentes: o primeiro pede criar,
+              o segundo pede afrouxar o filtro. */}
+          {!editor.isLoading && editor.totalCount === 0 && (
             <p className="adn-settings__hint">{label('settings.templatesEmpty')}</p>
           )}
+          {!editor.isLoading && editor.totalCount > 0 && editor.templates.length === 0 && (
+            <p className="adn-settings__hint">{label('settings.noResults')}</p>
+          )}
 
-          <ul>
-            {editor.templates.map((template) => (
-              <li key={template.id} className="adn-settings__row">
-                <button
-                  type="button"
-                  onClick={() => editor.select(template)}
-                  className={editor.selected?.id === template.id ? 'adn-settings__row--active' : undefined}
-                >
-                  <span className="adn-settings__row-main">
-                    <span className="adn-settings__row-title">{templateLabelOf?.(template) ?? template.key}</span>
-                    <span className="adn-settings__row-body">{template.body}</span>
-                  </span>
-                  <span className={`adn-settings__badge adn-settings__badge--${template.channel}`}>
-                    {label(`channel.${template.channel}`)}
-                  </span>
-                  <span className="adn-settings__version">
-                    {label('settings.version')}
-                    {template.version}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="adn-settings__remove"
-                  aria-label={`${label('settings.remove')} ${template.key}`}
-                  disabled={editor.isDeactivating}
-                  onClick={() => editor.deactivate(template.id)}
-                >
-                  {label('settings.remove')}
-                </button>
-              </li>
-            ))}
-          </ul>
+          {editor.groups.map((group) => (
+            <div key={group.category} className="adn-settings__group">
+              <p className="adn-settings__group-title">
+                {categoryLabelOf?.(group.category) ?? group.category}
+                <span className="adn-settings__group-count">{group.templates.length}</span>
+              </p>
+              <ul>
+                {group.templates.map((template) => (
+                  <li key={template.id} className="adn-settings__row">
+                    <button
+                      type="button"
+                      onClick={() => editor.select(template)}
+                      className={editor.selected?.id === template.id ? 'adn-settings__row--active' : undefined}
+                    >
+                      <span className="adn-settings__row-main">
+                        <span className="adn-settings__row-title">{templateLabelOf?.(template) ?? template.key}</span>
+                        <span className="adn-settings__row-body">{template.body}</span>
+                      </span>
+                      <span className={`adn-settings__badge adn-settings__badge--${template.channel}`}>
+                        {label(`channel.${template.channel}`)}
+                      </span>
+                      <span className="adn-settings__version">
+                        {label('settings.version')}
+                        {template.version}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="adn-settings__remove"
+                      aria-label={`${label('settings.remove')} ${template.key}`}
+                      disabled={editor.isDeactivating}
+                      onClick={() => editor.deactivate(template.id)}
+                    >
+                      {label('settings.remove')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </section>
 
         <section className="adn-settings__editor">

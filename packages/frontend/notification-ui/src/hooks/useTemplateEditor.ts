@@ -95,6 +95,11 @@ function toDraft(template: NotificationTemplate): TemplateDraft {
   }
 }
 
+/** `auth` em `auth.password_reset`. Chave sem ponto é a própria categoria. */
+function categoryOf(key: string): string {
+  return key.split('.')[0] ?? key
+}
+
 function buildEmptyDraft(params: { channel: string; locale: string }): TemplateDraft {
   return {
     key: '',
@@ -115,8 +120,34 @@ export type UseTemplateEditorParams = {
   readonly defaultLocale?: string
 }
 
+/**
+ * Um grupo da lista.
+ *
+ * O prefixo da chave (`auth` em `auth.password_reset`) já é a categoria que o produto escreveu — o
+ * módulo não precisa de um campo novo no banco para agrupar, e um campo novo divergiria da chave
+ * na primeira vez que alguém renomeasse um sem o outro.
+ */
+export type TemplateGroup = {
+  readonly category: string
+  readonly templates: readonly NotificationTemplate[]
+}
+
 export type UseTemplateEditorResult = {
   readonly templates: readonly NotificationTemplate[]
+  /** Já filtrados e agrupados por categoria, na ordem em que a tela desenha. */
+  readonly groups: readonly TemplateGroup[]
+  /** Todas as categorias existentes, inclusive as que o filtro escondeu. */
+  readonly categories: readonly string[]
+  readonly search: string
+  readonly channelFilter: readonly string[]
+  readonly categoryFilter: readonly string[]
+  readonly hasFilters: boolean
+  /** Quantos templates existem antes de filtrar — separa "nada cadastrado" de "nada encontrado". */
+  readonly totalCount: number
+  setSearch: (value: string) => void
+  toggleChannelFilter: (channel: string) => void
+  toggleCategoryFilter: (category: string) => void
+  clearFilters: () => void
   readonly isLoading: boolean
   readonly isSaving: boolean
   readonly isDeactivating: boolean
@@ -159,6 +190,9 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
   const upsert = useUpsertTemplate()
   const deactivateMutation = useDeactivateTemplate()
 
+  const [search, setSearch] = useState('')
+  const [channelFilter, setChannelFilter] = useState<readonly string[]>([])
+  const [categoryFilter, setCategoryFilter] = useState<readonly string[]>([])
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
   const [draft, setDraft] = useState<TemplateDraft | undefined>(undefined)
   const [isNew, setIsNew] = useState(false)
@@ -176,6 +210,39 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
       (left, right) => left.key.localeCompare(right.key) || left.channel.localeCompare(right.channel),
     )
   }, [templatesQuery.data])
+
+  const categories = useMemo(
+    () => [...new Set(templates.map((template) => categoryOf(template.key)))].sort(),
+    [templates],
+  )
+
+  /**
+   * Busca sobre chave E texto: quem procura "senha" costuma lembrar do que a mensagem diz, não da
+   * chave técnica que alguém escolheu meses atrás.
+   */
+  const filtered = useMemo(() => {
+    const termo = search.trim().toLowerCase()
+
+    return templates.filter((template) => {
+      if (channelFilter.length > 0 && !channelFilter.includes(template.channel)) return false
+      if (categoryFilter.length > 0 && !categoryFilter.includes(categoryOf(template.key))) return false
+      if (!termo) return true
+      return `${template.key} ${template.subject ?? ''} ${template.body}`.toLowerCase().includes(termo)
+    })
+  }, [templates, search, channelFilter, categoryFilter])
+
+  const groups = useMemo<readonly TemplateGroup[]>(() => {
+    const porCategoria = new Map<string, NotificationTemplate[]>()
+    for (const template of filtered) {
+      const categoria = categoryOf(template.key)
+      const atual = porCategoria.get(categoria)
+      if (atual) atual.push(template)
+      else porCategoria.set(categoria, [template])
+    }
+    return [...porCategoria.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([category, list]) => ({ category, templates: list }))
+  }, [filtered])
 
   /** Decisão 2: derivado do id. */
   const selected = useMemo(() => templates.find((template) => template.id === selectedId), [templates, selectedId])
@@ -225,7 +292,14 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
   }, [draft, selected, isNew])
 
   return {
-    templates,
+    templates: filtered,
+    groups,
+    categories,
+    search,
+    channelFilter,
+    categoryFilter,
+    hasFilters: search.trim().length > 0 || channelFilter.length > 0 || categoryFilter.length > 0,
+    totalCount: templates.length,
     isLoading: templatesQuery.isLoading,
     isSaving: upsert.isPending,
     isDeactivating: deactivateMutation.isPending,
@@ -246,6 +320,26 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
       (draft?.channels.length ?? 0) > 0 &&
       (draft?.channels.every((channel) => (draft.byChannel[channel]?.body ?? '').length > 0) ?? false) &&
       variableDiff.unknown.length === 0,
+
+    setSearch,
+
+    toggleChannelFilter(channel) {
+      setChannelFilter((current) =>
+        current.includes(channel) ? current.filter((each) => each !== channel) : [...current, channel],
+      )
+    },
+
+    toggleCategoryFilter(category) {
+      setCategoryFilter((current) =>
+        current.includes(category) ? current.filter((each) => each !== category) : [...current, category],
+      )
+    },
+
+    clearFilters() {
+      setSearch('')
+      setChannelFilter([])
+      setCategoryFilter([])
+    },
 
     select(template) {
       setSelectedId(template.id)
