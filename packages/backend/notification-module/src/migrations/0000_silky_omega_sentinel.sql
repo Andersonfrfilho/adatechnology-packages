@@ -1,11 +1,22 @@
 CREATE SCHEMA "notification";
 --> statement-breakpoint
+CREATE TABLE "notification"."category_policies" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"company_id" uuid NOT NULL,
+	"category" varchar(64) NOT NULL,
+	"channel" varchar(16) NOT NULL,
+	"enabled" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "notification"."deliveries" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"notification_id" uuid NOT NULL,
 	"company_id" uuid NOT NULL,
 	"channel" varchar(16) NOT NULL,
 	"driver" varchar(32),
+	"device_id" uuid,
 	"target_masked" varchar(128),
 	"status" varchar(16) DEFAULT 'queued' NOT NULL,
 	"attempt" integer DEFAULT 0 NOT NULL,
@@ -92,7 +103,9 @@ CREATE TABLE "notification"."templates" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "notification"."deliveries" ADD CONSTRAINT "deliveries_notification_id_notifications_id_fk" FOREIGN KEY ("notification_id") REFERENCES "notification"."notifications"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notification"."deliveries" ADD CONSTRAINT "deliveries_notification_id_notifications_id_fk" FOREIGN KEY ("notification_id") REFERENCES "notification"."notifications"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notification"."deliveries" ADD CONSTRAINT "deliveries_device_id_devices_id_fk" FOREIGN KEY ("device_id") REFERENCES "notification"."devices"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_category_policies_identity" ON "notification"."category_policies" USING btree ("company_id","category","channel");--> statement-breakpoint
 CREATE INDEX "idx_deliveries_notification" ON "notification"."deliveries" USING btree ("notification_id");--> statement-breakpoint
 CREATE INDEX "idx_deliveries_company_status" ON "notification"."deliveries" USING btree ("company_id","status","created_at");--> statement-breakpoint
 CREATE INDEX "idx_deliveries_provider_message" ON "notification"."deliveries" USING btree ("channel","provider_message_id");--> statement-breakpoint
