@@ -17,8 +17,23 @@
 
 import { extractTemplatePlaceholders } from './templateRender'
 
+/**
+ * `text` entra no corpo por interpolação; `attachment` NÃO — ele viaja ao lado da mensagem.
+ *
+ * A distinção existe porque as duas regras de validação são opostas: variável de texto declarada e
+ * ausente do corpo é um aviso, e variável de anexo ausente do corpo é o normal. Sem o tipo, todo
+ * anexo obrigatório apareceria eternamente como "faltando no texto".
+ */
+export const TEMPLATE_VARIABLE_KIND = {
+  TEXT: 'text',
+  ATTACHMENT: 'attachment',
+} as const
+export type TemplateVariableKind = (typeof TEMPLATE_VARIABLE_KIND)[keyof typeof TEMPLATE_VARIABLE_KIND]
+
 export type TemplateVariableDefinition = {
   readonly name: string
+  /** Ausente é `text`: todo catálogo escrito antes disto continua valendo sem alteração. */
+  readonly kind?: TemplateVariableKind
   /** Valor de exemplo — alimenta o preview. Só o produto sabe que `orderNumber` é "QC-1042". */
   readonly example: string
   /** `true` avisa quando o texto não usa a variável; nunca bloqueia (ver `diffTemplateVariables`). */
@@ -35,8 +50,16 @@ export type TemplateVariableDiff = {
   readonly used: readonly string[]
   /** Referenciados e não declarados — renderizariam vazio para sempre. */
   readonly unknown: readonly string[]
-  /** Declarados como `required` e ausentes do texto. */
+  /** Declarados como `required` e ausentes do texto. Só variáveis de texto entram aqui. */
   readonly missingRequired: readonly string[]
+  /**
+   * Anexos referenciados DENTRO do texto — quase sempre engano.
+   *
+   * `{{nota}}` no corpo de um anexo renderiza a URL crua no meio da frase, e não anexa nada. Se a
+   * intenção era mandar o link, a variável devia ser de texto; se era anexar, ela não pertence ao
+   * corpo. Aviso e não erro: link para o arquivo é uma escolha legítima, só não é esta.
+   */
+  readonly attachmentsInText: readonly string[]
 }
 
 export type DiffTemplateVariablesParams = {
@@ -52,17 +75,26 @@ export type DiffTemplateVariablesParams = {
 export function diffTemplateVariables(params: DiffTemplateVariablesParams): TemplateVariableDiff {
   const used = extractTemplatePlaceholders(`${params.subject ?? ''}\n${params.body}`)
 
-  if (!params.variables) return { used, unknown: [], missingRequired: [] }
+  if (!params.variables) return { used, unknown: [], missingRequired: [], attachmentsInText: [] }
 
   const declared = new Set(params.variables.map((variable) => variable.name))
   const usedSet = new Set(used)
+  const attachments = new Set(
+    params.variables
+      .filter((variable) => variable.kind === TEMPLATE_VARIABLE_KIND.ATTACHMENT)
+      .map((variable) => variable.name),
+  )
 
   return {
     used,
     unknown: used.filter((name) => !declared.has(name)),
     missingRequired: params.variables
-      .filter((variable) => variable.required && !usedSet.has(variable.name))
+      .filter(
+        (variable) =>
+          variable.required && variable.kind !== TEMPLATE_VARIABLE_KIND.ATTACHMENT && !usedSet.has(variable.name),
+      )
       .map((variable) => variable.name),
+    attachmentsInText: used.filter((name) => attachments.has(name)),
   }
 }
 
@@ -74,5 +106,12 @@ export function buildPreviewPayload(
   variables: readonly TemplateVariableDefinition[] | undefined,
 ): Readonly<Record<string, string>> {
   if (!variables) return {}
-  return Object.fromEntries(variables.map((variable) => [variable.name, variable.example]))
+
+  // Anexo não é interpolado: incluí-lo aqui faria o preview desenhar a URL no meio do texto de um
+  // corpo que nunca vai conter essa URL.
+  return Object.fromEntries(
+    variables
+      .filter((variable) => variable.kind !== TEMPLATE_VARIABLE_KIND.ATTACHMENT)
+      .map((variable) => [variable.name, variable.example]),
+  )
 }

@@ -73,3 +73,41 @@ describe('buildPreviewPayload', () => {
     expect(buildPreviewPayload(undefined)).toEqual({})
   })
 })
+
+describe('variavel de anexo', () => {
+  const CATALOGO: readonly TemplateVariableDefinition[] = [
+    { name: 'orderNumber', example: 'QC-1042', required: true },
+    { name: 'nota', example: 'https://storage/nota.pdf', required: true, kind: 'attachment' },
+  ]
+
+  /** O anexo viaja AO LADO da mensagem: cobrar a presenca dele no corpo seria cobrar o impossivel. */
+  it('anexo obrigatorio ausente do texto nao entra em missingRequired', () => {
+    const diff = diffTemplateVariables({ body: 'Pedido {{orderNumber}} faturado.', variables: CATALOGO })
+
+    expect(diff.missingRequired).toEqual([])
+  })
+
+  it('variavel de TEXTO obrigatoria ausente continua cobrada', () => {
+    const diff = diffTemplateVariables({ body: 'Sem nada.', variables: CATALOGO })
+
+    expect(diff.missingRequired).toEqual(['orderNumber'])
+  })
+
+  /** `{{nota}}` no corpo renderiza a URL crua no meio da frase, e nao anexa nada. */
+  it('anexo usado dentro do texto vira aviso proprio', () => {
+    const diff = diffTemplateVariables({ body: 'Veja {{nota}}', variables: CATALOGO })
+
+    expect(diff.attachmentsInText).toEqual(['nota'])
+    expect(diff.unknown).toEqual([])
+  })
+
+  it('anexo fica de fora do payload de preview', () => {
+    expect(buildPreviewPayload(CATALOGO)).toEqual({ orderNumber: 'QC-1042' })
+  })
+
+  it('catalogo sem `kind` continua valendo como texto', () => {
+    const antigo: readonly TemplateVariableDefinition[] = [{ name: 'nome', example: 'Ana', required: true }]
+
+    expect(diffTemplateVariables({ body: 'Ola.', variables: antigo }).missingRequired).toEqual(['nome'])
+  })
+})
