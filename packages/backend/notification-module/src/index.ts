@@ -115,3 +115,7 @@ export { TemplateRepository } from './repositories/TemplateRepository'
 export type { UpsertTemplateInput } from './repositories/TemplateRepository'
 
 export { SuppressionRepository } from './repositories/SuppressionRepository'
+
+/** Descobre quais valores do payload sao anexo, pelo `kind` do catalogo de variaveis. */
+export { resolveEmailAttachments } from './use-cases/resolveEmailAttachments'
+export type { ResolveEmailAttachmentsParams } from './use-cases/resolveEmailAttachments'
