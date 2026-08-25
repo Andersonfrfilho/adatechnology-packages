@@ -37,6 +37,9 @@ export type {
   DeliveryReceipt,
 } from './notification.types'
 
+export { EMAIL_ATTACHMENT_MAX_BYTES, EMAIL_ATTACHMENT_MAX_COUNT, checkEmailAttachment } from './emailAttachment'
+export type { EmailAttachment } from './emailAttachment'
+
 export type {
   DeliveryAttemptResult,
   SendPushParams,
@@ -134,11 +137,12 @@ export {
 } from './templateRender'
 export type { RenderedTemplatePreview, TemplateConstraintCheck } from './templateRender'
 
-export { buildPreviewPayload, diffTemplateVariables } from './templateVariables'
+export { buildPreviewPayload, diffTemplateVariables, TEMPLATE_VARIABLE_KIND } from './templateVariables'
 export type {
   DiffTemplateVariablesParams,
   TemplateVariableCatalog,
   TemplateVariableDefinition,
+  TemplateVariableKind,
   TemplateVariableDiff,
 } from './templateVariables'
 
