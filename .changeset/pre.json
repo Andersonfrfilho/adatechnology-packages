@@ -60,6 +60,7 @@
   "changesets": [
     "agent-media-enters-document-library",
     "anexo-de-email-por-referencia",
+    "anexo-loopback",
     "anexo-no-despacho",
     "anexo-nos-tres-drivers",
     "audio-ogg-mime-sem-parametro",
