@@ -13,15 +13,31 @@ export type WhatsAppProviderConfig = {
 
 export type SendMessageResult = {
   readonly waMessageId: string | null
+  /**
+   * Id do arquivo na Meta usado no envio — o que foi subido agora, ou o que veio reaproveitado.
+   *
+   * Sai no resultado para quem envia o mesmo arquivo a muitos destinatários poder guardá-lo: a Meta
+   * aceita reusar esse id por 30 dias, e sem ele cada envio ressobe o binário inteiro.
+   */
+  readonly mediaId?: string
 }
 
-export type SendMediaParams = {
+type SendMediaCommon = {
   readonly to: string
-  readonly buffer: Buffer
   readonly mimeType: string
   readonly filename: string
   readonly caption?: string
 }
+
+/**
+ * Ou o binário, ou um `mediaId` já conhecido — nunca nenhum dos dois.
+ *
+ * União em vez de dois campos opcionais de propósito: com ambos opcionais, "esqueci de passar os
+ * dois" compila e só falha na chamada à Meta, em produção. Aqui não se escreve a chamada inválida.
+ */
+export type SendMediaParams =
+  | (SendMediaCommon & { readonly buffer: Buffer; readonly mediaId?: string })
+  | (SendMediaCommon & { readonly buffer?: undefined; readonly mediaId: string })
 
 export type SendTemplateParams = {
   readonly to: string

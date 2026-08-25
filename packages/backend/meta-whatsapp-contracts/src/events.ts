@@ -1,4 +1,9 @@
-import type { WhatsAppMessage, WhatsAppStatus } from './webhook.types'
+import type {
+  WhatsAppMessage,
+  WhatsAppPhoneNumberQualityUpdate,
+  WhatsAppStatus,
+  WhatsAppTemplateStatusUpdate,
+} from './webhook.types'
 import type { ConversationSession } from './conversation.types'
 
 export type MessageHookOutcome = { outcome: 'handled' } | { outcome: 'continue' }
@@ -57,6 +62,40 @@ export interface MetaWhatsAppHooks {
    * transcrição não se perde nem mente, mas só sai se pedirem sob demanda.
    */
   onTranscriptionDeferred?: (details: TranscriptionDeferredDescriptor) => Promise<void> | void
+  /**
+   * A Meta mudou o status de um template (aprovado, rejeitado, pausado).
+   *
+   * É um evento de conta, não de conversa: não tem `session` nem número de cliente, e chega mesmo
+   * quando nenhuma conversa está acontecendo. Sem implementar, a única forma de descobrir que um
+   * template foi rejeitado é alguém abrir o painel da Meta e reparar.
+   */
+  onTemplateStatusUpdate?: (update: WhatsAppTemplateStatusUpdate) => Promise<void> | void
+  /**
+   * Qualidade ou limite de envio do número mudou (`FLAGGED` = qualidade caiu e o número corre risco
+   * de restrição; `DOWNGRADE` = teto de envio reduzido).
+   *
+   * Vale tratar como alerta operacional: quando vira restrição de fato, as mensagens já estão
+   * falhando, e o histórico de qualidade que explicaria a queda tem retenção curta no painel.
+   */
+  onPhoneNumberQualityUpdate?: (update: WhatsAppPhoneNumberQualityUpdate) => Promise<void> | void
+  /**
+   * Chegou um `field` que este módulo não sabe tratar — ou um que sabe, mas com corpo fora do
+   * schema (versão nova da Cloud API, campo assinado sem handler).
+   *
+   * Existe para que o webhook nunca seja um buraco negro: descartar em silêncio é indistinguível de
+   * webhook que parou de chegar, e foi assim que os eventos de template ficaram invisíveis até
+   * alguém procurar. Observar aqui é do host; o módulo não decide que é erro.
+   */
+  onUnhandledWebhookEvent?: (details: UnhandledWebhookEventDescriptor) => Promise<void> | void
+}
+
+export type UnhandledWebhookEventDescriptor = {
+  /** O `changes[].field` como a Meta mandou; `undefined` quando o payload nem trouxe o campo. */
+  readonly field: string | undefined
+  /** Por que não foi tratado: sem handler para o field, ou corpo que não bate com o schema dele. */
+  readonly reason: 'unknown-field' | 'invalid-shape'
+  /** O `value` cru, para diagnóstico. Nunca logar inteiro: pode conter dado de cliente. */
+  readonly value: unknown
 }
 
 export type TranscriptionDeferredDescriptor = {

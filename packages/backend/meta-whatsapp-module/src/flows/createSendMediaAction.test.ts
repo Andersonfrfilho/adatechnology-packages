@@ -9,6 +9,7 @@ import type { ChannelAdapterInterface, ConversationSession, FlowNodeData } from 
 import {
   createSendMediaAction,
   type CreateSendMediaActionParams,
+  type FlowMediaIdStore,
   type FlowMediaTranscriptLogger,
 } from './createSendMediaAction'
 import type { FlowMediaRepository } from '../repositories/FlowMediaRepository'
@@ -183,5 +184,129 @@ describe('createSendMediaAction', () => {
     })
 
     expect(sendMedia).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * O cache do `mediaId` existe para o mesmo arquivo não ressubir para cada cliente que passa no nó.
+ * Errar aqui não dá erro: dá material que para de chegar quando o id vence, ou binário subindo de
+ * novo a cada conversa sem ninguém perceber.
+ */
+describe('createSendMediaAction com cache de mediaId', () => {
+  const SENDER = 'phone-number-1'
+
+  function storeOf(initial?: Record<string, string>) {
+    const values = new Map(Object.entries(initial ?? {}))
+    const calls = { get: 0, set: [] as string[], clear: [] as string[] }
+    const store: FlowMediaIdStore = {
+      get: async ({ flowMediaId, senderKey }) => {
+        calls.get += 1
+        return values.get(`${senderKey}:${flowMediaId}`)
+      },
+      set: async ({ flowMediaId, senderKey, mediaId }) => {
+        calls.set.push(mediaId)
+        values.set(`${senderKey}:${flowMediaId}`, mediaId)
+      },
+      clear: async ({ flowMediaId, senderKey }) => {
+        calls.clear.push(flowMediaId)
+        values.delete(`${senderKey}:${flowMediaId}`)
+      },
+    }
+    return { store, calls, values }
+  }
+
+  function cachedHarness(params: {
+    attachments: FlowMediaRow[]
+    store: FlowMediaIdStore
+    sendMedia: ReturnType<typeof sendMediaMock>
+    getObject?: (uploadId: string) => Promise<Buffer>
+  }) {
+    const downloads: string[] = []
+    const handler = createSendMediaAction({
+      flowMediaRepository: { listActive: mock(async () => params.attachments) } as unknown as FlowMediaRepository,
+      objectStorage: storageOf(async (uploadId) => {
+        downloads.push(uploadId)
+        return params.getObject ? params.getObject(uploadId) : Buffer.from('bytes')
+      }),
+      logMessage: { execute: mock(async () => undefined) } as unknown as LogMessageUseCase,
+      mediaIdCache: { store: params.store, senderKey: SENDER },
+      startState: 'start',
+    })
+    return { handler, downloads }
+  }
+
+  it('primeiro envio sobe o binário e guarda o id devolvido', async () => {
+    const { store, calls } = storeOf()
+    const sendMedia = mock<(p: SendMediaParams) => Promise<{ externalMessageId: string; mediaId: string }>>(
+      async () => ({ externalMessageId: 'wamid.1', mediaId: 'meta-media-1' }),
+    )
+    const { handler, downloads } = cachedHarness({ attachments: [attachmentOf({})], store, sendMedia })
+
+    await invoke(handler, { sendMedia } as unknown as ChannelAdapterInterface)
+
+    expect(downloads).toEqual(['upload-1'])
+    expect(sendMedia.mock.calls[0]![0]).toHaveProperty('buffer')
+    expect(calls.set).toEqual(['meta-media-1'])
+  })
+
+  it('com id conhecido NÃO baixa do storage nem manda binário — é o ganho todo', async () => {
+    const { store } = storeOf({ [`${SENDER}:media-1`]: 'meta-media-1' })
+    const sendMedia = sendMediaMock()
+    const { handler, downloads } = cachedHarness({ attachments: [attachmentOf({})], store, sendMedia })
+
+    await invoke(handler, { sendMedia } as unknown as ChannelAdapterInterface)
+
+    expect(downloads).toEqual([])
+    expect(sendMedia.mock.calls[0]![0]).toMatchObject({ mediaId: 'meta-media-1' })
+    expect(sendMedia.mock.calls[0]![0]).not.toHaveProperty('buffer')
+  })
+
+  it('id vencido não perde a entrega: limpa o cache e sobe o binário na mesma passada', async () => {
+    const { store, calls } = storeOf({ [`${SENDER}:media-1`]: 'expirado' })
+    let attempt = 0
+    const sendMedia = mock<(p: SendMediaParams) => Promise<{ externalMessageId: string; mediaId: string }>>(
+      async () => {
+        attempt += 1
+        if (attempt === 1) throw new Error('media not found')
+        return { externalMessageId: 'wamid.2', mediaId: 'meta-media-novo' }
+      },
+    )
+    const { handler, downloads } = cachedHarness({ attachments: [attachmentOf({})], store, sendMedia })
+
+    await invoke(handler, { sendMedia } as unknown as ChannelAdapterInterface)
+
+    expect(calls.clear).toEqual(['media-1'])
+    expect(downloads).toEqual(['upload-1'])
+    expect(calls.set).toEqual(['meta-media-novo'])
+  })
+
+  it('a chave separa por número remetente — id de um número não vaza para o outro', async () => {
+    const { store } = storeOf({ 'outro-numero:media-1': 'meta-media-do-outro' })
+    const sendMedia = sendMediaMock()
+    const { handler, downloads } = cachedHarness({ attachments: [attachmentOf({})], store, sendMedia })
+
+    await invoke(handler, { sendMedia } as unknown as ChannelAdapterInterface)
+
+    expect(downloads).toEqual(['upload-1'])
+    expect(sendMedia.mock.calls[0]![0]).not.toMatchObject({ mediaId: 'meta-media-do-outro' })
+  })
+
+  it('sem cache configurado, o comportamento é o de antes: sempre sobe o binário', async () => {
+    const sendMedia = sendMediaMock()
+    const { handler } = harness([attachmentOf({})])
+
+    await invoke(handler, { sendMedia } as unknown as ChannelAdapterInterface)
+
+    expect(sendMedia.mock.calls[0]![0]).toHaveProperty('buffer')
+  })
+
+  it('envio sem mediaId na resposta não grava cache — id não confirmado não vale guardar', async () => {
+    const { store, calls } = storeOf()
+    const sendMedia = sendMediaMock()
+    const { handler } = cachedHarness({ attachments: [attachmentOf({})], store, sendMedia })
+
+    await invoke(handler, { sendMedia } as unknown as ChannelAdapterInterface)
+
+    expect(calls.set).toEqual([])
   })
 })

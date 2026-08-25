@@ -175,3 +175,28 @@ export function isGraphDirty(working: FlowGraphData | undefined, published: Flow
   if (!working || !published) return false
   return JSON.stringify(working) !== JSON.stringify(published)
 }
+
+/**
+ * Desliga UMA saída do nó, preservando as outras.
+ *
+ * O que não é óbvio: desligar é gravar destino vazio, nunca apagar a chave. Numa ramificação, a
+ * opção sem `byAnswer` some do card — e some junto o botão que o cliente via no WhatsApp, o que se
+ * lê como "o editor apagou minha opção". Vazio mantém a linha visível, cobrando a religação.
+ */
+export function clearConnection(node: FlowNodeData, handle: string): FlowNodeData {
+  if (handle === 'next' || typeof node.next === 'string' || node.next === undefined) {
+    return { ...node, next: '' }
+  }
+
+  if (handle === '__default') {
+    return { ...node, next: { byAnswer: node.next.byAnswer ?? {}, default: '' } }
+  }
+
+  return {
+    ...node,
+    next: {
+      byAnswer: { ...(node.next.byAnswer ?? {}), [handle]: '' },
+      default: node.next.default ?? '',
+    },
+  }
+}
