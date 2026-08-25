@@ -13,13 +13,22 @@
  * produto sobre a própria operação.
  */
 
+import { Plus, Trash2, X } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { NotificationPreference, NotificationTemplate } from '@adatechnology/notification-contracts'
 
+import {
+  SORT_DIRECTIONS,
+  TEMPLATE_COLUMNS,
+  TEMPLATE_VIEWS,
+  type TemplateSortField,
+} from '../templateList.constant'
 import { useNotificationContext } from '../NotificationProvider'
 import { usePreferences, useUpdatePreferences } from '../hooks/usePreferences'
 import { useCategoryPolicies } from '../hooks/useCategoryPolicies'
+import { HtmlCodeField } from './HtmlCodeField'
+import { MessageBodyField } from './MessageBodyField'
 import { TemplatePreview } from './TemplatePreview'
 import { useTemplateEditor } from '../hooks/useTemplateEditor'
 import type { TemplateDraftField } from '../hooks/useTemplateEditor'
@@ -35,6 +44,16 @@ export type NotificationCategoryOption = {
   readonly id: string
   readonly label: string
   readonly hint?: string
+}
+
+/** O laudo do validador, na forma mínima que a tela precisa desenhar. */
+export type EmailHtmlReport = {
+  readonly isValid: boolean
+  readonly problems: readonly {
+    readonly code: string
+    readonly severity: string
+    readonly message: string
+  }[]
 }
 
 export type NotificationSettingsWorkspaceProps = {
@@ -59,6 +78,11 @@ export type NotificationSettingsWorkspaceProps = {
     readonly value: string
     readonly onChange: (value: string) => void
   }) => ReactNode
+  /**
+   * Confere o documento contra o que cliente de e-mail realmente faz (script, folha externa, imagem
+   * em `data:`, tabela desbalanceada). Ausente, nenhum aviso aparece.
+   */
+  readonly validateEmailHtml?: (html: string) => EmailHtmlReport
   /** Substitui o cabeçalho padrão — a página que já tem título próprio evita o segundo `<h1>`. */
   readonly renderHeader?: () => ReactNode
   /** Ações do produto no cabeçalho. */
@@ -73,6 +97,35 @@ export type NotificationSettingsWorkspaceProps = {
   readonly categoryLabelOf?: (category: string) => string
 }
 
+/**
+ * O laudo do e-mail, so quando ha o que dizer.
+ *
+ * Documento limpo nao ganha selo verde: um aviso permanente de "tudo certo" e ruido que treina a
+ * pessoa a nao ler a area — e ai o aviso de verdade passa batido junto.
+ */
+/**
+ * O campo vira editor de codigo quando o texto TEM marcacao, e nao quando o canal e e-mail: a
+ * maioria dos avisos e texto simples, e transformar o campo deles num editor com numeracao de linha
+ * cobra complexidade de quem so queria escrever uma frase.
+ */
+function isHtmlBody(body: string): boolean {
+  return /<\/?[a-zA-Z][\w:-]*(\s|>|\/)/.test(body)
+}
+
+function renderEmailProblems(report: EmailHtmlReport): ReactNode {
+  if (report.problems.length === 0) return null
+
+  return (
+    <ul className="adn-settings__email-report">
+      {report.problems.map((problem) => (
+        <li key={problem.code} className={`adn-settings__email-problem adn-settings__email-problem--${problem.severity}`}>
+          {problem.message}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function NotificationSettingsWorkspace({
   labels: labelsOverride,
   channels,
@@ -80,6 +133,7 @@ export function NotificationSettingsWorkspace({
   previewPayload,
   templateLabelOf,
   renderChannelFields,
+  validateEmailHtml,
   renderHeader,
   renderHeaderActions,
   className,
@@ -143,6 +197,20 @@ export function NotificationSettingsWorkspace({
       })),
     )
     updatePreferences.mutate(next)
+  }
+
+  /**
+   * Três estados no cabeçalho (web.md §7): a seta neutra diz que a coluna ORDENA, e é por isso que
+   * ela aparece antes de qualquer clique.
+   */
+  function sortMarkOf(field: TemplateSortField): string {
+    if (editor.sort?.field !== field) return '↕'
+    return editor.sort.direction === SORT_DIRECTIONS.ASC ? '↑' : '↓'
+  }
+
+  function ariaSortOf(field: TemplateSortField): 'ascending' | 'descending' | 'none' {
+    if (editor.sort?.field !== field) return 'none'
+    return editor.sort.direction === SORT_DIRECTIONS.ASC ? 'ascending' : 'descending'
   }
 
   return (
@@ -243,19 +311,42 @@ export function NotificationSettingsWorkspace({
       </section>
       )}
 
+      {/* Sem rascunho a coluna do editor nao existe: a lista fica com a largura inteira. Reservar
+          2/3 da tela para "escolha uma mensagem" e cobrar espaco por uma instrucao. */}
       {tab === 'messages' && (
-      <div className="adn-settings__templates">
+      <div className={editor.draft ? 'adn-settings__templates' : 'adn-settings__templates adn-settings__templates--browsing'}>
         <section className="adn-settings__template-list">
           <header className="adn-settings__list-header">
             {/* Titulo e acao na MESMA linha; a explicacao desce inteira embaixo. Com os tres lado a
                 lado numa coluna de 320px a explicacao quebrava em tres linhas e empurrava o botao. */}
             <div className="adn-settings__list-header-row">
               <h2 className="adn-settings__section-title">{label('settings.templatesTitle')}</h2>
-              <button type="button" className="adn-settings__new" onClick={editor.startNew}>
-                {label('settings.newTemplate')}
-              </button>
+              <div className="adn-settings__list-header-actions">
+                {/* Duas leituras da mesma colecao: a tabela compara, a lista reconhece o texto. */}
+                <div className="adn-settings__view-switch" role="group" aria-label={label('settings.viewLabel')}>
+                  {[TEMPLATE_VIEWS.TABLE, TEMPLATE_VIEWS.LIST].map((view) => (
+                    <button
+                      key={view}
+                      type="button"
+                      aria-pressed={editor.view === view}
+                      className={
+                        editor.view === view
+                          ? 'adn-settings__view adn-settings__view--on'
+                          : 'adn-settings__view'
+                      }
+                      onClick={() => editor.setView(view)}
+                    >
+                      {label(`settings.view.${view}`)}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="adn-settings__new" onClick={editor.startNew}>
+                  {/* Decorativo: o rotulo ao lado ja diz a acao, e o leitor de tela nao repete. */}
+                  <Plus className="adn-settings__button-icon" aria-hidden="true" />
+                  {label('settings.newTemplate')}
+                </button>
+              </div>
             </div>
-            <p className="adn-settings__hint">{label('settings.templatesHint')}</p>
           </header>
 
           {/* Busca sobre chave E texto: quem procura costuma lembrar do que a mensagem diz, não
@@ -330,7 +421,88 @@ export function NotificationSettingsWorkspace({
             <p className="adn-settings__hint">{label('settings.noResults')}</p>
           )}
 
-          {editor.groups.map((group) => (
+          {editor.view === TEMPLATE_VIEWS.TABLE && editor.templates.length > 0 && (
+            /* `overflow-x` no contêiner: a página nunca rola na horizontal (web.md §10). */
+            <div className="adn-settings__table-scroll">
+              <table className="adn-settings__table">
+                <thead>
+                  <tr>
+                    {TEMPLATE_COLUMNS.map(({ labelKey, field, headerHidden }) => (
+                      <th key={labelKey} scope="col" aria-sort={field ? ariaSortOf(field) : undefined}>
+                        {field ? (
+                          <button type="button" onClick={() => editor.toggleSort(field)}>
+                            {label(labelKey)}
+                            <span aria-hidden="true" className="adn-settings__sort-mark">
+                              {sortMarkOf(field)}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className={headerHidden ? 'adn-settings__visually-hidden' : undefined}>
+                            {label(labelKey)}
+                          </span>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {editor.templates.map((template) => (
+                    /* A linha inteira abre o template: na tabela so a celula da chave era clicavel,
+                       e o alvo real de quem varre a lista e a linha. O botao da chave continua
+                       existindo — e ele que recebe o foco pelo teclado. */
+                    <tr
+                      key={template.id}
+                      onClick={() => editor.select(template)}
+                      className={
+                        editor.selected?.id === template.id
+                          ? 'adn-settings__table-row adn-settings__table-row--active'
+                          : 'adn-settings__table-row'
+                      }
+                    >
+                      <td>
+                        <button
+                          type="button"
+                          className="adn-settings__table-key"
+                          onClick={() => editor.select(template)}
+                        >
+                          {templateLabelOf?.(template) ?? template.key}
+                        </button>
+                      </td>
+                      <td className="adn-settings__table-body">{template.body}</td>
+                      <td>
+                        <span className={`adn-settings__badge adn-settings__badge--${template.channel}`}>
+                          {label(`channel.${template.channel}`)}
+                        </span>
+                      </td>
+                      <td className="adn-settings__version">
+                        {label('settings.version')}
+                        {template.version}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="adn-settings__remove"
+                          aria-label={`${label('settings.remove')} ${template.key}`}
+                          disabled={editor.isDeactivating}
+                          /* Sem parar a propagacao, remover tambem abriria o template no editor. */
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            editor.deactivate(template.id)
+                          }}
+                        >
+                          <Trash2 className="adn-settings__button-icon" aria-hidden="true" />
+                          {label('settings.remove')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {editor.view === TEMPLATE_VIEWS.LIST &&
+            editor.groups.map((group) => (
             <div key={group.category} className="adn-settings__group">
               <p className="adn-settings__group-title">
                 {categoryLabelOf?.(group.category) ?? group.category}
@@ -363,19 +535,19 @@ export function NotificationSettingsWorkspace({
                       disabled={editor.isDeactivating}
                       onClick={() => editor.deactivate(template.id)}
                     >
+                      <Trash2 className="adn-settings__button-icon" aria-hidden="true" />
                       {label('settings.remove')}
                     </button>
                   </li>
                 ))}
               </ul>
-            </div>
-          ))}
+              </div>
+            ))}
         </section>
 
+        {editor.draft && (
         <section className="adn-settings__editor">
-          {!editor.draft && <p className="adn-settings__hint">{label('settings.pickTemplate')}</p>}
-
-          {editor.draft && (
+          {(
             <>
               <header className="adn-settings__editor-header">
                 <div>
@@ -387,7 +559,8 @@ export function NotificationSettingsWorkspace({
                     {editor.selected?.version}
                   </p>
                 </div>
-                <button type="button" onClick={editor.clear}>
+                <button type="button" className="adn-settings__close" onClick={editor.clear}>
+                  <X className="adn-settings__button-icon" aria-hidden="true" />
                   {label('settings.close')}
                 </button>
               </header>
@@ -544,13 +717,28 @@ export function NotificationSettingsWorkspace({
 
                       <label className="adn-settings__field">
                         <span className="adn-settings__field-label">{label('settings.body')}</span>
-                        <textarea
-                          rows={5}
-                          value={content?.body ?? ''}
-                          onChange={(event) => editor.updateChannel(channel.id, { body: event.target.value })}
-                          onSelect={(event) => rememberCursor('body', event.currentTarget.selectionStart)}
-                          onFocus={() => setCursorChannel(channel.id)}
-                        />
+                        {/* Editor de codigo so onde HTML significa alguma coisa. WhatsApp, SMS e push
+                            recebem texto puro — realce ali sugeriria uma marcacao que o canal nao
+                            entende, e a sugestao vira erro na entrega. */}
+                        {channel.id === 'email' && isHtmlBody(content?.body ?? '') ? (
+                          <HtmlCodeField
+                            value={content?.body ?? ''}
+                            onChange={(next) => editor.updateChannel(channel.id, { body: next })}
+                            onSelect={(cursorIndex) => rememberCursor('body', cursorIndex)}
+                            onFocus={() => setCursorChannel(channel.id)}
+                            {...(validateEmailHtml
+                              ? { problems: validateEmailHtml(content?.body ?? '').problems }
+                              : {})}
+                          />
+                        ) : (
+                          <MessageBodyField
+                            value={content?.body ?? ''}
+                            onChange={(next) => editor.updateChannel(channel.id, { body: next })}
+                            onSelect={(cursorIndex) => rememberCursor('body', cursorIndex)}
+                            onFocus={() => setCursorChannel(channel.id)}
+                            labelOf={label}
+                          />
+                        )}
                       </label>
 
                       {/* Slot do host: campo que só um canal tem, e que o pacote não conhece por nome. */}
@@ -573,10 +761,16 @@ export function NotificationSettingsWorkspace({
                                   className="adn-settings__preview-frame"
                                   style={{ '--adn-preview-width': `${frame.width}px` } as CSSProperties}
                                 >
+                                  {/* O HTML do preview e o QUE ESTA NO CAMPO, nao uma moldura que o
+                                      painel enfia por fora: se a pessoa escreveu HTML, e o HTML
+                                      dela que precisa aparecer. Corpo sem marcacao segue texto. */}
                                   <TemplatePreview
                                     channel={frame.channel}
                                     viewport={frame.viewport}
                                     rendered={frame.rendered}
+                                    {...(frame.channel === 'email' && isHtmlBody(content?.body ?? '')
+                                      ? { emailHtml: content?.body ?? '' }
+                                      : {})}
                                     labels={{
                                       to: label('preview.to'),
                                       now: label('preview.now'),
@@ -626,6 +820,7 @@ export function NotificationSettingsWorkspace({
             </>
           )}
         </section>
+        )}
       </div>
       )}
     </div>

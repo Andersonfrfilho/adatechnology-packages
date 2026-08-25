@@ -11,7 +11,9 @@
  * preview só prova que o texto existe.
  *
  * Nada aqui usa `dangerouslySetInnerHTML`: o corpo entra como nó de texto, mesmo já escapado pelo
- * renderer do `notification-contracts`.
+ * renderer do `notification-contracts`. Quando o produto injeta a moldura de e-mail (`emailHtml`),
+ * o documento vai para um `<iframe sandbox srcDoc>` — nunca para o DOM do painel. O sandbox vazio
+ * corta script e mesma-origem, e de quebra isola o CSS do e-mail do CSS da tela.
  */
 
 import type { RenderedTemplatePreview } from '@adatechnology/notification-contracts'
@@ -20,6 +22,11 @@ export type TemplatePreviewProps = {
   readonly channel: string
   readonly viewport: string
   readonly rendered: RenderedTemplatePreview
+  /**
+   * O documento de e-mail COMPLETO, já com a moldura da marca em volta do corpo. Vem do produto:
+   * o pacote não conhece logo, cartão de usuário nem rodapé. Ausente, o corpo aparece como texto.
+   */
+  readonly emailHtml?: string
   /** Nome do produto, para o cabeçalho do e-mail e o do push. O pacote não sabe de quem é a marca. */
   readonly senderName?: string
   /** Os textos da moldura. Nada aqui é hardcoded — nem "para você", nem "agora" (web.md §6). */
@@ -172,10 +179,12 @@ const ICON = {
  */
 function EmailDesktop({
   rendered,
+  emailHtml,
   senderName,
   labels,
 }: {
   rendered: RenderedTemplatePreview
+  emailHtml: string | undefined
   senderName: string
   labels: PreviewLabels
 }) {
@@ -264,7 +273,7 @@ function EmailDesktop({
                 </span>
               </div>
 
-              <div className="adn-preview-mail__body">{rendered.body}</div>
+              <MailBody html={emailHtml} text={rendered.body} />
             </div>
           </div>
         </div>
@@ -283,11 +292,13 @@ function EmailDesktop({
  */
 function EmailMobile({
   rendered,
+  emailHtml,
   senderName,
   os,
   labels,
 }: {
   rendered: RenderedTemplatePreview
+  emailHtml: string | undefined
   senderName: string
   os: string
   labels: PreviewLabels
@@ -328,7 +339,7 @@ function EmailMobile({
             </span>
           </div>
 
-          <div className="adn-preview-mail__body">{rendered.body}</div>
+          <MailBody html={emailHtml} text={rendered.body} />
 
           <div className="adn-preview-mail__reply">
             <span className="adn-preview-mail__reply-button">
@@ -462,7 +473,28 @@ function InboxPreview({ rendered }: { rendered: RenderedTemplatePreview }) {
   )
 }
 
-export function TemplatePreview({ channel, viewport, rendered, senderName, labels }: TemplatePreviewProps) {
+/**
+ * O corpo do e-mail. Com `html`, um documento inteiro dentro de `<iframe sandbox="" srcDoc>`:
+ * sandbox vazio é o mais restrito que existe — sem script, sem mesma-origem, sem formulário — e o
+ * CSS do e-mail não vaza para o painel nem herda o dele. Sem `html`, o nó de texto de sempre.
+ *
+ * Altura fixa com rolagem interna: `sandbox=""` impede ler `contentDocument`, então medir o
+ * conteúdo não é possível — e um iframe que se auto-mede exigiria devolver a mesma-origem.
+ */
+function MailBody({ html, text }: { html: string | undefined; text: string }) {
+  if (!html) return <div className="adn-preview-mail__body">{text}</div>
+
+  return (
+    <iframe
+      className="adn-preview-mail__body adn-preview-mail__frame"
+      sandbox=""
+      srcDoc={html}
+      title={text.slice(0, 60)}
+    />
+  )
+}
+
+export function TemplatePreview({ channel, viewport, rendered, emailHtml, senderName, labels }: TemplatePreviewProps) {
   /** Sem nome do produto, o remetente vira a inicial do assunto — nunca um literal inventado. */
   const sender = senderName ?? rendered.title.slice(0, 1).toUpperCase()
 
@@ -476,8 +508,8 @@ export function TemplatePreview({ channel, viewport, rendered, senderName, label
   if (channel === 'inbox') return <InboxPreview rendered={rendered} />
 
   return viewport === 'browser' ? (
-    <EmailDesktop rendered={rendered} senderName={sender} labels={labels} />
+    <EmailDesktop rendered={rendered} emailHtml={emailHtml} senderName={sender} labels={labels} />
   ) : (
-    <EmailMobile rendered={rendered} senderName={sender} os={viewport} labels={labels} />
+    <EmailMobile rendered={rendered} emailHtml={emailHtml} senderName={sender} os={viewport} labels={labels} />
   )
 }

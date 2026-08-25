@@ -22,6 +22,15 @@
  */
 
 import { useMemo, useState } from 'react'
+
+import {
+  SORT_DIRECTIONS,
+  TEMPLATE_SORT_FIELDS,
+  TEMPLATE_VIEWS,
+  type TemplateSort,
+  type TemplateSortField,
+  type TemplateView,
+} from '../templateList.constant'
 import {
   PREVIEW_VIEWPORT_BY_CHANNEL,
   buildPreviewPayload,
@@ -144,6 +153,13 @@ export type UseTemplateEditorResult = {
   readonly hasFilters: boolean
   /** Quantos templates existem antes de filtrar — separa "nada cadastrado" de "nada encontrado". */
   readonly totalCount: number
+  /** Tabela para comparar, lista para reconhecer. */
+  readonly view: TemplateView
+  /** Ausente = ordem natural (categoria, depois chave) — o terceiro estado do cabeçalho. */
+  readonly sort: TemplateSort | undefined
+  setView: (view: TemplateView) => void
+  /** Cicla `asc` → `desc` → neutro na mesma coluna; outra coluna recomeça em `asc`. */
+  toggleSort: (field: TemplateSortField) => void
   setSearch: (value: string) => void
   toggleChannelFilter: (channel: string) => void
   toggleCategoryFilter: (category: string) => void
@@ -173,12 +189,7 @@ export type UseTemplateEditorResult = {
   /** Liga ou desliga um canal do rascunho. Nunca esvazia para nada: sem canal nao ha o que gravar. */
   toggleChannel: (channel: string) => void
   /** Insere `{{nome}}` na posição do cursor. O operador nunca digita o nome à mão. */
-  insertVariable: (params: {
-    name: string
-    field: TemplateDraftField
-    cursorIndex: number
-    channel: string
-  }) => void
+  insertVariable: (params: { name: string; field: TemplateDraftField; cursorIndex: number; channel: string }) => void
   save: () => void
   deactivate: (id: string) => void
   clear: () => void
@@ -193,6 +204,8 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
   const [search, setSearch] = useState('')
   const [channelFilter, setChannelFilter] = useState<readonly string[]>([])
   const [categoryFilter, setCategoryFilter] = useState<readonly string[]>([])
+  const [view, setView] = useState<TemplateView>(TEMPLATE_VIEWS.TABLE)
+  const [sort, setSort] = useState<TemplateSort | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
   const [draft, setDraft] = useState<TemplateDraft | undefined>(undefined)
   const [isNew, setIsNew] = useState(false)
@@ -231,9 +244,24 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
     })
   }, [templates, search, channelFilter, categoryFilter])
 
+  /**
+   * Ordenação só existe quando alguém pediu: sem `sort`, a ordem é a natural (categoria e chave),
+   * que é a que o agrupamento desenha. Reordenar por padrão esconderia essa estrutura.
+   */
+  const sorted = useMemo(() => {
+    if (!sort) return filtered
+    const sinal = sort.direction === SORT_DIRECTIONS.ASC ? 1 : -1
+
+    return [...filtered].sort((left, right) => {
+      if (sort.field === TEMPLATE_SORT_FIELDS.VERSION) return (left.version - right.version) * sinal
+      const campo = sort.field === TEMPLATE_SORT_FIELDS.CHANNEL ? 'channel' : 'key'
+      return left[campo].localeCompare(right[campo]) * sinal
+    })
+  }, [filtered, sort])
+
   const groups = useMemo<readonly TemplateGroup[]>(() => {
     const porCategoria = new Map<string, NotificationTemplate[]>()
-    for (const template of filtered) {
+    for (const template of sorted) {
       const categoria = categoryOf(template.key)
       const atual = porCategoria.get(categoria)
       if (atual) atual.push(template)
@@ -242,7 +270,7 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
     return [...porCategoria.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([category, list]) => ({ category, templates: list }))
-  }, [filtered])
+  }, [sorted])
 
   /** Decisão 2: derivado do id. */
   const selected = useMemo(() => templates.find((template) => template.id === selectedId), [templates, selectedId])
@@ -292,13 +320,16 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
   }, [draft, selected, isNew])
 
   return {
-    templates: filtered,
+    templates: sorted,
     groups,
+    view,
+    sort,
     categories,
     search,
     channelFilter,
     categoryFilter,
-    hasFilters: search.trim().length > 0 || channelFilter.length > 0 || categoryFilter.length > 0,
+    // Ordenação conta: o botão de limpar existe para desfazer QUALQUER recorte aplicado (web.md §7).
+    hasFilters: search.trim().length > 0 || channelFilter.length > 0 || categoryFilter.length > 0 || sort !== undefined,
     totalCount: templates.length,
     isLoading: templatesQuery.isLoading,
     isSaving: upsert.isPending,
@@ -335,10 +366,19 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
       )
     },
 
+    setView,
+    toggleSort(field) {
+      setSort((current) => {
+        if (current?.field !== field) return { field, direction: SORT_DIRECTIONS.ASC }
+        if (current.direction === SORT_DIRECTIONS.ASC) return { field, direction: SORT_DIRECTIONS.DESC }
+        return undefined
+      })
+    },
     clearFilters() {
       setSearch('')
       setChannelFilter([])
       setCategoryFilter([])
+      setSort(undefined)
     },
 
     select(template) {

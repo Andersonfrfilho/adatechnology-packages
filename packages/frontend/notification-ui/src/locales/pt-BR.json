@@ -84,5 +84,18 @@
   "settings.searchLabel": "Buscar mensagem",
   "settings.searchPlaceholder": "Buscar por chave ou texto…",
   "settings.clearFilters": "Limpar filtros",
-  "settings.noResults": "Nenhuma mensagem para esse filtro."
+  "settings.noResults": "Nenhuma mensagem para esse filtro.",
+  "settings.viewLabel": "Modo de exibição",
+  "settings.view.table": "Tabela",
+  "settings.view.list": "Lista",
+  "settings.column.key": "Mensagem",
+  "settings.column.body": "Texto",
+  "settings.column.channel": "Canal",
+  "settings.column.version": "Versão",
+  "settings.column.actions": "Ações",
+  "toolbar.bold": "Negrito",
+  "toolbar.italic": "Italico",
+  "toolbar.strikethrough": "Tachado",
+  "toolbar.monospace": "Monoespacado",
+  "toolbar.emoji": "Emoji"
 }
