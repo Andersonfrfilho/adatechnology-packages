@@ -12,17 +12,33 @@
 .adn-workspace,
 .adn-settings {
   --adn-color-surface: var(--adn-surface, #ffffff);
-  --adn-color-text: var(--adn-text, #111827);
-  --adn-color-muted: var(--adn-muted, #6b7280);
-  --adn-color-accent: var(--adn-accent, #3b82f6);
-  --adn-color-danger: var(--adn-danger, #dc2626);
-  --adn-color-border: var(--adn-border, #e5e7eb);
-  --adn-radius: var(--adn-radius-md, 8px);
+  --adn-color-text: var(--adn-text, #0f172a);
+  --adn-color-muted: var(--adn-muted, #64748b);
+  --adn-color-accent: var(--adn-accent, #2f4bd8);
+  --adn-color-danger: var(--adn-danger, #b91c1c);
+  /* Aviso e um terceiro estado: nao reprova como o erro, mas nao passa como o normal. */
+  --adn-color-warning: var(--adn-warning, #b45309);
+  --adn-color-border: var(--adn-border, #e2e8f0);
+  /**
+   * Tres tons derivados, e nao mais um token para o host preencher: e o que faz a tela ter
+   * hierarquia sem configuracao nenhuma. `color-mix` tinge com o proprio acento do host, entao
+   * quem sobrescreve `--adn-accent` ganha a familia inteira de graca.
+   */
+  --adn-color-canvas: var(--adn-canvas, color-mix(in srgb, var(--adn-color-accent) 4%, #ffffff));
+  --adn-color-accent-soft: color-mix(in srgb, var(--adn-color-accent) 8%, #ffffff);
+  --adn-color-accent-line: color-mix(in srgb, var(--adn-color-accent) 28%, #ffffff);
+  --adn-color-faint: color-mix(in srgb, var(--adn-color-muted) 60%, #ffffff);
+  --adn-shadow-card: 0 1px 2px color-mix(in srgb, var(--adn-color-text) 6%, transparent);
+  --adn-radius: var(--adn-radius-md, 12px);
+  --adn-radius-sm: 8px;
+  --adn-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   /* Grade base de 4px (web.md §8) — múltiplos, nunca pixel mágico. */
   --adn-space-1: 4px;
   --adn-space-2: 8px;
   --adn-space-3: 12px;
   --adn-space-4: 16px;
+  --adn-space-5: 20px;
+  --adn-space-6: 24px;
   /* 44px: alvo mínimo de toque em mobile (web.md §10). */
   --adn-touch-target: 44px;
 
@@ -582,8 +598,16 @@
     grid-template-columns: 2fr 1fr;
   }
 
+  /**
+   * Lista com largura FIXA, e nao uma fracao.
+   *
+   * Com `2fr 3fr` o editor encolhia junto com a janela, e os dois quadros do preview — que tem
+   * largura real, 600px e 375px — deixavam de caber lado a lado e empilhavam. Empilhados eles nao
+   * comparam nada, que e a unica coisa que o preview duplo existe para fazer. A lista nao precisa
+   * de mais de 320px; todo o resto vai para quem precisa.
+   */
   .adn-settings__templates {
-    grid-template-columns: 2fr 3fr;
+    grid-template-columns: 320px minmax(0, 1fr);
   }
 
   /* Botão volta ao tamanho de mouse: 44px existe para o dedo. */
@@ -924,4 +948,1969 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--adn-space-3, 12px);
+}
+
+/* ── Acabamento da tela de templates ─────────────────────────────────────────────────────────
+ *
+ * O pacote passou a trazer o visual pronto, em vez de fallback neutro que so ficava apresentavel
+ * depois de o host preencher os `--adn-*`. Nenhum produto tinha preenchido, entao a tela chegava
+ * sem hierarquia em todos eles — mesmo problema, tres vezes. Tudo aqui deriva do acento: quem
+ * sobrescreve `--adn-accent` continua ganhando a familia inteira.
+ */
+
+.adn-settings__templates {
+  align-items: start;
+}
+
+/* Sem `min-width: 0` a coluna cresce com o conteudo e o botao Remover vaza para fora dela. */
+.adn-settings__template-list,
+.adn-settings__editor {
+  min-width: 0;
+}
+
+.adn-settings__template-list .adn-settings__row > button:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* O cartao do editor ganha corpo: e onde a pessoa passa o tempo. */
+.adn-settings__editor {
+  box-shadow: var(--adn-shadow-card);
+  padding: 0;
+  overflow: hidden;
+}
+
+.adn-settings__editor > * {
+  padding-left: var(--adn-space-4, 16px);
+  padding-right: var(--adn-space-4, 16px);
+}
+
+.adn-settings__editor-header {
+  padding-top: var(--adn-space-4, 16px);
+  padding-bottom: var(--adn-space-4, 16px);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+/* Rotulo de secao: maiuscula pequena separa blocos sem precisar de mais uma borda. */
+.adn-settings__section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adn-color-muted);
+}
+
+/* Empilhado: com titulo, explicacao e botao na mesma linha, a explicacao quebrava em tres linhas
+   e empurrava o botao para fora do cartao numa coluna de 320px. */
+.adn-settings__list-header {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--adn-space-2, 8px);
+  padding-bottom: var(--adn-space-3, 12px);
+}
+
+.adn-settings__list-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--adn-space-3, 12px);
+}
+
+/* Linha da lista: cartao proprio, e o selecionado se anuncia pela borda do acento. */
+.adn-settings__template-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__template-list li + li {
+  border-top: 0;
+}
+
+.adn-settings__row > button:first-child {
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-surface);
+  padding: var(--adn-space-3, 12px);
+  text-align: left;
+}
+
+.adn-settings__row > button:first-child:hover {
+  border-color: var(--adn-color-accent-line);
+}
+
+.adn-settings__row--active {
+  border-color: var(--adn-color-accent) !important;
+  box-shadow: var(--adn-shadow-card);
+}
+
+.adn-settings__row-title {
+  font-family: var(--adn-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.adn-settings__row-body {
+  /* Duas linhas: o suficiente para reconhecer a mensagem, sem a lista virar um paredao. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.45;
+}
+
+.adn-settings__badge {
+  border: 1px solid var(--adn-color-accent-line);
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.adn-settings__version {
+  font-size: 0.6875rem;
+  color: var(--adn-color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adn-settings__new {
+  white-space: nowrap;
+  border: 0;
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-accent);
+  color: #ffffff;
+  font-weight: 500;
+  padding: 7px 12px;
+}
+
+/**
+ * `width: auto` desfaz o `width: 100%` da regra generica de botao da lista, que valia para o
+ * Remover tambem: ele esticava para os 286px da coluna e espremia a linha de selecao em 26px.
+ */
+/* Seletor composto de proposito: `.adn-settings__template-list button` tem especificidade maior
+   que uma classe sozinha, e vencia o `width: auto` toda vez. */
+.adn-settings__template-list .adn-settings__remove {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  align-self: stretch;
+  border: 1px solid color-mix(in srgb, var(--adn-color-danger) 30%, #ffffff);
+  border-radius: var(--adn-radius-sm);
+  background: transparent;
+  padding: 0 var(--adn-space-3, 12px);
+}
+
+.adn-settings__template-list .adn-settings__remove:hover {
+  background: color-mix(in srgb, var(--adn-color-danger) 6%, transparent);
+}
+
+/* Variavel: chip com estado, nao link solto. */
+.adn-settings__variable {
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-surface);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__variable:hover {
+  border-color: var(--adn-color-accent);
+}
+
+.adn-settings__variable-name {
+  font-family: var(--adn-font-mono);
+  font-weight: 600;
+  color: var(--adn-color-accent);
+}
+
+.adn-settings__variable--used {
+  background: var(--adn-color-accent-soft);
+}
+
+/* Campos com altura de toque e foco visivel — o default do navegador some no cartao branco. */
+.adn-settings__field input,
+.adn-settings__field textarea,
+.adn-settings__field select {
+  border: 1px solid color-mix(in srgb, var(--adn-color-border) 70%, var(--adn-color-muted));
+  border-radius: var(--adn-radius-sm);
+  padding: 9px 12px;
+  font: inherit;
+  color: inherit;
+  background: var(--adn-color-surface);
+}
+
+.adn-settings__field input:focus-visible,
+.adn-settings__field textarea:focus-visible,
+.adn-settings__field select:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: -1px;
+  border-color: var(--adn-color-accent);
+}
+
+/**
+ * O preview reduz para caber, e o rotulo diz a medida REAL.
+ *
+ * 600px + 375px nao cabem lado a lado dentro de um painel que ja tem barra lateral. Sem a reducao
+ * os quadros quebram para baixo e a comparacao morre — entao a escala e o que preserva a unica
+ * coisa que este preview faz: mostrar o corte que so acontece num dos dois.
+ */
+.adn-settings__previews {
+  background: var(--adn-color-canvas);
+  border-top: 1px solid var(--adn-color-border);
+  padding-top: var(--adn-space-4, 16px);
+  padding-bottom: var(--adn-space-4, 16px);
+}
+
+.adn-settings__preview-frames {
+  /* 0.52 e nao 0.62: a 0.62 os dois quadros somavam 673px num container de 654 e quebravam para
+     baixo — empilhados eles nao comparam nada, que e a unica coisa que o preview duplo faz. */
+  --adn-preview-scale: 0.52;
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.adn-settings__preview-frame {
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-surface);
+  width: var(--adn-preview-width, 600px);
+  /**
+   * `zoom`, e nao `transform: scale()`.
+   *
+   * `transform` desenha menor mas nao encolhe a caixa no layout: o quadro continuava reservando
+   * 600px de largura e a altura inteira, deixando um rombo branco ao lado e embaixo — foi o que
+   * apareceu na primeira montagem. `zoom` reduz de verdade, e as duas medidas acompanham sem
+   * margem negativa para compensar.
+   */
+  zoom: var(--adn-preview-scale);
+}
+
+.adn-settings__preview-subject {
+  font-weight: 600;
+}
+
+.adn-settings__preview-warning {
+  font-weight: 500;
+}
+
+/* Rodape: a acao e a consequencia dela no mesmo lugar. */
+.adn-settings__actions {
+  border-top: 1px solid var(--adn-color-border);
+  background: var(--adn-color-canvas);
+  padding-top: var(--adn-space-3, 12px);
+  padding-bottom: var(--adn-space-3, 12px);
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-3, 12px);
+}
+
+.adn-settings__actions button:first-child {
+  border: 0;
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+
+.adn-settings__actions button:first-child:disabled {
+  background: var(--adn-color-faint);
+  color: #ffffff;
+}
+
+/* Abas: sublinhado do acento em vez de dois botoes iguais. */
+.adn-settings__tab {
+  font-weight: 500;
+  min-height: 40px;
+}
+
+.adn-settings__tab--active {
+  font-weight: 600;
+}
+
+/* Politica de canal: cada assunto e uma linha, nao um amontoado. */
+.adn-settings__policies .adn-settings__category {
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-surface);
+  padding: var(--adn-space-3, 12px) var(--adn-space-4, 16px);
+}
+
+.adn-settings__category-title {
+  font-weight: 500;
+  margin: 0 0 var(--adn-space-2, 8px);
+}
+
+/* ── Tema escuro ──────────────────────────────────────────────────────────────────────────── */
+
+.dark .adn-bell,
+.dark .adn-list,
+.dark .adn-preferences,
+.dark .adn-workspace,
+.dark .adn-settings {
+  --adn-color-surface: var(--adn-surface, #0f172a);
+  --adn-color-text: var(--adn-text, #e2e8f0);
+  --adn-color-muted: var(--adn-muted, #94a3b8);
+  --adn-color-border: var(--adn-border, #1e293b);
+  --adn-color-canvas: var(--adn-canvas, #0b1220);
+  --adn-color-accent-soft: color-mix(in srgb, var(--adn-color-accent) 22%, #0f172a);
+  --adn-color-accent-line: color-mix(in srgb, var(--adn-color-accent) 45%, #0f172a);
+  --adn-color-faint: color-mix(in srgb, var(--adn-color-muted) 40%, #0f172a);
+  --adn-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Molduras de preview por canal ───────────────────────────────────────────────────────────
+ *
+ * Ver `TemplatePreview.tsx` para o porquê: o enquadramento e o corte SAO a informacao. Estes
+ * tamanhos sao os reais do canal, e o `zoom` do quadro reduz o conjunto para caber no painel.
+ */
+
+.adn-preview-phone {
+  border: 8px solid var(--adn-preview-bezel, #1e2532);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* iOS e mais arredondado e mais largo; Android e mais reto e mais estreito. Nao e enfeite: a
+   largura muda onde a linha quebra, e e por isso que os dois ficam lado a lado. */
+.adn-preview-phone--ios {
+  width: 375px;
+  border-radius: 34px;
+}
+
+.adn-preview-phone--android {
+  width: 360px;
+  border-radius: 18px;
+}
+
+.adn-preview-phone--dark { background: var(--adn-preview-lockscreen, #0b1220); }
+
+.adn-preview-phone__screen { min-height: 260px; display: flex; flex-direction: column; }
+
+.adn-preview-browser {
+  width: 600px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.adn-preview-browser__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-preview-browser__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--adn-preview-chrome-dot, #cbd5e1);
+}
+
+.adn-preview-browser__address {
+  flex: 1;
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid var(--adn-color-border);
+  font-size: 11px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mail { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.adn-preview-mail--compact { padding: 14px 16px; gap: 8px; }
+
+.adn-preview-mail__subject {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  /* Duas linhas: o cliente de e-mail corta o assunto, e e ai que o limite do canal aparece. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.adn-preview-mail__from { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.adn-preview-mail__sender { font-weight: 500; }
+.adn-preview-mail__to { color: var(--adn-color-muted); }
+
+.adn-preview-mail__body {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--adn-preview-mail-text, #334155);
+  white-space: pre-wrap;
+}
+
+.adn-preview-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--adn-color-accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.adn-preview-avatar--small { width: 18px; height: 18px; font-size: 10px; }
+
+/* WhatsApp: papel de parede da conversa e balao recebido, com a ponta a esquerda. */
+.adn-preview-wa {
+  flex: 1;
+  padding: 16px 12px;
+  background: var(--adn-preview-wa-wallpaper, #efeae2);
+  display: flex;
+}
+
+.adn-preview-wa__bubble {
+  position: relative;
+  max-width: 85%;
+  background: #ffffff;
+  border-radius: 8px;
+  border-top-left-radius: 0;
+  padding: 8px 10px 6px;
+  box-shadow: 0 1px 1px var(--adn-preview-wa-shadow, rgba(11, 20, 26, 0.13));
+  align-self: flex-start;
+}
+
+.adn-preview-wa__text { font-size: 15px; line-height: 1.45; color: var(--adn-preview-wa-text, #111b21); white-space: pre-wrap; }
+.adn-preview-wa__time { font-size: 11px; color: var(--adn-preview-wa-time, #667781); text-align: right; margin-top: 2px; }
+
+/* SMS: sem assunto, sem formatacao — e o canal mais cru dos cinco. */
+.adn-preview-sms { flex: 1; padding: 16px 12px; background: #ffffff; display: flex; }
+
+.adn-preview-sms__bubble {
+  max-width: 85%;
+  background: var(--adn-preview-sms-bubble, #e9e9eb);
+  color: var(--adn-preview-sms-text, #000000);
+  border-radius: 18px;
+  padding: 9px 13px;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  align-self: flex-start;
+}
+
+/* Push: tela bloqueada, e o corte de duas linhas que o sistema aplica. */
+.adn-preview-push {
+  flex: 1;
+  padding: 40px 12px 16px;
+  background: var(--adn-preview-lockscreen-bg, linear-gradient(160deg, #172033, #0b1220));
+  display: flex;
+  align-items: flex-start;
+}
+
+.adn-preview-push__card {
+  width: 100%;
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: var(--adn-preview-push-card, rgba(255, 255, 255, 0.92));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.adn-preview-push__app {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--adn-preview-push-app, #4b5563);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.adn-preview-push__time { margin-left: auto; text-transform: none; letter-spacing: 0; }
+.adn-preview-push__title { font-size: 14px; font-weight: 600; color: var(--adn-preview-push-title, #111827); }
+
+.adn-preview-push__body {
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--adn-preview-push-body, #374151);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Inbox: o cartao da propria lista de notificacoes do produto. */
+.adn-preview-inbox {
+  width: 480px;
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--adn-color-surface);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+}
+
+.adn-preview-inbox__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--adn-color-accent);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.adn-preview-inbox__text { display: flex; flex-direction: column; gap: 3px; }
+.adn-preview-inbox__title { font-size: 14px; font-weight: 600; }
+.adn-preview-inbox__body { font-size: 13px; line-height: 1.5; color: var(--adn-color-muted); white-space: pre-wrap; }
+
+/* SMS: o balao do Android e menos arredondado e tem a ponta presa no canto. */
+.adn-preview-phone--android .adn-preview-sms__bubble {
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  background: var(--adn-preview-sms-bubble-android, #e8eaed);
+}
+
+/* Push: no Android o cartao e mais reto e o nome do app vem em caixa alta menor. */
+.adn-preview-phone--android .adn-preview-push__card {
+  border-radius: 24px;
+}
+
+.adn-preview-phone--ios .adn-preview-push__card {
+  border-radius: 14px;
+}
+
+.adn-preview-phone--android .adn-preview-push__title {
+  font-weight: 500;
+}
+
+/* WhatsApp no Android usa raio menor no balao. */
+.adn-preview-phone--android .adn-preview-wa__bubble {
+  border-radius: 6px;
+  border-top-left-radius: 0;
+}
+
+/* ── Alinhamento dos campos ──────────────────────────────────────────────────────────────────
+ *
+ * Os campos vinham cada um com a sua altura e o seu espacamento porque `label`, `fieldset` e o
+ * bloco de identidade eram estilizados em lugares diferentes. Uma so regra para todos: rotulo,
+ * dica e controle na mesma pilha, com a mesma distancia — e a linha de baixo do controle bate
+ * entre colunas vizinhas.
+ */
+
+.adn-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.adn-settings__field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 0;
+}
+
+/* A dica fica presa ao rotulo, e nao flutuando com o mesmo peso do campo. */
+.adn-settings__field .adn-settings__hint {
+  margin: -2px 0 2px;
+  line-height: 1.4;
+}
+
+/* Altura igual nos tres controles, senao a linha de baixo nao bate entre colunas. */
+.adn-settings__field input,
+.adn-settings__field select {
+  min-height: 40px;
+}
+
+.adn-settings__field textarea {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+/* Identidade: chave larga, canais e idioma ao lado, alinhados pelo TOPO — com `stretch` o bloco
+   de canais esticava e empurrava os vizinhos. */
+.adn-settings__identity {
+  align-items: start;
+  gap: var(--adn-space-3, 12px);
+}
+
+@media (min-width: 640px) {
+  .adn-settings__identity {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
+.adn-settings__channel-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__channel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  background: var(--adn-color-surface);
+  cursor: pointer;
+}
+
+.adn-settings__channel-chip:hover {
+  border-color: var(--adn-color-accent-line);
+}
+
+/* O chip marcado se anuncia inteiro, e nao so pelo quadradinho. */
+.adn-settings__channel-chip:has(input:checked) {
+  border-color: var(--adn-color-accent);
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+  font-weight: 500;
+}
+
+.adn-settings__channel-chip input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--adn-color-accent);
+}
+
+/* Tres quadros lado a lado (navegador, iPhone, Android) somam mais que dois: a escala desce para
+   caber sem quebrar a comparacao, que e a razao de eles ficarem juntos. */
+.adn-settings__preview-frames {
+  --adn-preview-scale: 0.46;
+  gap: var(--adn-space-3, 12px);
+}
+
+.adn-settings__preview-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2, 8px);
+  padding-top: var(--adn-space-3, 12px);
+}
+
+.adn-settings__preview-group + .adn-settings__preview-group {
+  border-top: 1px dashed var(--adn-color-border);
+}
+
+.adn-settings__preview-channel {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--adn-color-accent);
+}
+
+/* ── Aparelho completo ───────────────────────────────────────────────────────────────────────
+ * Barra de status, recorte de camera e barra de gesto. Aqui a barra pintada e correta: isto e o
+ * RETRATO de um aparelho, nao uma tela rodando num aparelho — sem ela o quadro nao se le como
+ * celular.
+ */
+
+.adn-preview-phone__screen {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.adn-preview-phone--ios .adn-preview-phone__screen { border-radius: 26px; }
+.adn-preview-phone--android .adn-preview-phone__screen { border-radius: 10px; }
+
+.adn-preview-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adn-preview-status, #111827);
+  flex-shrink: 0;
+}
+
+.adn-preview-phone--dark .adn-preview-status { color: #ffffff; }
+
+.adn-preview-status__time { min-width: 34px; }
+
+.adn-preview-status__icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* Ilha central no iOS, furo a esquerda no Android — e o que identifica o aparelho de relance. */
+.adn-preview-phone__island {
+  width: 62px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--adn-preview-bezel, #1e2532);
+  margin: 0 auto;
+}
+
+.adn-preview-phone__punch {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--adn-preview-bezel, #1e2532);
+  margin-left: 6px;
+}
+
+.adn-preview-phone__content { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.adn-preview-phone__gesture {
+  width: 108px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--adn-preview-gesture, rgba(17, 24, 39, 0.35));
+  margin: 6px auto 7px;
+  flex-shrink: 0;
+}
+
+.adn-preview-phone--dark .adn-preview-phone__gesture { background: rgba(255, 255, 255, 0.5); }
+.adn-preview-phone--android .adn-preview-phone__gesture { width: 88px; }
+
+/* ── Cliente de e-mail ───────────────────────────────────────────────────────────────────────
+ * Layout de leitor de e-mail — busca, conta, remetente, assunto, acoes. Sao convencoes que todos
+ * os clientes compartilham; nenhuma marca de terceiro e reproduzida.
+ */
+
+.adn-preview-mailapp { display: flex; flex-direction: column; }
+
+.adn-preview-mailapp__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-preview-mailapp__menu { display: inline-flex; flex-direction: column; gap: 3px; }
+
+.adn-preview-mailapp__menu span {
+  width: 15px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--adn-preview-mail-text, #334155);
+  display: block;
+}
+
+.adn-preview-mailapp__search {
+  flex: 1;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  font-size: 12px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mailapp__actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  color: var(--adn-preview-mail-text, #334155);
+  border-bottom: 1px solid var(--adn-color-border);
+  flex-shrink: 0;
+}
+
+.adn-preview-mailapp__spacer { flex: 1; }
+
+.adn-preview-mail__time { margin-left: auto; font-size: 12px; color: var(--adn-color-muted); }
+
+/* ── Rolagem dentro do quadro ────────────────────────────────────────────────────────────────
+ *
+ * O quadro tem altura fixa (e o aparelho tem altura de aparelho): mensagem longa era simplesmente
+ * cortada, sem jeito de ver o resto. Quem escreve precisa chegar ao fim do texto no proprio
+ * preview. A rolagem fica DENTRO do aparelho, como no aparelho de verdade.
+ */
+
+.adn-preview-phone__content {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.adn-preview-mailapp__body-scroll,
+.adn-preview-wa,
+.adn-preview-sms {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Altura de aparelho: sem isto a moldura cresce com o texto e deixa de parecer um celular. */
+.adn-preview-phone--ios .adn-preview-phone__screen { height: 760px; }
+.adn-preview-phone--android .adn-preview-phone__screen { height: 740px; }
+
+.adn-preview-browser__viewport {
+  height: 620px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A fileira de quadros rola na horizontal quando o canal tem tres — a pagina nunca rola. */
+.adn-settings__preview-frames {
+  overflow-x: auto;
+  padding-bottom: var(--adn-space-2, 8px);
+}
+
+/* ── Silhueta do aparelho ────────────────────────────────────────────────────────────────────
+ * Moldura fina e botoes laterais, como num mockup de aparelho — sem eles a caixa preta nao se le
+ * como celular por mais arredondada que seja.
+ */
+
+.adn-preview-phone { position: relative; border-width: 5px; }
+
+.adn-preview-phone__btn {
+  position: absolute;
+  background: var(--adn-preview-bezel, #1e2532);
+  border-radius: 2px;
+}
+
+.adn-preview-phone__btn--mute { left: -7px; top: 96px; width: 3px; height: 26px; }
+.adn-preview-phone__btn--up { left: -7px; top: 140px; width: 3px; height: 46px; }
+.adn-preview-phone__btn--down { left: -7px; top: 198px; width: 3px; height: 46px; }
+.adn-preview-phone__btn--power { right: -7px; top: 160px; width: 3px; height: 70px; }
+
+.adn-preview-phone--android .adn-preview-phone__btn--mute { display: none; }
+.adn-preview-phone--android .adn-preview-phone__btn--up { top: 120px; height: 40px; }
+.adn-preview-phone--android .adn-preview-phone__btn--down { top: 168px; height: 40px; }
+
+/* ── Leitor de e-mail: barra de acoes e identidade do remetente ─────────────────────────────── */
+
+.adn-preview-mailapp__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 20px;
+  color: var(--adn-preview-mail-icon, #5f6368);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-preview-mailapp__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mail__identity { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.adn-preview-mail__from { align-items: flex-start; }
+
+.adn-preview-mail__subject {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* Bloco por canal: cada um com o proprio texto e o proprio preview. */
+.adn-settings__channel-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-3, 12px);
+  padding: var(--adn-space-4, 16px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-canvas);
+}
+
+.adn-settings__channel-block-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--adn-space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.adn-settings__channel-block .adn-settings__previews {
+  border-top: 1px solid var(--adn-color-border);
+  background: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.adn-settings__channel-block input,
+.adn-settings__channel-block textarea {
+  background: var(--adn-color-surface);
+}
+
+/* Abas de canal dentro do editor — o mesmo desenho das abas do topo, um nivel abaixo. */
+.adn-settings__channel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--adn-space-1, 4px);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-settings__channel-tabs .adn-settings__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  color: var(--adn-color-muted);
+  min-height: 40px;
+}
+
+.adn-settings__channel-tabs .adn-settings__tab--active {
+  border-bottom-color: var(--adn-color-accent);
+  color: var(--adn-color-accent);
+}
+
+/* Ponto: este canal ainda nao tem texto, e e ele que segura o salvar. */
+.adn-settings__tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--adn-color-danger);
+}
+
+/* Sem aba, o bloco perde a borda: ele ja esta dentro do painel da aba. */
+.adn-settings__channel-block {
+  border: 0;
+  background: transparent;
+  padding: var(--adn-space-3, 12px) 0 0;
+}
+
+/* ── Leitor de e-mail: anatomia completa ─────────────────────────────────────────────────────
+ * Trilho de acoes, barra de ferramentas, contador, assunto com pasta, e a linha do remetente com
+ * endereco e acoes. Convencoes compartilhadas por todo cliente — nenhuma marca reproduzida.
+ */
+
+.adn-preview-mailapp__account { display: inline-flex; align-items: center; gap: 12px; color: var(--adn-preview-mail-icon, #5f6368); }
+
+.adn-preview-mailapp__split { display: flex; min-height: 0; }
+
+.adn-preview-mailapp__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  color: var(--adn-preview-mail-icon, #5f6368);
+  flex-shrink: 0;
+}
+
+.adn-preview-mailapp__compose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+}
+
+.adn-preview-mailapp__rail-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+}
+
+.adn-preview-mailapp__rail-item--active {
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+}
+
+.adn-preview-mailapp__divider {
+  width: 1px;
+  height: 16px;
+  background: var(--adn-color-border);
+}
+
+.adn-preview-mailapp__toolbar { gap: 12px; }
+
+.adn-preview-mailapp__counter {
+  font-size: 11px;
+  color: var(--adn-color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.adn-preview-mail__subject-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adn-preview-mail__folder {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  color: var(--adn-color-muted);
+  white-space: nowrap;
+}
+
+.adn-preview-mail__subject-actions,
+.adn-preview-mail__from-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  color: var(--adn-preview-mail-icon, #5f6368);
+  flex-shrink: 0;
+}
+
+.adn-preview-mail__sender-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.adn-preview-mail__address { font-size: 12px; color: var(--adn-color-muted); }
+
+.adn-preview-mail__unsubscribe {
+  font-size: 12px;
+  color: var(--adn-color-accent);
+  font-weight: 500;
+}
+
+/* Celular: a barra de acoes nao rola com a mensagem. */
+.adn-preview-mailapp__actions { position: sticky; top: 0; z-index: 1; background: var(--adn-color-surface); }
+
+.adn-preview-mailapp__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
+/* Com a barra fixa, quem rola e o miolo — nao o conteudo inteiro do aparelho. */
+.adn-preview-phone__content { overflow: hidden; }
+
+/* ── WhatsApp: a tela da conversa ────────────────────────────────────────────────────────────
+ * Cabecalho, papel de parede, balao recebido e barra de digitar. O balao sozinho nao enquadra o
+ * texto no tamanho que ele ocupa de verdade.
+ */
+
+.adn-preview-wa__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--adn-preview-wa-header, #075e54);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.adn-preview-wa__avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.adn-preview-wa__contact { display: flex; flex-direction: column; min-width: 0; }
+.adn-preview-wa__name { font-size: 14px; font-weight: 500; }
+.adn-preview-wa__status { font-size: 11px; opacity: 0.85; }
+.adn-preview-wa__header-actions { display: inline-flex; align-items: center; gap: 14px; margin-left: auto; }
+
+.adn-preview-wa {
+  flex: 1;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.adn-preview-wa__day {
+  align-self: center;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--adn-preview-wa-time, #667781);
+}
+
+/* A ponta do balao: e o que faz o retangulo virar mensagem recebida. */
+.adn-preview-wa__bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 0;
+  width: 8px;
+  height: 13px;
+  background: #ffffff;
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+}
+
+.adn-preview-wa__composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--adn-preview-wa-wallpaper, #efeae2);
+  flex-shrink: 0;
+}
+
+.adn-preview-wa__input {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  font-size: 13px;
+  color: var(--adn-preview-wa-time, #667781);
+}
+
+.adn-preview-wa__send {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--adn-preview-wa-send, #00a884);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── E-mail no celular: outra tela, nao a do navegador encolhida ─────────────────────────────── */
+
+.adn-preview-mail__reply {
+  display: flex;
+  gap: 10px;
+  padding-top: var(--adn-space-3, 12px);
+}
+
+.adn-preview-mail__reply-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--adn-preview-mail-text, #334155);
+}
+
+/* ── Respiro interno ─────────────────────────────────────────────────────────────────────────
+ * A area de preview e a de canais encostavam nas bordas do cartao.
+ */
+
+.adn-settings__previews {
+  padding: var(--adn-space-4, 16px);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-canvas);
+}
+
+.adn-settings__channel-block .adn-settings__previews {
+  background: var(--adn-color-canvas);
+  padding: var(--adn-space-4, 16px);
+}
+
+.adn-settings__field--channels {
+  padding: var(--adn-space-3, 12px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-surface);
+}
+
+.adn-settings__channel-tabs {
+  padding: 0 var(--adn-space-1, 4px);
+  margin-top: var(--adn-space-2, 8px);
+}
+
+.adn-settings__channel-block {
+  padding: var(--adn-space-4, 16px) var(--adn-space-1, 4px) 0;
+}
+
+.adn-settings__policies .adn-settings__category + .adn-settings__category {
+  margin-top: var(--adn-space-2, 8px);
+}
+
+/* ── App de e-mail no aparelho ───────────────────────────────────────────────────────────────
+ * Anatomia propria: assunto grande antes do remetente, avatar maior, horario e estrela na linha do
+ * remetente, destinatario numa linha que expande, e as respostas no fim.
+ */
+
+.adn-preview-mail--compact { padding: 16px 16px 20px; gap: 10px; }
+
+.adn-preview-mail--compact .adn-preview-mail__subject {
+  font-size: 22px;
+  line-height: 1.25;
+  -webkit-line-clamp: 3;
+}
+
+.adn-preview-avatar--large { width: 36px; height: 36px; font-size: 15px; }
+
+.adn-preview-mail__from--mobile { gap: 12px; padding-top: 4px; }
+
+.adn-preview-mail__from--mobile .adn-preview-mail__sender-row {
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.adn-preview-mail__from--mobile .adn-preview-mail__sender { font-size: 14px; font-weight: 600; }
+
+.adn-preview-mail__recipients {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--adn-color-muted);
+}
+
+.adn-preview-mail--compact .adn-preview-mail__body { font-size: 15px; line-height: 1.65; }
+
+.adn-preview-mail__reply { flex-wrap: wrap; padding-top: var(--adn-space-4, 16px); }
+
+.adn-preview-mail--compact .adn-preview-mail__reply-button {
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
+/* ── Lista: busca, filtros e grupos ──────────────────────────────────────────────────────────
+ * Com uma notificacao a lista era um cartao; com trinta vira um paredao. Busca sobre chave e
+ * texto, filtro por categoria e por canal, e grupos pela categoria da chave.
+ */
+
+.adn-settings__list-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2, 8px);
+  padding-bottom: var(--adn-space-3, 12px);
+}
+
+.adn-settings__search input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius-sm);
+  font: inherit;
+  color: inherit;
+  background: var(--adn-color-surface);
+}
+
+.adn-settings__search input:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: -1px;
+}
+
+.adn-settings__filter-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Composto pelo mesmo motivo do Remover: `.adn-settings__template-list button` tem especificidade
+   maior e estica todo botao da coluna para 100%, empilhando os filtros um por linha. */
+.adn-settings__template-list .adn-settings__filter {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: 999px;
+  background: var(--adn-color-surface);
+  font-size: 0.75rem;
+  color: var(--adn-color-muted);
+  min-height: 30px;
+}
+
+.adn-settings__template-list .adn-settings__filter:hover { border-color: var(--adn-color-accent-line); }
+
+.adn-settings__template-list .adn-settings__filter--on {
+  border-color: var(--adn-color-accent);
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+  font-weight: 500;
+}
+
+.adn-settings__template-list .adn-settings__clear {
+  width: auto;
+  align-self: flex-start;
+  border: 0;
+  background: none;
+  padding: 2px 0;
+  font-size: 0.75rem;
+  color: var(--adn-color-accent);
+  text-decoration: underline;
+  min-height: auto;
+}
+
+.adn-settings__group { display: flex; flex-direction: column; gap: var(--adn-space-2, 8px); }
+.adn-settings__group + .adn-settings__group { margin-top: var(--adn-space-4, 16px); }
+
+.adn-settings__group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__group-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--adn-preview-chrome, #f1f5f9);
+  font-size: 0.6875rem;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Rotulo lido por leitor de tela, invisivel na tela — o campo de busca ja tem placeholder. */
+.adn-settings__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Respiro da coluna de mensagens ──────────────────────────────────────────────────────────
+ * O cartao da lista gastava 273px dos 668px em cabecalho e filtros antes da primeira mensagem, e
+ * a coluna do editor reservava 688px de largura para uma linha de 20px de texto. Aqui a moldura
+ * encolhe, o ritmo vertical passa a andar na grade de 4px, e o vazio do editor vira estado.
+ */
+
+.adn-settings__list-header {
+  padding-bottom: var(--adn-space-2, 8px);
+}
+
+/* Borda no lugar de espaco: separa a moldura do conteudo sem gastar altura. */
+.adn-settings__list-filters {
+  gap: 6px;
+  padding-bottom: var(--adn-space-3, 12px);
+  margin-bottom: var(--adn-space-3, 12px);
+  border-bottom: 1px solid var(--adn-color-border);
+}
+
+.adn-settings__search input {
+  min-height: 36px;
+  padding: 7px 12px;
+}
+
+.adn-settings__template-list .adn-settings__filter {
+  min-height: 26px;
+  padding: 3px 10px;
+}
+
+.adn-settings__template-list .adn-settings__row > button:first-child {
+  padding: var(--adn-space-2, 8px) var(--adn-space-3, 12px);
+}
+
+/* ── Navegando: sem rascunho, so a lista ─────────────────────────────────────────────────────
+ * A coluna do editor nao e renderizada enquanto nada esta selecionado, entao a lista fica com a
+ * largura inteira e as mensagens se espalham em cartoes em vez de empilhar numa faixa de 320px.
+ */
+
+.adn-settings__templates--browsing {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .adn-settings__templates--browsing {
+    grid-template-columns: 1fr;
+  }
+
+  /* A moldura (cabecalho, busca, filtros) volta a caber numa linha so quando ha largura. */
+  .adn-settings__templates--browsing .adn-settings__list-filters {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .adn-settings__templates--browsing .adn-settings__search {
+    flex: 1 1 260px;
+    min-width: 0;
+  }
+
+  /* Grade de cartoes: a lista larga vira colunas, nao linhas de 1024px de ponta a ponta. */
+  .adn-settings__templates--browsing .adn-settings__template-list ul {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--adn-space-2, 8px);
+  }
+}
+
+/* Na grade, o Remover ficava com quase um terco do cartao. Ele e acao secundaria: encolhe. */
+@media (min-width: 1024px) {
+  .adn-settings__templates--browsing .adn-settings__template-list .adn-settings__remove {
+    align-self: center;
+    padding: 0 var(--adn-space-2, 8px);
+    font-size: 0.75rem;
+    min-height: 32px;
+  }
+}
+
+/* ── Tabela e lista: duas leituras da mesma colecao ──────────────────────────────────────────
+ * A tabela alinha canal e versao em coluna para comparar trinta mensagens de relance; a lista
+ * mostra o texto em duas linhas para reconhecer uma delas. O alternador fica no cabecalho.
+ */
+
+.adn-settings__list-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__view-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-surface);
+}
+
+.adn-settings__template-list .adn-settings__view {
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 var(--adn-space-3, 12px);
+  border: 0;
+  border-radius: calc(var(--adn-radius-sm) - 1px);
+  background: transparent;
+  font-size: 0.75rem;
+  color: var(--adn-color-muted);
+  white-space: nowrap;
+}
+
+.adn-settings__template-list .adn-settings__view--on {
+  background: var(--adn-color-accent-soft);
+  color: var(--adn-color-accent);
+  font-weight: 600;
+}
+
+/* O scroll horizontal mora aqui dentro; a pagina nunca rola de lado (web.md §10). */
+.adn-settings__table-scroll {
+  overflow-x: auto;
+}
+
+.adn-settings__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.adn-settings__table th {
+  padding: 0;
+  text-align: left;
+  border-bottom: 1px solid var(--adn-color-border);
+  white-space: nowrap;
+}
+
+.adn-settings__template-list .adn-settings__table th button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-height: 34px;
+  padding: 0 var(--adn-space-3, 12px);
+  border: 0;
+  background: transparent;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__table th > span {
+  display: inline-block;
+  padding: 0 var(--adn-space-3, 12px);
+}
+
+.adn-settings__sort-mark {
+  font-size: 0.75rem;
+  letter-spacing: 0;
+}
+
+.adn-settings__table td {
+  padding: var(--adn-space-2, 8px) var(--adn-space-3, 12px);
+  border-bottom: 1px solid var(--adn-color-border);
+  vertical-align: middle;
+}
+
+/* Zebra por CSS, nunca estilo inline (web.md §7). */
+.adn-settings__table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--adn-color-muted) 5%, transparent);
+}
+
+.adn-settings__table tbody tr:hover {
+  background: var(--adn-color-accent-soft);
+}
+
+.adn-settings__table-row--active {
+  box-shadow: inset 3px 0 0 var(--adn-color-accent);
+}
+
+.adn-settings__template-list .adn-settings__table-key {
+  width: auto;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--adn-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+}
+
+.adn-settings__table-body {
+  /* Uma linha por celula: a tabela e para comparar, nao para ler o texto inteiro. */
+  max-width: 42ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--adn-color-muted);
+}
+
+.adn-settings__table .adn-settings__version {
+  white-space: nowrap;
+}
+
+.adn-settings__template-list .adn-settings__table .adn-settings__remove {
+  align-self: center;
+  min-height: 30px;
+  padding: 0 var(--adn-space-2, 8px);
+  font-size: 0.75rem;
+}
+
+/* ── Respiro interno do bloco de edicao ──────────────────────────────────────────────────────
+ * O cartao dava padding LATERAL aos filhos e nada na vertical: os campos de identidade nasciam
+ * colados na borda do cabecalho, os blocos entre si dependiam de um `margin-top` avulso aqui e
+ * ali, e a barra de salvar terminava rente ao pe do cartao. Uma pilha com um ritmo so resolve os
+ * tres — e as margens avulsas saem, senao dobram com o `gap`.
+ */
+
+.adn-settings__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-4, 16px);
+  padding-bottom: var(--adn-space-4, 16px);
+}
+
+.adn-settings__editor > .adn-settings__channel-tabs,
+.adn-settings__editor > .adn-settings__variables,
+.adn-settings__editor > .adn-settings__identity {
+  margin-top: 0;
+}
+
+/* Rodape com borda, espelhando o cabecalho: o salvar deixa de flutuar no fim do texto. */
+.adn-settings__editor > .adn-settings__actions {
+  margin-top: 0;
+  padding-top: var(--adn-space-4, 16px);
+  border-top: 1px solid var(--adn-color-border);
+}
+
+/* O bloco do canal ja recebe o ritmo do pai; o padding-top proprio virava espaco dobrado. */
+.adn-settings__editor > .adn-settings__channel-block {
+  padding-top: 0;
+}
+
+/* ── Botoes que parecem botoes ───────────────────────────────────────────────────────────────
+ * `.adn-settings__template-list button` tem especificidade (0,1,1) e vencia `.adn-settings__new`
+ * (0,1,0): o botao primario saia sem fundo, sem cor e sem borda — texto solto. Mesmo motivo que ja
+ * obrigou o seletor composto em `__remove` e `__filter`. E o Fechar nao tinha classe nenhuma.
+ */
+
+.adn-settings__button-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  /* Acompanha hover, disabled e variante destrutiva sem regra extra (web.md §9). */
+  color: currentColor;
+}
+
+.adn-settings__template-list .adn-settings__new,
+.adn-settings__new {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 var(--adn-space-3, 12px);
+  border: 1px solid var(--adn-color-accent);
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-accent);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.adn-settings__template-list .adn-settings__new:hover,
+.adn-settings__new:hover {
+  background: color-mix(in srgb, #000000 10%, var(--adn-color-accent));
+}
+
+/* Secundario ao lado de um primario: contorno, nao preenchimento (web.md §9). */
+.adn-settings__close {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+  min-height: 34px;
+  padding: 0 var(--adn-space-3, 12px);
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius-sm);
+  background: var(--adn-color-surface);
+  color: var(--adn-color-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.adn-settings__close:hover {
+  border-color: var(--adn-color-accent-line);
+  color: var(--adn-color-text);
+}
+
+.adn-settings__template-list .adn-settings__remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.adn-settings__new:focus-visible,
+.adn-settings__close:focus-visible,
+.adn-settings__template-list .adn-settings__view:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: 2px;
+}
+
+/* ── Fundo do preview ────────────────────────────────────────────────────────────────────────
+ * `--adn-color-canvas` e acento a 4% sobre branco: contra o cartao branco do editor ficava branco
+ * tambem, e os aparelhos do preview flutuavam sem chao. A mistura vai pelo TEXTO, que inverte
+ * junto com o tema — escurece no claro, clareia no escuro — em vez de fixar um cinza.
+ */
+
+.adn-settings__previews,
+.adn-settings__channel-block .adn-settings__previews {
+  background: color-mix(in srgb, var(--adn-color-text) 7%, var(--adn-color-canvas));
+  border: 1px solid var(--adn-color-border);
+}
+
+/* ── Margem lateral do bloco de edicao ───────────────────────────────────────────────────────
+ * `.adn-settings__channel-block` declara `padding: 16px 4px 0` e, com a mesma especificidade da
+ * regra generica `.adn-settings__editor > *`, vence por vir depois: o campo de titulo e o de texto
+ * nasciam a 4px da borda do cartao enquanto o resto do editor respirava 16px. Uma medida so para
+ * todos os filhos, e mais larga — o cartao ocupa 688px e 16px de cada lado somem nessa largura.
+ */
+
+.adn-settings__editor > * {
+  padding-left: var(--adn-space-6, 24px);
+  padding-right: var(--adn-space-6, 24px);
+}
+
+.adn-settings__editor > .adn-settings__channel-block,
+.adn-settings__editor > .adn-settings__channel-tabs {
+  padding-left: var(--adn-space-6, 24px);
+  padding-right: var(--adn-space-6, 24px);
+}
+
+.adn-settings__editor {
+  padding-bottom: var(--adn-space-6, 24px);
+}
+
+.adn-settings__editor > .adn-settings__editor-header {
+  padding-top: var(--adn-space-5, 20px);
+  padding-bottom: var(--adn-space-5, 20px);
+}
+
+/* A linha inteira e o alvo; o botao da chave continua sendo o foco de teclado. */
+.adn-settings__table-row {
+  cursor: pointer;
+}
+
+/* ── Preview de e-mail com a moldura do produto ──────────────────────────────────────────────
+ * O documento inteiro vive num `<iframe sandbox="">`: sem script, sem mesma-origem, e o CSS do
+ * e-mail nao vaza para o painel nem herda o dele. Altura fixa com rolagem interna porque o sandbox
+ * vazio impede medir o conteudo — e medir exigiria devolver a mesma-origem.
+ */
+
+.adn-preview-mail__frame {
+  display: block;
+  width: 100%;
+  min-height: 420px;
+  border: 0;
+  background: #ffffff;
+}
+
+.adn-settings__email-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-1, 4px);
+  margin: var(--adn-space-2, 8px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adn-settings__email-problem {
+  padding: var(--adn-space-2, 8px) var(--adn-space-3, 12px);
+  border-radius: var(--adn-radius-sm);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border-left: 3px solid transparent;
+}
+
+/* Erro reprova o envio; aviso so degrada. A cor diz qual e qual antes de a pessoa ler a frase. */
+.adn-settings__email-problem--error {
+  border-left-color: var(--adn-color-danger);
+  background: color-mix(in srgb, var(--adn-color-danger) 8%, transparent);
+  color: var(--adn-color-danger);
+}
+
+.adn-settings__email-problem--warning {
+  border-left-color: var(--adn-color-warning);
+  background: color-mix(in srgb, var(--adn-color-warning) 8%, transparent);
+  color: var(--adn-color-warning);
+}
+
+/* ── Editor de codigo ────────────────────────────────────────────────────────────────────────
+ * Sobreposicao: `<pre>` colorido embaixo, `<textarea>` transparente em cima. As DUAS camadas
+ * precisam da mesma metrica de texto ate o ultimo pixel — fonte, tamanho, entrelinha, quebra e
+ * recuo. Qualquer divergencia e o cursor descolando da letra, que e pior que nao ter realce.
+ */
+
+.adn-code {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-code__editor {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-canvas);
+}
+
+.adn-code__editor:focus-within {
+  border-color: var(--adn-color-accent);
+  box-shadow: 0 0 0 1px var(--adn-color-accent);
+}
+
+.adn-code__gutter {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 12px 10px;
+  border-right: 1px solid var(--adn-color-border);
+  font: 400 12.5px/1.6 var(--adn-font-mono);
+  color: var(--adn-color-muted);
+  text-align: right;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.adn-code__surface {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* A metrica compartilhada. Mexer aqui sem mexer no par desalinha as duas camadas. */
+.adn-code__highlight,
+.adn-code__input {
+  margin: 0;
+  padding: 12px 14px;
+  font: 400 12.5px/1.6 var(--adn-font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  tab-size: 2;
+  border: 0;
+}
+
+.adn-code__highlight {
+  min-height: 260px;
+  max-height: 420px;
+  overflow: auto;
+  color: var(--adn-color-text);
+}
+
+.adn-code__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  resize: vertical;
+  overflow: auto;
+  background: transparent;
+  /* Texto invisivel, cursor visivel: quem colore e a camada de baixo. */
+  color: transparent;
+  caret-color: var(--adn-color-text);
+  outline: none;
+}
+
+.adn-code__input::selection {
+  background: color-mix(in srgb, var(--adn-color-accent) 28%, transparent);
+}
+
+.adn-code__token--tag,
+.adn-code__token--name {
+  color: var(--adn-color-accent);
+}
+
+.adn-code__token--name {
+  font-weight: 600;
+}
+
+.adn-code__token--attribute {
+  color: color-mix(in srgb, var(--adn-color-accent) 55%, var(--adn-color-text));
+}
+
+.adn-code__token--value {
+  color: var(--adn-color-warning);
+}
+
+.adn-code__token--comment,
+.adn-code__token--doctype {
+  color: var(--adn-color-muted);
+  font-style: italic;
+}
+
+/* Variavel e o que o texto promete ao payload: destaque proprio, nem tag nem texto solto. */
+.adn-code__token--variable {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--adn-color-accent) 14%, transparent);
+  color: var(--adn-color-accent);
+  font-weight: 600;
+}
+
+/* ── Cabecalho da lista que nao vaza ─────────────────────────────────────────────────────────
+ * Titulo, alternador de visao e "Nova mensagem" somam mais que os 286px uteis da coluna, e as tres
+ * flex de fora estavam sem `wrap`: em vez de quebrar, a linha estourava e o botao saia POR CIMA da
+ * coluna do editor. Quebrar e a resposta; o `overflow: hidden` e a rede, para nenhum conteudo
+ * futuro repetir isso em silencio.
+ */
+
+.adn-settings__template-list {
+  overflow: hidden;
+}
+
+.adn-settings__list-header-row {
+  flex-wrap: wrap;
+  gap: var(--adn-space-2, 8px);
+}
+
+.adn-settings__list-header-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.adn-settings__template-list .adn-settings__new {
+  max-width: 100%;
+}
+
+/* ── Barra da caixa de mensagem ──────────────────────────────────────────────────────────────
+ * Ela escreve marcacao no texto (`*negrito*`, `_italico_`), nao HTML: a convencao e unica para
+ * todos os canais (conversation-flow.md §4).
+ */
+
+.adn-message-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.adn-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--adn-color-border);
+  border-bottom: 0;
+  border-radius: var(--adn-radius) var(--adn-radius) 0 0;
+  background: var(--adn-color-canvas);
+}
+
+.adn-message-field textarea {
+  border-radius: 0 0 var(--adn-radius) var(--adn-radius);
+}
+
+.adn-toolbar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--adn-radius-sm);
+  background: transparent;
+  color: var(--adn-color-muted);
+  cursor: pointer;
+}
+
+.adn-toolbar__button:hover {
+  background: var(--adn-color-surface);
+  color: var(--adn-color-text);
+}
+
+.adn-toolbar__button:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: -2px;
+}
+
+.adn-toolbar__divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--adn-color-border);
+}
+
+.adn-toolbar__emoji {
+  position: relative;
+}
+
+.adn-toolbar__palette {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 4px);
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 34px);
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-surface);
+  box-shadow: var(--adn-shadow-card);
+}
+
+.adn-toolbar__emoji-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--adn-radius-sm);
+  background: transparent;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.adn-toolbar__emoji-button:hover {
+  background: var(--adn-color-accent-soft);
 }
