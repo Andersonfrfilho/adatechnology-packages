@@ -5,6 +5,8 @@
 import { ConfigMissingError, EMAIL_DRIVER } from '@adatechnology/notification-contracts'
 import type { DeliveryAttemptResult, EmailDriverPort, SendEmailParams } from '@adatechnology/notification-contracts'
 
+import { AttachmentFetchError, fetchAttachments } from './fetchAttachments'
+import { buildMimeMessage } from './buildMimeMessage'
 import { isSesError, type SesSendClient } from './SesSendClient'
 
 export type SesEmailProviderConfig = {
@@ -51,6 +53,11 @@ async function initSesClient(config: SesEmailProviderConfig): Promise<SesSendCli
       )
       return { messageId: response.MessageId }
     },
+
+    async sendRawEmail(params) {
+      const response = await sesClient.send(new SendEmailCommand({ Content: { Raw: { Data: params.raw } } }))
+      return { messageId: response.MessageId }
+    },
   }
 }
 
@@ -67,15 +74,47 @@ export function createSesEmailProvider(config: SesEmailProviderConfig): EmailDri
     driver: EMAIL_DRIVER.SES,
     async send(params: SendEmailParams): Promise<DeliveryAttemptResult> {
       const client = await resolveClient()
+
+      // `retriable` porque a causa costuma ser a URL assinada vencida ou o storage fora do ar — os
+      // dois se resolvem numa nova tentativa, com assinatura nova.
+      let attachments
       try {
-        const result = await client.sendEmail({
-          from: config.from,
-          to: params.to,
-          subject: params.subject,
-          html: params.html,
-          text: params.text,
-          replyTo: params.replyTo,
-        })
+        attachments = await fetchAttachments(params.attachments)
+      } catch (error) {
+        if (error instanceof AttachmentFetchError) return { outcome: 'retriable', errorCode: error.errorCode }
+        throw error
+      }
+
+      try {
+        /**
+         * Sem anexo continua no caminho `Simple`, e nao no MIME montado a mao.
+         *
+         * Nao e otimizacao: o `Simple` deixa a AWS cuidar de codificacao de cabecalho, quebra de
+         * linha e charset. Montar MIME quando nao precisa e assumir esse trabalho — e os bugs dele —
+         * em todo e-mail do produto, para servir a minoria que leva arquivo.
+         */
+        const result =
+          attachments.length === 0
+            ? await client.sendEmail({
+                from: config.from,
+                to: params.to,
+                subject: params.subject,
+                html: params.html,
+                text: params.text,
+                replyTo: params.replyTo,
+              })
+            : await client.sendRawEmail({
+                raw: buildMimeMessage({
+                  from: config.from,
+                  to: params.to,
+                  subject: params.subject,
+                  html: params.html,
+                  text: params.text,
+                  replyTo: params.replyTo,
+                  attachments,
+                }),
+              })
+
         return { outcome: 'sent', providerMessageId: result.messageId }
       } catch (error) {
         return classifySesError(error)

@@ -19,8 +19,20 @@ export type SesSendResult = {
   readonly messageId?: string
 }
 
+/**
+ * Envio com o MIME ja montado.
+ *
+ * O `SendEmail` do SESv2 aceita `Simple` (assunto, HTML, texto) OU `Raw`, e so o `Raw` carrega
+ * anexo — nao existe campo de anexo no `Simple`. Entao o caminho com anexo e outro comando, com a
+ * mensagem inteira serializada por nos (`buildMimeMessage.ts`).
+ */
+export type SesSendRawParams = {
+  readonly raw: Uint8Array
+}
+
 export type SesSendClient = {
   sendEmail(params: SesSendParams): Promise<SesSendResult>
+  sendRawEmail(params: SesSendRawParams): Promise<SesSendResult>
 }
 
 export type SesError = {

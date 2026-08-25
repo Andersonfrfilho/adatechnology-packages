@@ -5,6 +5,7 @@
 import { ConfigMissingError, EMAIL_DRIVER } from '@adatechnology/notification-contracts'
 import type { DeliveryAttemptResult, EmailDriverPort, SendEmailParams } from '@adatechnology/notification-contracts'
 
+import { AttachmentFetchError, fetchAttachments } from './fetchAttachments'
 import type { ResendClientLike, ResendSendResult } from './ResendClient'
 
 export type ResendEmailProviderConfig = {
@@ -52,6 +53,17 @@ export function createResendEmailProvider(config: ResendEmailProviderConfig): Em
     driver: EMAIL_DRIVER.RESEND,
     async send(params: SendEmailParams): Promise<DeliveryAttemptResult> {
       const client = await resolveClient()
+
+      // Anexo antes da chamada: o Resend leva o arquivo dentro do JSON, entao sem os bytes nao ha o
+      // que enviar. `retriable` porque a causa costuma ser assinatura vencida ou storage fora.
+      let attachments
+      try {
+        attachments = await fetchAttachments(params.attachments)
+      } catch (error) {
+        if (error instanceof AttachmentFetchError) return { outcome: 'retriable', errorCode: error.errorCode }
+        throw error
+      }
+
       const result = await client.emails.send({
         from: config.from,
         to: params.to,
@@ -59,6 +71,15 @@ export function createResendEmailProvider(config: ResendEmailProviderConfig): Em
         html: params.html,
         text: params.text,
         replyTo: params.replyTo,
+        ...(attachments.length > 0
+          ? {
+              attachments: attachments.map((attachment) => ({
+                filename: attachment.filename,
+                content: Buffer.from(attachment.content).toString('base64'),
+                contentType: attachment.contentType,
+              })),
+            }
+          : {}),
       })
 
       if (result.error) return classifyResendError(result.error)
