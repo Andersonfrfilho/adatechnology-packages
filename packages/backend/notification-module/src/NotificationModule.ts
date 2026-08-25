@@ -198,6 +198,8 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     suppressionHmacKey: params.config.suppressionHmacKey,
     retryAttempts: params.config.retry?.attempts ?? 5,
     retryBackoffSeconds: params.config.retry?.backoffSeconds ?? 30,
+    // O mesmo catalogo que valida o `upsert` e alimenta a tela: aqui ele diz o que e anexo.
+    templateVariables: params.config.templateVariables ?? {},
   })
 
   const upsertTemplate = new UpsertTemplateUseCase(templates, params.config.templateVariables)
