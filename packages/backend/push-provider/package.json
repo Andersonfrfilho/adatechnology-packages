@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/push-provider",
-  "version": "0.1.0-rc.4",
+  "version": "0.1.0-rc.5",
   "description": "Stateless push notification providers (Expo, FCM) behind a single port — part of the notification trio",
   "license": "MIT",
   "publishConfig": {

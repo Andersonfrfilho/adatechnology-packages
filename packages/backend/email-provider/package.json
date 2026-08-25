@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/email-provider",
-  "version": "0.1.0-rc.4",
+  "version": "0.1.0-rc.5",
   "description": "Stateless email providers (SMTP, Resend, SES) behind a single port — part of the notification trio",
   "license": "MIT",
   "publishConfig": {
