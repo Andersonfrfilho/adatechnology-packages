@@ -2922,3 +2922,23 @@
   gap: var(--adn-space-2, 8px);
   flex-wrap: wrap;
 }
+
+/* ── O quadro do preview e moldura de layout, nao cartao ─────────────────────────────────────
+ * Ele pintava `--adn-color-surface` (branco) e desenhava borda, atras de um aparelho que ja tem
+ * corpo, moldura e sombra proprios. O resultado era um retangulo branco em volta do celular — duas
+ * molduras concorrendo, e a de fora sem significado nenhum.
+ *
+ * O quadro existe para prender a largura (`--adn-preview-width`) e o `zoom`. Isso ele continua
+ * fazendo; o que sai e a pintura.
+ */
+
+.adn-settings__preview-frame {
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+}
+
+/* O aparelho passa a flutuar sobre o canvas do preview, com respiro entre um e outro. */
+.adn-settings__preview-frames {
+  gap: var(--adn-space-5, 20px);
+}
