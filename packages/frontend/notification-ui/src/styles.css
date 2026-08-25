@@ -2914,3 +2914,11 @@
 .adn-toolbar__emoji-button:hover {
   background: var(--adn-color-accent-soft);
 }
+
+/* Acao do produto e o Fechar lado a lado no cabecalho do editor. */
+.adn-settings__editor-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--adn-space-2, 8px);
+  flex-wrap: wrap;
+}

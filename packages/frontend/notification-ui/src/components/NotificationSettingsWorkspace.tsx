@@ -83,6 +83,14 @@ export type NotificationSettingsWorkspaceProps = {
    * em `data:`, tabela desbalanceada). Ausente, nenhum aviso aparece.
    */
   readonly validateEmailHtml?: (html: string) => EmailHtmlReport
+  /**
+   * Ações do produto no cabeçalho do EDITOR, ao lado de Fechar — recebe a chave do template aberto.
+   *
+   * É onde entra "Enviar teste": provar que a mensagem chega é operação do produto, não do pacote.
+   * O pacote não sabe para quem mandar, por qual rota, nem o que fazer com o resultado; ele sabe
+   * qual template está aberto, e é só isso que o slot precisa entregar.
+   */
+  readonly renderEditorActions?: (params: { readonly templateKey: string }) => ReactNode
   /** Substitui o cabeçalho padrão — a página que já tem título próprio evita o segundo `<h1>`. */
   readonly renderHeader?: () => ReactNode
   /** Ações do produto no cabeçalho. */
@@ -133,6 +141,7 @@ export function NotificationSettingsWorkspace({
   previewPayload,
   templateLabelOf,
   renderChannelFields,
+  renderEditorActions,
   validateEmailHtml,
   renderHeader,
   renderHeaderActions,
@@ -559,10 +568,14 @@ export function NotificationSettingsWorkspace({
                     {editor.selected?.version}
                   </p>
                 </div>
-                <button type="button" className="adn-settings__close" onClick={editor.clear}>
-                  <X className="adn-settings__button-icon" aria-hidden="true" />
-                  {label('settings.close')}
-                </button>
+                <div className="adn-settings__editor-actions">
+                  {/* Antes do Fechar: a ação do produto é o que a pessoa procura ali; Fechar é saída. */}
+                  {editor.selected && renderEditorActions?.({ templateKey: editor.selected.key })}
+                  <button type="button" className="adn-settings__close" onClick={editor.clear}>
+                    <X className="adn-settings__button-icon" aria-hidden="true" />
+                    {label('settings.close')}
+                  </button>
+                </div>
               </header>
 
               {!editor.isIdentityLocked && (
