@@ -34,6 +34,29 @@ export type UserLabels = {
   readonly changePassword: string
   readonly changePasswordSentMessage: string
   readonly profileGenericError: string
+
+  readonly teamTitle: string
+  readonly teamSubtitle: string
+  readonly teamEmpty: string
+  readonly teamLoading: string
+  readonly teamNewMember: string
+  readonly teamRole: string
+  readonly teamRoleAdmin: string
+  readonly teamRoleMember: string
+  readonly teamInitialPassword: string
+  readonly teamInitialPasswordHint: string
+  readonly teamCreateSubmit: string
+  readonly teamCreating: string
+  readonly teamCreatedMessage: string
+  readonly teamCancel: string
+  readonly teamStatus: string
+  readonly teamActive: string
+  readonly teamInactive: string
+  readonly teamDeactivate: string
+  readonly teamActivate: string
+  readonly teamPrevious: string
+  readonly teamNext: string
+  readonly teamPageOf: string
 }
 
 export const DEFAULT_USER_LABELS: UserLabels = {
@@ -64,4 +87,27 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   changePassword: 'Alterar senha',
   changePasswordSentMessage: 'Enviamos um link de redefinição para o seu e-mail.',
   profileGenericError: 'Não foi possível atualizar o perfil',
+
+  teamTitle: 'Equipe',
+  teamSubtitle: 'Quem tem acesso ao sistema.',
+  teamEmpty: 'Ninguem cadastrado ainda.',
+  teamLoading: 'Carregando...',
+  teamNewMember: 'Nova pessoa',
+  teamRole: 'Papel',
+  teamRoleAdmin: 'Administrador',
+  teamRoleMember: 'Membro',
+  teamInitialPassword: 'Senha inicial',
+  teamInitialPasswordHint: 'Combine com a pessoa e peca para trocar no primeiro acesso.',
+  teamCreateSubmit: 'Criar',
+  teamCreating: 'Criando...',
+  teamCreatedMessage: 'Pessoa criada',
+  teamCancel: 'Cancelar',
+  teamStatus: 'Situacao',
+  teamActive: 'Ativo',
+  teamInactive: 'Inativo',
+  teamDeactivate: 'Desativar',
+  teamActivate: 'Reativar',
+  teamPrevious: 'Anterior',
+  teamNext: 'Proxima',
+  teamPageOf: 'Pagina {current} de {last}',
 }

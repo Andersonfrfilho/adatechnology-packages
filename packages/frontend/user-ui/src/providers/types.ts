@@ -44,6 +44,25 @@ export type ConfirmPasswordResetParams = {
   readonly newPassword: string
 }
 
+export type TeamPage = {
+  readonly items: readonly UserProfile[]
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+}
+
+export type ListTeamParams = {
+  readonly page: number
+  readonly pageSize: number
+}
+
+export type CreateTeamMemberInput = {
+  readonly email: string
+  readonly name: string
+  readonly password: string
+  readonly role: string
+}
+
 export type UserApi = {
   readonly signIn: (params: SignInParams) => Promise<UserSession>
   readonly signOut: () => Promise<void>
@@ -51,6 +70,17 @@ export type UserApi = {
   readonly updateProfile: (input: UpdateProfileInput) => Promise<UserProfile>
   readonly requestPasswordReset: (email: string) => Promise<void>
   readonly confirmPasswordReset: (params: ConfirmPasswordResetParams) => Promise<void>
+  /**
+   * Administração de equipe — OPCIONAL, e é a ausência que desliga a tela.
+   *
+   * Nem todo produto expõe as rotas de admin do `user-module`, e vários não têm sequer a noção de
+   * equipe. Tornar isto obrigatório quebraria todo consumidor atual e forçaria implementações vazias
+   * que lançam — pior que a capacidade não existir.
+   */
+  readonly listTeam?: (params: ListTeamParams) => Promise<TeamPage>
+  readonly createTeamMember?: (input: CreateTeamMemberInput) => Promise<UserProfile>
+  /** Ausente, a tela não desenha a coluna de ação — desativar é destrutivo e nem todo produto quer. */
+  readonly setTeamMemberActive?: (userId: string, isActive: boolean) => Promise<UserProfile>
 }
 
 export type UserConfig = {
