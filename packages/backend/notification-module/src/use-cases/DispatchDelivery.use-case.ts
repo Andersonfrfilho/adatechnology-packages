@@ -17,6 +17,7 @@ import type {
   SendWhatsAppParams,
 } from '@adatechnology/notification-contracts'
 
+import type { DeliveryAttachmentAudit } from '../schema/schema'
 import { applyDeliveryOutcome } from './applyDeliveryOutcome'
 import { resolveEmailAttachments } from './resolveEmailAttachments'
 import type { DispatchDeliveryConfig, DispatchDeliveryDependencies } from './dispatchDelivery.types'
@@ -96,7 +97,7 @@ export class DispatchDeliveryUseCase {
     })
 
     const address = delivery.channel === NOTIFICATION_CHANNEL.EMAIL ? recipient.email : recipient.phone
-    const { outcome, resolvedAddress } = await this.sendThroughDriver({
+    const { outcome, resolvedAddress, attachments } = await this.sendThroughDriver({
       delivery,
       rendered,
       recipient,
@@ -112,6 +113,7 @@ export class DispatchDeliveryUseCase {
       notification,
       outcome,
       address: resolvedAddress,
+      ...(attachments ? { attachments } : {}),
       now,
     })
   }
@@ -124,7 +126,12 @@ export class DispatchDeliveryUseCase {
     /** Chave e payload da notificação: é o par que descobre quais valores são anexo. */
     notification: { templateKey: string; payload: Readonly<Record<string, unknown>> }
     address?: string
-  }): Promise<{ outcome: DeliveryAttemptResult; resolvedAddress?: string }> {
+  }): Promise<{
+    outcome: DeliveryAttemptResult
+    resolvedAddress?: string
+    /** Nome e tipo do que foi anexado — sem url e sem conteudo, e o que a `delivery` guarda. */
+    attachments?: readonly DeliveryAttachmentAudit[]
+  }> {
     const { delivery, rendered, recipient, template, notification, address } = params
 
     if (delivery.channel === NOTIFICATION_CHANNEL.PUSH) {
@@ -177,7 +184,14 @@ export class DispatchDeliveryUseCase {
         })
       }
 
-      return { outcome: await this.dependencies.channels.email.send(sendEmailParams), resolvedAddress: address }
+      return {
+        outcome: await this.dependencies.channels.email.send(sendEmailParams),
+        resolvedAddress: address,
+        attachments: attachments.map((attachment) => ({
+          filename: attachment.filename,
+          contentType: attachment.contentType,
+        })),
+      }
     }
 
     if (delivery.channel === NOTIFICATION_CHANNEL.WHATSAPP) {

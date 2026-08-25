@@ -1,0 +1,1 @@
+ALTER TABLE "notification"."deliveries" ADD COLUMN "attachments" jsonb;
