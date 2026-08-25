@@ -10,7 +10,7 @@
 import { NOTIFICATION_CHANNEL, SUPPRESSION_REASON } from '@adatechnology/notification-contracts'
 import type { DeliveryAttemptResult } from '@adatechnology/notification-contracts'
 
-import type { DeliveryRow, NotificationRow } from '../schema/schema'
+import type { DeliveryAttachmentAudit, DeliveryRow, NotificationRow } from '../schema/schema'
 import { computeNotificationStatus } from '../shared/notificationAggregateStatus'
 import { hashTarget } from '../shared/targetPrivacy'
 import type { DispatchDeliveryConfig, DispatchDeliveryDependencies } from './dispatchDelivery.types'
@@ -48,13 +48,19 @@ export async function applyDeliveryOutcome(params: {
   dependencies: DispatchDeliveryDependencies
   config: DispatchDeliveryConfig
   delivery: DeliveryRow
+  /**
+   * O que a tentativa levou anexado — gravado em TODO desfecho, e não só no sucesso: a pergunta da
+   * auditoria ("que arquivo esse cliente recebeu?") tem uma irmã ("o que a gente tentou mandar?"),
+   * e a segunda só se responde na entrega que falhou.
+   */
+  attachments?: readonly DeliveryAttachmentAudit[]
   notification: NotificationRow
   outcome: DeliveryAttemptResult
   /** Endereço em claro, só para canais com supressão — o próprio caller já o resolveu para chamar o driver. */
   address?: string
   now: Date
 }): Promise<void> {
-  const { dependencies, config, delivery, notification, outcome, now } = params
+  const { dependencies, config, delivery, notification, outcome, attachments, now } = params
   const channel = delivery.channel as (typeof NOTIFICATION_CHANNEL)[keyof typeof NOTIFICATION_CHANNEL]
 
   if (outcome.outcome === 'sent') {
@@ -64,6 +70,7 @@ export async function applyDeliveryOutcome(params: {
       status: 'sent',
       providerMessageId: outcome.providerMessageId,
       sentAt: now,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     })
     await dependencies.hooks?.onDeliverySent?.({
       companyId: notification.companyId,
@@ -89,6 +96,7 @@ export async function applyDeliveryOutcome(params: {
       attempt: nextAttempt,
       errorCode: outcome.errorCode,
       failedAt: exhausted ? now : undefined,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     })
     await dependencies.hooks?.onDeliveryFailed?.({
       companyId: notification.companyId,
@@ -160,6 +168,7 @@ export async function applyDeliveryOutcome(params: {
     errorCode: outcome.errorCode,
     failedAt: now,
     attempt: delivery.attempt + 1,
+    ...(attachments && attachments.length > 0 ? { attachments } : {}),
   })
   await dependencies.hooks?.onDeliveryFailed?.({
     companyId: notification.companyId,

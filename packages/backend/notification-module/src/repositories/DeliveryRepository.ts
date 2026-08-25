@@ -5,7 +5,7 @@
 import { and, eq } from 'drizzle-orm'
 
 import type { NotificationDatabase } from '../database.types'
-import { deliveries, type DeliveryRow, type NewDeliveryRow } from '../schema/schema'
+import { deliveries, type DeliveryAttachmentAudit, type DeliveryRow, type NewDeliveryRow } from '../schema/schema'
 
 export type UpdateDeliveryAttemptParams = {
   readonly companyId: string
@@ -17,6 +17,8 @@ export type UpdateDeliveryAttemptParams = {
   readonly sentAt?: Date
   readonly deliveredAt?: Date
   readonly failedAt?: Date
+  /** Nome e tipo do que foi anexado. Ausente nao apaga o que ja estava gravado. */
+  readonly attachments?: readonly DeliveryAttachmentAudit[]
 }
 
 export class DeliveryRepository {
@@ -55,6 +57,9 @@ export class DeliveryRepository {
         sentAt: params.sentAt,
         deliveredAt: params.deliveredAt,
         failedAt: params.failedAt,
+        // Espalhado, e nao atribuido direto: `undefined` num `set` do Drizzle apagaria a coluna, e
+        // toda tentativa seguinte (retry, recibo de entrega) zeraria o registro do anexo.
+        ...(params.attachments ? { attachments: params.attachments } : {}),
         updatedAt: new Date(),
       })
       .where(and(eq(deliveries.companyId, params.companyId), eq(deliveries.id, params.id)))

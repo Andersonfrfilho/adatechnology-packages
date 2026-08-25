@@ -134,6 +134,12 @@ export const devices = notificationSchema.table(
   ],
 )
 
+/** O registro de auditoria de um anexo. Deliberadamente sem `url` e sem conteúdo. */
+export type DeliveryAttachmentAudit = {
+  readonly filename: string
+  readonly contentType: string
+}
+
 export const deliveries = notificationSchema.table(
   'deliveries',
   {
@@ -162,6 +168,18 @@ export const deliveries = notificationSchema.table(
     sentAt: timestamp('sent_at', { withTimezone: true }),
     deliveredAt: timestamp('delivered_at', { withTimezone: true }),
     failedAt: timestamp('failed_at', { withTimezone: true }),
+    /**
+     * O que foi anexado nesta entrega — nome e tipo, nunca o conteúdo e nunca a URL.
+     *
+     * A URL é assinada, e assinatura gravada é credencial gravada: ela ficaria no banco depois de
+     * vencer, sem servir para nada além de vazar num dump. O nome fica porque é o que responde a
+     * pergunta que a auditoria faz — "que arquivo esse cliente recebeu?" — e ele já saiu no e-mail
+     * do próprio destinatário.
+     *
+     * Nulo em toda entrega sem anexo, que é a maioria: array vazio e ausência dizem a mesma coisa,
+     * e `null` não ocupa linha de índice.
+     */
+    attachments: jsonb('attachments').$type<readonly DeliveryAttachmentAudit[] | null>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

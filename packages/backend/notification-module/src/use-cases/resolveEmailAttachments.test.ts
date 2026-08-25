@@ -74,3 +74,20 @@ describe('resolveEmailAttachments', () => {
     expect(attachments).toEqual([NOTA, boleto])
   })
 })
+
+describe('auditoria do anexo na delivery', () => {
+  /**
+   * A coluna `deliveries.attachments` guarda nome e tipo. Nao guarda url: ela e assinada, e
+   * assinatura gravada e credencial gravada — ficaria no banco depois de vencer, sem servir para
+   * nada alem de vazar num dump.
+   */
+  it('o registro de auditoria nao carrega url nem conteudo', () => {
+    const attachment = { filename: 'nota.pdf', url: 'https://storage/assinada?x=1', contentType: 'application/pdf' }
+
+    const audit = { filename: attachment.filename, contentType: attachment.contentType }
+
+    expect(Object.keys(audit).sort()).toEqual(['contentType', 'filename'])
+    expect(JSON.stringify(audit)).not.toContain('http')
+    expect(JSON.stringify(audit)).not.toContain('assinada')
+  })
+})
