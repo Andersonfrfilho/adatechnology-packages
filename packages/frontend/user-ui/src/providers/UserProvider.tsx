@@ -74,6 +74,18 @@ export function useUserApi(): UserApi {
   return useUserContext().api
 }
 
+/**
+ * A `UserApi` quando há provider, e `undefined` quando não há — sem lançar.
+ *
+ * Existe para a tela de equipe poder ser usada SOZINHA, num host que já resolve sessão por conta
+ * própria. Sem isto, montar só `TeamWorkspace` exigiria um `UserProvider` com os seis métodos de
+ * autenticação implementados só para satisfazer o contexto — e um `getProfile()` no boot que
+ * duplicaria o bootstrap que o host já faz.
+ */
+export function useOptionalUserApi(): UserApi | undefined {
+  return useContext(UserContext)?.api
+}
+
 /** Uso interno dos hooks de fluxo (`useSignIn`, `usePasswordReset`, `useProfile`) para atualizar a sessão. */
 export function useUserSession(): { readonly setUser: (user: UserProfile | undefined) => void; readonly refresh: () => Promise<void> } {
   const { setUser, refresh } = useUserContext()

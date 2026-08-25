@@ -9,8 +9,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-import { useUserApi } from './providers/UserProvider'
-import type { CreateTeamMemberInput, TeamPage, UserProfile } from './providers/types'
+import { useOptionalUserApi } from './providers/UserProvider'
+import type { CreateTeamMemberInput, TeamPage, UserApi, UserProfile } from './providers/types'
 
 export const TEAM_DEFAULT_PAGE_SIZE = 20
 
@@ -31,8 +31,18 @@ export type UseTeamResult = {
   reload: () => void
 }
 
-export function useTeam(pageSize: number = TEAM_DEFAULT_PAGE_SIZE): UseTeamResult {
-  const api = useUserApi()
+/** Só os três métodos de equipe — quem monta a tela sozinho não precisa dos de autenticação. */
+export type TeamApi = Pick<UserApi, 'listTeam' | 'createTeamMember' | 'setTeamMemberActive'>
+
+export type UseTeamParams = {
+  readonly pageSize?: number
+  /** Substitui a `UserApi` do contexto. Presente, nenhum `UserProvider` é necessário. */
+  readonly api?: TeamApi
+}
+
+export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: UseTeamParams = {}): UseTeamResult {
+  const contextApi = useOptionalUserApi()
+  const api: TeamApi = override ?? contextApi ?? {}
   const [page, setPage] = useState(1)
   const [data, setData] = useState<TeamPage>()
   const [loading, setLoading] = useState(false)

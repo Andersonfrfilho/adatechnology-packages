@@ -10,7 +10,7 @@
 import { useState, type ReactNode } from 'react'
 
 import { TeamMemberForm } from '../TeamMemberForm'
-import { useTeam } from '../useTeam'
+import { useTeam, type TeamApi } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
 
 export type TeamWorkspaceProps = {
@@ -18,13 +18,20 @@ export type TeamWorkspaceProps = {
   readonly header?: ReactNode
   /** Quantas linhas por página. O padrão do hook cobre uma equipe inteira sem paginar. */
   readonly pageSize?: number
+  /**
+   * Os três métodos de equipe, quando o host não usa o `UserProvider` deste pacote.
+   *
+   * É o caso de quem já resolve sessão por conta própria e quer só esta tela — sem isto, seria
+   * preciso um provider com os seis métodos de autenticação só para satisfazer o contexto.
+   */
+  readonly api?: TeamApi
 }
 
 const CELL = 'px-4 py-3 text-sm text-gray-900 dark:text-gray-100'
 
-export function TeamWorkspace({ labels: overrides, header, pageSize }: TeamWorkspaceProps) {
+export function TeamWorkspace({ labels: overrides, header, pageSize, api }: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
-  const team = useTeam(pageSize)
+  const team = useTeam({ ...(pageSize === undefined ? {} : { pageSize }), ...(api ? { api } : {}) })
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [createdName, setCreatedName] = useState<string>()
 
