@@ -27,12 +27,29 @@ describe('checkEmailAttachment', () => {
   })
 
   /** `file:` puxaria do disco do servidor; `data:` inflaria a mensagem; `http:` trafega em claro. */
-  it.each(['file:///etc/passwd', 'data:application/pdf;base64,AAA', 'http://storage/x.pdf', '/relativo.pdf'])(
-    'exige https: %j',
-    (url) => {
-      expect(checkEmailAttachment({ ...VALID, url })).toBe('ATTACHMENT_URL_NOT_HTTPS')
-    },
-  )
+  it.each([
+    ['file:///etc/passwd'],
+    ['data:application/pdf;base64,AAA'],
+    ['/relativo.pdf'],
+    ['nem-url'],
+    // "Rede interna" e promessa de topologia que este pacote nao tem como verificar.
+    ['http://storage.interno/x.pdf'],
+    ['http://192.168.0.10/x.pdf'],
+  ])('exige https fora de loopback: %j', (url) => {
+    expect(checkEmailAttachment({ ...VALID, url })).toBe('ATTACHMENT_URL_NOT_HTTPS')
+  })
+
+  /**
+   * Loopback nao e a internet: o pacote nunca sai da maquina. Sem esta excecao, todo ambiente local
+   * com MinIO em `http://localhost` reprova o anexo antes de qualquer teste.
+   */
+  it.each([
+    ['http://localhost:9004/bucket/objeto'],
+    ['http://127.0.0.1:9004/bucket/objeto'],
+    ['http://[::1]:9004/bucket/objeto'],
+  ])('aceita http em loopback: %j', (url) => {
+    expect(checkEmailAttachment({ ...VALID, url })).toBeUndefined()
+  })
 
   it('exige contentType declarado, porque extensao mente', () => {
     expect(checkEmailAttachment({ ...VALID, contentType: '' })).toBe('ATTACHMENT_CONTENT_TYPE_EMPTY')

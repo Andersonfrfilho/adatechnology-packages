@@ -49,9 +49,32 @@ export function checkEmailAttachment(attachment: EmailAttachment): string | unde
 
   if (!attachment.contentType.trim()) return 'ATTACHMENT_CONTENT_TYPE_EMPTY'
 
-  // Só `https`: `file:`, `data:` e `http:` puxariam do disco do servidor, inflariam a mensagem ou
-  // trafegariam um documento pessoal em claro.
-  if (!attachment.url.startsWith('https://')) return 'ATTACHMENT_URL_NOT_HTTPS'
+  if (!isDownloadableUrl(attachment.url)) return 'ATTACHMENT_URL_NOT_HTTPS'
 
   return undefined
+}
+
+/**
+ * `https`, ou `http` em loopback.
+ *
+ * A regra existe para um documento pessoal não trafegar em claro pela internet — e loopback não é a
+ * internet: o pacote nunca sai da máquina. Sem esta exceção, todo ambiente local com MinIO ou
+ * MailHog em `http://localhost` reprova o anexo antes de qualquer teste, e a única saída seria
+ * afrouxar a regra em produção junto.
+ *
+ * Loopback e mais nada: `http://storage.interno` continua reprovado, porque "rede interna" é uma
+ * promessa de topologia que este pacote não tem como verificar.
+ */
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+
+function isDownloadableUrl(value: string): boolean {
+  let url: URL
+  try {
+    url = new URL(value)
+  } catch {
+    return false
+  }
+
+  if (url.protocol === 'https:') return true
+  return url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname)
 }
