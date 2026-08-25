@@ -29,7 +29,7 @@ describe('createEmailProvider', () => {
     const provider = createEmailProvider({
       driver: 'ses',
       from: 'a@b.com',
-      client: { sendEmail: async () => ({ messageId: 'x' }) },
+      client: { sendEmail: async () => ({ messageId: 'x' }), sendRawEmail: async () => ({ messageId: 'x' }) },
     })
     expect(provider.driver).toBe('ses')
   })
