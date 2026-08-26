@@ -1,7 +1,7 @@
 {
-  "name": "@adatechnology/products-ui",
-  "version": "0.1.0-rc.12",
-  "description": "Product & catalog management UI components — parametrizável por API client injetado",
+  "name": "@adatechnology/image-cutout",
+  "version": "0.0.0",
+  "description": "Recorte de fundo no navegador (U²-Net sobre onnxruntime-web), sem CDN e sem licença viral",
   "publishConfig": {
     "access": "public"
   },
@@ -15,14 +15,10 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm --external react --external react-dom --external @adatechnology/image-cutout",
-    "build:watch": "tsup src/index.ts --watch --dts --format esm --external react --external react-dom --external @adatechnology/image-cutout",
+    "build": "tsup src/index.ts --dts --format esm --external react --external react-dom",
+    "build:watch": "tsup src/index.ts --watch --dts --format esm --external react --external react-dom",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "bun test"
-  },
-  "dependencies": {
-    "lucide-react": "^1.21.0",
-    "@adatechnology/image-cutout": "workspace:*"
   },
   "peerDependencies": {
     "react": "^18 || ^19",

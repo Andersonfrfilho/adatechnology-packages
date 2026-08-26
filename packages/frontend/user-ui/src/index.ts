@@ -61,3 +61,6 @@ export type { TeamPage, ListTeamParams, CreateTeamMemberInput } from './provider
 
 export { Avatar, initialsOf } from './Avatar'
 export type { AvatarProps } from './Avatar'
+
+export { AvatarPicker } from './AvatarPicker'
+export type { AvatarPickerProps } from './AvatarPicker'

@@ -62,6 +62,14 @@ export type UserLabels = {
   readonly teamNoResults: string
   readonly teamSelectAll: string
   readonly teamSelectRow: string
+  readonly avatarOriginal: string
+  readonly avatarCutout: string
+  readonly avatarRemoveBackground: string
+  readonly avatarRemovingBackground: string
+  readonly avatarKeepOriginal: string
+  readonly avatarMakeTransparent: string
+  readonly avatarWhiteBackground: string
+  readonly avatarConfirm: string
   readonly profilePhotoChange: string
   readonly teamPhoto: string
   readonly teamChangePhoto: string
@@ -130,6 +138,14 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   teamNoResults: 'Nada encontrado para essa busca.',
   teamSelectAll: 'Selecionar todos',
   teamSelectRow: 'Selecionar',
+  avatarOriginal: 'Original',
+  avatarCutout: 'Sem fundo',
+  avatarRemoveBackground: 'Remover fundo',
+  avatarRemovingBackground: 'Removendo...',
+  avatarKeepOriginal: 'Usar a original',
+  avatarMakeTransparent: 'Deixar transparente',
+  avatarWhiteBackground: 'Fundo branco',
+  avatarConfirm: 'Usar esta foto',
   profilePhotoChange: 'Trocar',
   teamPhoto: 'Foto',
   teamChangePhoto: 'Trocar a foto de',

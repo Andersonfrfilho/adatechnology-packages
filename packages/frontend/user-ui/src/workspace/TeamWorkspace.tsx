@@ -9,7 +9,10 @@
 
 import { useState, type ReactNode } from 'react'
 
+import type { BackgroundRemovalConfig } from '@adatechnology/image-cutout'
+
 import { Avatar } from '../Avatar'
+import { AvatarPicker } from '../AvatarPicker'
 import type { UserProfile } from '../providers/types'
 import { TeamMemberForm } from '../TeamMemberForm'
 import { useTeam, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
@@ -27,15 +30,31 @@ export type TeamWorkspaceProps = {
    * preciso um provider com os seis métodos de autenticação só para satisfazer o contexto.
    */
   readonly api?: TeamApi
+  /**
+   * Liga o recorte de fundo na troca de foto. Ausente, a foto sobe como veio.
+   *
+   * O modelo e o runtime sao servidos pelo host, e nao pelo pacote: sao megabytes que nao cabem no
+   * `npm install` de quem nem usa o recurso, e servir do proprio dominio mantem a foto e o CSP
+   * dentro de casa.
+   */
+  readonly backgroundRemoval?: BackgroundRemovalConfig
 }
 
 const CELL = 'px-4 py-3 text-sm text-gray-900 dark:text-gray-100'
 
-export function TeamWorkspace({ labels: overrides, header, pageSize, api }: TeamWorkspaceProps) {
+export function TeamWorkspace({
+  labels: overrides,
+  header,
+  pageSize,
+  api,
+  backgroundRemoval,
+}: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
   const team = useTeam({ ...(pageSize === undefined ? {} : { pageSize }), ...(api ? { api } : {}) })
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [createdName, setCreatedName] = useState<string>()
+  /** A foto escolhida numa linha, esperando revisao. O painel abre com largura inteira, acima. */
+  const [pendingAvatar, setPendingAvatar] = useState<{ member: UserProfile; file: File }>()
 
   if (!team.enabled) return null
 
@@ -91,6 +110,21 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
           onCancel={() => setIsFormOpen(false)}
           onSubmit={(input) => void handleCreate(input)}
           saving={team.saving}
+        />
+      )}
+
+      {pendingAvatar && (
+        <AvatarPicker
+          busy={team.saving}
+          file={pendingAvatar.file}
+          labels={labels}
+          onCancel={() => setPendingAvatar(undefined)}
+          onConfirm={(file) => {
+            void team.setMemberAvatar(pendingAvatar.member.id, file)
+            setPendingAvatar(undefined)
+          }}
+          title={`${labels.teamChangePhoto} ${pendingAvatar.member.name}`}
+          {...(backgroundRemoval ? { backgroundRemoval } : {})}
         />
       )}
 
@@ -189,7 +223,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
                     canChange={team.canChangeAvatar}
                     label={`${labels.teamChangePhoto} ${member.name}`}
                     member={member}
-                    onPick={(file) => void team.setMemberAvatar(member.id, file)}
+                    onPick={(file) => setPendingAvatar({ member, file })}
                   />
                 </td>
                 <td className={CELL}>{member.name}</td>
