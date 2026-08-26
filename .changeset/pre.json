@@ -59,6 +59,7 @@
     "@adatechnology/image-cutout": "0.0.0"
   },
   "changesets": [
+    "acoes-viram-botoes-de-verdade",
     "agent-media-enters-document-library",
     "anexo-de-email-por-referencia",
     "anexo-loopback",
