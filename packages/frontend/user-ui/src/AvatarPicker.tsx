@@ -69,7 +69,7 @@ export function AvatarPicker({
   const chosen = cutout.result ?? file
 
   return (
-    <div className="space-y-3 rounded border border-gray-200 p-4 dark:border-gray-700">
+    <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
       {title && <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{title}</p>}
       <div className="flex flex-wrap items-start gap-4">
         <Preview label={labels.avatarOriginal} selected={!cutout.result} url={originalUrl} />

@@ -43,7 +43,15 @@ export type TeamWorkspaceProps = {
   readonly backgroundRemoval?: BackgroundRemovalConfig
 }
 
-const CELL = 'px-4 py-3 text-sm text-gray-900 dark:text-gray-100'
+/**
+ * O codigo que o host devolve quando o e-mail ja pertence a outra conta.
+ *
+ * Fixo aqui porque e o contrato do `user-module` (`USER_EMAIL_ALREADY_EXISTS`); um host com
+ * vocabulario proprio traduz no adaptador dele, que e onde o erro nasce.
+ */
+const EMAIL_TAKEN_CODE = 'USER_EMAIL_ALREADY_EXISTS'
+
+const CELL = 'px-4 py-3 align-middle text-sm text-gray-900 dark:text-gray-100'
 
 export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgroundRemoval }: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
@@ -74,7 +82,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
 
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{labels.teamTitle}</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">{labels.teamTitle}</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{labels.teamSubtitle}</p>
         </div>
 
@@ -105,7 +113,10 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
       )}
 
       {team.error && (
-        <p className="rounded bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200" role="alert">
+        <p
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+          role="alert"
+        >
           {team.error}
         </p>
       )}
@@ -130,6 +141,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
             })
           }}
           saving={team.saving}
+          {...(team.errorCode === EMAIL_TAKEN_CODE ? { emailError: labels.teamEmailTaken } : {})}
         />
       )}
 
@@ -151,7 +163,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
       <div className="flex flex-wrap items-center gap-3">
         <input
           aria-label={labels.teamSearch}
-          className="min-h-9 min-w-56 flex-1 rounded border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+          className="min-h-9 min-w-56 flex-1 rounded-lg border border-gray-300 bg-white px-3 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 dark:border-gray-700 dark:bg-gray-900"
           onChange={(event) => team.setSearch(event.target.value)}
           placeholder={labels.teamSearch}
           type="search"
@@ -178,7 +190,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
         marcar uma linha revelaria algo. Espaco em branco custa menos que uma funcao invisivel.
       */}
       {team.canDeactivate && team.members.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded bg-gray-50 px-4 py-3 dark:bg-gray-800">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <span className="text-sm text-gray-700 dark:text-gray-200">
             {team.selected.size === 0
               ? labels.teamBulkHint
@@ -206,10 +218,18 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
         </div>
       )}
 
-      <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
-        <table className="w-full">
+      {/*
+        A tabela pinta a PROPRIA superficie, e nao herda a do host.
+
+        A zebra nasceu invisivel exatamente por isso: as listras eram `gray-50` e o painel que
+        consome esta tela tambem e `gray-50`, entao linha listrada e fundo da pagina davam na mesma
+        cor. Componente de pacote nao sabe em que fundo vai cair — se ele quer contraste, ele
+        estabelece a base.
+      */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <table className="w-full border-collapse">
           <thead>
-            <tr className="text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300">
               {team.canDeactivate && (
                 <th className="px-4 py-3">
                   <input
@@ -255,8 +275,8 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
                 tela.
               */
               <tr
-                className={`border-t border-gray-100 dark:border-gray-800 ${
-                  index % 2 === 1 ? 'bg-gray-50 dark:bg-gray-900/40' : ''
+                className={`border-b border-gray-100 transition-colors last:border-b-0 hover:bg-blue-50/60 dark:border-gray-800 dark:hover:bg-blue-950/30 ${
+                  index % 2 === 1 ? 'bg-gray-50/80 dark:bg-gray-800/30' : 'bg-transparent'
                 }`}
                 key={member.id}
               >
@@ -280,10 +300,19 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
                     onPick={(file) => setPendingAvatar({ member, file })}
                   />
                 </td>
-                <td className={CELL}>{member.name}</td>
-                <td className={CELL}>{member.email}</td>
-                <td className={CELL}>{member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}</td>
-                <td className={CELL}>{member.isActive ? labels.teamActive : labels.teamInactive}</td>
+                <td className={`${CELL} font-medium`}>{member.name}</td>
+                {/* O e-mail e dado de apoio: peso menor evita que ele dispute com o nome. */}
+                <td className={`${CELL} text-gray-500 dark:text-gray-400`}>{member.email}</td>
+                <td className={CELL}>
+                  <Badge tone={member.role === 'admin' ? 'accent' : 'neutral'}>
+                    {member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}
+                  </Badge>
+                </td>
+                <td className={CELL}>
+                  <Badge tone={member.isActive ? 'positive' : 'muted'}>
+                    {member.isActive ? labels.teamActive : labels.teamInactive}
+                  </Badge>
+                </td>
                 {hasRowActions && (
                   <td className={CELL}>
                     <div className="flex items-center gap-3">
@@ -519,5 +548,39 @@ function RowAction({ icon: Icon, label, srSuffix, busy, onClick }: RowActionProp
       <Icon aria-hidden="true" className="size-3.5" />
       {label}
     </button>
+  )
+}
+
+const BADGE_TONE = {
+  positive:
+    'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-400/20',
+  accent: 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-400/20',
+  neutral: 'bg-gray-100 text-gray-700 ring-gray-500/20 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-400/20',
+  muted: 'bg-gray-100 text-gray-500 ring-gray-400/20 dark:bg-gray-800 dark:text-gray-500 dark:ring-gray-500/20',
+} as const
+type BadgeTone = keyof typeof BADGE_TONE
+
+type BadgeProps = {
+  readonly tone: BadgeTone
+  readonly children: ReactNode
+}
+
+/**
+ * Etiqueta para papel e situacao.
+ *
+ * Como texto solto os dois campos tinham o mesmo peso do nome e do e-mail, e a coluna inteira lia
+ * como uma parede de cinza igual. A cor faz "Ativo" e "Inativo" se separarem numa varredura de
+ * olho, que e o que se faz numa lista de pessoas — ninguem le linha por linha.
+ *
+ * `ring` em vez de `border`: a borda somaria um pixel a caixa e desalinharia a etiqueta com o texto
+ * das celulas vizinhas.
+ */
+function Badge({ tone, children }: BadgeProps) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${BADGE_TONE[tone]}`}
+    >
+      {children}
+    </span>
   )
 }

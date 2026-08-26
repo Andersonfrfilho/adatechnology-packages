@@ -53,7 +53,10 @@ export function TeamMemberForm({ labels, saving, onSubmit, onCancel }: TeamMembe
   }
 
   return (
-    <form className="grid gap-4 rounded border border-gray-200 p-4 sm:grid-cols-2 dark:border-gray-700" onSubmit={handleSubmit}>
+    <form
+      className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 dark:border-gray-700 dark:bg-gray-900"
+      onSubmit={handleSubmit}
+    >
       <div>
         <label className={LABEL} htmlFor="team-name">
           {labels.name}

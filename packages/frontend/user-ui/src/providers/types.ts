@@ -61,6 +61,8 @@ export type ListTeamParams = {
 export type UpdateTeamMemberInput = {
   readonly name: string
   readonly role: string
+  /** Ausente mantem o atual — o host que nao permite trocar e-mail simplesmente nao envia. */
+  readonly email?: string
 }
 
 export type CreateTeamMemberInput = {

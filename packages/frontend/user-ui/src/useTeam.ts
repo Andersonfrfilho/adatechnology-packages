@@ -55,6 +55,8 @@ export type UseTeamResult = {
   readonly loading: boolean
   readonly saving: boolean
   readonly error: string | undefined
+  /** Codigo estavel do ultimo erro, quando o servidor mandou um. A tela decide onde ancorar. */
+  readonly errorCode: string | undefined
   readonly canDeactivate: boolean
   readonly canEdit: boolean
   readonly canChangeAvatar: boolean
@@ -95,6 +97,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
+  const [errorCode, setErrorCode] = useState<string | undefined>(undefined)
   const [search, setSearchValue] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [sort, setSort] = useState<TeamSort | undefined>(undefined)
@@ -245,6 +248,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     loading,
     saving,
     error,
+    errorCode,
     canDeactivate: Boolean(api.setTeamMemberActive),
     canEdit: Boolean(api.updateTeamMember),
     canChangeAvatar: Boolean(api.setTeamMemberAvatar),
@@ -252,6 +256,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
       if (!api.updateTeamMember) return false
       setSaving(true)
       setError(undefined)
+      setErrorCode(undefined)
       try {
         await api.updateTeamMember(userId, input)
         // Recarrega porque o servidor normaliza o nome e decide a ordem da lista.
@@ -259,6 +264,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
         return true
       } catch (cause) {
         setError(messageOf(cause, 'Nao foi possivel salvar'))
+        setErrorCode(codeOf(cause))
         return false
       } finally {
         setSaving(false)
@@ -325,4 +331,18 @@ export function compareBy(sort: TeamSort): (left: UserProfile, right: UserProfil
 
     return String(left[sort.field] ?? '').localeCompare(String(right[sort.field] ?? '')) * sinal
   }
+}
+
+/**
+ * O codigo estavel do erro, quando ele existe.
+ *
+ * A `message` do servidor nao esta traduzida para quem le a tela e muda com revisao de copy; o
+ * codigo e o contrato. Lido pela FORMA, e nao por instanceof: o erro atravessa a `UserApi` do host,
+ * e este pacote nao conhece a classe de erro dele.
+ */
+function codeOf(cause: unknown): string | undefined {
+  if (typeof cause !== 'object' || cause === null) return undefined
+  const candidate = cause as { code?: unknown }
+
+  return typeof candidate.code === 'string' ? candidate.code : undefined
 }

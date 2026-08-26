@@ -1,11 +1,10 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
- * Editar nome e papel de quem já existe.
+ * Editar e-mail, nome e papel de quem já existe.
  *
- * Sem e-mail e sem senha, de propósito. O e-mail é a identidade de login e aparece em trilha de
- * auditoria — trocá-lo por um campo de formulário faria o histórico apontar para outra pessoa. Senha
- * quem troca é o dono dela, pelo fluxo de redefinição.
+ * Sem senha: quem troca é o dono dela, pelo fluxo de redefinição — um administrador digitando a
+ * senha de outra pessoa é a prática que o fluxo de redefinição existe para substituir.
  */
 
 import { Check } from 'lucide-react'
@@ -18,6 +17,13 @@ export type TeamMemberEditFormProps = {
   readonly member: UserProfile
   readonly labels?: Partial<UserLabels>
   readonly saving: boolean
+  /**
+   * Mensagem a ancorar NO campo de e-mail, quando o servidor recusa por duplicidade.
+   *
+   * Ancorada, e não num aviso solto no rodapé: quem preencheu precisa ver qual campo recusou, e
+   * numa ficha com vários campos um aviso genérico vira caça ao erro.
+   */
+  readonly emailError?: string
   readonly onSubmit: (input: UpdateTeamMemberInput) => void
   readonly onCancel: () => void
 }
@@ -29,25 +35,58 @@ const FIELD =
 const SELECT_FIELD = `${FIELD} cursor-pointer appearance-none pr-9`
 const LABEL = 'mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100'
 
-export function TeamMemberEditForm({ member, labels: overrides, saving, onSubmit, onCancel }: TeamMemberEditFormProps) {
+export function TeamMemberEditForm({
+  member,
+  labels: overrides,
+  saving,
+  emailError,
+  onSubmit,
+  onCancel,
+}: TeamMemberEditFormProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
+  const [email, setEmail] = useState(member.email)
   const [name, setName] = useState(member.name)
   const [role, setRole] = useState(member.role)
 
-  const unchanged = name.trim() === member.name && role === member.role
+  const unchanged = name.trim() === member.name && role === member.role && email.trim() === member.email
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
-    onSubmit({ name: name.trim(), role })
+    onSubmit({ name: name.trim(), role, email: email.trim() })
   }
 
   return (
-    <form className="space-y-4 rounded border border-gray-200 p-4 dark:border-gray-700" onSubmit={handleSubmit}>
+    <form
+      className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+      onSubmit={handleSubmit}
+    >
       <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
         {labels.teamEditTitle} {member.email}
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <label className={LABEL} htmlFor="team-edit-email">
+            {labels.email}
+          </label>
+          <input
+            aria-describedby={emailError ? 'team-edit-email-error' : undefined}
+            aria-invalid={emailError ? true : undefined}
+            autoComplete="email"
+            className={emailError ? `${FIELD} border-red-500 dark:border-red-500` : FIELD}
+            id="team-edit-email"
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            type="email"
+            value={email}
+          />
+          {emailError && (
+            <p className="mt-1 text-xs text-red-700 dark:text-red-300" id="team-edit-email-error">
+              {emailError}
+            </p>
+          )}
+        </div>
+
         <div>
           <label className={LABEL} htmlFor="team-edit-name">
             {labels.name}

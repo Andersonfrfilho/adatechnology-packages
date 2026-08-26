@@ -62,6 +62,7 @@ export type UserLabels = {
   readonly teamNoResults: string
   readonly teamSelectAll: string
   readonly teamSelectRow: string
+  readonly teamEmailTaken: string
   readonly teamEdit: string
   readonly teamEditTitle: string
   readonly teamSave: string
@@ -142,6 +143,7 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   teamNoResults: 'Nada encontrado para essa busca.',
   teamSelectAll: 'Selecionar todos',
   teamSelectRow: 'Selecionar',
+  teamEmailTaken: 'Este e-mail ja esta em uso por outra conta',
   teamEdit: 'Editar',
   teamEditTitle: 'Editando',
   teamSave: 'Salvar',
