@@ -59,8 +59,9 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [createdName, setCreatedName] = useState<string>()
   /** A foto escolhida numa linha, esperando revisao. O painel abre com largura inteira, acima. */
-  const [pendingAvatar, setPendingAvatar] = useState<{ member: UserProfile; file: File }>()
   const [editing, setEditing] = useState<UserProfile>()
+  /** Arquivo escolhido na ficha aberta, esperando revisao. Pertence sempre a `editing`. */
+  const [pendingAvatar, setPendingAvatar] = useState<File>()
 
   if (!team.enabled) return null
 
@@ -132,9 +133,36 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
 
       {editing && (
         <TeamMemberEditForm
+          avatar={
+            team.canChangeAvatar ? (
+              pendingAvatar ? (
+                <AvatarPicker
+                  busy={team.saving}
+                  file={pendingAvatar}
+                  labels={labels}
+                  onCancel={() => setPendingAvatar(undefined)}
+                  onConfirm={(file) => {
+                    void team.setMemberAvatar(editing.id, file)
+                    setPendingAvatar(undefined)
+                  }}
+                  {...(backgroundRemoval ? { backgroundRemoval } : {})}
+                />
+              ) : (
+                <AvatarField
+                  busy={team.saving}
+                  label={`${labels.teamChangePhoto} ${editing.name}`}
+                  member={editing}
+                  onPick={setPendingAvatar}
+                />
+              )
+            ) : undefined
+          }
           labels={labels}
           member={editing}
-          onCancel={() => setEditing(undefined)}
+          onCancel={() => {
+            setPendingAvatar(undefined)
+            setEditing(undefined)
+          }}
           onSubmit={(input) => {
             void team.updateMember(editing.id, input).then((saved) => {
               if (saved) setEditing(undefined)
@@ -142,21 +170,6 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
           }}
           saving={team.saving}
           {...(team.errorCode === EMAIL_TAKEN_CODE ? { emailError: labels.teamEmailTaken } : {})}
-        />
-      )}
-
-      {pendingAvatar && (
-        <AvatarPicker
-          busy={team.saving}
-          file={pendingAvatar.file}
-          labels={labels}
-          onCancel={() => setPendingAvatar(undefined)}
-          onConfirm={(file) => {
-            void team.setMemberAvatar(pendingAvatar.member.id, file)
-            setPendingAvatar(undefined)
-          }}
-          title={`${labels.teamChangePhoto} ${pendingAvatar.member.name}`}
-          {...(backgroundRemoval ? { backgroundRemoval } : {})}
         />
       )}
 
@@ -293,13 +306,12 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
                   </td>
                 )}
                 <td className={CELL}>
-                  <AvatarCell
-                    busy={team.saving}
-                    canChange={team.canChangeAvatar}
-                    label={`${labels.teamChangePhoto} ${member.name}`}
-                    member={member}
-                    onPick={(file) => setPendingAvatar({ member, file })}
-                  />
+                  {/*
+                    So exibicao. Trocar a foto e por "Editar", junto de nome, e-mail e papel — dois
+                    caminhos para a mesma coisa obrigam a descobrir que a foto era clicavel, e essa
+                    descoberta nunca acontece sozinha.
+                  */}
+                  <Avatar name={member.name} {...(member.avatarUrl ? { url: member.avatarUrl } : {})} />
                 </td>
                 <td className={`${CELL} font-medium`}>{member.name}</td>
                 {/* O e-mail e dado de apoio: peso menor evita que ele dispute com o nome. */}
@@ -461,9 +473,8 @@ function ActiveSwitch({ value, busy, label, onToggle }: ActiveSwitchProps) {
   )
 }
 
-type AvatarCellProps = {
+type AvatarFieldProps = {
   readonly member: UserProfile
-  readonly canChange: boolean
   readonly busy: boolean
   readonly label: string
   readonly onPick: (file: File) => void
@@ -476,10 +487,8 @@ type AvatarCellProps = {
  * botão "Escolher arquivo" ao lado de cada linha encheria a tabela. Clicar na própria foto é o
  * gesto que a pessoa já espera.
  */
-function AvatarCell({ member, canChange, busy, label, onPick }: AvatarCellProps) {
-  const avatar = <Avatar name={member.name} {...(member.avatarUrl ? { url: member.avatarUrl } : {})} />
-
-  if (!canChange) return avatar
+function AvatarField({ member, busy, label, onPick }: AvatarFieldProps) {
+  const avatar = <Avatar name={member.name} size={72} {...(member.avatarUrl ? { url: member.avatarUrl } : {})} />
 
   return (
     <label

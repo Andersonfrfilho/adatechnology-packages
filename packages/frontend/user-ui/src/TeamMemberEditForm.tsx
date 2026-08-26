@@ -8,7 +8,7 @@
  */
 
 import { Check } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 
 import type { UpdateTeamMemberInput, UserProfile } from './providers/types'
 import { DEFAULT_USER_LABELS, type UserLabels } from './workspace/labels'
@@ -24,6 +24,14 @@ export type TeamMemberEditFormProps = {
    * numa ficha com vários campos um aviso genérico vira caça ao erro.
    */
   readonly emailError?: string
+  /**
+   * O controle de foto, montado por quem compoe a tela.
+   *
+   * Slot, e nao a foto pronta: este formulario nao conhece armazenamento, recorte de fundo nem o
+   * estado de upload — quem sabe disso e o workspace. Ausente, a ficha simplesmente nao tem foto,
+   * que e o caso do host sem bucket configurado.
+   */
+  readonly avatar?: ReactNode
   readonly onSubmit: (input: UpdateTeamMemberInput) => void
   readonly onCancel: () => void
 }
@@ -40,6 +48,7 @@ export function TeamMemberEditForm({
   labels: overrides,
   saving,
   emailError,
+  avatar,
   onSubmit,
   onCancel,
 }: TeamMemberEditFormProps) {
@@ -63,6 +72,8 @@ export function TeamMemberEditForm({
       <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
         {labels.teamEditTitle} {member.email}
       </p>
+
+      {avatar}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
