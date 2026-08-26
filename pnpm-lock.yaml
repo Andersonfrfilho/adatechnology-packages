@@ -1393,6 +1393,9 @@ importers:
       '@adatechnology/image-cutout':
         specifier: workspace:*
         version: link:../image-cutout
+      lucide-react:
+        specifier: ^1.21.0
+        version: 1.26.0(react@19.2.7)
       react:
         specifier: ^18 || ^19
         version: 19.2.7

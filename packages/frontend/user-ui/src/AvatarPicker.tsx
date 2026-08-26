@@ -7,6 +7,7 @@
  * precisa aparecer com largura inteira, longe da célula de 36px onde o clique começou.
  */
 
+import { Check, RotateCcw, Scissors } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { BACKGROUND_FILL, useBackgroundRemoval, type BackgroundRemovalConfig } from '@adatechnology/image-cutout'
@@ -88,10 +89,12 @@ export function AvatarPicker({
         {backgroundRemoval &&
           (cutout.result ? (
             <button className={SECONDARY} onClick={cutout.discard} type="button">
+              <RotateCcw aria-hidden="true" className="size-4" />
               {labels.avatarKeepOriginal}
             </button>
           ) : (
             <button className={SECONDARY} disabled={cutout.running} onClick={() => void cutout.run()} type="button">
+              <Scissors aria-hidden="true" className="size-4" />
               {cutout.running ? labels.avatarRemovingBackground : labels.avatarRemoveBackground}
             </button>
           ))}
@@ -112,11 +115,12 @@ export function AvatarPicker({
         )}
 
         <button
-          className="min-h-9 rounded bg-blue-600 px-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="inline-flex min-h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-semibold text-white disabled:opacity-60"
           disabled={busy || cutout.running}
           onClick={() => onConfirm(chosen)}
           type="button"
         >
+          <Check aria-hidden="true" className="size-4" />
           {labels.avatarConfirm}
         </button>
 
@@ -129,7 +133,8 @@ export function AvatarPicker({
 }
 
 const SECONDARY =
-  'min-h-9 rounded border border-gray-300 px-3 text-sm disabled:opacity-60 dark:border-gray-600'
+  'inline-flex min-h-9 items-center gap-2 rounded border border-gray-300 px-3 text-sm' +
+  ' disabled:opacity-60 dark:border-gray-600'
 
 type PreviewProps = {
   readonly url: string

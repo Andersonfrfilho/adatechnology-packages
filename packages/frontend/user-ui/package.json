@@ -15,8 +15,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm --external react --external react-dom --external @adatechnology/image-cutout",
-    "build:watch": "tsup src/index.ts --watch --dts --format esm --external react --external react-dom --external @adatechnology/image-cutout",
+    "build": "tsup src/index.ts --dts --format esm --external react --external react-dom --external @adatechnology/image-cutout --external lucide-react",
+    "build:watch": "tsup src/index.ts --watch --dts --format esm --external react --external react-dom --external @adatechnology/image-cutout --external lucide-react",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "bun test"
   },
@@ -32,6 +32,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@adatechnology/image-cutout": "workspace:*"
+    "@adatechnology/image-cutout": "workspace:*",
+    "lucide-react": "^1.21.0"
   }
 }

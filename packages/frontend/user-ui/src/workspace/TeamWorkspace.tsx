@@ -9,6 +9,8 @@
 
 import { useState, type ReactNode } from 'react'
 
+import { KeyRound, Pencil, Plus, Trash2, UserPlus, X, type LucideIcon } from 'lucide-react'
+
 import type { BackgroundRemovalConfig } from '@adatechnology/image-cutout'
 
 import { Avatar } from '../Avatar'
@@ -79,13 +81,15 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
         {/* Sem `createTeamMember` na API, o botão não existe — em vez de existir e falhar no clique. */}
         {!isFormOpen && (
           <button
-            className="min-h-9 rounded bg-blue-600 px-3 text-sm font-semibold text-white"
+            className="inline-flex min-h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-semibold text-white"
             onClick={() => {
               setCreatedName(undefined)
               setIsFormOpen(true)
             }}
             type="button"
           >
+            {/* Decorativo: o rotulo ao lado ja diz a acao, e anunciar duas vezes atrapalha. */}
+            <UserPlus aria-hidden="true" className="size-4" />
             {labels.teamNewMember}
           </button>
         )}
@@ -181,19 +185,22 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
               : labels.teamSelectedCount.replace('{count}', String(team.selected.size))}
           </span>
           <button
-            className="min-h-9 rounded border border-gray-300 px-3 text-sm disabled:opacity-60 dark:border-gray-600"
+            className="inline-flex min-h-9 items-center gap-2 rounded border border-gray-300 px-3 text-sm disabled:opacity-60 dark:border-gray-600"
             disabled={team.saving || team.selected.size === 0}
             onClick={() => void team.setSelectedActive(true)}
             type="button"
           >
+            <Plus aria-hidden="true" className="size-4" />
             {labels.teamBulkActivate}
           </button>
+          {/* Destrutiva leva icone por regra: ele reforca o peso da acao antes do clique. */}
           <button
-            className="min-h-9 rounded border border-red-300 px-3 text-sm text-red-700 disabled:opacity-60 dark:border-red-800 dark:text-red-300"
+            className="inline-flex min-h-9 items-center gap-2 rounded border border-red-300 px-3 text-sm text-red-700 disabled:opacity-60 dark:border-red-800 dark:text-red-300"
             disabled={team.saving || team.selected.size === 0}
             onClick={() => void team.setSelectedActive(false)}
             type="button"
           >
+            <Trash2 aria-hidden="true" className="size-4" />
             {labels.teamBulkDeactivate}
           </button>
         </div>
@@ -481,5 +488,36 @@ function AvatarCell({ member, canChange, busy, label, onPick }: AvatarCellProps)
         type="file"
       />
     </label>
+  )
+}
+
+type RowActionProps = {
+  readonly icon: LucideIcon
+  readonly label: string
+  /** Nome da linha, para o leitor de tela saber de QUEM e a acao — a tabela repete o rotulo. */
+  readonly srSuffix: string
+  readonly busy: boolean
+  readonly onClick: () => void
+}
+
+/**
+ * Acao de linha: icone mais rotulo, e um botao de verdade.
+ *
+ * Era um `<button>` com cara de link sublinhado. Num grupo de acoes lado a lado o sublinhado nao
+ * distingue nada — e o ganho do icone e maior justamente onde ha varios controles juntos, que e a
+ * situacao desta celula.
+ */
+function RowAction({ icon: Icon, label, srSuffix, busy, onClick }: RowActionProps) {
+  return (
+    <button
+      aria-label={`${label} ${srSuffix}`}
+      className="inline-flex min-h-8 items-center gap-1.5 rounded border border-gray-300 px-2 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-60 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+      disabled={busy}
+      onClick={onClick}
+      type="button"
+    >
+      <Icon aria-hidden="true" className="size-3.5" />
+      {label}
+    </button>
   )
 }

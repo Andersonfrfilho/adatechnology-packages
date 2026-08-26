@@ -5,6 +5,7 @@
  * quem quiser a listagem sem o cadastro compõe só o que precisa.
  */
 
+import { UserPlus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import type { CreateTeamMemberInput } from './providers/types'
@@ -119,10 +120,11 @@ export function TeamMemberForm({ labels, saving, onSubmit, onCancel }: TeamMembe
 
       <div className="flex items-center gap-3 sm:col-span-2">
         <button
-          className="min-h-10 rounded bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+          className="inline-flex min-h-10 items-center gap-2 rounded bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
           disabled={saving}
           type="submit"
         >
+          <UserPlus aria-hidden="true" className="size-4" />
           {saving ? labels.teamCreating : labels.teamCreateSubmit}
         </button>
         <button className="text-sm text-gray-600 dark:text-gray-300" onClick={onCancel} type="button">
