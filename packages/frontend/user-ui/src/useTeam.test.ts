@@ -42,3 +42,30 @@ describe('contrato da tela de equipe', () => {
     expect(team.length).toBeGreaterThanOrEqual(20)
   })
 })
+
+describe('busca e selecao em lote', () => {
+  /** `web.md` §7: o botao de limpar so aparece quando ha o que limpar. */
+  it('os rotulos de busca e limpar existem', () => {
+    expect(labels.teamSearch).toBeTruthy()
+    expect(labels.teamClearFilters).toBeTruthy()
+  })
+
+  /** "Nada cadastrado" pede criar; "nada encontrado" pede afrouxar a busca. */
+  it('vazio e sem-resultado sao mensagens diferentes', () => {
+    expect(labels.teamEmpty).not.toBe(labels.teamNoResults)
+  })
+
+  it('o rotulo de contagem tem o marcador que a tela substitui', () => {
+    expect(labels.teamSelectedCount).toContain('{count}')
+  })
+
+  /** Selecionar linha precisa de rotulo proprio: `Selecionar` sozinho, repetido por linha, nao diz quem. */
+  it('a selecao por linha tem rotulo, para o leitor de tela distinguir as linhas', () => {
+    expect(labels.teamSelectRow).toBeTruthy()
+    expect(labels.teamSelectAll).not.toBe(labels.teamSelectRow)
+  })
+
+  it('as duas acoes em lote sao distinguiveis', () => {
+    expect(labels.teamBulkActivate).not.toBe(labels.teamBulkDeactivate)
+  })
+})
