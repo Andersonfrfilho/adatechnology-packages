@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/image-cutout",
-  "version": "0.0.0",
+  "version": "0.1.0-rc.0",
   "description": "Recorte de fundo no navegador (U²-Net sobre onnxruntime-web), sem CDN e sem licença viral",
   "publishConfig": {
     "access": "public"

@@ -55,7 +55,8 @@
     "frontend-example": "0.0.0",
     "@adatechnology/user-contracts": "0.1.0-rc.0",
     "@adatechnology/user-module": "0.1.0-rc.0",
-    "@adatechnology/user-ui": "0.1.0-rc.0"
+    "@adatechnology/user-ui": "0.1.0-rc.0",
+    "@adatechnology/image-cutout": "0.0.0"
   },
   "changesets": [
     "agent-media-enters-document-library",
@@ -174,6 +175,7 @@
     "products-workspace-drawer",
     "products-workspace",
     "quick-replies-single-row",
+    "recorte-na-foto-de-perfil",
     "redact-cnpj-alfanumerico",
     "redactor-logger-http-sink",
     "restore-provider-factory",
