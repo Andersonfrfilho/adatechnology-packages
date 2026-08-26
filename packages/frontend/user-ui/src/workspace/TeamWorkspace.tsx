@@ -92,10 +92,67 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
         />
       )}
 
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          aria-label={labels.teamSearch}
+          className="min-h-9 min-w-56 flex-1 rounded border border-gray-300 px-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+          onChange={(event) => team.setSearch(event.target.value)}
+          placeholder={labels.teamSearch}
+          type="search"
+          value={team.search}
+        />
+
+        {/* So aparece quando ha o que limpar (web.md §7). */}
+        {team.hasFilters && (
+          <button className="text-sm text-blue-700 underline dark:text-blue-300" onClick={team.clearFilters} type="button">
+            {labels.teamClearFilters}
+          </button>
+        )}
+      </div>
+
+      {/*
+        A barra de acao em lote so existe com algo marcado. Um controle permanente e desabilitado
+        ocupa espaco em toda visita para servir a minoria das visitas.
+      */}
+      {team.canDeactivate && team.selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded bg-gray-50 px-4 py-3 dark:bg-gray-800">
+          <span className="text-sm text-gray-700 dark:text-gray-200">
+            {labels.teamSelectedCount.replace('{count}', String(team.selected.size))}
+          </span>
+          <button
+            className="min-h-9 rounded border border-gray-300 px-3 text-sm disabled:opacity-60 dark:border-gray-600"
+            disabled={team.saving}
+            onClick={() => void team.setSelectedActive(true)}
+            type="button"
+          >
+            {labels.teamBulkActivate}
+          </button>
+          <button
+            className="min-h-9 rounded border border-red-300 px-3 text-sm text-red-700 disabled:opacity-60 dark:border-red-800 dark:text-red-300"
+            disabled={team.saving}
+            onClick={() => void team.setSelectedActive(false)}
+            type="button"
+          >
+            {labels.teamBulkDeactivate}
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
         <table className="w-full">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {team.canDeactivate && (
+                <th className="px-4 py-3">
+                  <input
+                    aria-label={labels.teamSelectAll}
+                    checked={team.allVisibleSelected}
+                    className="size-4"
+                    onChange={team.toggleAllVisible}
+                    type="checkbox"
+                  />
+                </th>
+              )}
               <th className="px-4 py-3">{labels.name}</th>
               <th className="px-4 py-3">{labels.email}</th>
               <th className="px-4 py-3">{labels.teamRole}</th>
@@ -106,6 +163,17 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
           <tbody>
             {team.members.map((member) => (
               <tr className="border-t border-gray-100 dark:border-gray-800" key={member.id}>
+                {team.canDeactivate && (
+                  <td className={CELL}>
+                    <input
+                      aria-label={`${labels.teamSelectRow} ${member.name}`}
+                      checked={team.selected.has(member.id)}
+                      className="size-4"
+                      onChange={() => team.toggleSelected(member.id)}
+                      type="checkbox"
+                    />
+                  </td>
+                )}
                 <td className={CELL}>{member.name}</td>
                 <td className={CELL}>{member.email}</td>
                 <td className={CELL}>{member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}</td>
@@ -128,8 +196,11 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
         </table>
 
         {team.loading && <p className="px-4 py-8 text-center text-sm text-gray-500">{labels.teamLoading}</p>}
+        {/* "Nada cadastrado" e "nada encontrado" pedem coisas diferentes: criar, ou afrouxar a busca. */}
         {!team.loading && team.members.length === 0 && (
-          <p className="px-4 py-8 text-center text-sm text-gray-500">{labels.teamEmpty}</p>
+          <p className="px-4 py-8 text-center text-sm text-gray-500">
+            {team.hasFilters ? labels.teamNoResults : labels.teamEmpty}
+          </p>
         )}
       </div>
 

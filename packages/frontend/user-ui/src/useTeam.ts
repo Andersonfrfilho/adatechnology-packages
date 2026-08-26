@@ -15,6 +15,19 @@ import type { CreateTeamMemberInput, TeamPage, UserApi, UserProfile } from './pr
 export const TEAM_DEFAULT_PAGE_SIZE = 20
 
 export type UseTeamResult = {
+  /** O termo de busca corrente. Filtra sobre nome e e-mail — quem procura lembra de um dos dois. */
+  readonly search: string
+  /** Ids marcados. `Set` e nao array: a tabela pergunta "esta marcado?" por linha, a cada render. */
+  readonly selected: ReadonlySet<string>
+  readonly allVisibleSelected: boolean
+  /** `true` quando ha busca aplicada — e o que faz o botao de limpar aparecer (web.md §7). */
+  readonly hasFilters: boolean
+  setSearch: (value: string) => void
+  clearFilters: () => void
+  toggleSelected: (userId: string) => void
+  toggleAllVisible: () => void
+  clearSelection: () => void
+  setSelectedActive: (isActive: boolean) => Promise<void>
   /** `false` quando a `UserApi` não traz `listTeam` — a tela inteira some. */
   readonly enabled: boolean
   readonly members: readonly UserProfile[]
@@ -48,6 +61,8 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | undefined>(undefined)
+  const [search, setSearchValue] = useState('')
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
 
   const listTeam = api.listTeam
   const enabled = Boolean(listTeam)
@@ -109,10 +124,72 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     [api, load],
   )
 
+  /**
+   * Busca no CLIENTE, sobre a pagina carregada.
+   *
+   * A alternativa e mandar o termo para o servidor, e ela e a certa quando a base cresce — mas o
+   * `listTeam` de hoje devolve a equipe inteira, e filtrar duas vezes o mesmo conjunto seria uma ida
+   * de rede por tecla digitada sem nada em troca. Quando houver paginacao real do servidor, o termo
+   * passa a ir junto de `page` e este bloco sai.
+   */
+  const termo = search.trim().toLowerCase()
+  const members = termo
+    ? (data?.items ?? []).filter((member) => `${member.name} ${member.email}`.toLowerCase().includes(termo))
+    : (data?.items ?? [])
+
+  const visibleIds = members.map((member) => member.id)
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id))
+
   return {
     enabled,
-    members: data?.items ?? [],
+    members,
     total: data?.total ?? 0,
+    search,
+    selected,
+    allVisibleSelected,
+    hasFilters: termo.length > 0,
+    setSearch: (value: string) => {
+      setSearchValue(value)
+      // Selecao morre com o filtro: manter marcado o que sumiu da tela e agir em lote sobre gente
+      // que o operador nao esta vendo.
+      setSelected(new Set())
+    },
+    clearFilters: () => {
+      setSearchValue('')
+      setSelected(new Set())
+    },
+    toggleSelected: (userId: string) =>
+      setSelected((current) => {
+        const next = new Set(current)
+        if (next.has(userId)) next.delete(userId)
+        else next.add(userId)
+        return next
+      }),
+    toggleAllVisible: () =>
+      setSelected((current) => (visibleIds.every((id) => current.has(id)) ? new Set() : new Set(visibleIds))),
+    clearSelection: () => setSelected(new Set()),
+    setSelectedActive: async (isActive: boolean) => {
+      if (!api.setTeamMemberActive) return
+      setSaving(true)
+      setError(undefined)
+      try {
+        /**
+         * Em serie, e nao em paralelo: sao escritas no mesmo recurso, e disparar dez de uma vez
+         * multiplica o risco de o rate limit derrubar metade — deixando o operador sem saber quais
+         * mudaram.
+         */
+        for (const id of selected) {
+          await api.setTeamMemberActive(id, isActive)
+        }
+        setSelected(new Set())
+        await load()
+      } catch (cause) {
+        setError(messageOf(cause, 'Nao foi possivel alterar'))
+        await load()
+      } finally {
+        setSaving(false)
+      }
+    },
     page,
     pageSize,
     loading,

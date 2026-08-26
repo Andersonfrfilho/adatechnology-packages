@@ -57,6 +57,14 @@ export type UserLabels = {
   readonly teamPrevious: string
   readonly teamNext: string
   readonly teamPageOf: string
+  readonly teamSearch: string
+  readonly teamClearFilters: string
+  readonly teamNoResults: string
+  readonly teamSelectAll: string
+  readonly teamSelectRow: string
+  readonly teamSelectedCount: string
+  readonly teamBulkActivate: string
+  readonly teamBulkDeactivate: string
 }
 
 export const DEFAULT_USER_LABELS: UserLabels = {
@@ -110,4 +118,12 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   teamPrevious: 'Anterior',
   teamNext: 'Proxima',
   teamPageOf: 'Pagina {current} de {last}',
+  teamSearch: 'Buscar por nome ou e-mail',
+  teamClearFilters: 'Limpar busca',
+  teamNoResults: 'Nada encontrado para essa busca.',
+  teamSelectAll: 'Selecionar todos',
+  teamSelectRow: 'Selecionar',
+  teamSelectedCount: '{count} selecionados',
+  teamBulkActivate: 'Reativar selecionados',
+  teamBulkDeactivate: 'Desativar selecionados',
 }
