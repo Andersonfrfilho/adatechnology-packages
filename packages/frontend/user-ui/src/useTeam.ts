@@ -14,6 +14,20 @@ import type { CreateTeamMemberInput, TeamPage, UserApi, UserProfile } from './pr
 
 export const TEAM_DEFAULT_PAGE_SIZE = 20
 
+/** As colunas que ordenam — e so elas: cabecalho clicavel que nao ordena e promessa quebrada. */
+export const TEAM_SORT_FIELDS = {
+  NAME: 'name',
+  EMAIL: 'email',
+  ROLE: 'role',
+  ACTIVE: 'isActive',
+} as const
+export type TeamSortField = (typeof TEAM_SORT_FIELDS)[keyof typeof TEAM_SORT_FIELDS]
+
+export type TeamSort = {
+  readonly field: TeamSortField
+  readonly direction: 'asc' | 'desc'
+}
+
 export type UseTeamResult = {
   /** O termo de busca corrente. Filtra sobre nome e e-mail — quem procura lembra de um dos dois. */
   readonly search: string
@@ -22,6 +36,10 @@ export type UseTeamResult = {
   readonly allVisibleSelected: boolean
   /** `true` quando ha busca aplicada — e o que faz o botao de limpar aparecer (web.md §7). */
   readonly hasFilters: boolean
+  /** Ausente = ordem natural, que e a que o servidor devolveu. E o terceiro estado do cabecalho. */
+  readonly sort: TeamSort | undefined
+  /** Cicla `asc` -> `desc` -> neutro na mesma coluna; outra coluna recomeca em `asc`. */
+  toggleSort: (field: TeamSortField) => void
   setSearch: (value: string) => void
   clearFilters: () => void
   toggleSelected: (userId: string) => void
@@ -63,6 +81,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
   const [error, setError] = useState<string | undefined>(undefined)
   const [search, setSearchValue] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [sort, setSort] = useState<TeamSort | undefined>(undefined)
 
   const listTeam = api.listTeam
   const enabled = Boolean(listTeam)
@@ -137,17 +156,30 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     ? (data?.items ?? []).filter((member) => `${member.name} ${member.email}`.toLowerCase().includes(termo))
     : (data?.items ?? [])
 
-  const visibleIds = members.map((member) => member.id)
+  /**
+   * Ordena so quando alguem pede. Sem `sort`, vale a ordem do servidor — que ja poe ativos primeiro,
+   * e reordenar por padrao esconderia essa intencao.
+   */
+  const ordered = sort ? [...members].sort(compareBy(sort)) : members
+
+  const visibleIds = ordered.map((member) => member.id)
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id))
 
   return {
     enabled,
-    members,
+    members: ordered,
     total: data?.total ?? 0,
     search,
     selected,
     allVisibleSelected,
-    hasFilters: termo.length > 0,
+    hasFilters: termo.length > 0 || sort !== undefined,
+    sort,
+    toggleSort: (field: TeamSortField) =>
+      setSort((current) => {
+        if (current?.field !== field) return { field, direction: 'asc' }
+        if (current.direction === 'asc') return { field, direction: 'desc' }
+        return undefined
+      }),
     setSearch: (value: string) => {
       setSearchValue(value)
       // Selecao morre com o filtro: manter marcado o que sumiu da tela e agir em lote sobre gente
@@ -156,6 +188,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     },
     clearFilters: () => {
       setSearchValue('')
+      setSort(undefined)
       setSelected(new Set())
     },
     toggleSelected: (userId: string) =>
@@ -205,4 +238,22 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
 
 function messageOf(cause: unknown, fallback: string): string {
   return cause instanceof Error && cause.message ? cause.message : fallback
+}
+
+/**
+ * `isActive` ordena por situacao, e nao alfabeticamente sobre "true"/"false".
+ *
+ * Ativo primeiro no `asc` porque e o que quem administra procura — a lista de quem trabalha, nao a
+ * de quem saiu.
+ */
+export function compareBy(sort: TeamSort): (left: UserProfile, right: UserProfile) => number {
+  const sinal = sort.direction === 'asc' ? 1 : -1
+
+  return (left, right) => {
+    if (sort.field === TEAM_SORT_FIELDS.ACTIVE) {
+      return (Number(right.isActive) - Number(left.isActive)) * sinal
+    }
+
+    return String(left[sort.field] ?? '').localeCompare(String(right[sort.field] ?? '')) * sinal
+  }
 }

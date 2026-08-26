@@ -20,7 +20,20 @@ export type TeamMemberFormProps = {
   readonly onCancel: () => void
 }
 
-const FIELD = 'w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900'
+/** Altura fixa, e nao `py-2`: e o que faz o select terminar na mesma linha que os inputs ao lado. */
+const FIELD =
+  'h-10 w-full rounded border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none' +
+  ' focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20' +
+  ' dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
+
+/**
+ * `appearance-none` apaga a seta do sistema — que e o que fazia o campo destoar: cada SO desenha a
+ * sua, em tamanho e cor proprios, e nenhuma acompanha o tema escuro. A nossa vem abaixo, em SVG,
+ * herdando `currentColor`.
+ *
+ * `pr-9` reserva a faixa da seta para o texto nao passar por baixo dela.
+ */
+const SELECT_FIELD = `${FIELD} cursor-pointer appearance-none pr-9`
 const LABEL = 'mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100'
 
 export function TeamMemberForm({ labels, saving, onSubmit, onCancel }: TeamMemberFormProps) {
@@ -78,10 +91,30 @@ export function TeamMemberForm({ labels, saving, onSubmit, onCancel }: TeamMembe
         <label className={LABEL} htmlFor="team-role">
           {labels.teamRole}
         </label>
-        <select className={FIELD} id="team-role" onChange={(event) => setRole(event.target.value)} value={role}>
-          <option value="member">{labels.teamRoleMember}</option>
-          <option value="admin">{labels.teamRoleAdmin}</option>
-        </select>
+        <div className="relative">
+          <select
+            className={SELECT_FIELD}
+            id="team-role"
+            onChange={(event) => setRole(event.target.value)}
+            value={role}
+          >
+            <option value="member">{labels.teamRoleMember}</option>
+            <option value="admin">{labels.teamRoleAdmin}</option>
+          </select>
+          {/* Decorativa: o `select` ao lado ja anuncia o papel de combobox ao leitor de tela. */}
+          <svg
+            aria-hidden="true"
+            className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-500 dark:text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 sm:col-span-2">

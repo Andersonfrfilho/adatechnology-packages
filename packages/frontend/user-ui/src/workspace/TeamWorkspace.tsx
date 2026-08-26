@@ -10,7 +10,7 @@
 import { useState, type ReactNode } from 'react'
 
 import { TeamMemberForm } from '../TeamMemberForm'
-import { useTeam, type TeamApi } from '../useTeam'
+import { useTeam, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
 
 export type TeamWorkspaceProps = {
@@ -111,17 +111,22 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
       </div>
 
       {/*
-        A barra de acao em lote so existe com algo marcado. Um controle permanente e desabilitado
-        ocupa espaco em toda visita para servir a minoria das visitas.
+        A barra fica visivel desde o primeiro carregamento, com os botoes desligados ate haver
+        selecao.
+        Ela ja foi condicionada a `selected.size > 0` para poupar espaco — e o resultado foi que
+        ninguem descobria que a acao em lote existia: para ver o controle era preciso adivinhar que
+        marcar uma linha revelaria algo. Espaco em branco custa menos que uma funcao invisivel.
       */}
-      {team.canDeactivate && team.selected.size > 0 && (
+      {team.canDeactivate && team.members.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded bg-gray-50 px-4 py-3 dark:bg-gray-800">
           <span className="text-sm text-gray-700 dark:text-gray-200">
-            {labels.teamSelectedCount.replace('{count}', String(team.selected.size))}
+            {team.selected.size === 0
+              ? labels.teamBulkHint
+              : labels.teamSelectedCount.replace('{count}', String(team.selected.size))}
           </span>
           <button
             className="min-h-9 rounded border border-gray-300 px-3 text-sm disabled:opacity-60 dark:border-gray-600"
-            disabled={team.saving}
+            disabled={team.saving || team.selected.size === 0}
             onClick={() => void team.setSelectedActive(true)}
             type="button"
           >
@@ -129,7 +134,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
           </button>
           <button
             className="min-h-9 rounded border border-red-300 px-3 text-sm text-red-700 disabled:opacity-60 dark:border-red-800 dark:text-red-300"
-            disabled={team.saving}
+            disabled={team.saving || team.selected.size === 0}
             onClick={() => void team.setSelectedActive(false)}
             type="button"
           >
@@ -153,10 +158,10 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
                   />
                 </th>
               )}
-              <th className="px-4 py-3">{labels.name}</th>
-              <th className="px-4 py-3">{labels.email}</th>
-              <th className="px-4 py-3">{labels.teamRole}</th>
-              <th className="px-4 py-3">{labels.teamStatus}</th>
+              <SortableHeader field={TEAM_SORT_FIELDS.NAME} label={labels.name} team={team} title={labels.teamSortBy} />
+              <SortableHeader field={TEAM_SORT_FIELDS.EMAIL} label={labels.email} team={team} title={labels.teamSortBy} />
+              <SortableHeader field={TEAM_SORT_FIELDS.ROLE} label={labels.teamRole} team={team} title={labels.teamSortBy} />
+              <SortableHeader field={TEAM_SORT_FIELDS.ACTIVE} label={labels.teamStatus} team={team} title={labels.teamSortBy} />
               {team.canDeactivate && <th className="px-4 py-3" />}
             </tr>
           </thead>
@@ -180,14 +185,12 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
                 <td className={CELL}>{member.isActive ? labels.teamActive : labels.teamInactive}</td>
                 {team.canDeactivate && (
                   <td className={CELL}>
-                    <button
-                      className="text-sm text-blue-700 disabled:opacity-60 dark:text-blue-300"
-                      disabled={team.saving}
-                      onClick={() => void team.setMemberActive(member.id, !member.isActive)}
-                      type="button"
-                    >
-                      {member.isActive ? labels.teamDeactivate : labels.teamActivate}
-                    </button>
+                    <ActiveSwitch
+                      busy={team.saving}
+                      label={`${member.isActive ? labels.teamDeactivate : labels.teamActivate} ${member.name}`}
+                      onToggle={() => void team.setMemberActive(member.id, !member.isActive)}
+                      value={member.isActive}
+                    />
                   </td>
                 )}
               </tr>
@@ -231,5 +234,71 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
         </nav>
       )}
     </div>
+  )
+}
+
+type SortableHeaderProps = {
+  readonly field: TeamSortField
+  readonly label: string
+  readonly title: string
+  readonly team: ReturnType<typeof useTeam>
+}
+
+/**
+ * `aria-sort` vai no `th`, nao no botao: e o `th` que o leitor de tela anuncia ao entrar na coluna,
+ * e e la que a especificacao manda o estado morar.
+ */
+function SortableHeader({ field, label, title, team }: SortableHeaderProps) {
+  const active = team.sort?.field === field ? team.sort.direction : undefined
+
+  return (
+    <th aria-sort={active === 'asc' ? 'ascending' : active === 'desc' ? 'descending' : 'none'} className="px-4 py-3">
+      <button
+        className="flex items-center gap-1 uppercase tracking-wide hover:text-gray-900 dark:hover:text-gray-100"
+        onClick={() => team.toggleSort(field)}
+        title={`${title}: ${label}`}
+        type="button"
+      >
+        {label}
+        {/*
+          A seta so aparece na coluna ativa. Um indicador neutro em toda coluna faria as quatro
+          parecerem ordenadas ao mesmo tempo, que e o oposto do que ele existe para dizer.
+        */}
+        {active && <span aria-hidden="true">{active === 'asc' ? '\u2191' : '\u2193'}</span>}
+      </button>
+    </th>
+  )
+}
+
+type ActiveSwitchProps = {
+  readonly value: boolean
+  readonly busy: boolean
+  readonly label: string
+  readonly onToggle: () => void
+}
+
+/**
+ * `role="switch"` e nao um checkbox: o checkbox diz "selecionado para algo depois", e este controle
+ * grava na hora. Confundir os dois na mesma linha — onde ja ha um checkbox de selecao — e o erro
+ * que esta distincao evita.
+ */
+function ActiveSwitch({ value, busy, label, onToggle }: ActiveSwitchProps) {
+  return (
+    <button
+      aria-checked={value}
+      aria-label={label}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
+        value ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-600'
+      }`}
+      disabled={busy}
+      onClick={onToggle}
+      role="switch"
+      type="button"
+    >
+      <span
+        aria-hidden="true"
+        className={`absolute top-0.5 size-5 rounded-full bg-white transition-all ${value ? 'left-5.5' : 'left-0.5'}`}
+      />
+    </button>
   )
 }

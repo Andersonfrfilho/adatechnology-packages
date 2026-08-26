@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { DEFAULT_USER_LABELS as labels } from './workspace/labels'
-import { TEAM_DEFAULT_PAGE_SIZE } from './useTeam'
+import { TEAM_DEFAULT_PAGE_SIZE, compareBy, type TeamSort } from './useTeam'
 import { TEAM_PASSWORD_MIN_LENGTH } from './TeamMemberForm'
 
 describe('contrato da tela de equipe', () => {
@@ -67,5 +67,27 @@ describe('busca e selecao em lote', () => {
 
   it('as duas acoes em lote sao distinguiveis', () => {
     expect(labels.teamBulkActivate).not.toBe(labels.teamBulkDeactivate)
+  })
+})
+
+describe('ordenacao', () => {
+  const membros = [
+    { id: '1', name: 'Carla', email: 'c@x.com', role: 'member', isActive: false },
+    { id: '2', name: 'Ana', email: 'a@x.com', role: 'admin', isActive: true },
+    { id: '3', name: 'Bruno', email: 'b@x.com', role: 'member', isActive: true },
+  ] as const
+
+  function ordenar(sort: TeamSort): readonly string[] {
+    return [...membros].sort(compareBy(sort)).map((membro) => membro.name)
+  }
+
+  it('sobe e desce pelo mesmo campo', () => {
+    expect(ordenar({ field: 'name', direction: 'asc' })).toEqual(['Ana', 'Bruno', 'Carla'])
+    expect(ordenar({ field: 'name', direction: 'desc' })).toEqual(['Carla', 'Bruno', 'Ana'])
+  })
+
+  it('ordena situacao por ativo, e nao pelo texto de true e false', () => {
+    // Alfabeticamente "false" < "true"; o inativo viria primeiro, que e o contrario do util.
+    expect(ordenar({ field: 'isActive', direction: 'asc' })[2]).toBe('Carla')
   })
 })
