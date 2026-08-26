@@ -74,7 +74,16 @@ export function useBackgroundRemoval({ file, config }: UseBackgroundRemovalParam
         const cut = await removeBackground({ file, config, fill: chosenFill })
         setResult(cut)
         replacePreview(URL.createObjectURL(cut))
-      } catch {
+      } catch (cause) {
+        /*
+          A causa vai para o console, e não some no catch.
+
+          A mensagem na tela é para quem está usando; a causa é para quem vai consertar — e este
+          recorte falha por motivos que só o erro original identifica: CSP sem `wasm-unsafe-eval`,
+          modelo 404, runtime que não publicou `ort`. Engolir a causa transformou uma falha de
+          cabeçalho numa frase genérica, e ela ficou meses assim sem ninguém saber por quê.
+        */
+        console.error('image-cutout: falha ao remover o fundo', cause)
         setError('Não foi possível remover o fundo')
         setResult(null)
         replacePreview(null)
