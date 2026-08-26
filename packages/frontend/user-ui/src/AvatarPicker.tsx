@@ -146,14 +146,15 @@ type PreviewProps = {
 function Preview({ url, label, selected }: PreviewProps) {
   return (
     <figure className="space-y-1">
+      {/*
+        O xadrez vem do token da paleta (`--color-gray-200`), e nao de um hexadecimal cravado: cor
+        literal no componente para de acompanhar o tema no dia em que a paleta mudar, e ninguem
+        percebe porque continua parecendo certo.
+      */}
       <div
-        className={`size-24 overflow-hidden rounded-full ring-2 ${selected ? 'ring-blue-600' : 'ring-transparent'}`}
-        style={{
-          backgroundImage:
-            'linear-gradient(45deg,#e5e7eb 25%,transparent 25%,transparent 75%,#e5e7eb 75%),linear-gradient(45deg,#e5e7eb 25%,transparent 25%,transparent 75%,#e5e7eb 75%)',
-          backgroundSize: '12px 12px',
-          backgroundPosition: '0 0, 6px 6px',
-        }}
+        className={`size-24 overflow-hidden rounded-full bg-[length:16px_16px] bg-[repeating-conic-gradient(var(--color-gray-200)_0%_25%,transparent_0%_50%)] ring-2 ${
+          selected ? 'ring-blue-600' : 'ring-transparent'
+        }`}
       >
         <img alt="" className="size-full object-cover" src={url} />
       </div>
