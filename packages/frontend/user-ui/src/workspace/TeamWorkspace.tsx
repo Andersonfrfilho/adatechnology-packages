@@ -173,10 +173,11 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
         {/* So aparece quando ha o que limpar (web.md §7). */}
         {team.hasFilters && (
           <button
-            className="text-sm text-blue-700 underline dark:text-blue-300"
+            className="inline-flex items-center gap-1 text-sm text-blue-700 underline dark:text-blue-300"
             onClick={team.clearFilters}
             type="button"
           >
+            <X aria-hidden="true" className="size-4" />
             {labels.teamClearFilters}
           </button>
         )}
@@ -325,15 +326,13 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
                         />
                       )}
                       {team.canEdit && (
-                        <button
-                          aria-label={`${labels.teamEdit} ${member.name}`}
-                          className="text-xs text-blue-700 underline disabled:opacity-60 dark:text-blue-300"
-                          disabled={team.saving}
+                        <RowAction
+                          busy={team.saving}
+                          icon={Pencil}
+                          label={labels.teamEdit}
                           onClick={() => setEditing(member)}
-                          type="button"
-                        >
-                          {labels.teamEdit}
-                        </button>
+                          srSuffix={member.name}
+                        />
                       )}
                       {team.canSendPasswordReset &&
                         (team.passwordResetSentTo === member.id ? (
@@ -341,14 +340,13 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
                             {labels.teamPasswordResetSent}
                           </span>
                         ) : (
-                          <button
-                            className="text-xs text-blue-700 underline disabled:opacity-60 dark:text-blue-300"
-                            disabled={team.saving}
+                          <RowAction
+                            busy={team.saving}
+                            icon={KeyRound}
+                            label={labels.teamSendPasswordReset}
                             onClick={() => void team.sendPasswordReset(member.id)}
-                            type="button"
-                          >
-                            {labels.teamSendPasswordReset}
-                          </button>
+                            srSuffix={member.name}
+                          />
                         ))}
                     </div>
                   </td>
