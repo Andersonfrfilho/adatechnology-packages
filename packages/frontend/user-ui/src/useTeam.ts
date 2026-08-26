@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { useOptionalUserApi } from './providers/UserProvider'
-import type { CreateTeamMemberInput, TeamPage, UserApi, UserProfile } from './providers/types'
+import type { CreateTeamMemberInput, TeamPage, UpdateTeamMemberInput, UserApi, UserProfile } from './providers/types'
 
 export const TEAM_DEFAULT_PAGE_SIZE = 20
 
@@ -56,10 +56,12 @@ export type UseTeamResult = {
   readonly saving: boolean
   readonly error: string | undefined
   readonly canDeactivate: boolean
+  readonly canEdit: boolean
   readonly canChangeAvatar: boolean
   readonly canSendPasswordReset: boolean
   /** Id de quem acabou de receber o e-mail, para a linha confirmar sem abrir um alerta global. */
   readonly passwordResetSentTo: string | undefined
+  updateMember: (userId: string, input: UpdateTeamMemberInput) => Promise<boolean>
   setMemberAvatar: (userId: string, file: File) => Promise<void>
   sendPasswordReset: (userId: string) => Promise<void>
   goToPage: (page: number) => void
@@ -71,7 +73,12 @@ export type UseTeamResult = {
 /** Só os três métodos de equipe — quem monta a tela sozinho não precisa dos de autenticação. */
 export type TeamApi = Pick<
   UserApi,
-  'listTeam' | 'createTeamMember' | 'setTeamMemberActive' | 'setTeamMemberAvatar' | 'sendPasswordReset'
+  | 'listTeam'
+  | 'createTeamMember'
+  | 'updateTeamMember'
+  | 'setTeamMemberActive'
+  | 'setTeamMemberAvatar'
+  | 'sendPasswordReset'
 >
 
 export type UseTeamParams = {
@@ -239,7 +246,24 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     saving,
     error,
     canDeactivate: Boolean(api.setTeamMemberActive),
+    canEdit: Boolean(api.updateTeamMember),
     canChangeAvatar: Boolean(api.setTeamMemberAvatar),
+    updateMember: async (userId: string, input: UpdateTeamMemberInput) => {
+      if (!api.updateTeamMember) return false
+      setSaving(true)
+      setError(undefined)
+      try {
+        await api.updateTeamMember(userId, input)
+        // Recarrega porque o servidor normaliza o nome e decide a ordem da lista.
+        await load()
+        return true
+      } catch (cause) {
+        setError(messageOf(cause, 'Nao foi possivel salvar'))
+        return false
+      } finally {
+        setSaving(false)
+      }
+    },
     canSendPasswordReset: Boolean(api.sendPasswordReset),
     passwordResetSentTo,
     setMemberAvatar: async (userId: string, file: File) => {

@@ -62,6 +62,10 @@ export type UserLabels = {
   readonly teamNoResults: string
   readonly teamSelectAll: string
   readonly teamSelectRow: string
+  readonly teamEdit: string
+  readonly teamEditTitle: string
+  readonly teamSave: string
+  readonly teamSaving: string
   readonly avatarOriginal: string
   readonly avatarCutout: string
   readonly avatarRemoveBackground: string
@@ -138,6 +142,10 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   teamNoResults: 'Nada encontrado para essa busca.',
   teamSelectAll: 'Selecionar todos',
   teamSelectRow: 'Selecionar',
+  teamEdit: 'Editar',
+  teamEditTitle: 'Editando',
+  teamSave: 'Salvar',
+  teamSaving: 'Salvando...',
   avatarOriginal: 'Original',
   avatarCutout: 'Sem fundo',
   avatarRemoveBackground: 'Remover fundo',

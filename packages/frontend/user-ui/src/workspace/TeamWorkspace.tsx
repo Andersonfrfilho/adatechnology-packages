@@ -14,6 +14,7 @@ import type { BackgroundRemovalConfig } from '@adatechnology/image-cutout'
 import { Avatar } from '../Avatar'
 import { AvatarPicker } from '../AvatarPicker'
 import type { UserProfile } from '../providers/types'
+import { TeamMemberEditForm } from '../TeamMemberEditForm'
 import { TeamMemberForm } from '../TeamMemberForm'
 import { useTeam, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
@@ -42,21 +43,19 @@ export type TeamWorkspaceProps = {
 
 const CELL = 'px-4 py-3 text-sm text-gray-900 dark:text-gray-100'
 
-export function TeamWorkspace({
-  labels: overrides,
-  header,
-  pageSize,
-  api,
-  backgroundRemoval,
-}: TeamWorkspaceProps) {
+export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgroundRemoval }: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
   const team = useTeam({ ...(pageSize === undefined ? {} : { pageSize }), ...(api ? { api } : {}) })
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [createdName, setCreatedName] = useState<string>()
   /** A foto escolhida numa linha, esperando revisao. O painel abre com largura inteira, acima. */
   const [pendingAvatar, setPendingAvatar] = useState<{ member: UserProfile; file: File }>()
+  const [editing, setEditing] = useState<UserProfile>()
 
   if (!team.enabled) return null
+
+  /** A coluna de acoes existe se HOUVER acao — nao so quando ha desativacao. */
+  const hasRowActions = team.canDeactivate || team.canEdit || team.canSendPasswordReset
 
   const lastPage = Math.max(1, Math.ceil(team.total / team.pageSize))
 
@@ -93,7 +92,10 @@ export function TeamWorkspace({
       </header>
 
       {createdName && (
-        <p className="rounded bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" role="status">
+        <p
+          className="rounded bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+          role="status"
+        >
           {labels.teamCreatedMessage}: {createdName}
         </p>
       )}
@@ -109,6 +111,20 @@ export function TeamWorkspace({
           labels={labels}
           onCancel={() => setIsFormOpen(false)}
           onSubmit={(input) => void handleCreate(input)}
+          saving={team.saving}
+        />
+      )}
+
+      {editing && (
+        <TeamMemberEditForm
+          labels={labels}
+          member={editing}
+          onCancel={() => setEditing(undefined)}
+          onSubmit={(input) => {
+            void team.updateMember(editing.id, input).then((saved) => {
+              if (saved) setEditing(undefined)
+            })
+          }}
           saving={team.saving}
         />
       )}
@@ -140,7 +156,11 @@ export function TeamWorkspace({
 
         {/* So aparece quando ha o que limpar (web.md §7). */}
         {team.hasFilters && (
-          <button className="text-sm text-blue-700 underline dark:text-blue-300" onClick={team.clearFilters} type="button">
+          <button
+            className="text-sm text-blue-700 underline dark:text-blue-300"
+            onClick={team.clearFilters}
+            type="button"
+          >
             {labels.teamClearFilters}
           </button>
         )}
@@ -195,17 +215,44 @@ export function TeamWorkspace({
                 </th>
               )}
               {/* Sem rotulo visivel: a coluna e de 36px e o titulo dobraria a largura dela. */}
-              <th className="px-4 py-3"><span className="sr-only">{labels.teamPhoto}</span></th>
+              <th className="px-4 py-3">
+                <span className="sr-only">{labels.teamPhoto}</span>
+              </th>
               <SortableHeader field={TEAM_SORT_FIELDS.NAME} label={labels.name} team={team} title={labels.teamSortBy} />
-              <SortableHeader field={TEAM_SORT_FIELDS.EMAIL} label={labels.email} team={team} title={labels.teamSortBy} />
-              <SortableHeader field={TEAM_SORT_FIELDS.ROLE} label={labels.teamRole} team={team} title={labels.teamSortBy} />
-              <SortableHeader field={TEAM_SORT_FIELDS.ACTIVE} label={labels.teamStatus} team={team} title={labels.teamSortBy} />
-              {team.canDeactivate && <th className="px-4 py-3" />}
+              <SortableHeader
+                field={TEAM_SORT_FIELDS.EMAIL}
+                label={labels.email}
+                team={team}
+                title={labels.teamSortBy}
+              />
+              <SortableHeader
+                field={TEAM_SORT_FIELDS.ROLE}
+                label={labels.teamRole}
+                team={team}
+                title={labels.teamSortBy}
+              />
+              <SortableHeader
+                field={TEAM_SORT_FIELDS.ACTIVE}
+                label={labels.teamStatus}
+                team={team}
+                title={labels.teamSortBy}
+              />
+              {hasRowActions && <th className="px-4 py-3" />}
             </tr>
           </thead>
           <tbody>
-            {team.members.map((member) => (
-              <tr className="border-t border-gray-100 dark:border-gray-800" key={member.id}>
+            {team.members.map((member, index) => (
+              /*
+                Zebra por indice da linha renderizada, e nao por id: a listra tem que alternar do
+                jeito que o olho percorre, e com ordenacao ou filtro a ordem dos ids nao e a ordem da
+                tela.
+              */
+              <tr
+                className={`border-t border-gray-100 dark:border-gray-800 ${
+                  index % 2 === 1 ? 'bg-gray-50 dark:bg-gray-900/40' : ''
+                }`}
+                key={member.id}
+              >
                 {team.canDeactivate && (
                   <td className={CELL}>
                     <input
@@ -230,30 +277,43 @@ export function TeamWorkspace({
                 <td className={CELL}>{member.email}</td>
                 <td className={CELL}>{member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}</td>
                 <td className={CELL}>{member.isActive ? labels.teamActive : labels.teamInactive}</td>
-                {team.canDeactivate && (
+                {hasRowActions && (
                   <td className={CELL}>
                     <div className="flex items-center gap-3">
-                    <ActiveSwitch
-                      busy={team.saving}
-                      label={`${member.isActive ? labels.teamDeactivate : labels.teamActivate} ${member.name}`}
-                      onToggle={() => void team.setMemberActive(member.id, !member.isActive)}
-                      value={member.isActive}
-                    />
-                    {team.canSendPasswordReset &&
-                      (team.passwordResetSentTo === member.id ? (
-                        <span className="text-xs text-emerald-700 dark:text-emerald-300" role="status">
-                          {labels.teamPasswordResetSent}
-                        </span>
-                      ) : (
+                      {team.canDeactivate && (
+                        <ActiveSwitch
+                          busy={team.saving}
+                          label={`${member.isActive ? labels.teamDeactivate : labels.teamActivate} ${member.name}`}
+                          onToggle={() => void team.setMemberActive(member.id, !member.isActive)}
+                          value={member.isActive}
+                        />
+                      )}
+                      {team.canEdit && (
                         <button
+                          aria-label={`${labels.teamEdit} ${member.name}`}
                           className="text-xs text-blue-700 underline disabled:opacity-60 dark:text-blue-300"
                           disabled={team.saving}
-                          onClick={() => void team.sendPasswordReset(member.id)}
+                          onClick={() => setEditing(member)}
                           type="button"
                         >
-                          {labels.teamSendPasswordReset}
+                          {labels.teamEdit}
                         </button>
-                      ))}
+                      )}
+                      {team.canSendPasswordReset &&
+                        (team.passwordResetSentTo === member.id ? (
+                          <span className="text-xs text-emerald-700 dark:text-emerald-300" role="status">
+                            {labels.teamPasswordResetSent}
+                          </span>
+                        ) : (
+                          <button
+                            className="text-xs text-blue-700 underline disabled:opacity-60 dark:text-blue-300"
+                            disabled={team.saving}
+                            onClick={() => void team.sendPasswordReset(member.id)}
+                            type="button"
+                          >
+                            {labels.teamSendPasswordReset}
+                          </button>
+                        ))}
                     </div>
                   </td>
                 )}
@@ -394,7 +454,14 @@ function AvatarCell({ member, canChange, busy, label, onPick }: AvatarCellProps)
     >
       {avatar}
       <span className="absolute inset-0 hidden items-center justify-center rounded-full bg-black/50 text-white group-hover:flex group-focus-within:flex">
-        <svg aria-hidden="true" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <svg
+          aria-hidden="true"
+          className="size-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
           <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
           <circle cx="12" cy="13" r="4" />
         </svg>

@@ -58,6 +58,11 @@ export type ListTeamParams = {
   readonly pageSize: number
 }
 
+export type UpdateTeamMemberInput = {
+  readonly name: string
+  readonly role: string
+}
+
 export type CreateTeamMemberInput = {
   readonly email: string
   readonly name: string
@@ -85,6 +90,8 @@ export type UserApi = {
   readonly createTeamMember?: (input: CreateTeamMemberInput) => Promise<UserProfile>
   /** Ausente, a tela não desenha a coluna de ação — desativar é destrutivo e nem todo produto quer. */
   readonly setTeamMemberActive?: (userId: string, isActive: boolean) => Promise<UserProfile>
+  /** Ausente esconde a acao de editar — nome e papel viram somente leitura. */
+  readonly updateTeamMember?: (userId: string, input: UpdateTeamMemberInput) => Promise<UserProfile>
   /** Ausente quando o host nao plugou armazenamento — o controle de foto nem aparece. */
   readonly setTeamMemberAvatar?: (userId: string, file: File) => Promise<UserProfile>
   /** Ausente quando o host nao tem reset de senha E e-mail — botao que nao entrega nada nao existe. */

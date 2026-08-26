@@ -64,3 +64,6 @@ export type { AvatarProps } from './Avatar'
 
 export { AvatarPicker } from './AvatarPicker'
 export type { AvatarPickerProps } from './AvatarPicker'
+
+export { TeamMemberEditForm } from './TeamMemberEditForm'
+export type { TeamMemberEditFormProps } from './TeamMemberEditForm'
