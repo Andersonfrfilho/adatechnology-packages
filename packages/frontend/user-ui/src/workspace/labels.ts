@@ -62,6 +62,11 @@ export type UserLabels = {
   readonly teamNoResults: string
   readonly teamSelectAll: string
   readonly teamSelectRow: string
+  readonly profilePhotoChange: string
+  readonly teamPhoto: string
+  readonly teamChangePhoto: string
+  readonly teamSendPasswordReset: string
+  readonly teamPasswordResetSent: string
   readonly teamBulkHint: string
   readonly teamSortBy: string
   readonly teamSelectedCount: string
@@ -125,6 +130,11 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   teamNoResults: 'Nada encontrado para essa busca.',
   teamSelectAll: 'Selecionar todos',
   teamSelectRow: 'Selecionar',
+  profilePhotoChange: 'Trocar',
+  teamPhoto: 'Foto',
+  teamChangePhoto: 'Trocar a foto de',
+  teamSendPasswordReset: 'Enviar redefinicao de senha',
+  teamPasswordResetSent: 'E-mail enviado',
   teamBulkHint: 'Selecione linhas para agir em lote',
   teamSortBy: 'Ordenar por',
   teamSelectedCount: '{count} selecionados',

@@ -58,3 +58,6 @@ export { useTeam, TEAM_DEFAULT_PAGE_SIZE } from './useTeam'
 export type { UseTeamResult, UseTeamParams, TeamApi } from './useTeam'
 export { useOptionalUserApi } from './providers/UserProvider'
 export type { TeamPage, ListTeamParams, CreateTeamMemberInput } from './providers/types'
+
+export { Avatar, initialsOf } from './Avatar'
+export type { AvatarProps } from './Avatar'

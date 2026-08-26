@@ -9,6 +9,8 @@
 
 import { useState, type ReactNode } from 'react'
 
+import { Avatar } from '../Avatar'
+import type { UserProfile } from '../providers/types'
 import { TeamMemberForm } from '../TeamMemberForm'
 import { useTeam, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
@@ -158,6 +160,8 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
                   />
                 </th>
               )}
+              {/* Sem rotulo visivel: a coluna e de 36px e o titulo dobraria a largura dela. */}
+              <th className="px-4 py-3"><span className="sr-only">{labels.teamPhoto}</span></th>
               <SortableHeader field={TEAM_SORT_FIELDS.NAME} label={labels.name} team={team} title={labels.teamSortBy} />
               <SortableHeader field={TEAM_SORT_FIELDS.EMAIL} label={labels.email} team={team} title={labels.teamSortBy} />
               <SortableHeader field={TEAM_SORT_FIELDS.ROLE} label={labels.teamRole} team={team} title={labels.teamSortBy} />
@@ -179,18 +183,44 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api }: Team
                     />
                   </td>
                 )}
+                <td className={CELL}>
+                  <AvatarCell
+                    busy={team.saving}
+                    canChange={team.canChangeAvatar}
+                    label={`${labels.teamChangePhoto} ${member.name}`}
+                    member={member}
+                    onPick={(file) => void team.setMemberAvatar(member.id, file)}
+                  />
+                </td>
                 <td className={CELL}>{member.name}</td>
                 <td className={CELL}>{member.email}</td>
                 <td className={CELL}>{member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}</td>
                 <td className={CELL}>{member.isActive ? labels.teamActive : labels.teamInactive}</td>
                 {team.canDeactivate && (
                   <td className={CELL}>
+                    <div className="flex items-center gap-3">
                     <ActiveSwitch
                       busy={team.saving}
                       label={`${member.isActive ? labels.teamDeactivate : labels.teamActivate} ${member.name}`}
                       onToggle={() => void team.setMemberActive(member.id, !member.isActive)}
                       value={member.isActive}
                     />
+                    {team.canSendPasswordReset &&
+                      (team.passwordResetSentTo === member.id ? (
+                        <span className="text-xs text-emerald-700 dark:text-emerald-300" role="status">
+                          {labels.teamPasswordResetSent}
+                        </span>
+                      ) : (
+                        <button
+                          className="text-xs text-blue-700 underline disabled:opacity-60 dark:text-blue-300"
+                          disabled={team.saving}
+                          onClick={() => void team.sendPasswordReset(member.id)}
+                          type="button"
+                        >
+                          {labels.teamSendPasswordReset}
+                        </button>
+                      ))}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -300,5 +330,55 @@ function ActiveSwitch({ value, busy, label, onToggle }: ActiveSwitchProps) {
         className={`absolute top-0.5 size-5 rounded-full bg-white transition-all ${value ? 'left-5.5' : 'left-0.5'}`}
       />
     </button>
+  )
+}
+
+type AvatarCellProps = {
+  readonly member: UserProfile
+  readonly canChange: boolean
+  readonly busy: boolean
+  readonly label: string
+  readonly onPick: (file: File) => void
+}
+
+/**
+ * O `<input type="file">` fica escondido dentro do `<label>`, e a foto é o alvo do clique.
+ *
+ * O botão nativo de arquivo não aceita ser estilizado de forma consistente entre navegadores, e um
+ * botão "Escolher arquivo" ao lado de cada linha encheria a tabela. Clicar na própria foto é o
+ * gesto que a pessoa já espera.
+ */
+function AvatarCell({ member, canChange, busy, label, onPick }: AvatarCellProps) {
+  const avatar = <Avatar name={member.name} {...(member.avatarUrl ? { url: member.avatarUrl } : {})} />
+
+  if (!canChange) return avatar
+
+  return (
+    <label
+      className={`group relative inline-flex cursor-pointer rounded-full ${busy ? 'pointer-events-none opacity-60' : ''}`}
+      title={label}
+    >
+      {avatar}
+      <span className="absolute inset-0 hidden items-center justify-center rounded-full bg-black/50 text-white group-hover:flex group-focus-within:flex">
+        <svg aria-hidden="true" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </svg>
+      </span>
+      <input
+        accept="image/jpeg,image/png,image/webp"
+        aria-label={label}
+        className="sr-only"
+        disabled={busy}
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          // Limpa o valor para escolher o MESMO arquivo de novo disparar `change` outra vez —
+          // necessário quando a primeira tentativa falhou e a pessoa quer repetir.
+          event.target.value = ''
+          if (file) onPick(file)
+        }}
+        type="file"
+      />
+    </label>
   )
 }

@@ -4,6 +4,7 @@
 
 import { ConfigMissingError, ProviderMisconfiguredError } from '@adatechnology/user-contracts'
 import type {
+  AvatarStoragePort,
   ClockPort,
   EmailDriverPort,
   LoggerPort,
@@ -27,6 +28,7 @@ import { GetProfileUseCase } from './use-cases/GetProfile.use-case'
 import { ListUsersUseCase } from './use-cases/ListUsers.use-case'
 import { RefreshSessionUseCase } from './use-cases/RefreshSession.use-case'
 import { RequestPasswordResetUseCase } from './use-cases/RequestPasswordReset.use-case'
+import { SetAvatarUseCase } from './use-cases/SetAvatar.use-case'
 import { SignOutUseCase } from './use-cases/SignOut.use-case'
 import { UpdateProfileUseCase } from './use-cases/UpdateProfile.use-case'
 import type { UserDependencies } from './use-cases/userModule.types'
@@ -37,6 +39,7 @@ export type UserModuleProviders = {
   readonly refreshTokenStore?: RefreshTokenStorePort
   readonly email?: EmailDriverPort
   readonly keycloak?: KeycloakVerifierPort
+  readonly avatar?: AvatarStoragePort
   readonly clock?: ClockPort
   readonly logger?: LoggerPort
 }
@@ -60,12 +63,15 @@ export type UserModule = {
     readonly signOut: SignOutUseCase
     readonly getProfile: GetProfileUseCase
     readonly listUsers: ListUsersUseCase
+    readonly setAvatar: SetAvatarUseCase
   }
   /** Exportado para o host montar seu próprio `AuthContextResolverPort` sem tocar em `jose`. */
   verifyAccessToken(accessToken: string): Promise<AccessTokenClaims | undefined>
   /** Capacidade por ausência: sem provedor Keycloak resolvido, a rota de callback não é publicada. */
   readonly hasKeycloak: boolean
   readonly hasEmail: boolean
+  /** Sem armazenamento plugado a rota de foto nao e publicada: nao existe foto a oferecer. */
+  readonly hasAvatar: boolean
   /** Sem `config.passwordReset` as rotas de reset não são publicadas — não existe reset a oferecer. */
   readonly hasPasswordReset: boolean
 }
@@ -127,6 +133,7 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
     logger: params.providers?.logger,
     email: params.providers?.email,
     keycloak,
+    avatar: params.providers?.avatar,
   }
 
   return {
@@ -141,10 +148,12 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
       signOut: new SignOutUseCase(dependencies),
       getProfile: new GetProfileUseCase(dependencies),
       listUsers: new ListUsersUseCase(dependencies),
+      setAvatar: new SetAvatarUseCase(dependencies),
     },
     verifyAccessToken: (accessToken: string) => tokenService.verify(accessToken),
     hasKeycloak: Boolean(keycloak),
     hasEmail: Boolean(dependencies.email),
+    hasAvatar: Boolean(dependencies.avatar),
     hasPasswordReset: Boolean(params.config.passwordReset),
   }
 }

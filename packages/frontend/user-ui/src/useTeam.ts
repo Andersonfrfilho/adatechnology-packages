@@ -56,6 +56,12 @@ export type UseTeamResult = {
   readonly saving: boolean
   readonly error: string | undefined
   readonly canDeactivate: boolean
+  readonly canChangeAvatar: boolean
+  readonly canSendPasswordReset: boolean
+  /** Id de quem acabou de receber o e-mail, para a linha confirmar sem abrir um alerta global. */
+  readonly passwordResetSentTo: string | undefined
+  setMemberAvatar: (userId: string, file: File) => Promise<void>
+  sendPasswordReset: (userId: string) => Promise<void>
   goToPage: (page: number) => void
   createMember: (input: CreateTeamMemberInput) => Promise<UserProfile | undefined>
   setMemberActive: (userId: string, isActive: boolean) => Promise<void>
@@ -63,7 +69,10 @@ export type UseTeamResult = {
 }
 
 /** Só os três métodos de equipe — quem monta a tela sozinho não precisa dos de autenticação. */
-export type TeamApi = Pick<UserApi, 'listTeam' | 'createTeamMember' | 'setTeamMemberActive'>
+export type TeamApi = Pick<
+  UserApi,
+  'listTeam' | 'createTeamMember' | 'setTeamMemberActive' | 'setTeamMemberAvatar' | 'sendPasswordReset'
+>
 
 export type UseTeamParams = {
   readonly pageSize?: number
@@ -82,6 +91,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
   const [search, setSearchValue] = useState('')
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [sort, setSort] = useState<TeamSort | undefined>(undefined)
+  const [passwordResetSentTo, setPasswordResetSentTo] = useState<string | undefined>(undefined)
 
   const listTeam = api.listTeam
   const enabled = Boolean(listTeam)
@@ -229,6 +239,41 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     saving,
     error,
     canDeactivate: Boolean(api.setTeamMemberActive),
+    canChangeAvatar: Boolean(api.setTeamMemberAvatar),
+    canSendPasswordReset: Boolean(api.sendPasswordReset),
+    passwordResetSentTo,
+    setMemberAvatar: async (userId: string, file: File) => {
+      if (!api.setTeamMemberAvatar) return
+      setSaving(true)
+      setError(undefined)
+      try {
+        await api.setTeamMemberAvatar(userId, file)
+        // Recarrega porque a URL assinada vem do servidor: nao ha como monta-la aqui.
+        await load()
+      } catch (cause) {
+        setError(messageOf(cause, 'Nao foi possivel trocar a foto'))
+      } finally {
+        setSaving(false)
+      }
+    },
+    sendPasswordReset: async (userId: string) => {
+      if (!api.sendPasswordReset) return
+      setSaving(true)
+      setError(undefined)
+      setPasswordResetSentTo(undefined)
+      try {
+        await api.sendPasswordReset(userId)
+        /*
+          A confirmacao fica na linha, e nao some sozinha: um aviso temporizado obriga quem estava
+          olhando outra coisa a repetir o envio para saber se foi. Ela sai no proximo envio.
+        */
+        setPasswordResetSentTo(userId)
+      } catch (cause) {
+        setError(messageOf(cause, 'Nao foi possivel enviar a redefinicao'))
+      } finally {
+        setSaving(false)
+      }
+    },
     goToPage: setPage,
     createMember,
     setMemberActive,

@@ -118,7 +118,7 @@ describe('createUserModule — capability por ausência', () => {
 })
 
 describe('createUserModule — todos os use-cases disponíveis', () => {
-  it('expõe todos os dez use-cases documentados', async () => {
+  it('expõe todos os onze use-cases documentados', async () => {
     const userModule = await createUserModule({
       db: FAKE_DB,
       config: {
@@ -132,6 +132,7 @@ describe('createUserModule — todos os use-cases disponíveis', () => {
         'authenticateKeycloak',
         'createUser',
         'requestPasswordReset',
+        'setAvatar',
         'confirmPasswordReset',
         'updateProfile',
         'refreshSession',

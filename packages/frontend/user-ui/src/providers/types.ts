@@ -13,6 +13,8 @@ export type UserProfile = {
   readonly companyId?: string
   readonly isActive: boolean
   readonly lastSeenAt?: string
+  /** URL assinada e de vida curta. Ausente = sem foto, ou sem armazenamento no host. */
+  readonly avatarUrl?: string
 }
 
 export type UserSession = {
@@ -68,6 +70,8 @@ export type UserApi = {
   readonly signOut: () => Promise<void>
   readonly getProfile: () => Promise<UserProfile>
   readonly updateProfile: (input: UpdateProfileInput) => Promise<UserProfile>
+  /** Foto do proprio usuario. Ausente = host sem armazenamento; o controle nao aparece. */
+  readonly setOwnAvatar?: (file: File) => Promise<UserProfile>
   readonly requestPasswordReset: (email: string) => Promise<void>
   readonly confirmPasswordReset: (params: ConfirmPasswordResetParams) => Promise<void>
   /**
@@ -81,6 +85,10 @@ export type UserApi = {
   readonly createTeamMember?: (input: CreateTeamMemberInput) => Promise<UserProfile>
   /** Ausente, a tela não desenha a coluna de ação — desativar é destrutivo e nem todo produto quer. */
   readonly setTeamMemberActive?: (userId: string, isActive: boolean) => Promise<UserProfile>
+  /** Ausente quando o host nao plugou armazenamento — o controle de foto nem aparece. */
+  readonly setTeamMemberAvatar?: (userId: string, file: File) => Promise<UserProfile>
+  /** Ausente quando o host nao tem reset de senha E e-mail — botao que nao entrega nada nao existe. */
+  readonly sendPasswordReset?: (userId: string) => Promise<void>
 }
 
 export type UserConfig = {
