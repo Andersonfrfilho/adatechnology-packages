@@ -194,6 +194,7 @@
     "scheduling-exception-reset",
     "scheduling-routes-export",
     "scheduling-trio",
+    "scheduling-workspace-polish",
     "send-media-logger-port",
     "send-product-list-action",
     "simulator-any-channel",
