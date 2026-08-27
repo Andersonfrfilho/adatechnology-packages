@@ -9,6 +9,8 @@ import type { Booking, BookingId, BookingStatus } from '@adatechnology/schedulin
 
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+import { BookingStatusBadge, bookingStatusLabel } from './BookingStatusBadge'
+import { BUTTON_PRIMARY, ICON_BUTTON, ROW_STRIPE, SURFACE_BORDER } from './ui.constant'
 import {
   DEFAULT_BOOKINGS_TABLE_STATE,
   filterBookingsByStatus,
@@ -130,21 +132,31 @@ export function BookingsTable({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        {ALL_STATUSES.map((status) => (
-          <label key={status} className="flex items-center gap-1.5 text-sm min-h-11">
-            <input
-              type="checkbox"
-              checked={state.statusFilters.includes(status)}
-              onChange={() => toggleStatusFilter(status)}
-            />
-            {messages[`booking.status.${status === 'no_show' ? 'noShow' : status}` as keyof typeof messages]}
-          </label>
-        ))}
+        <fieldset className="flex flex-wrap items-center gap-2">
+          <legend className="sr-only">{messages['booking.filterByStatus']}</legend>
+          {ALL_STATUSES.map((status) => {
+            const isActive = state.statusFilters.includes(status)
+            return (
+              <label
+                key={status}
+                className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ${isActive ? 'border-brand-500 bg-brand-50 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200' : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={isActive}
+                  onChange={() => toggleStatusFilter(status)}
+                />
+                {bookingStatusLabel(messages, status)}
+              </label>
+            )
+          })}
+        </fieldset>
         {!isBookingsTableStateDefault(state) && (
           <button
             type="button"
             onClick={() => onStateChange?.(DEFAULT_BOOKINGS_TABLE_STATE)}
-            className="min-h-11 px-3 text-sm font-medium text-brand-700 hover:underline"
+            className="min-h-11 px-3 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
           >
             {messages['common.clearFilters']}
           </button>
@@ -158,7 +170,7 @@ export function BookingsTable({
               key={action.key}
               type="button"
               onClick={() => action.onRun(Array.from(selected))}
-              className="min-h-11 px-3 rounded-lg text-sm font-medium bg-brand-600 text-white hover:bg-brand-700"
+              className={BUTTON_PRIMARY}
             >
               {action.label}
             </button>
@@ -166,9 +178,9 @@ export function BookingsTable({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className={`${SURFACE_BORDER} overflow-x-auto`}>
         <table className="min-w-full text-sm">
-          <thead className="border-b border-gray-200 dark:border-gray-700">
+          <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/60">
             <tr>
               <th scope="col" className={CHECKBOX_CELL_CLASS}>
                 <input
@@ -188,7 +200,7 @@ export function BookingsTable({
             {visibleBookings.map((booking, index) => (
               <tr
                 key={booking.id}
-                className={index % 2 === 1 ? 'bg-gray-50 dark:bg-gray-800/50' : undefined}
+                className={`${index % 2 === 1 ? ROW_STRIPE : ''} hover:bg-brand-50/50 dark:hover:bg-brand-900/10`}
               >
                 <td className={CHECKBOX_CELL_CLASS}>
                   <input
@@ -204,16 +216,16 @@ export function BookingsTable({
                   </button>
                 </td>
                 <td className="px-3 py-2">
-                  {messages[`booking.status.${booking.status === 'no_show' ? 'noShow' : booking.status}` as keyof typeof messages]}
+                  <BookingStatusBadge status={booking.status} />
                 </td>
-                <td className="px-3 py-2">{booking.startsAt.toLocaleString(locale)}</td>
-                <td className="px-3 py-2">{booking.endsAt.toLocaleString(locale)}</td>
+                <td className="px-3 py-2 tabular-nums whitespace-nowrap">{booking.startsAt.toLocaleString(locale)}</td>
+                <td className="px-3 py-2 tabular-nums whitespace-nowrap">{booking.endsAt.toLocaleString(locale)}</td>
               </tr>
             ))}
           </tbody>
         </table>
         {visibleBookings.length === 0 && (
-          <p className="px-3 py-4 text-sm text-gray-500 dark:text-gray-400">{messages['common.empty']}</p>
+          <p className="px-3 py-8 text-center text-sm text-gray-500 dark:text-gray-400">{messages['common.empty']}</p>
         )}
       </div>
 
@@ -224,11 +236,11 @@ export function BookingsTable({
             aria-label={messages['common.previousPage']}
             disabled={state.page <= 1}
             onClick={() => goToPage(state.page - 1)}
-            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 disabled:opacity-50"
+            className={ICON_BUTTON}
           >
             <ArrowLeft aria-hidden="true" className="w-4 h-4" />
           </button>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm tabular-nums text-gray-500 dark:text-gray-400">
             {state.page} / {pagination.totalPages}
           </span>
           <button
@@ -236,7 +248,7 @@ export function BookingsTable({
             aria-label={messages['common.nextPage']}
             disabled={state.page >= pagination.totalPages}
             onClick={() => goToPage(state.page + 1)}
-            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 disabled:opacity-50"
+            className={ICON_BUTTON}
           >
             <ArrowRight aria-hidden="true" className="w-4 h-4" />
           </button>

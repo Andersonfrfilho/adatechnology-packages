@@ -88,5 +88,18 @@
   "datetime.year": "Year",
   "datetime.month": "Month",
   "datetime.day": "Day",
-  "datetime.time": "Time"
+  "datetime.time": "Time",
+  "common.emptyHint": "When there is something here, it shows up in this list.",
+  "agenda.allResources": "All",
+  "agenda.viewLabel": "View",
+  "agenda.now": "Now",
+  "agenda.emptyTitle": "Nothing scheduled",
+  "resource.emptyTitle": "No resources yet",
+  "resource.emptyHint": "Resources are who or what serves — people, rooms, equipment.",
+  "service.emptyTitle": "No services yet",
+  "service.emptyHint": "Services define what gets booked and how long it takes.",
+  "booking.emptyTitle": "No bookings",
+  "booking.emptyHint": "Adjust the status filters or wait for new requests.",
+  "availability.selectResourceTitle": "Pick a resource",
+  "availability.selectResourceHint": "Availability rules are defined per resource."
 }

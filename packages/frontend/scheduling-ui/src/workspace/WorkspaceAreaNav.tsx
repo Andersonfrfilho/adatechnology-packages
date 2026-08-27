@@ -14,8 +14,8 @@ export type WorkspaceAreaNavProps = {
 }
 
 const ITEM_BASE =
-  'flex items-center gap-2 px-3 py-2 -mb-px border-b-2 text-sm font-medium transition-colors min-h-11'
-const ITEM_ACTIVE = 'border-brand-600 text-brand-700 dark:text-brand-400'
+  'flex items-center gap-2 px-3 py-2 -mb-px border-b-2 text-sm font-medium transition-colors min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500'
+const ITEM_ACTIVE = 'border-brand-600 text-brand-700 dark:text-brand-300'
 const ITEM_IDLE =
   'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
 
@@ -37,7 +37,7 @@ export function WorkspaceAreaNav({ area, labels, onSelect }: WorkspaceAreaNavPro
   ] as const
 
   return (
-    <nav aria-label={labels.areaNav} className="flex gap-1 px-4 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+    <nav aria-label={labels.areaNav} className="flex shrink-0 gap-1 overflow-x-auto border-b border-gray-200 px-4 dark:border-gray-800">
       {items.map(([value, label]) => {
         const Icon = AREA_ICON[value]
 

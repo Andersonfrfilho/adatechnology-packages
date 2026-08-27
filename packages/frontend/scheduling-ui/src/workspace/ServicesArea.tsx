@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import { MAX_PAGE_SIZE } from '@adatechnology/scheduling-contracts'
 import type { CreateServiceInput, Service, UpdateServiceInput } from '@adatechnology/scheduling-contracts'
@@ -10,6 +10,8 @@ import type { CreateServiceInput, Service, UpdateServiceInput } from '@adatechno
 import { ServiceForm } from '../components/ServiceForm'
 import { ServiceList } from '../components/ServiceList'
 import { SidePanel } from '../components/SidePanel'
+import { EmptyState, ErrorBanner, ListSkeleton } from '../components/StateFeedback'
+import { BUTTON_DANGER, BUTTON_PRIMARY } from '../components/ui.constant'
 import { useCreateService, useDeleteService, useUpdateService } from '../hooks/useServiceMutations.mutation'
 import { useServices } from '../hooks/useServices.query'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
@@ -17,16 +19,9 @@ import { resolveSchedulingMessages } from '../locales'
 
 type ServiceDraft = Service | null | undefined
 
-const BUTTON_CLASS =
-  'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors min-h-11'
-const BUTTON_PRIMARY = `${BUTTON_CLASS} bg-brand-600 text-white hover:bg-brand-700`
-const BUTTON_DANGER = `${BUTTON_CLASS} text-red-700 hover:bg-red-50`
-
 export function ServicesArea() {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
-  // M-4 (T9.3): sem `pageSize`, o hook usa o default do BFF (20) e serviços além disso ficam
-  // invisíveis nesta tela — mesmo padrão já aplicado em `AvailabilityArea.tsx`/`AgendaArea.tsx`.
   const { data, isLoading, isError } = useServices({ pageSize: MAX_PAGE_SIZE })
   const createService = useCreateService()
   const updateService = useUpdateService()
@@ -35,6 +30,7 @@ export function ServicesArea() {
   const [draft, setDraft] = useState<ServiceDraft>(undefined)
   const isDraftOpen = draft !== undefined
   const isEditing = Boolean(draft)
+  const services = data?.data ?? []
 
   async function handleSubmit(input: CreateServiceInput & UpdateServiceInput): Promise<void> {
     try {
@@ -45,37 +41,42 @@ export function ServicesArea() {
       }
       setDraft(undefined)
     } catch {
-      // H-G: painel fica aberto e o alerta abaixo (isError) mostra a falha — sem isto a rejeição
-      // sobe sem tratamento até o `onSubmit` do form, que não tem `.catch()`.
     }
   }
 
+  function renderCreateButton() {
+    return (
+      <button type="button" onClick={() => setDraft(null)} className={BUTTON_PRIMARY}>
+        <Plus aria-hidden="true" className="h-4 w-4" />
+        {messages['service.newService']}
+      </button>
+    )
+  }
+
   return (
-    <div className="flex flex-1 min-h-0 min-w-0 flex-col p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setDraft(null)} className={`${BUTTON_PRIMARY} ml-auto`}>
-          <Plus aria-hidden="true" className="w-4 h-4" />
-          {messages['service.newService']}
-        </button>
+    <div className="flex flex-1 min-h-0 min-w-0">
+      <div className="flex flex-1 min-h-0 min-w-0 flex-col gap-4 overflow-y-auto p-4">
+        <div className="flex justify-end">{renderCreateButton()}</div>
+
+        {isError && <ErrorBanner message={messages['common.loadFailure']} />}
+
+        {(createService.isError || updateService.isError || deleteService.isError) && (
+          <ErrorBanner message={messages['common.actionFailure']} />
+        )}
+
+        {isLoading && <ListSkeleton label={messages['common.loading']} />}
+
+        {!isLoading && !isError && services.length === 0 && (
+          <EmptyState
+            icon={Wrench}
+            title={messages['service.emptyTitle']}
+            hint={messages['service.emptyHint']}
+            action={renderCreateButton()}
+          />
+        )}
+
+        {!isLoading && services.length > 0 && <ServiceList services={services} onSelect={setDraft} />}
       </div>
-
-      {isError && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
-          {messages['common.loadFailure']}
-        </p>
-      )}
-
-      {(createService.isError || updateService.isError || deleteService.isError) && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
-          {messages['common.actionFailure']}
-        </p>
-      )}
-
-      {isLoading ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>
-      ) : (
-        <ServiceList services={data?.data ?? []} onSelect={setDraft} />
-      )}
 
       {isDraftOpen && (
         <SidePanel
@@ -87,20 +88,16 @@ export function ServicesArea() {
               <button
                 type="button"
                 onClick={() => {
-                  // H-G: `.catch()` obrigatório — sem ele, uma falha de exclusão vira rejeição não
-                  // tratada; o alerta acima (deleteService.isError) já mostra a falha ao usuário.
                   if (draft) void deleteService.mutateAsync(draft.id).then(() => setDraft(undefined)).catch(() => {})
                 }}
                 className={BUTTON_DANGER}
               >
-                <Trash2 aria-hidden="true" className="w-4 h-4" />
+                <Trash2 aria-hidden="true" className="h-4 w-4" />
                 {messages['common.remove']}
               </button>
             ) : undefined
           }
         >
-          {/* H-6: sem `key`, trocar de serviço selecionado sem fechar o painel mantém o `useState`
-              interno do form com os valores do serviço anterior — ver `AvailabilityArea.tsx`. */}
           <ServiceForm
             key={draft ? draft.id : 'new'}
             {...(draft ? { initialValues: draft } : {})}

@@ -8,6 +8,8 @@
  */
 
 import { X } from 'lucide-react'
+
+import { BUTTON_GHOST } from './ui.constant'
 import { useEffect, type ReactNode } from 'react'
 
 export type SidePanelProps = {
@@ -17,9 +19,6 @@ export type SidePanelProps = {
   readonly headerActions?: ReactNode
   readonly children: ReactNode
 }
-
-const BUTTON_CLASS =
-  'inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors min-h-11'
 
 export function SidePanel({ title, closeLabel, onClose, headerActions, children }: SidePanelProps) {
   useEffect(() => {
@@ -38,7 +37,7 @@ export function SidePanel({ title, closeLabel, onClose, headerActions, children 
         aria-hidden="true"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 z-10 bg-gray-900/20 wide:hidden"
+        className="absolute inset-0 z-10 bg-gray-900/30 backdrop-blur-[1px] wide:hidden"
       />
       <section
         aria-label={title}
@@ -50,7 +49,7 @@ export function SidePanel({ title, closeLabel, onClose, headerActions, children 
           <button
             type="button"
             onClick={onClose}
-            className={`${BUTTON_CLASS} text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800`}
+            className={BUTTON_GHOST}
           >
             <X aria-hidden="true" className="w-4 h-4" />
             {closeLabel}
