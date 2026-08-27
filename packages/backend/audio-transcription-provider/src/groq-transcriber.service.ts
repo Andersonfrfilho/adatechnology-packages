@@ -19,6 +19,7 @@ import {
   GROQ_DEFAULT_MODEL,
   audioExtensionFor,
 } from './audio-transcription.constant'
+import { collapseRepetitions } from './collapse-repetitions.util'
 import {
   TranscriptionError,
   TranscriptionRateLimitError,
@@ -162,7 +163,7 @@ function parseResult(payload: unknown): TranscriptionResult {
   // Texto vazio é resultado, não erro: áudio em silêncio ou só ruído transcreve para nada. Marcar
   // como falha faria o host reprocessar o mesmo silêncio a cada retentativa, para sempre.
   return Object.freeze({
-    text: body.text.trim(),
+    text: collapseRepetitions(body.text),
     engine: ENGINE_NAME,
     ...(typeof body.language === 'string' ? { language: body.language } : {}),
     ...(typeof body.duration === 'number' ? { durationSeconds: body.duration } : {}),

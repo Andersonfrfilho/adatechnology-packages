@@ -40,6 +40,15 @@ describe('createGroqTranscriber', () => {
     expect(result.engine).toBe('groq')
   })
 
+  it('colapsa o loop de repetição do Whisper antes de devolver o texto', async () => {
+    const looped = `bom dia. ${'de coletivo, '.repeat(40)}quero dois pães.`
+    const transcriber = transcriberWith(async () => jsonResponse({ text: looped }))
+
+    const result = await transcriber.transcribe({ buffer: Buffer.from('fake-ogg'), mimeType: OGG_OPUS })
+
+    expect(result.text).toBe('bom dia. de coletivo, quero dois pães.')
+  })
+
   it('manda o arquivo com extensão derivada do mime — o Groq escolhe o decoder pelo sufixo', async () => {
     let sentFilename: string | undefined
     let sentModel: unknown
