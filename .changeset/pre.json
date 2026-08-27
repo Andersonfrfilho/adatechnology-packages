@@ -56,7 +56,8 @@
     "@adatechnology/user-contracts": "0.1.0-rc.0",
     "@adatechnology/user-module": "0.1.0-rc.0",
     "@adatechnology/user-ui": "0.1.0-rc.0",
-    "@adatechnology/image-cutout": "0.0.0"
+    "@adatechnology/image-cutout": "0.0.0",
+    "@adatechnology/document-intake": "0.1.0-rc.0"
   },
   "changesets": [
     "acoes-viram-botoes-de-verdade",
@@ -106,6 +107,7 @@
     "design-da-tabela",
     "document-filters-sorting-pagination",
     "document-fixtures-and-file-icon-fix",
+    "document-intake-nasce-do-painel",
     "documents-search-by-phone",
     "documents-table-surface-and-border-default",
     "documents-workspace-upload",
