@@ -3,6 +3,7 @@
  */
 
 export { createGroqTranscriber } from './groq-transcriber.service'
+export { collapseRepetitions } from './collapse-repetitions.util'
 export { createTranscriberChain } from './transcriber-chain.service'
 export type { TranscriberChainConfig } from './transcriber-chain.service'
 
