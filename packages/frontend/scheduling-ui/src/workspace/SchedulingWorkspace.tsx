@@ -51,9 +51,9 @@ export function SchedulingWorkspace({
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <header className="flex flex-wrap items-center gap-3 px-4 py-3">
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mr-auto">{labels.title}</h1>
+    <div className="flex h-full flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 px-4 pb-2 pt-4">
+        <h1 className="mr-auto text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">{labels.title}</h1>
         {renderHeaderActions?.()}
       </header>
 

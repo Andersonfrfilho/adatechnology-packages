@@ -88,5 +88,18 @@
   "datetime.year": "Ano",
   "datetime.month": "Mês",
   "datetime.day": "Dia",
-  "datetime.time": "Hora"
+  "datetime.time": "Hora",
+  "common.emptyHint": "Quando houver algo aqui, ele aparece nesta lista.",
+  "agenda.allResources": "Todos",
+  "agenda.viewLabel": "Visualização",
+  "agenda.now": "Agora",
+  "agenda.emptyTitle": "Nada agendado",
+  "resource.emptyTitle": "Nenhum recurso cadastrado",
+  "resource.emptyHint": "Recursos são quem ou o que atende — pessoas, salas, equipamentos.",
+  "service.emptyTitle": "Nenhum serviço cadastrado",
+  "service.emptyHint": "Serviços definem o que é agendado e quanto tempo dura.",
+  "booking.emptyTitle": "Nenhuma reserva",
+  "booking.emptyHint": "Ajuste os filtros de status ou aguarde novas solicitações.",
+  "availability.selectResourceTitle": "Escolha um recurso",
+  "availability.selectResourceHint": "As regras de disponibilidade são definidas por recurso."
 }
