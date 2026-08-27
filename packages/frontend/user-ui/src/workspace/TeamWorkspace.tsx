@@ -53,6 +53,77 @@ const EMAIL_TAKEN_CODE = 'USER_EMAIL_ALREADY_EXISTS'
 
 const CELL = 'px-4 py-3 align-middle text-sm text-gray-900 dark:text-gray-100'
 
+/**
+ * Quantas linhas fantasma enquanto a pagina carrega.
+ *
+ * Fixo, e nao o `pageSize`: o esqueleto so precisa segurar a altura da tabela para o conteudo nao
+ * saltar quando chegar; encher a tela com trinta linhas falsas prometeria um volume que a resposta
+ * talvez nao traga.
+ */
+const SKELETON_ROW_COUNT = 5
+
+const SKELETON_BAR = 'animate-pulse bg-gray-200 dark:bg-gray-700'
+
+type TeamSkeletonRowsProps = {
+  readonly hasSelection: boolean
+  readonly hasActions: boolean
+  readonly label: string
+}
+
+/**
+ * O carregamento desenha a forma da tabela, e nao a palavra "Carregando".
+ *
+ * O texto centralizado colapsava a altura do corpo: a tabela encolhia para uma linha e voltava a
+ * crescer ao chegar a resposta, empurrando a paginacao pela tela. As linhas fantasma ocupam o mesmo
+ * espaco que os dados vao ocupar.
+ *
+ * `aria-hidden` nas linhas e o rotulo no `aria-busy` da primeira: quem ouve a tela quer saber que
+ * esta carregando, nao ouvir cinco linhas vazias.
+ */
+function TeamSkeletonRows({ hasSelection, hasActions, label }: TeamSkeletonRowsProps) {
+  return (
+    <>
+      {Array.from({ length: SKELETON_ROW_COUNT }, (_unused, index) => (
+        <tr
+          aria-busy={index === 0 ? true : undefined}
+          aria-hidden={index === 0 ? undefined : true}
+          aria-label={index === 0 ? label : undefined}
+          className={`border-b border-gray-100 last:border-b-0 dark:border-gray-800 ${
+            index % 2 === 1 ? 'bg-gray-50/80 dark:bg-gray-800/30' : 'bg-transparent'
+          }`}
+          key={index}
+        >
+          {hasSelection && (
+            <td className={CELL}>
+              <div className={`${SKELETON_BAR} size-4 rounded`} />
+            </td>
+          )}
+          <td className={CELL}>
+            <div className={`${SKELETON_BAR} size-9 rounded-full`} />
+          </td>
+          <td className={CELL}>
+            <div className={`${SKELETON_BAR} h-3 w-32 rounded`} />
+          </td>
+          <td className={CELL}>
+            <div className={`${SKELETON_BAR} h-3 w-48 rounded`} />
+          </td>
+          <td className={CELL}>
+            <div className={`${SKELETON_BAR} h-3 w-20 rounded`} />
+          </td>
+          <td className={CELL}>
+            <div className={`${SKELETON_BAR} h-3 w-16 rounded`} />
+          </td>
+          {hasActions && (
+            <td className={CELL}>
+              <div className={`${SKELETON_BAR} h-3 w-24 rounded`} />
+            </td>
+          )}
+        </tr>
+      ))}
+    </>
+  )
+}
+
 export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgroundRemoval }: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
   const team = useTeam({ ...(pageSize === undefined ? {} : { pageSize }), ...(api ? { api } : {}) })
@@ -282,93 +353,100 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
             </tr>
           </thead>
           <tbody>
-            {team.members.map((member, index) => (
-              /*
+            {team.loading && (
+              <TeamSkeletonRows
+                hasActions={hasRowActions}
+                hasSelection={team.canDeactivate}
+                label={labels.teamLoading}
+              />
+            )}
+            {!team.loading &&
+              team.members.map((member, index) => (
+                /*
                 Zebra por indice da linha renderizada, e nao por id: a listra tem que alternar do
                 jeito que o olho percorre, e com ordenacao ou filtro a ordem dos ids nao e a ordem da
                 tela.
               */
-              <tr
-                className={`border-b border-gray-100 transition-colors last:border-b-0 hover:bg-blue-50/60 dark:border-gray-800 dark:hover:bg-blue-950/30 ${
-                  index % 2 === 1 ? 'bg-gray-50/80 dark:bg-gray-800/30' : 'bg-transparent'
-                }`}
-                key={member.id}
-              >
-                {team.canDeactivate && (
+                <tr
+                  className={`border-b border-gray-100 transition-colors last:border-b-0 hover:bg-blue-50/60 dark:border-gray-800 dark:hover:bg-blue-950/30 ${
+                    index % 2 === 1 ? 'bg-gray-50/80 dark:bg-gray-800/30' : 'bg-transparent'
+                  }`}
+                  key={member.id}
+                >
+                  {team.canDeactivate && (
+                    <td className={CELL}>
+                      <input
+                        aria-label={`${labels.teamSelectRow} ${member.name}`}
+                        checked={team.selected.has(member.id)}
+                        className="size-4"
+                        onChange={() => team.toggleSelected(member.id)}
+                        type="checkbox"
+                      />
+                    </td>
+                  )}
                   <td className={CELL}>
-                    <input
-                      aria-label={`${labels.teamSelectRow} ${member.name}`}
-                      checked={team.selected.has(member.id)}
-                      className="size-4"
-                      onChange={() => team.toggleSelected(member.id)}
-                      type="checkbox"
-                    />
-                  </td>
-                )}
-                <td className={CELL}>
-                  {/*
+                    {/*
                     So exibicao. Trocar a foto e por "Editar", junto de nome, e-mail e papel — dois
                     caminhos para a mesma coisa obrigam a descobrir que a foto era clicavel, e essa
                     descoberta nunca acontece sozinha.
                   */}
-                  <Avatar name={member.name} {...(member.avatarUrl ? { url: member.avatarUrl } : {})} />
-                </td>
-                <td className={`${CELL} font-medium`}>{member.name}</td>
-                {/* O e-mail e dado de apoio: peso menor evita que ele dispute com o nome. */}
-                <td className={`${CELL} text-gray-500 dark:text-gray-400`}>{member.email}</td>
-                <td className={CELL}>
-                  <Badge tone={member.role === 'admin' ? 'accent' : 'neutral'}>
-                    {member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}
-                  </Badge>
-                </td>
-                <td className={CELL}>
-                  <Badge tone={member.isActive ? 'positive' : 'muted'}>
-                    {member.isActive ? labels.teamActive : labels.teamInactive}
-                  </Badge>
-                </td>
-                {hasRowActions && (
+                    <Avatar name={member.name} {...(member.avatarUrl ? { url: member.avatarUrl } : {})} />
+                  </td>
+                  <td className={`${CELL} font-medium`}>{member.name}</td>
+                  {/* O e-mail e dado de apoio: peso menor evita que ele dispute com o nome. */}
+                  <td className={`${CELL} text-gray-500 dark:text-gray-400`}>{member.email}</td>
                   <td className={CELL}>
-                    <div className="flex items-center gap-3">
-                      {team.canDeactivate && (
-                        <ActiveSwitch
-                          busy={team.saving}
-                          label={`${member.isActive ? labels.teamDeactivate : labels.teamActivate} ${member.name}`}
-                          onToggle={() => void team.setMemberActive(member.id, !member.isActive)}
-                          value={member.isActive}
-                        />
-                      )}
-                      {team.canEdit && (
-                        <RowAction
-                          busy={team.saving}
-                          icon={Pencil}
-                          label={labels.teamEdit}
-                          onClick={() => setEditing(member)}
-                          srSuffix={member.name}
-                        />
-                      )}
-                      {team.canSendPasswordReset &&
-                        (team.passwordResetSentTo === member.id ? (
-                          <span className="text-xs text-emerald-700 dark:text-emerald-300" role="status">
-                            {labels.teamPasswordResetSent}
-                          </span>
-                        ) : (
+                    <Badge tone={member.role === 'admin' ? 'accent' : 'neutral'}>
+                      {member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}
+                    </Badge>
+                  </td>
+                  <td className={CELL}>
+                    <Badge tone={member.isActive ? 'positive' : 'muted'}>
+                      {member.isActive ? labels.teamActive : labels.teamInactive}
+                    </Badge>
+                  </td>
+                  {hasRowActions && (
+                    <td className={CELL}>
+                      <div className="flex items-center gap-3">
+                        {team.canDeactivate && (
+                          <ActiveSwitch
+                            busy={team.saving}
+                            label={`${member.isActive ? labels.teamDeactivate : labels.teamActivate} ${member.name}`}
+                            onToggle={() => void team.setMemberActive(member.id, !member.isActive)}
+                            value={member.isActive}
+                          />
+                        )}
+                        {team.canEdit && (
                           <RowAction
                             busy={team.saving}
-                            icon={KeyRound}
-                            label={labels.teamSendPasswordReset}
-                            onClick={() => void team.sendPasswordReset(member.id)}
+                            icon={Pencil}
+                            label={labels.teamEdit}
+                            onClick={() => setEditing(member)}
                             srSuffix={member.name}
                           />
-                        ))}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
+                        )}
+                        {team.canSendPasswordReset &&
+                          (team.passwordResetSentTo === member.id ? (
+                            <span className="text-xs text-emerald-700 dark:text-emerald-300" role="status">
+                              {labels.teamPasswordResetSent}
+                            </span>
+                          ) : (
+                            <RowAction
+                              busy={team.saving}
+                              icon={KeyRound}
+                              label={labels.teamSendPasswordReset}
+                              onClick={() => void team.sendPasswordReset(member.id)}
+                              srSuffix={member.name}
+                            />
+                          ))}
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
           </tbody>
         </table>
 
-        {team.loading && <p className="px-4 py-8 text-center text-sm text-gray-500">{labels.teamLoading}</p>}
         {/* "Nada cadastrado" e "nada encontrado" pedem coisas diferentes: criar, ou afrouxar a busca. */}
         {!team.loading && team.members.length === 0 && (
           <p className="px-4 py-8 text-center text-sm text-gray-500">
