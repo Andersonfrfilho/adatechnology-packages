@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/audio-transcription-provider",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "description": "Speech-to-text for conversational products: hosted Whisper (Groq) by default, local whisper.cpp opt-in, chainable",
   "type": "module",
   "main": "dist/index.js",

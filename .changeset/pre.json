@@ -57,7 +57,8 @@
     "@adatechnology/user-module": "0.1.0-rc.0",
     "@adatechnology/user-ui": "0.1.0-rc.0",
     "@adatechnology/image-cutout": "0.0.0",
-    "@adatechnology/document-intake": "0.1.0-rc.0"
+    "@adatechnology/document-intake": "0.1.0-rc.0",
+    "@adatechnology/audio-transcription-mcp": "0.1.0-rc.1"
   },
   "changesets": [
     "acoes-viram-botoes-de-verdade",
@@ -72,6 +73,8 @@
     "audio-recorder-root",
     "audio-review-before-send",
     "audio-review-compact-player",
+    "audio-transcription-mcp",
+    "audio-transcription-repetition-loop",
     "audio-transcription",
     "avatar-e-reset",
     "border-layer-postcss-fix",

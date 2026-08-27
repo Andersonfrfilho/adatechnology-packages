@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/audio-transcription-mcp",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "description": "MCP server exposing local Whisper transcription (whisper.cpp) as a tool — no API key, no upload",
   "type": "module",
   "main": "dist/main.js",
