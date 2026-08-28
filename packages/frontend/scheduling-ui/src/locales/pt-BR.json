@@ -101,5 +101,7 @@
   "booking.emptyTitle": "Nenhuma reserva",
   "booking.emptyHint": "Ajuste os filtros de status ou aguarde novas solicitações.",
   "availability.selectResourceTitle": "Escolha um recurso",
-  "availability.selectResourceHint": "As regras de disponibilidade são definidas por recurso."
+  "availability.selectResourceHint": "As regras de disponibilidade são definidas por recurso.",
+  "select.search": "Buscar…",
+  "select.noResults": "Nenhum resultado"
 }
