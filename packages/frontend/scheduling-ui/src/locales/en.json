@@ -101,5 +101,7 @@
   "booking.emptyTitle": "No bookings",
   "booking.emptyHint": "Adjust the status filters or wait for new requests.",
   "availability.selectResourceTitle": "Pick a resource",
-  "availability.selectResourceHint": "Availability rules are defined per resource."
+  "availability.selectResourceHint": "Availability rules are defined per resource.",
+  "select.search": "Search…",
+  "select.noResults": "No results"
 }

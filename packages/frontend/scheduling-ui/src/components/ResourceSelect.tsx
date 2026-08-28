@@ -1,14 +1,14 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
- * Agenda e disponibilidade escolhem recurso do mesmo jeito. A opção vazia era um travessão, que
- * não diz se filtra tudo ou nada — na agenda ela é "Todos", e na disponibilidade a área só abre
- * depois da escolha.
+ * Agenda e disponibilidade escolhem recurso do mesmo jeito. A lista cresce com o cadastro, então
+ * ela sempre vai com busca — é o caso que o `web.md` §11 tira do `<select>` nativo por definição.
  */
 
+import { useMemo } from 'react'
 import type { Resource, ResourceId } from '@adatechnology/scheduling-contracts'
 
-import { FIELD_CONTROL, FIELD_LABEL } from './ui.constant'
+import { SelectField, type SelectOption } from './SelectField'
 
 export type ResourceSelectProps = {
   readonly label: string
@@ -19,21 +19,20 @@ export type ResourceSelectProps = {
 }
 
 export function ResourceSelect({ label, emptyOptionLabel, resources, value, onChange }: ResourceSelectProps) {
+  const options = useMemo<readonly SelectOption[]>(
+    () => resources.map((resource) => ({ value: resource.id, label: resource.name })),
+    [resources],
+  )
+
   return (
-    <label className="flex flex-col gap-1">
-      <span className={FIELD_LABEL}>{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={`${FIELD_CONTROL} min-w-44`}
-      >
-        <option value="">{emptyOptionLabel}</option>
-        {resources.map((resource) => (
-          <option key={resource.id} value={resource.id}>
-            {resource.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectField
+      label={label}
+      emptyOptionLabel={emptyOptionLabel}
+      options={options}
+      value={value}
+      onChange={onChange}
+      searchable
+      className="min-w-52"
+    />
   )
 }
