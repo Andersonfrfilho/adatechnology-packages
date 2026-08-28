@@ -197,6 +197,7 @@
     "scheduling-datetime-field",
     "scheduling-exception-reset",
     "scheduling-routes-export",
+    "scheduling-select-field",
     "scheduling-trio",
     "scheduling-workspace-polish",
     "send-media-logger-port",
