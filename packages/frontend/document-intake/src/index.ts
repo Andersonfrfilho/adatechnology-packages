@@ -26,3 +26,6 @@ export {
   isValidRenavam,
   isValidState,
 } from './checkDigit.service'
+
+export { readCcmei } from './ccmei.service'
+export type { CcmeiAddress, CcmeiReading, CcmeiRemark, CcmeiRemarkReason, CcmeiValues } from './ccmei.service'
