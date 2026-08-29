@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Plus, MessageCircleQuestion, GitBranch, Zap, Diamond, ChevronRight } from 'lucide-react'
+
+import { placeFloatingPanel, type FloatingPlacement } from './flowMenuPlacement'
 import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
 import type { FlowActionKind, FlowQuestionType } from './flowGraph'
 
@@ -45,6 +47,43 @@ export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPalette
     { actionKind: 'handoff', label: labels.actionKindLabels.handoff ?? 'Encaminhar para atendimento' },
   ]
   const [submenu, setSubmenu] = useState<'question' | 'action' | null>(null)
+  const questionTriggerRef = useRef<HTMLButtonElement>(null)
+  const actionTriggerRef = useRef<HTMLButtonElement>(null)
+  const submenuRef = useRef<HTMLDivElement>(null)
+  const [placement, setPlacement] = useState<FloatingPlacement | null>(null)
+
+  // `fixed` posicionado por medição, e não preso ao item por CSS: alinhado sempre à direita e ao
+  // topo do item, o submenu era cortado pela borda da tela — e sem rolagem os últimos itens ficavam
+  // inalcançáveis. Roda antes da pintura, então não pisca.
+  useLayoutEffect(() => {
+    if (!submenu) {
+      setPlacement(null)
+      return
+    }
+    const trigger = submenu === 'question' ? questionTriggerRef.current : actionTriggerRef.current
+    const panel = submenuRef.current
+    if (!trigger || !panel) return
+    const anchor = trigger.getBoundingClientRect()
+    setPlacement(
+      placeFloatingPanel({
+        anchor: { left: anchor.left, top: anchor.top, right: anchor.right, bottom: anchor.bottom },
+        panel: { width: panel.offsetWidth, height: panel.scrollHeight },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        prefer: 'side',
+      }),
+    )
+  }, [submenu])
+
+  const submenuStyle = {
+    position: 'fixed' as const,
+    left: placement?.left ?? 0,
+    top: placement?.top ?? 0,
+    maxHeight: placement?.maxHeight,
+    overflowY: 'auto' as const,
+    // Até a medição terminar o painel existe mas não aparece — senão ele pisca um quadro na
+    // posição errada, que é justamente o salto que esta correção remove.
+    visibility: placement ? ('visible' as const) : ('hidden' as const),
+  }
 
   function select(spec: NewNodeSpec) {
     onSelect(spec)
@@ -55,6 +94,7 @@ export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPalette
     <>
       <div className="relative">
         <button
+          ref={questionTriggerRef}
           data-cv-tooltip={labels.palette.question} aria-label={labels.palette.question}
           onMouseEnter={() => setSubmenu('question')}
           onClick={() => setSubmenu(submenu === 'question' ? null : 'question')}
@@ -66,7 +106,11 @@ export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPalette
           <ChevronRight size={13} className="text-gray-400" />
         </button>
         {submenu === 'question' && (
-          <div className="absolute left-full top-0 ml-1 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
+          <div
+            ref={submenuRef}
+            style={submenuStyle}
+            className="z-50 w-56 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1"
+          >
             {QUESTION_TYPES.map((qt) => (
               <button
                 data-cv-tooltip={labels.questionTypeLabels[qt]} aria-label={labels.questionTypeLabels[qt]}
@@ -101,6 +145,7 @@ export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPalette
 
       <div className="relative">
         <button
+          ref={actionTriggerRef}
           data-cv-tooltip={labels.palette.action} aria-label={labels.palette.action}
           onMouseEnter={() => setSubmenu('action')}
           onClick={() => setSubmenu(submenu === 'action' ? null : 'action')}
@@ -112,7 +157,11 @@ export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPalette
           <ChevronRight size={13} className="text-gray-400" />
         </button>
         {submenu === 'action' && (
-          <div className="absolute left-full top-0 ml-1 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1">
+          <div
+            ref={submenuRef}
+            style={submenuStyle}
+            className="z-50 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1"
+          >
             {resolvedActionOptions.map((option) => (
               <button
                 data-cv-tooltip={option.label} aria-label={option.label}
