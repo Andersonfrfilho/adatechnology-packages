@@ -156,7 +156,7 @@ export function BookingsTable({
           <button
             type="button"
             onClick={() => onStateChange?.(DEFAULT_BOOKINGS_TABLE_STATE)}
-            className="min-h-11 px-3 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
+            className="min-h-11 px-3 text-sm font-medium text-brand-700 hover:underline dark:text-brand-400"
           >
             {messages['common.clearFilters']}
           </button>

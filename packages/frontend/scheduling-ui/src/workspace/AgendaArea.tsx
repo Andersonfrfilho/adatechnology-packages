@@ -97,7 +97,7 @@ export function AgendaArea() {
         type="button"
         onClick={() => setView(value)}
         aria-pressed={isActive}
-        className={`${BUTTON_BASE} flex-1 ${isActive ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-900 dark:text-brand-300' : 'text-gray-600 dark:text-gray-400'}`}
+        className={`${BUTTON_BASE} flex-1 ${isActive ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-900 dark:text-brand-400' : 'text-gray-600 dark:text-gray-400'}`}
       >
         {label}
       </button>
