@@ -15,7 +15,7 @@ export type WorkspaceAreaNavProps = {
 
 const ITEM_BASE =
   'flex items-center gap-2 px-3 py-2 -mb-px border-b-2 text-sm font-medium transition-colors min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500'
-const ITEM_ACTIVE = 'border-brand-600 text-brand-700 dark:text-brand-300'
+const ITEM_ACTIVE = 'border-brand-600 text-brand-700 dark:text-brand-400'
 const ITEM_IDLE =
   'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
 

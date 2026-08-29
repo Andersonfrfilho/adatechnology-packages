@@ -71,7 +71,7 @@ export function AgendaGrid({ bookings, days, now, onSelect }: AgendaGridProps) {
             className={`flex-1 min-w-40 border-r border-gray-200 last:border-r-0 dark:border-gray-800 ${isToday ? 'bg-brand-50/40 dark:bg-brand-900/10' : ''}`}
           >
             <div
-              className={`${HEADER_CLASS} flex items-center gap-1 border-b border-gray-200 dark:border-gray-800 ${isToday ? 'text-brand-700 dark:text-brand-300' : ''}`}
+              className={`${HEADER_CLASS} flex items-center gap-1 border-b border-gray-200 dark:border-gray-800 ${isToday ? 'text-brand-700 dark:text-brand-400' : ''}`}
             >
               {day.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' })}
               {isToday && <span className="h-1.5 w-1.5 rounded-full bg-brand-600" aria-hidden="true" />}
