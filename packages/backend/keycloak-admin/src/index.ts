@@ -28,6 +28,8 @@ export type {
   KeycloakPassword,
   KeycloakUser,
   KeycloakUserAttributes,
+  ListUsersParams,
+  ListUsersResult,
   SetEnabledParams,
   SetPasswordParams,
   SetTemporaryPasswordParams,

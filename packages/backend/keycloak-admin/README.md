@@ -32,8 +32,12 @@ const { id } = await keycloak.createUser({
 })
 ```
 
-Operações: `createUser`, `findUserByEmail`, `updateUser`, `setEnabled`, `updateAttributes`,
-`deleteUser`, `setPassword`, `setTemporaryPassword`.
+Operações: `createUser`, `findUserByEmail`, `listUsers`, `updateUser`, `setEnabled`,
+`updateAttributes`, `deleteUser`, `setPassword`, `setTemporaryPassword`.
+
+`listUsers({ first, limit, search })` devolve `{ users, hasMore }`. O realm não informa total, então
+a página pede um registro a mais que o limite e descarta-o: é assim que `hasMore` sai sem uma
+segunda chamada.
 
 ## Token
 
