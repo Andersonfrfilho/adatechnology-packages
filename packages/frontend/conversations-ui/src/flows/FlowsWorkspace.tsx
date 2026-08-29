@@ -98,6 +98,11 @@ const QUICK_ADD_COLUMN_GAP = 320
 const FLOW_KEY_PATTERN = /^[a-z0-9_]{2,40}$/
 
 const EDGE_COLOR_LINEAR = '#94a3b8'
+
+/** Enquadramento ao focar um fluxo pela aba. */
+const FOCUS_MAX_ZOOM = 1
+const FOCUS_PADDING = 0.2
+const FOCUS_DURATION_MS = 400
 const EDGE_COLOR_BRANCH = '#8b5cf6'
 const EDGE_COLOR_FALLBACK = '#cbd5e1'
 const EDGE_COLOR_LIVE = '#3b82f6'
@@ -262,6 +267,7 @@ export function FlowsWorkspace({
   const [rfNodes, setRfNodes] = useState<Node[]>([])
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null)
   const [pendingFocusNodeId, setPendingFocusNodeId] = useState<string | null>(null)
+  const [pendingFocusFlowKey, setPendingFocusFlowKey] = useState<string | null>(null)
 
   const reloadGraphs = useCallback(async () => {
     try {
@@ -379,6 +385,10 @@ export function FlowsWorkspace({
       if (others.some(isFlowDirty) && !window.confirm(labels.workspace.unsavedChangesConfirm)) return
       setOpenFlowKeys(graphs ? mergedFlowKeysFrom(key, graphs) : [key])
       if (editingRef && editingRef.flowKey !== key) setEditingRef(null)
+      // Trocar o fluxo primário não movia a câmera: a aba acendia, o canvas continuava onde
+      // estava e o fluxo escolhido ficava fora da tela — clicar em "Consórcio" parecia não fazer
+      // nada. O enquadramento espera os cards existirem (ver o efeito abaixo).
+      setPendingFocusFlowKey(key)
     },
     [openFlowKeys, isFlowDirty, editingRef, graphs, labels],
   )
@@ -636,6 +646,22 @@ export function FlowsWorkspace({
     flowInstance.setCenter(target.position.x + NODE_CARD_WIDTH / 2, target.position.y, { zoom: 1, duration: 400 })
     setPendingFocusNodeId(null)
   }, [pendingFocusNodeId, flowInstance, rfNodes])
+
+  // Enquadra o fluxo recém-focado. `fitView` restrito aos cards DELE, e não o `fitView` geral:
+  // o canvas mostra o fecho transitivo inteiro, e enquadrar tudo devolveria a mesma visão de
+  // sempre. `maxZoom` evita que um fluxo de dois nós encha a tela.
+  useEffect(() => {
+    if (!pendingFocusFlowKey || !flowInstance) return
+    const flowNodes = rfNodes.filter((node) => parseNamespacedId(node.id).flowKey === pendingFocusFlowKey)
+    if (flowNodes.length === 0) return
+    void flowInstance.fitView({
+      nodes: flowNodes.map((node) => ({ id: node.id })),
+      maxZoom: FOCUS_MAX_ZOOM,
+      padding: FOCUS_PADDING,
+      duration: FOCUS_DURATION_MS,
+    })
+    setPendingFocusFlowKey(null)
+  }, [pendingFocusFlowKey, flowInstance, rfNodes])
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setRfNodes((current) => applyNodeChanges(changes, current))
