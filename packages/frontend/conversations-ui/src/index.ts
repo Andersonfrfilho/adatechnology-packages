@@ -42,6 +42,17 @@ export { MessageTail } from './MessageTail'
 // plataforma e do ofício de atender, não de um produto — por isso moram aqui.
 export { CONVERSATION_WINDOW, WINDOW_FILTERS, windowOf, formatStalledFor } from './conversationWindow'
 export type { WindowOfParams } from './conversationWindow'
+
+// Tempo sem resposta (SLA), distinto da janela de sessão acima: o host usa isto para o alerta e
+// para filtrar quem está esperando demais.
+export {
+  REPLY_LATENCY,
+  REPLY_LATENCY_LATE_HOURS,
+  REPLY_LATENCY_CRITICAL_HOURS,
+  replyLatencyOf,
+  isReplyOverdue,
+} from './replyLatency'
+export type { ReplyLatency, ReplyLatencyParams } from './replyLatency'
 // Canal de origem: capacidades por plataforma (janela de sessão, reabertura, tipo de identificador).
 export {
   CONVERSATION_CHANNEL,
