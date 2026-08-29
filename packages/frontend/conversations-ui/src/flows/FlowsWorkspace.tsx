@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ReactFlow,
   Background,
@@ -51,6 +51,7 @@ import {
   removeNodeAndCleanRefs,
   resolveConnection,
 } from './flowEditorOps'
+import { placeFloatingPanel, type FloatingPlacement } from './flowMenuPlacement'
 import {
   computeAutoLayout,
   targetsOf,
@@ -103,6 +104,9 @@ const EDGE_COLOR_LINEAR = '#94a3b8'
 const FOCUS_MAX_ZOOM = 1
 const FOCUS_PADDING = 0.2
 const FOCUS_DURATION_MS = 400
+
+/** Folga entre o "+" e o menu que ele abre. */
+const QUICK_ADD_MENU_GAP = 12
 const EDGE_COLOR_BRANCH = '#8b5cf6'
 const EDGE_COLOR_FALLBACK = '#cbd5e1'
 const EDGE_COLOR_LIVE = '#3b82f6'
@@ -268,6 +272,8 @@ export function FlowsWorkspace({
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null)
   const [pendingFocusNodeId, setPendingFocusNodeId] = useState<string | null>(null)
   const [pendingFocusFlowKey, setPendingFocusFlowKey] = useState<string | null>(null)
+  const quickAddMenuRef = useRef<HTMLDivElement>(null)
+  const [quickAddPlacement, setQuickAddPlacement] = useState<FloatingPlacement | null>(null)
 
   const reloadGraphs = useCallback(async () => {
     try {
@@ -662,6 +668,35 @@ export function FlowsWorkspace({
     })
     setPendingFocusFlowKey(null)
   }, [pendingFocusFlowKey, flowInstance, rfNodes])
+
+  // O menu do "+" saía da tela quando o card estava perto da borda: a âncora era usada crua, sem
+  // consultar o tamanho da janela. Mede depois de montar e reposiciona antes da pintura.
+  useLayoutEffect(() => {
+    if (!quickAddFrom) {
+      setQuickAddPlacement(null)
+      return
+    }
+    const panel = quickAddMenuRef.current
+    if (!panel) return
+    const { x, y } = quickAddFrom.anchor
+    setQuickAddPlacement(
+      placeFloatingPanel({
+        anchor: { left: x, top: y, right: x, bottom: y },
+        panel: { width: panel.offsetWidth, height: panel.scrollHeight },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        prefer: 'below',
+        gap: QUICK_ADD_MENU_GAP,
+      }),
+    )
+  }, [quickAddFrom])
+
+  const quickAddMenuStyle = {
+    left: quickAddPlacement?.left ?? 0,
+    top: quickAddPlacement?.top ?? 0,
+    maxHeight: quickAddPlacement?.maxHeight,
+    overflowY: 'auto' as const,
+    visibility: quickAddPlacement ? ('visible' as const) : ('hidden' as const),
+  }
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setRfNodes((current) => applyNodeChanges(changes, current))
@@ -1071,8 +1106,9 @@ export function FlowsWorkspace({
         <>
           <div className="fixed inset-0 z-40" onClick={() => setQuickAddFrom(null)} />
           <div
+            ref={quickAddMenuRef}
             className="fixed z-50 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1"
-            style={{ left: quickAddFrom.anchor.x + 12, top: quickAddFrom.anchor.y }}
+            style={quickAddMenuStyle}
           >
             <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
               {labels.quickAdd.title}
