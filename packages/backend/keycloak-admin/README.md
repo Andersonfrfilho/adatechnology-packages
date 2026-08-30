@@ -32,8 +32,13 @@ const { id } = await keycloak.createUser({
 })
 ```
 
-Operações: `createUser`, `findUserByEmail`, `listUsers`, `updateUser`, `setEnabled`,
+Operações de usuário: `createUser`, `findUserByEmail`, `listUsers`, `updateUser`, `setEnabled`,
 `updateAttributes`, `deleteUser`, `setPassword`, `setTemporaryPassword`.
+
+Operações de grupo: `createGroup`, `updateGroup`, `deleteGroup`, `listGroups`, `addUserToGroup`,
+`removeUserFromGroup`. Só o **primeiro nível** — grupo aninhado muda o significado de "pertencer",
+porque quem está no filho herda o pai, e um produto que não modela hierarquia não deve criá-la por
+acidente. A filiação é endereçada pelo **usuário** (`/users/{id}/groups/{id}`), não pelo grupo.
 
 `listUsers({ first, limit, search })` devolve `{ users, hasMore }`. O realm não informa total, então
 a página pede um registro a mais que o limite e descarta-o: é assim que `hasMore` sai sem uma

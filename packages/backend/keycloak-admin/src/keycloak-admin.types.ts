@@ -91,7 +91,59 @@ export type SetTemporaryPasswordParams = {
   readonly userId: string
 }
 
+/**
+ * O grupo do realm. O Keycloak aceita hierarquia (`subGroups`), e este cliente trata só o primeiro
+ * nível de propósito: grupo aninhado muda o significado de "pertencer" — quem está no filho herda o
+ * pai —, e um produto que não modela hierarquia não deve criá-la por acidente.
+ */
+export type KeycloakGroup = {
+  readonly attributes?: KeycloakUserAttributes
+  readonly id: string
+  readonly name: string
+  readonly path?: string
+}
+
+export type CreateGroupParams = {
+  readonly attributes?: KeycloakUserAttributes
+  readonly name: string
+}
+
+export type CreateGroupResult = {
+  readonly id: string
+}
+
+export type UpdateGroupParams = {
+  readonly groupId: string
+  readonly group: Readonly<Partial<Pick<KeycloakGroup, 'attributes' | 'name'>>>
+}
+
+export type DeleteGroupParams = {
+  readonly groupId: string
+}
+
+export type ListGroupsParams = {
+  readonly first?: number
+  readonly limit?: number
+  readonly search?: string
+}
+
+export type ListGroupsResult = {
+  readonly groups: readonly KeycloakGroup[]
+  readonly hasMore: boolean
+}
+
+export type GroupMembershipParams = {
+  readonly groupId: string
+  readonly userId: string
+}
+
 export type KeycloakAdminClient = {
+  addUserToGroup(params: GroupMembershipParams): Promise<void>
+  createGroup(params: CreateGroupParams): Promise<CreateGroupResult>
+  deleteGroup(params: DeleteGroupParams): Promise<void>
+  listGroups(params?: ListGroupsParams): Promise<ListGroupsResult>
+  removeUserFromGroup(params: GroupMembershipParams): Promise<void>
+  updateGroup(params: UpdateGroupParams): Promise<void>
   createUser(params: CreateUserParams): Promise<CreateUserResult>
   deleteUser(params: DeleteUserParams): Promise<void>
   findUserByEmail(params: FindUserByEmailParams): Promise<KeycloakUser | undefined>
