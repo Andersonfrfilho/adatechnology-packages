@@ -14,7 +14,15 @@ import type {
   CreateUserResult,
   DeleteUserParams,
   FetchLike,
+  CreateGroupParams,
+  CreateGroupResult,
+  DeleteGroupParams,
   FindUserByEmailParams,
+  GroupMembershipParams,
+  KeycloakGroup,
+  ListGroupsParams,
+  ListGroupsResult,
+  UpdateGroupParams,
   ListUsersParams,
   ListUsersResult,
   KeycloakAdminClient,
@@ -49,7 +57,7 @@ function normalizeAttributes(attributes: KeycloakUserAttributes): Record<string,
   )
 }
 
-function userIdFromLocation(response: Response): string {
+function idFromLocation(response: Response): string {
   const location = response.headers.get('location')
   const id = location?.split('/').filter(Boolean).at(-1)
 
@@ -148,7 +156,7 @@ export function createKeycloakAdminClient({
         url: endpoints.users,
       })
 
-      return { id: userIdFromLocation(response) }
+      return { id: idFromLocation(response) }
     },
 
     async deleteUser({ userId }: DeleteUserParams): Promise<void> {
@@ -167,6 +175,49 @@ export function createKeycloakAdminClient({
      * Pede um a mais que o limite para saber se há próxima página sem uma segunda chamada — o
      * Keycloak não devolve total, e contar o realm inteiro só para desenhar um botão é caro.
      */
+    async addUserToGroup({ groupId, userId }: GroupMembershipParams): Promise<void> {
+      await adminRequest({ method: 'PUT', url: endpoints.userGroup(userId, groupId) })
+    },
+
+    async createGroup({ attributes, name }: CreateGroupParams): Promise<CreateGroupResult> {
+      const response = await adminRequest({
+        body: { ...(attributes === undefined ? {} : { attributes: normalizeAttributes(attributes) }), name },
+        method: 'POST',
+        url: endpoints.groups,
+      })
+
+      return { id: idFromLocation(response) }
+    },
+
+    async deleteGroup({ groupId }: DeleteGroupParams): Promise<void> {
+      await adminRequest({ method: 'DELETE', url: endpoints.group(groupId) })
+    },
+
+    /** Mesmo recorte de `listUsers`: pede um a mais que o limite para saber se há próxima página. */
+    async listGroups({ first = 0, limit = 100, search }: ListGroupsParams = {}): Promise<ListGroupsResult> {
+      const query = new URLSearchParams({ first: String(first), max: String(limit + 1) })
+      if (search !== undefined && search !== '') query.set('search', search)
+      const response = await adminRequest({ method: 'GET', url: `${endpoints.groups}?${query}` })
+      const found = (await response.json()) as readonly KeycloakGroup[]
+
+      return { groups: found.slice(0, limit), hasMore: found.length > limit }
+    },
+
+    async removeUserFromGroup({ groupId, userId }: GroupMembershipParams): Promise<void> {
+      await adminRequest({ method: 'DELETE', url: endpoints.userGroup(userId, groupId) })
+    },
+
+    async updateGroup({ group, groupId }: UpdateGroupParams): Promise<void> {
+      await adminRequest({
+        body: {
+          ...(group.attributes === undefined ? {} : { attributes: normalizeAttributes(group.attributes) }),
+          ...(group.name === undefined ? {} : { name: group.name }),
+        },
+        method: 'PUT',
+        url: endpoints.group(groupId),
+      })
+    },
+
     async listUsers({ first = 0, limit = 100, search }: ListUsersParams = {}): Promise<ListUsersResult> {
       const query = new URLSearchParams({ first: String(first), max: String(limit + 1) })
       if (search !== undefined && search !== '') query.set('search', search)
