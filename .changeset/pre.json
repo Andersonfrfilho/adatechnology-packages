@@ -58,7 +58,8 @@
     "@adatechnology/user-ui": "0.1.0-rc.0",
     "@adatechnology/image-cutout": "0.0.0",
     "@adatechnology/document-intake": "0.1.0-rc.0",
-    "@adatechnology/audio-transcription-mcp": "0.1.0-rc.1"
+    "@adatechnology/audio-transcription-mcp": "0.1.0-rc.1",
+    "@adatechnology/identity-reconciliation": "0.0.0"
   },
   "changesets": [
     "acoes-viram-botoes-de-verdade",
@@ -131,6 +132,7 @@
     "focar-fluxo-move-a-camera",
     "foto-na-ficha",
     "header-and-composer-fit",
+    "identity-reconciliation-package",
     "inbox-components",
     "inbox-operations-and-pagination",
     "inbox-reads-like-an-inbox",
