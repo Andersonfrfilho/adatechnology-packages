@@ -138,6 +138,7 @@
     "inbox-reads-like-an-inbox",
     "interactive-message-formatting",
     "keycloak-admin-agnostic",
+    "keycloak-admin-groups",
     "keycloak-admin-list-users",
     "lazy-media-button",
     "lucide-icon-migration",
