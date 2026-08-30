@@ -8,6 +8,7 @@ import { createSecretRedactor } from './keycloak-admin.redaction.js'
 import { readKeycloakDetail } from './keycloak-admin.response.js'
 import { parseKeycloakAdminConfig } from './keycloak-admin.schema.js'
 import { createKeycloakTokenProvider } from './keycloak-admin.token.js'
+import { PROFILE_PICTURE_ATTRIBUTE } from './keycloak-admin.types.js'
 import type {
   CreateKeycloakAdminClientParams,
   CreateUserParams,
@@ -29,6 +30,7 @@ import type {
   KeycloakUser,
   KeycloakUserAttributes,
   SetEnabledParams,
+  SetProfilePictureParams,
   SetPasswordParams,
   SetTemporaryPasswordParams,
   UpdateAttributesParams,
@@ -225,6 +227,28 @@ export function createKeycloakAdminClient({
       const found = (await response.json()) as readonly KeycloakUser[]
 
       return { hasMore: found.length > limit, users: found.slice(0, limit) }
+    },
+
+    /**
+     * A foto é atributo, e o Admin API **substitui o conjunto** quando recebe `attributes`. Por isso
+     * esta operação lê o usuário antes: mandar só a foto apagaria `company_id`, `tax_id` e qualquer
+     * outro atributo do produto — e o sintoma seria login entrando sem empresa, longe daqui.
+     */
+    async setProfilePicture({ pictureUrl, userId }: SetProfilePictureParams): Promise<void> {
+      const response = await adminRequest({ method: 'GET', url: endpoints.user(userId) })
+      const current = (await response.json()) as KeycloakUser
+      const attributes = { ...(current.attributes ?? {}) }
+      if (pictureUrl === undefined || pictureUrl === '') {
+        delete attributes[PROFILE_PICTURE_ATTRIBUTE]
+      } else {
+        attributes[PROFILE_PICTURE_ATTRIBUTE] = pictureUrl
+      }
+
+      await adminRequest({
+        body: { attributes: normalizeAttributes(attributes) },
+        method: 'PUT',
+        url: endpoints.user(userId),
+      })
     },
 
     async setEnabled({ enabled, userId }: SetEnabledParams): Promise<void> {
