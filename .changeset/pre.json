@@ -140,6 +140,7 @@
     "keycloak-admin-agnostic",
     "keycloak-admin-groups",
     "keycloak-admin-list-users",
+    "keycloak-admin-profile-picture",
     "lazy-media-button",
     "lucide-icon-migration",
     "mdfe-3-00-emissao-encerramento-cancelamento",
