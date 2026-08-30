@@ -1,0 +1,37 @@
+{
+  "name": "@adatechnology/identity-reconciliation",
+  "version": "0.0.0",
+  "description": "Pure matching rules that reconcile a product user base against an identity provider realm",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "keywords": [
+    "identity",
+    "reconciliation",
+    "keycloak",
+    "matching"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
