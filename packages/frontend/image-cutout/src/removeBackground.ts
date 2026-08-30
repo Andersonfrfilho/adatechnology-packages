@@ -30,7 +30,35 @@ export const BACKGROUND_FILL = {
   WHITE: 'white',
   TRANSPARENT: 'transparent',
 } as const
-export type BackgroundFill = (typeof BACKGROUND_FILL)[keyof typeof BACKGROUND_FILL]
+export type BackgroundFillKeyword = (typeof BACKGROUND_FILL)[keyof typeof BACKGROUND_FILL]
+
+/**
+ * Uma cor de fundo escolhida por quem hospeda — a cor da marca, normalmente. Ela existe porque
+ * "branco ou transparente" não cobre foto de perfil: um avatar recortado sobre branco numa tela
+ * escura vira um selo branco, e sobre transparente ele se dissolve no que estiver atrás.
+ *
+ * **Hexadecimal, e não uma cor CSS qualquer.** O valor vai para `fillStyle`, que aceita qualquer
+ * string e **ignora em silêncio** a que não entende — o fundo sairia transparente sem erro nenhum,
+ * e a falha apareceria como "às vezes o recorte fica sem fundo". Nome de cor e `var(--token)` ficam
+ * de fora pelo mesmo motivo: o token não existe dentro do canvas.
+ */
+export type BackgroundColorFill = { readonly color: string }
+
+export type BackgroundFill = BackgroundFillKeyword | BackgroundColorFill
+
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/iu
+
+export function isBackgroundColorFill(fill: BackgroundFill): fill is BackgroundColorFill {
+  return typeof fill === 'object'
+}
+
+/** Cor inválida é erro na chamada, não fundo transparente meia hora depois. */
+export function assertBackgroundColor(color: string): string {
+  if (!HEX_COLOR.test(color.trim())) {
+    throw new Error(`Cor de fundo inválida: ${color}. Use hexadecimal, como #0b3d2e.`)
+  }
+  return color.trim()
+}
 
 export type BackgroundRemovalConfig = {
   /** URL do `u2netp.onnx` (ou `u2net.onnx`) servido pelo host. Sem ela o recurso não existe. */
@@ -227,15 +255,23 @@ async function composite({ bitmap, mask, fill }: CompositeParams): Promise<Blob>
   context.globalCompositeOperation = 'destination-in'
   context.drawImage(maskToCanvas(mask), 0, 0, size.width, size.height)
 
-  if (fill === BACKGROUND_FILL.WHITE) {
+  const background = resolveBackgroundColor(fill)
+  if (background !== null) {
     context.globalCompositeOperation = 'destination-over'
-    context.fillStyle = '#ffffff'
+    context.fillStyle = background
     context.fillRect(0, 0, size.width, size.height)
   }
 
   context.globalCompositeOperation = 'source-over'
 
   return toBlob(canvas)
+}
+
+/** `null` é "não pinta nada": o recorte fica transparente, que é o outro caminho legítimo. */
+export function resolveBackgroundColor(fill: BackgroundFill): string | null {
+  if (fill === BACKGROUND_FILL.TRANSPARENT) return null
+  if (fill === BACKGROUND_FILL.WHITE) return '#ffffff'
+  return assertBackgroundColor(fill.color)
 }
 
 function maskToCanvas(mask: Float32Array): HTMLCanvasElement {

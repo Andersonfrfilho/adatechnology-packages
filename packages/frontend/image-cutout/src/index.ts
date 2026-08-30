@@ -10,8 +10,21 @@
  * pré-processamento e o pós-processamento para um segundo lugar.
  */
 
-export { removeBackground, toWebpName, BACKGROUND_FILL } from './removeBackground'
-export type { BackgroundFill, BackgroundRemovalConfig, RemoveBackgroundParams } from './removeBackground'
+export {
+  assertBackgroundColor,
+  BACKGROUND_FILL,
+  isBackgroundColorFill,
+  removeBackground,
+  resolveBackgroundColor,
+  toWebpName,
+} from './removeBackground'
+export type {
+  BackgroundColorFill,
+  BackgroundFill,
+  BackgroundFillKeyword,
+  BackgroundRemovalConfig,
+  RemoveBackgroundParams,
+} from './removeBackground'
 
 export { useBackgroundRemoval } from './useBackgroundRemoval.hook'
 export type { UseBackgroundRemovalParams, UseBackgroundRemovalResult } from './useBackgroundRemoval.hook'
