@@ -71,6 +71,22 @@ export type SetEnabledParams = {
   readonly userId: string
 }
 
+/**
+ * O atributo padrão da foto. `picture` é o nome que o OIDC já reserva para isso, e usá-lo é o que
+ * permite a foto chegar ao token por um mapeador do realm em vez de uma consulta extra por tela.
+ *
+ * ⚠️ O Keycloak **não hospeda imagem**: o valor é uma URL, e quem guarda o arquivo é o produto. Um
+ * atributo com base64 dentro cresce o token até ele parar de caber no cabeçalho, e aí o sintoma é
+ * login que funciona no navegador e falha no `curl`.
+ */
+export const PROFILE_PICTURE_ATTRIBUTE = 'picture'
+
+export type SetProfilePictureParams = {
+  /** URL da imagem, ou `undefined` para tirar a foto sem mexer nos outros atributos. */
+  readonly pictureUrl: string | undefined
+  readonly userId: string
+}
+
 export type UpdateAttributesParams = {
   readonly attributes: KeycloakUserAttributes
   readonly userId: string
@@ -149,6 +165,7 @@ export type KeycloakAdminClient = {
   findUserByEmail(params: FindUserByEmailParams): Promise<KeycloakUser | undefined>
   listUsers(params?: ListUsersParams): Promise<ListUsersResult>
   setEnabled(params: SetEnabledParams): Promise<void>
+  setProfilePicture(params: SetProfilePictureParams): Promise<void>
   setPassword(params: SetPasswordParams): Promise<void>
   setTemporaryPassword(params: SetTemporaryPasswordParams): Promise<void>
   updateAttributes(params: UpdateAttributesParams): Promise<void>
