@@ -189,7 +189,7 @@ importers:
         version: 0.31.10
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.3.14)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.4.0)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
@@ -201,7 +201,7 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.3.14)(zod@4.4.3)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.4.0)(zod@4.4.3)
     devDependencies:
       '@types/bun':
         specifier: 1.3.14
@@ -535,6 +535,18 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  packages/backend/identity-reconciliation:
+    devDependencies:
+      '@types/bun':
+        specifier: latest
+        version: 1.4.0
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
   packages/backend/keycloak-admin:
     devDependencies:
       '@types/bun':
@@ -646,7 +658,7 @@ importers:
         version: 0.31.10
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.3.14)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.4.0)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
@@ -920,7 +932,7 @@ importers:
         version: 0.31.10
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.3.14)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.4.0)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
@@ -1018,7 +1030,7 @@ importers:
         version: 0.31.10
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.3.14)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.4.0)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
@@ -1108,7 +1120,7 @@ importers:
         version: 1.0.0-rc.4
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.3.14)(zod@3.25.76)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.4.0)(zod@3.25.76)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.15.40(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.26)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
@@ -5125,6 +5137,9 @@ packages:
   '@types/bun@1.3.14':
     resolution: {integrity: sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw==}
 
+  '@types/bun@1.4.0':
+    resolution: {integrity: sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ==}
+
   '@types/bunyan@1.8.11':
     resolution: {integrity: sha512-758fRH7umIMk5qt5ELmRMff4mLDlN+xyYzC+dkPTdKwbSkJFvz6xwyScrytPU0QIBbRRwbiE8/BIg8bpajerNQ==}
 
@@ -6011,6 +6026,9 @@ packages:
 
   bun-types@1.3.14:
     resolution: {integrity: sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ==}
+
+  bun-types@1.4.0:
+    resolution: {integrity: sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q==}
 
   bundle-name@4.1.0:
     resolution: {integrity: sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q==}
@@ -14271,6 +14289,10 @@ snapshots:
     dependencies:
       bun-types: 1.3.14
 
+  '@types/bun@1.4.0':
+    dependencies:
+      bun-types: 1.4.0
+
   '@types/bunyan@1.8.11':
     dependencies:
       '@types/node': 24.13.3
@@ -15265,6 +15287,10 @@ snapshots:
     dependencies:
       '@types/node': 24.13.3
 
+  bun-types@1.4.0:
+    dependencies:
+      '@types/node': 24.13.3
+
   bundle-name@4.1.0:
     dependencies:
       run-applescript: 7.1.0
@@ -15687,26 +15713,26 @@ snapshots:
       get-tsconfig: 4.14.0
       jiti: 2.7.0
 
-  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.3.14):
+  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.15.6)(bun-types@1.4.0):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.15.6
-      bun-types: 1.3.14
+      bun-types: 1.4.0
 
-  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.3.14)(zod@3.25.76):
+  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.4.0)(zod@3.25.76):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@sinclair/typebox': 0.34.49
       '@types/pg': 8.15.6
-      bun-types: 1.3.14
+      bun-types: 1.4.0
       zod: 3.25.76
 
-  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.3.14)(zod@4.4.3):
+  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.49)(@types/pg@8.15.6)(bun-types@1.4.0)(zod@4.4.3):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@sinclair/typebox': 0.34.49
       '@types/pg': 8.15.6
-      bun-types: 1.3.14
+      bun-types: 1.4.0
       zod: 4.4.3
 
   dunder-proto@1.0.1:
