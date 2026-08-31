@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { CHAT_TEXT_SECONDARY_CLASS } from './theme'
 import type { MessagePayload } from './types'
 import { useConversations } from './providers/ConversationsProvider'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
@@ -22,7 +23,7 @@ export function MessageText({ message }: MessageTextProps) {
   }, [message.content])
 
   if (message.type === 'template')
-    return <p className="text-sm italic text-[#667781]">{message.content ?? 'Template message'}</p>
+    return <p className={`text-sm italic ${CHAT_TEXT_SECONDARY_CLASS}`}>{message.content ?? 'Template message'}</p>
 
   return (
     <div
