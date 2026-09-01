@@ -6,7 +6,7 @@
   "updateInternalDependencies": "patch",
   "commit": false,
   "ignore": [
-    "example",
+    "bun-app-example",
     "frontend-example",
     "fiscal-example",
     "fiscal-example-frontend"
