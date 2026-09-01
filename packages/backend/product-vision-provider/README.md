@@ -73,10 +73,46 @@ createBarcodeReader({}, { decodeImage: async (input, maxPixels) => /* sharp, jim
 
 ## Desempate por modelo de visão
 
-Ainda não incluído. A `ProductVisionPort` prevê `rank`, e a cascata do `catalog-module` funciona sem
-ele — sem `rank`, os candidatos voltam para a pessoa escolher na conversa. É o único degrau com
-custo real de infraestrutura (RAM e latência de CPU), e entra quando a métrica de acerto do vetorial
-mostrar que vale a máquina.
+O terceiro degrau: só roda quando o código de barras não decidiu e o vetor trouxe **mais de um**
+candidato plausível. Servido por um Ollama local — o pacote fala HTTP e não carrega runtime de
+modelo, então a RAM e o ciclo de vida são do host.
+
+```ts
+import { createOllamaRanker } from '@adatechnology/product-vision-provider/vlm-ollama'
+
+const vision = createVisionChain([createBarcodeReader(), createClipEmbedder()], {
+  ranker: createOllamaRanker(),   // sem isto, a cadeia não expõe `rank`
+})
+```
+
+```bash
+ollama pull qwen2.5vl:3b
+```
+
+**O modelo escolhe um número, nunca o id do produto.** Pedir o UUID convida a alucinação: o modelo
+inventa um id parecido, o consumidor não acha na lista e a escolha se perde. Um número de 0 a N é
+verificável em uma linha, e o `0` é "nenhum destes" — a resposta que impede o desempate de escolher
+o menos improvável quando o cliente fotografou algo que a loja não vende.
+
+**Um candidato só dispensa o desempate**: gastar a inferência para "confirmar" o único item
+transformaria o degrau mais caro da cascata no mais frequente.
+
+### O custo, medido
+
+| | |
+|---|---|
+| Latência (CPU, Apple Silicon, `qwen2.5vl:3b`) | **5s a 15s** por desempate |
+| Modelo em disco | ~3,2GB |
+
+Quinze segundos é muito para uma conversa: o cliente manda a foto e fica olhando o "digitando". Este
+número é o argumento mais forte para **ligar o desempate só quando a métrica de acerto do vetorial
+mostrar que vale** — sem `ranker`, os candidatos voltam para a pessoa escolher, o que é instantâneo.
+
+### Sobre a escolha do modelo
+
+O default é `qwen2.5vl:3b` por ter sido o que respondeu. O `moondream` é menor (1,7GB) e seria a
+escolha óbvia, mas devolve **string vazia** no Ollama 0.32 — até com prompt só de texto — e o
+sintoma é indistinguível de "o modelo não soube responder".
 
 ## Licença
 

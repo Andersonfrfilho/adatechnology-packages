@@ -4,7 +4,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/barcode/index.ts', 'src/clip-local/index.ts'],
+  entry: ['src/index.ts', 'src/barcode/index.ts', 'src/clip-local/index.ts', 'src/vlm-ollama/index.ts'],
   format: ['esm'],
   target: 'esnext',
   dts: true,

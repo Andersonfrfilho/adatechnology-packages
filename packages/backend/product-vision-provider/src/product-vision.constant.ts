@@ -43,3 +43,22 @@ export function normalizeMimeType(value: string): string {
 export function isSupportedImageMimeType(value: string): boolean {
   return (SUPPORTED_IMAGE_MIME_TYPES as readonly string[]).includes(normalizeMimeType(value))
 }
+
+/**
+ * Desempate por modelo de visao, servido por um Ollama local.
+ *
+ * `qwen2.5vl:3b` (~3.2GB) e o default por ter sido o que respondeu. O `moondream`, menor e a
+ * escolha obvia pelo tamanho, devolve string VAZIA no Ollama 0.32 — ate com prompt so de texto —
+ * e o sintoma e indistinguivel de "o modelo nao soube responder".
+ */
+export const OLLAMA_DEFAULT_BASE_URL = 'http://localhost:11434'
+export const OLLAMA_DEFAULT_MODEL = 'qwen2.5vl:3b'
+/**
+ * Medido em CPU (Apple Silicon, qwen2.5vl:3b): 5s a 15s por desempate.
+ *
+ * Isso e MUITO para uma conversa: o cliente manda a foto e fica olhando o "digitando". O teto e
+ * generoso de proposito — estourar devolve os candidatos para a pessoa escolher, que e pior que
+ * responder certo e melhor que nao responder — mas o numero em si e o argumento mais forte para
+ * ligar o desempate so quando a metrica do vetorial mostrar que vale.
+ */
+export const OLLAMA_DEFAULT_TIMEOUT_MS = 30_000
