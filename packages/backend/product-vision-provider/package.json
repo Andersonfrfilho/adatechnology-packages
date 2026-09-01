@@ -1,0 +1,70 @@
+{
+  "name": "@adatechnology/product-vision-provider",
+  "version": "0.1.0-rc.1",
+  "description": "Identifica produto a partir de uma foto: leitor de codigo de barras e embedding CLIP, ambos locais e gratuitos, encadeaveis",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./barcode": {
+      "types": "./dist/barcode/index.d.ts",
+      "import": "./dist/barcode/index.js",
+      "default": "./dist/barcode/index.js"
+    },
+    "./clip-local": {
+      "types": "./dist/clip-local/index.d.ts",
+      "import": "./dist/clip-local/index.js",
+      "default": "./dist/clip-local/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit",
+    "prepack": "bun run build",
+    "test": "bun test",
+    "format": "prettier --write package.json src tsconfig.json tsup.config.ts",
+    "format:check": "prettier --check package.json src tsconfig.json tsup.config.ts"
+  },
+  "keywords": [
+    "product-vision",
+    "barcode",
+    "ean",
+    "gtin",
+    "clip",
+    "embedding",
+    "visual-search",
+    "self-hosted"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@huggingface/transformers": ">=3 <5",
+    "@undecaf/zbar-wasm": ">=0.11 <1"
+  },
+  "peerDependenciesMeta": {
+    "@huggingface/transformers": {
+      "optional": true
+    },
+    "@undecaf/zbar-wasm": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@adatechnology/catalog-contracts": "workspace:*",
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}
