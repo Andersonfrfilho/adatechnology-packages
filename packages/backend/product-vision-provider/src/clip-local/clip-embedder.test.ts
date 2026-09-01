@@ -12,7 +12,10 @@ const vector = (length: number) => Array.from({ length }, (_value, index) => ind
 
 describe('embedding de imagem', () => {
   it('devolve o vetor na dimensao do indice', async () => {
-    const embedder = createClipEmbedder({}, { loadExtractor: async () => async () => ({ data: vector(512) }) })
+    const embedder = createClipEmbedder(
+      {},
+      { loadExtractor: async () => async () => ({ data: vector(512) }), toImage: async () => ({}) },
+    )
 
     const reading = await embedder.read(JPEG)
 
@@ -23,7 +26,10 @@ describe('embedding de imagem', () => {
   it('vetor de dimensao inesperada falha em vez de envenenar o indice', async () => {
     // A coluna do consumidor tem tamanho fixo; deixar passar adiaria o erro para o INSERT, no meio
     // de uma conversa, e um vetor de outro modelo responde produto errado com toda a confianca.
-    const embedder = createClipEmbedder({}, { loadExtractor: async () => async () => ({ data: vector(768) }) })
+    const embedder = createClipEmbedder(
+      {},
+      { loadExtractor: async () => async () => ({ data: vector(768) }), toImage: async () => ({}) },
+    )
 
     await expect(embedder.read(JPEG)).rejects.toThrow('768 dimensoes')
   })
@@ -37,6 +43,7 @@ describe('embedding de imagem', () => {
           loads += 1
           return async () => ({ data: vector(512) })
         },
+        toImage: async () => ({}),
       },
     )
 
@@ -55,7 +62,7 @@ describe('embedding de imagem', () => {
   it('inferencia que passa do timeout e retriavel', async () => {
     const embedder = createClipEmbedder(
       { timeoutMs: 10 },
-      { loadExtractor: async () => () => new Promise(() => undefined) },
+      { loadExtractor: async () => () => new Promise(() => undefined), toImage: async () => ({}) },
     )
 
     await expect(embedder.read(JPEG)).rejects.toThrow('passou de 10ms')
