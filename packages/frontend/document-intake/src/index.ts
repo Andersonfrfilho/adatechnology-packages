@@ -27,5 +27,14 @@ export {
   isValidState,
 } from './checkDigit.service'
 
+export { readCrlv } from './crlv.service'
+export type { CrlvReading, CrlvRemark, CrlvRemarkReason, CrlvValues } from './crlv.service'
+
+export { CNH_LICENSE_CATEGORIES, extractCnhFields } from './cnh.service'
+export type { CnhFields, CnhLicenseCategory } from './cnh.service'
+
+export { createTesseractOcrClient, readsWithOcr } from './tesseractOcr.client'
+export type { OcrTextReader } from './tesseractOcr.client'
+
 export { readCcmei } from './ccmei.service'
 export type { CcmeiAddress, CcmeiReading, CcmeiRemark, CcmeiRemarkReason, CcmeiValues } from './ccmei.service'
