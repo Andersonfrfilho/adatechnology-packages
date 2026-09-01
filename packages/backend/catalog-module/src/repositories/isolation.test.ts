@@ -96,3 +96,22 @@ describe('id sozinho nunca basta', () => {
     expect(sql).toContain('"id"')
   })
 })
+
+describe('a busca por texto cobre como o cliente fala', () => {
+  it('procura em nome, marca e apelido', () => {
+    // "guarana" nao e o nome cadastrado de nenhum refrigerante, e e o que o cliente digita.
+    const rendered = render(productSearchCondition({ companyId: 'company-a', search: 'guarana' }))
+
+    expect(rendered).toContain('"name" ilike')
+    expect(rendered).toContain('"brand"')
+    expect(rendered).toContain('"aliases"')
+  })
+
+  it('sem perder o escopo de empresa ao ganhar campos', () => {
+    // O `or` dos tres campos precisa estar dentro do `and` do tenant: solto, a busca por marca
+    // atravessaria empresas.
+    const rendered = render(productSearchCondition({ companyId: 'company-a', search: 'x' }))
+
+    expect(rendered.indexOf('company_id')).toBeLessThan(rendered.indexOf('ilike'))
+  })
+})

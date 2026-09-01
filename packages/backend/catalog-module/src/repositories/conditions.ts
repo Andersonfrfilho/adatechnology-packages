@@ -26,7 +26,19 @@ export function productListCondition(params: { companyId: string }): SQL {
  * acelera — trocar por `=` ou por prefixo deixaria o índice sem uso.
  */
 export function productSearchCondition(params: { companyId: string; search: string }): SQL {
-  return and(productListCondition(params), sql`${products.name} ilike ${'%' + params.search + '%'}`)!
+  const pattern = `%${params.search}%`
+
+  // Nome, marca e apelido, nesta ordem de leitura. O apelido e o que faz "guarana" achar o
+  // refrigerante cadastrado pelo nome da marca — o cliente digita como fala, nao como esta no
+  // cadastro. `array_to_string` porque `ilike` nao opera sobre array.
+  return and(
+    productListCondition(params),
+    sql`(
+      ${products.name} ilike ${pattern}
+      or coalesce(${products.brand}, '') ilike ${pattern}
+      or array_to_string(${products.aliases}, ' ') ilike ${pattern}
+    )`,
+  )!
 }
 
 export function catalogOwnedByCondition(params: { companyId: string; id: string }): SQL {

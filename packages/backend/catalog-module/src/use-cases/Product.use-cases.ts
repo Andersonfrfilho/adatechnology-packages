@@ -44,6 +44,10 @@ export class CreateProductUseCase {
       priceInCents: params.priceInCents,
       costPriceInCents: params.costPriceInCents,
       unit: params.unit,
+      brand: params.brand,
+      unitSize: params.unitSize,
+      aisle: params.aisle,
+      ...(params.aliases ? { aliases: [...params.aliases] } : {}),
       barcode: params.barcode,
       imageUrl: params.imageUrl,
       inventory: params.inventory,
@@ -92,6 +96,7 @@ export class UpdateProductUseCase {
       current: current.availability,
     })
 
+    const { aliases, ...rest } = changes
     const changedFields = Object.keys(changes).filter((field) => changes[field as keyof typeof changes] !== undefined)
     if (availability) changedFields.push('availability')
 
@@ -99,7 +104,10 @@ export class UpdateProductUseCase {
       companyId,
       id,
       values: {
-        ...changes,
+        ...rest,
+        // `aliases` chega `readonly` do contrato e o Drizzle escreve array mutavel. Sai do spread
+        // e volta copiado: e o unico ponto onde a fronteira dos dois tipos se resolve.
+        ...(aliases ? { aliases: [...aliases] } : {}),
         ...(availability ? { availability } : {}),
         // Só reenfileira quando mudou algo que a Meta enxerga — alterar ficha da cozinha ou custo
         // não muda nada lá, e marcar `pending` geraria fila de sync sem motivo.

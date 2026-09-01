@@ -8,6 +8,13 @@
       "when": 1785688831530,
       "tag": "0000_charming_steel_serpent",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788307200000,
+      "tag": "0001_product_retail_fields",
+      "breakpoints": true
     }
   ]
 }
