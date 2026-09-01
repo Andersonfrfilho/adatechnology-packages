@@ -29,6 +29,8 @@ export const CATALOG_ERROR_CODES = {
   CONFIG_MISSING: 'CATALOG_CONFIG_MISSING',
   INVALID_IMAGE: 'CATALOG_INVALID_IMAGE',
   IMAGE_STORAGE_DISABLED: 'CATALOG_IMAGE_STORAGE_DISABLED',
+  VISION_DISABLED: 'CATALOG_VISION_DISABLED',
+  VISION_MODEL_MISMATCH: 'CATALOG_VISION_MODEL_MISMATCH',
   INVALID_WEBHOOK_SIGNATURE: 'CATALOG_INVALID_WEBHOOK_SIGNATURE',
   WEBHOOK_NOT_CONFIGURED: 'CATALOG_WEBHOOK_NOT_CONFIGURED',
 } as const
@@ -142,5 +144,30 @@ export class InvalidCatalogWebhookSignatureError extends CatalogError {
 export class CatalogWebhookNotConfiguredError extends CatalogError {
   constructor(missingField: string) {
     super('Webhook de catálogo não configurado.', 503, CATALOG_ERROR_CODES.WEBHOOK_NOT_CONFIGURED, { missingField })
+  }
+}
+
+export class VisionDisabledError extends CatalogError {
+  constructor() {
+    super('Busca de produto por imagem está desligada para este módulo.', 409, CATALOG_ERROR_CODES.VISION_DISABLED)
+  }
+}
+
+/**
+ * O provider mudou de modelo de embedding e o índice guardado é de outro. Vetor de modelos
+ * diferentes é comparável em tipo e sem sentido em significado: a busca continuaria respondendo,
+ * com produto errado. Falhar no boot é o que transforma isso num erro visível.
+ */
+export class VisionModelMismatchError extends CatalogError {
+  constructor(
+    public readonly indexedModel: string,
+    public readonly providerModel: string,
+  ) {
+    super(
+      'O modelo de embedding do provider difere do que indexou o catálogo; reindexe antes de usar.',
+      409,
+      CATALOG_ERROR_CODES.VISION_MODEL_MISMATCH,
+      { indexedModel, providerModel },
+    )
   }
 }

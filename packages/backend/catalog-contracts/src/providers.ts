@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import type { CompanyId, MetaSyncConfig, Product, ProductAvailability } from './catalog.types'
+import type { CompanyId, MetaSyncConfig, Product, ProductAvailability, ProductId } from './catalog.types'
 
 /**
  * Upload de imagem de produto. Porta e não implementação porque o bucket é do host — e o pacote
@@ -16,6 +16,16 @@ export interface ProductImageStoragePort {
     readonly key: string
   }): Promise<{ readonly url: string; readonly key: string }>
   delete?(key: string): Promise<void>
+  /**
+   * Leitura pela chave, para reprocessar a imagem já guardada — hoje só a indexação visual
+   * (`ProductVisionPort`) precisa, e sem ela não há como gerar o vetor de um produto cadastrado.
+   *
+   * É pela `key` e não pela `imageUrl` de propósito: bucket privado entrega URL assinada de vida
+   * curta, e uma URL gravada em `products.image_url` meses atrás já expirou quando a indexação roda.
+   *
+   * Opcional porque storage só de escrita continua válido para quem não indexa imagem.
+   */
+  fetch?(key: string): Promise<{ readonly buffer: Buffer; readonly mimeType: string }>
 }
 
 export type MetaProductPayload = {
@@ -75,6 +85,77 @@ export interface ProductSuggestionPort {
 export interface WebhookNonceStorePort {
   /** `true` = a chave foi criada agora (entrega inédita); `false` = já existia (reentrega). */
   setIfAbsent(key: string, ttlSeconds: number): Promise<boolean>
+}
+
+/**
+ * Uma leitura da imagem: o que os engines conseguiram extrair dela. Os dois campos são opcionais
+ * porque cada engine enxerga uma coisa — o leitor de código de barras não produz vetor, e o
+ * modelo de embedding não lê GTIN.
+ */
+export type ProductVisionReading = Readonly<{
+  /**
+   * GTIN/EAN decodificado da embalagem. Quando vem, decide sozinho: `products.barcode` é único por
+   * empresa, então o casamento é exato e não passa por similaridade.
+   */
+  barcode?: string
+  /**
+   * Vetor da imagem, na dimensão declarada em `embeddingModel`. Só serve para comparar com vetores
+   * do MESMO modelo — trocar de modelo invalida o índice inteiro, e é por isso que o id do modelo
+   * viaja junto em vez de ficar implícito na configuração.
+   */
+  embedding?: readonly number[]
+  /** Qual engine respondeu. Numa cadeia é a única forma de saber quem produziu a leitura. */
+  engine: string
+}>
+
+/** Candidato que o módulo achou pelo vetor e leva ao desempate. */
+export type ProductVisionCandidate = Readonly<{
+  productId: ProductId
+  name: string
+  imageUrl?: string
+  /** Distância de cosseno normalizada: 1 é idêntico. */
+  score: number
+}>
+
+export type ProductVisionRanking = Readonly<{
+  /**
+   * `undefined` é resposta legítima e o caso mais importante: significa "nenhum destes", e é o que
+   * impede o desempate de escolher o menos ruim quando o cliente fotografou algo que a loja não vende.
+   */
+  productId?: ProductId
+  engine: string
+}>
+
+/**
+ * Identificação visual de produto. Ausente = a busca por imagem não existe no produto, e o canal
+ * segue tratando foto como mensagem não suportada.
+ *
+ * Satisfeita pelo `@adatechnology/product-vision-provider`, que o módulo **não importa**: quem só
+ * quer gerenciar catálogo não carrega runtime de ONNX nem WASM de leitor de código de barras.
+ */
+export interface ProductVisionPort {
+  readonly name: string
+  /**
+   * Declarado, e não inferido do primeiro vetor: a dimensão define a coluna do índice, e o módulo
+   * precisa recusar no boot um provider que não bate com o que já está indexado — descobrir isso
+   * na primeira busca seria descobrir com o cliente esperando.
+   *
+   * Ausente = engine sem vetor (só leitura de código de barras). É o modo em que um catálogo sem
+   * foto cadastrada ainda identifica produto.
+   */
+  readonly embeddingModel?: Readonly<{ id: string; dimensions: number }>
+  read(input: Readonly<{ buffer: Buffer; mimeType: string }>): Promise<ProductVisionReading>
+  /**
+   * Desempate entre os candidatos que a busca vetorial trouxe. Opcional porque custa um modelo de
+   * visão rodando, e a cascata resolve sem ele: sem `rank`, o módulo devolve os candidatos e quem
+   * escolhe é a pessoa do outro lado da conversa.
+   */
+  rank?(
+    params: Readonly<{
+      image: Readonly<{ buffer: Buffer; mimeType: string }>
+      candidates: readonly ProductVisionCandidate[]
+    }>,
+  ): Promise<ProductVisionRanking>
 }
 
 export interface ClockPort {
