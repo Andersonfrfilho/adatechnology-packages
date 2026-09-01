@@ -15,6 +15,8 @@ import type { SQL } from 'drizzle-orm'
 import {
   catalogListCondition,
   catalogOwnedByCondition,
+  productEmbeddingOwnedByCondition,
+  productEmbeddingSearchCondition,
   productListCondition,
   productOwnedByCondition,
   productSearchCondition,
@@ -33,6 +35,11 @@ describe('toda condição escopa por company_id', () => {
     productOwnedByCondition: productOwnedByCondition(params),
     productListCondition: productListCondition(params),
     productSearchCondition: productSearchCondition(params),
+    productEmbeddingSearchCondition: productEmbeddingSearchCondition({ companyId: params.companyId, model: 'clip' }),
+    productEmbeddingOwnedByCondition: productEmbeddingOwnedByCondition({
+      companyId: params.companyId,
+      productId: params.id,
+    }),
     catalogOwnedByCondition: catalogOwnedByCondition(params),
     catalogListCondition: catalogListCondition(params),
     sectionOwnedByCondition: sectionOwnedByCondition(params),

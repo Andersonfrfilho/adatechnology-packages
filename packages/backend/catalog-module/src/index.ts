@@ -10,6 +10,22 @@ export { catalogSchema, catalogs, sections, products } from './schema/schema'
 export type { CatalogRow, NewCatalogRow, SectionRow, NewSectionRow, ProductRow, NewProductRow } from './schema/schema'
 
 export { runCatalogMigrations, catalogMigrationsFolder, CATALOG_MIGRATIONS_TABLE } from './runMigrations'
+export {
+  runCatalogVisionMigrations,
+  catalogVisionMigrationsFolder,
+  CATALOG_VISION_MIGRATIONS_TABLE,
+} from './runVisionMigrations'
+export type { RunCatalogVisionMigrationsParams } from './runVisionMigrations'
+export { productEmbeddings, PRODUCT_EMBEDDING_DIMENSIONS } from './schema/vision.schema'
+export type { ProductEmbeddingRow, NewProductEmbeddingRow } from './schema/vision.schema'
+export { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
+export type { NearestProductRow, FindNearestParams } from './repositories/ProductEmbeddingRepository'
+export { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'
+export type {
+  IdentifyProductByImageParams,
+  IdentifyProductByImageResult,
+} from './use-cases/IdentifyProductByImage.use-case'
+export { VISION } from './shared/vision.constant'
 export type { RunCatalogMigrationsParams } from './runMigrations'
 
 export {

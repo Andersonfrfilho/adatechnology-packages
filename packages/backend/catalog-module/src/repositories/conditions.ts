@@ -11,6 +11,7 @@
 import { and, eq, isNull, sql, type SQL } from 'drizzle-orm'
 
 import { catalogs, products, sections } from '../schema/schema'
+import { productEmbeddings } from '../schema/vision.schema'
 
 export function productOwnedByCondition(params: { companyId: string; id: string }): SQL {
   return and(eq(products.companyId, params.companyId), eq(products.id, params.id), isNull(products.deletedAt))!
@@ -42,4 +43,24 @@ export function sectionOwnedByCondition(params: { companyId: string; id: string 
 
 export function sectionListCondition(params: { companyId: string }): SQL {
   return eq(sections.companyId, params.companyId)
+}
+
+/**
+ * Busca visual: escopa a empresa **na tabela de vetores e no produto**, porque a consulta junta as
+ * duas. Filtrar só uma das pontas deixaria o vizinho mais próximo de outra empresa entrar no
+ * resultado por dentro do join — e o índice HNSW nem percebe fronteira de tenant, ele ordena o
+ * espaço inteiro.
+ */
+export function productEmbeddingSearchCondition(params: { companyId: string; model: string }): SQL {
+  return and(
+    eq(productEmbeddings.companyId, params.companyId),
+    eq(productEmbeddings.model, params.model),
+    eq(products.companyId, params.companyId),
+    eq(products.active, true),
+    isNull(products.deletedAt),
+  )!
+}
+
+export function productEmbeddingOwnedByCondition(params: { companyId: string; productId: string }): SQL {
+  return and(eq(productEmbeddings.companyId, params.companyId), eq(productEmbeddings.productId, params.productId))!
 }

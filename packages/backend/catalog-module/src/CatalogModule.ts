@@ -16,10 +16,12 @@ import type {
   MetaCatalogSyncPort,
   ProductImageStoragePort,
   ProductSuggestionPort,
+  ProductVisionPort,
   WebhookNonceStorePort,
 } from '@adatechnology/catalog-contracts'
 
 import type { CatalogDatabase } from './database.types'
+import { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
 import { CatalogRepository } from './repositories/CatalogRepository'
 import { ProductRepository } from './repositories/ProductRepository'
 import { SectionRepository } from './repositories/SectionRepository'
@@ -53,6 +55,7 @@ import {
   ListProductsUseCase,
   UpdateProductUseCase,
 } from './use-cases/Product.use-cases'
+import { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'
 
 export type CatalogModuleProviders = {
   /** Guarda de reentrega do webhook de catálogo. Ausente, evento reentregue é processado de novo. */
@@ -60,6 +63,11 @@ export type CatalogModuleProviders = {
   readonly imageStorage?: ProductImageStoragePort
   readonly metaSync?: MetaCatalogSyncPort
   readonly productSuggestion?: ProductSuggestionPort
+  /**
+   * Identificacao visual de produto. Ausente, a busca por imagem nao existe: o use-case nao e
+   * construido e `hasVision` sai `false`, entao o canal nem oferece o affordance.
+   */
+  readonly vision?: ProductVisionPort
   readonly clock?: ClockPort
   readonly logger?: LoggerPort
 }
@@ -104,6 +112,8 @@ export type CatalogModule = {
     readonly recordMetaReviewVerdict: RecordMetaReviewVerdictUseCase
     /** Capacidade por ausência: sem `config.webhook`, a rota de webhook não existe. */
     readonly receiveCatalogWebhook?: ReceiveCatalogWebhookUseCase
+    /** Idem para a visão: sem `providers.vision`, identificar produto por foto não existe. */
+    readonly identifyProductByImage?: IdentifyProductByImageUseCase
   }
   /** Reexposta para as rotas decidirem o que montar sem receber a config por fora. */
   readonly config: CatalogModuleConfig
@@ -113,6 +123,8 @@ export type CatalogModule = {
   readonly lookup: CatalogProductLookup
   /** Capacidade por ausência: sem porta de storage, a rota de upload não é publicada. */
   readonly hasImageStorage: boolean
+  /** Idem para a busca por imagem: sem porta de visão, a rota não sobe e o canal não a oferece. */
+  readonly hasVision: boolean
 }
 
 /** Teto da listagem do canal: lista interativa de WhatsApp não comporta mais que isso. */
@@ -138,6 +150,8 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
     imageStorage: params.providers?.imageStorage,
     metaSync: params.providers?.metaSync,
     productSuggestion: params.providers?.productSuggestion,
+    vision: params.providers?.vision,
+    ...(params.providers?.vision ? { productEmbeddings: new ProductEmbeddingRepository(params.db) } : {}),
     webhookNonceStore: params.providers?.webhookNonceStore,
   }
 
@@ -171,6 +185,7 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       retryFailedSyncs: new RetryFailedSyncsUseCase(dependencies),
       recordMetaReviewVerdict: new RecordMetaReviewVerdictUseCase(dependencies),
       ...(params.config.webhook ? { receiveCatalogWebhook: new ReceiveCatalogWebhookUseCase(dependencies) } : {}),
+      ...(params.providers?.vision ? { identifyProductByImage: new IdentifyProductByImageUseCase(dependencies) } : {}),
     },
 
     config: params.config,
@@ -188,6 +203,7 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       : [],
 
     hasImageStorage: Boolean(params.providers?.imageStorage),
+    hasVision: Boolean(params.providers?.vision),
 
     lookup: {
       async findByRetailerId({ companyId, retailerId }) {

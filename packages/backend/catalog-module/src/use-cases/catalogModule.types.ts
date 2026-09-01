@@ -13,10 +13,12 @@ import type {
   MetaCatalogSyncPort,
   ProductImageStoragePort,
   ProductSuggestionPort,
+  ProductVisionPort,
   WebhookNonceStorePort,
 } from '@adatechnology/catalog-contracts'
 
 import type { CatalogRepository } from '../repositories/CatalogRepository'
+import type { ProductEmbeddingRepository } from '../repositories/ProductEmbeddingRepository'
 import type { ProductRepository } from '../repositories/ProductRepository'
 import type { SectionRepository } from '../repositories/SectionRepository'
 
@@ -35,6 +37,12 @@ export type CatalogDependencies = CatalogRepositories & {
   readonly metaSync?: MetaCatalogSyncPort
   readonly productSuggestion?: ProductSuggestionPort
   readonly webhookNonceStore?: WebhookNonceStorePort
+  readonly vision?: ProductVisionPort
+  /**
+   * Ausente junto com `vision`: o repositório só existe quando a migration da busca visual rodou,
+   * e consultá-lo sem a tabela seria erro de SQL em vez de capacidade desligada.
+   */
+  readonly productEmbeddings?: ProductEmbeddingRepository
 }
 
 /**
