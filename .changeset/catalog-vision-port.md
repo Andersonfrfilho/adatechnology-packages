@@ -21,3 +21,6 @@ expirou quando a indexacao roda.
 
 O evento `catalog.product_image.unmatched` avisa a foto que nao casou — sem a imagem no payload,
 que e conteudo de mensagem de cliente e nao entra em hook de produto.
+
+`VisionDimensionsMismatchError` acompanha o `VisionModelMismatchError`: um cobre o tamanho do
+vetor, o outro cobre qual modelo o gerou, e sao falhas de composicao diferentes.

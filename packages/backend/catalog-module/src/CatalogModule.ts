@@ -6,7 +6,12 @@
  * não existem.
  */
 
-import { ConfigMissingError, MetaSyncDisabledError } from '@adatechnology/catalog-contracts'
+import {
+  ConfigMissingError,
+  MetaSyncDisabledError,
+  VisionDimensionsMismatchError,
+  VisionModelMismatchError,
+} from '@adatechnology/catalog-contracts'
 import type {
   CatalogHooks,
   CatalogModuleConfig,
@@ -21,6 +26,7 @@ import type {
 } from '@adatechnology/catalog-contracts'
 
 import type { CatalogDatabase } from './database.types'
+import { PRODUCT_EMBEDDING_DIMENSIONS } from './schema/vision.schema'
 import { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
 import { CatalogRepository } from './repositories/CatalogRepository'
 import { ProductRepository } from './repositories/ProductRepository'
@@ -125,6 +131,13 @@ export type CatalogModule = {
   readonly hasImageStorage: boolean
   /** Idem para a busca por imagem: sem porta de visão, a rota não sobe e o canal não a oferece. */
   readonly hasVision: boolean
+  /**
+   * Confere o indice contra o modelo do provider. E assincrona porque le o banco, e por isso nao
+   * cabe no boot sincrono — o host chama depois das migrations, no startup.
+   *
+   * Ausente sem `providers.vision`: nao ha indice a conferir.
+   */
+  readonly verifyVisionIndex?: (params: { readonly companyId: string }) => Promise<void>
 }
 
 /** Teto da listagem do canal: lista interativa de WhatsApp não comporta mais que isso. */
@@ -138,6 +151,14 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
   // publicação — o operador descobriria pelo item que nunca sobe, dias depois.
   const wantsMetaSync = params.config.metaSync?.products || params.config.metaSync?.catalogs
   if (wantsMetaSync && !params.providers?.metaSync) throw new MetaSyncDisabledError()
+
+  // A coluna do indice tem tamanho fixo, entao um provider de outra dimensao so poderia gravar
+  // vetor truncado — que continua respondendo, com o produto errado. Falhar aqui e o que impede
+  // o indice de ser envenenado por uma troca de modelo silenciosa.
+  const embeddingModel = params.providers?.vision?.embeddingModel
+  if (embeddingModel && embeddingModel.dimensions !== PRODUCT_EMBEDDING_DIMENSIONS) {
+    throw new VisionDimensionsMismatchError(PRODUCT_EMBEDDING_DIMENSIONS, embeddingModel.dimensions)
+  }
 
   const dependencies: CatalogDependencies = {
     products: new ProductRepository(params.db),
@@ -204,6 +225,20 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
 
     hasImageStorage: Boolean(params.providers?.imageStorage),
     hasVision: Boolean(params.providers?.vision),
+
+    ...(embeddingModel && dependencies.productEmbeddings
+      ? {
+          verifyVisionIndex: async ({ companyId }: { readonly companyId: string }): Promise<void> => {
+            const repository = dependencies.productEmbeddings
+            if (!repository) return
+            const indexed = await repository.listIndexedModels({ companyId })
+            // Indice vazio nao e divergencia: e uma base que ainda nao indexou, e o proximo
+            // upsert a preenche com o modelo corrente.
+            const foreign = indexed.find((model) => model !== embeddingModel.id)
+            if (foreign) throw new VisionModelMismatchError(foreign, embeddingModel.id)
+          },
+        }
+      : {}),
 
     lookup: {
       async findByRetailerId({ companyId, retailerId }) {

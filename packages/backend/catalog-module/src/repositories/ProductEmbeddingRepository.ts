@@ -82,4 +82,18 @@ export class ProductEmbeddingRepository {
   async deleteByProduct(params: { readonly companyId: string; readonly productId: string }): Promise<void> {
     await this.db.delete(productEmbeddings).where(productEmbeddingOwnedByCondition(params))
   }
+
+  /**
+   * Modelos distintos ja gravados. Serve a uma pergunta so — "o indice foi construido por outro
+   * modelo?" — e por isso devolve os nomes em vez de contar linhas: o operador precisa saber
+   * qual reindexar.
+   */
+  async listIndexedModels(params: { readonly companyId: string }): Promise<string[]> {
+    const rows = await this.db
+      .selectDistinct({ model: productEmbeddings.model })
+      .from(productEmbeddings)
+      .where(eq(productEmbeddings.companyId, params.companyId))
+
+    return rows.map((row) => row.model)
+  }
 }

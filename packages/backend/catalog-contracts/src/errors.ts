@@ -31,6 +31,7 @@ export const CATALOG_ERROR_CODES = {
   IMAGE_STORAGE_DISABLED: 'CATALOG_IMAGE_STORAGE_DISABLED',
   VISION_DISABLED: 'CATALOG_VISION_DISABLED',
   VISION_MODEL_MISMATCH: 'CATALOG_VISION_MODEL_MISMATCH',
+  VISION_DIMENSIONS_MISMATCH: 'CATALOG_VISION_DIMENSIONS_MISMATCH',
   INVALID_WEBHOOK_SIGNATURE: 'CATALOG_INVALID_WEBHOOK_SIGNATURE',
   WEBHOOK_NOT_CONFIGURED: 'CATALOG_WEBHOOK_NOT_CONFIGURED',
 } as const
@@ -168,6 +169,25 @@ export class VisionModelMismatchError extends CatalogError {
       409,
       CATALOG_ERROR_CODES.VISION_MODEL_MISMATCH,
       { indexedModel, providerModel },
+    )
+  }
+}
+
+/**
+ * O provider gera vetor de tamanho diferente do que a coluna comporta. Falha na composicao, antes
+ * da primeira foto: o `INSERT` recusaria de qualquer forma, mas ai o erro apareceria como uma
+ * mensagem quebrada no meio de uma conversa, e nao como um host que nao sobe.
+ */
+export class VisionDimensionsMismatchError extends CatalogError {
+  constructor(
+    public readonly expected: number,
+    public readonly received: number,
+  ) {
+    super(
+      'O provider de visao gera vetor de dimensao incompativel com o indice deste modulo.',
+      409,
+      CATALOG_ERROR_CODES.VISION_DIMENSIONS_MISMATCH,
+      { expected, received },
     )
   }
 }

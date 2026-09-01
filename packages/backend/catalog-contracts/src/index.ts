@@ -101,6 +101,7 @@ export {
   ImageStorageDisabledError,
   VisionDisabledError,
   VisionModelMismatchError,
+  VisionDimensionsMismatchError,
   InvalidCatalogWebhookSignatureError,
   CatalogWebhookNotConfiguredError,
 } from './errors'

@@ -20,3 +20,9 @@ vizinho mais proximo de outra empresa entrar pelo join. Esta no teste de isolame
 "Nenhum destes" do desempate e definitivo e vira `unmatched` — devolver os candidatos que ele
 acabou de recusar transformaria a recusa em sugestao. Id fora da lista degrada para escolha manual,
 nunca vira um produto que ninguem ofereceu.
+
+Duas guardas contra troca de modelo em silencio: dimensao divergente derruba a composicao no boot
+(a coluna do indice tem tamanho fixo, e um provider de outro tamanho so poderia gravar vetor
+truncado, que continua respondendo — com o produto errado), e `verifyVisionIndex` confere o modelo
+que construiu o indice contra o do provider. A segunda le o banco, entao e assincrona e o host a
+chama depois das migrations; indice vazio nao e divergencia.
