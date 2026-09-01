@@ -146,6 +146,15 @@ jobs:
             npm deprecate "$1" "$2" || true
           }
 
+          # As duas primeiras versoes do provider de visao saíram com engine que nao funciona. O
+          # aviso vive aqui porque e o unico lugar que alcanca quem ja instalou: ele aparece no
+          # proprio `npm install`, e nao no changelog que ninguem le.
+          deprecate "@adatechnology/product-vision-provider@0.1.0-rc.2" \
+            "Versao com defeito: o leitor de codigo de barras usava nomes de formato que o zbar nao devolve, entao nenhuma foto era lida — a leitura voltava sempre vazia, sem erro. Use 0.1.0-rc.4 ou maior."
+
+          deprecate "@adatechnology/product-vision-provider@0.1.0-rc.3" \
+            "Versao com o engine CLIP quebrado: a imagem era passada como data URL e o transformers.js tenta buscar a URL, entao toda foto falhava com 404. O leitor de codigo de barras funciona nesta versao. Use 0.1.0-rc.4 ou maior."
+
           deprecate "@adatechnology/keycloak-admin@<=0.1.16" \
             "Este nome agora é o cliente agnóstico da Admin API (client_credentials, sem framework). A implementação NestJS mudou para @adatechnology/nestjs-keycloak-admin — troque o nome da dependência, o comportamento é o mesmo."
         env:
