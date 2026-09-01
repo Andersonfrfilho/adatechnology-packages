@@ -26,9 +26,21 @@ function repositoryReturning(rows: Row[]) {
     },
   }
 
+  const executed: string[] = []
+  const db = {
+    // A busca roda dentro de transacao por causa do `SET LOCAL hnsw.ef_search`; sem o `ef_search`
+    // o indice HNSW devolve menos candidatos do que o pedido quando ha filtro de empresa.
+    transaction: async (run: (tx: unknown) => Promise<unknown>) => run(chain),
+    execute: async (statement: { queryChunks?: unknown[] }) => {
+      executed.push(JSON.stringify(statement))
+    },
+  }
+  Object.assign(chain, { execute: db.execute })
+
   return {
-    repository: new ProductEmbeddingRepository(chain as unknown as CatalogDatabase),
+    repository: new ProductEmbeddingRepository(db as unknown as CatalogDatabase),
     requestedLimit: () => requestedLimit,
+    executed: () => executed,
   }
 }
 
@@ -79,5 +91,18 @@ describe('candidatos sao produtos, nao vetores', () => {
     ])
 
     expect(await repository.findNearest({ ...search, limit: 2 })).toHaveLength(2)
+  })
+})
+
+describe('o recall do indice sob filtro de empresa', () => {
+  it('a busca abre transacao e sobe o `ef_search` antes de consultar', async () => {
+    // Medido num indice de 12 mil vetores e 3 empresas: com o default (40), uma empresa que pedia
+    // 20 vizinhos recebia 11 — o HNSW acha os vizinhos do indice inteiro e o filtro descarta
+    // depois, sem erro nenhum. Perder este `SET` devolve o defeito silencioso.
+    const { repository, executed } = repositoryReturning([])
+
+    await repository.findNearest(search)
+
+    expect(executed().join(' ')).toContain('hnsw.ef_search')
   })
 })

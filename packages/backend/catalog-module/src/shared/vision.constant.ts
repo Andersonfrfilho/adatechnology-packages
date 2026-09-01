@@ -19,4 +19,14 @@ export const VISION = {
    * lote grande prende o worker, e lote pequeno multiplica ida e volta ao banco.
    */
   INDEX_BATCH_SIZE: 50,
+  /**
+   * `hnsw.ef_search` da busca. O default do pgvector e 40, e ele nao conhece o filtro de empresa:
+   * o indice acha os N vizinhos do INDICE INTEIRO e o Postgres descarta depois os de outra
+   * empresa, entao a busca devolve menos candidatos do que pediu — sem erro nenhum.
+   *
+   * Medido num indice de 12 mil vetores e 3 empresas: pedindo 20 vizinhos, uma empresa recebia 11.
+   * Com 100 o recall volta a ser completo; 200 e o dobro disso, de margem para bases com mais
+   * empresas, e ainda custa poucos milissegundos.
+   */
+  HNSW_EF_SEARCH: 200,
 } as const

@@ -26,3 +26,13 @@ Duas guardas contra troca de modelo em silencio: dimensao divergente derruba a c
 truncado, que continua respondendo — com o produto errado), e `verifyVisionIndex` confere o modelo
 que construiu o indice contra o do provider. A segunda le o banco, entao e assincrona e o host a
 chama depois das migrations; indice vazio nao e divergencia.
+
+A busca sobe o `hnsw.ef_search` para 200 dentro de uma transacao (`SET LOCAL`, para nao vazar na
+conexao do pool). O default do pgvector e 40, e o indice nao conhece o filtro de empresa: ele acha
+os N vizinhos do INDICE INTEIRO e o Postgres descarta depois os de outra empresa, entao a busca
+devolve menos candidatos do que pediu — sem erro nenhum, e a conversa mostra menos opcoes ou
+nenhuma.
+
+Medido num Postgres real com pgvector, 12 mil vetores em 3 empresas: pedindo 20 vizinhos, uma das
+empresas recebia 11. Com 100 o recall volta a ser completo; 200 e o dobro, de margem para bases com
+mais empresas.

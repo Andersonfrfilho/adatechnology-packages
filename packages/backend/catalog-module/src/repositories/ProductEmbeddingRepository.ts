@@ -5,6 +5,7 @@
 import { eq, sql } from 'drizzle-orm'
 
 import type { CatalogDatabase } from '../database.types'
+import { VISION } from '../shared/vision.constant'
 import type { ProductEmbeddingSource } from '../schema/vision.schema'
 import { productEmbeddingOwnedByCondition, productEmbeddingSearchCondition } from './conditions'
 
@@ -76,22 +77,30 @@ export class ProductEmbeddingRepository {
   async findNearest(params: FindNearestParams): Promise<NearestProductRow[]> {
     const target = sql`${JSON.stringify([...params.embedding])}::vector`
 
-    const rows = await this.db
-      .select({
-        productId: productEmbeddings.productId,
-        name: products.name,
-        imageUrl: products.imageUrl,
-        score: sql<number>`1 - (${productEmbeddings.embedding} <=> ${target})`,
-      })
-      .from(productEmbeddings)
-      .innerJoin(products, eq(products.id, productEmbeddings.productId))
-      .where(productEmbeddingSearchCondition({ companyId: params.companyId, model: params.model }))
-      .orderBy(sql`${productEmbeddings.embedding} <=> ${target}`)
-      // Busca com folga e deduplica em memoria, em vez de `DISTINCT ON`: o `DISTINCT ON` exigiria
-      // ordenar por `product_id` antes da distancia, e e a ordenacao por distancia que faz o
-      // planejador usar o indice HNSW. Trocar o indice por um seq scan para evitar um `Map` seria
-      // pagar caro pelo lado errado.
-      .limit(params.limit * OVERFETCH_FACTOR)
+    // Transacao so para o `SET LOCAL`: fora dela o `SET` gruda na conexao e vaza para toda query
+    // que pegar a mesma do pool. `LOCAL` devolve o valor ao normal no fim, sozinho.
+    const rows = await this.db.transaction(async (tx) => {
+      await tx.execute(sql`set local hnsw.ef_search = ${sql.raw(String(VISION.HNSW_EF_SEARCH))}`)
+
+      return (
+        tx
+          .select({
+            productId: productEmbeddings.productId,
+            name: products.name,
+            imageUrl: products.imageUrl,
+            score: sql<number>`1 - (${productEmbeddings.embedding} <=> ${target})`,
+          })
+          .from(productEmbeddings)
+          .innerJoin(products, eq(products.id, productEmbeddings.productId))
+          .where(productEmbeddingSearchCondition({ companyId: params.companyId, model: params.model }))
+          .orderBy(sql`${productEmbeddings.embedding} <=> ${target}`)
+          // Busca com folga e deduplica em memoria, em vez de `DISTINCT ON`: o `DISTINCT ON` exigiria
+          // ordenar por `product_id` antes da distancia, e e a ordenacao por distancia que faz o
+          // planejador usar o indice HNSW. Trocar o indice por um seq scan para evitar um `Map` seria
+          // pagar caro pelo lado errado.
+          .limit(params.limit * OVERFETCH_FACTOR)
+      )
+    })
 
     return dedupeByBestScore(rows.map((row) => ({ ...row, score: Number(row.score) }))).slice(0, params.limit)
   }
