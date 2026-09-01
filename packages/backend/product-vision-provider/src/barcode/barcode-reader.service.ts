@@ -6,6 +6,9 @@
  * chave, nao similaridade.
  */
 
+import { createRequire } from 'node:module'
+import { join } from 'node:path'
+
 import {
   BARCODE_DEFAULT_FORMATS,
   BARCODE_DEFAULT_MAX_PIXELS,
@@ -64,8 +67,16 @@ export function createBarcodeReader(
 async function defaultLoadZbar(): Promise<ZbarModule> {
   try {
     return (await import(/* @vite-ignore */ ZBAR_PACKAGE)) as unknown as ZbarModule
-  } catch (error) {
-    throw new VisionEngineUnavailableError(ENGINE_NAME, ZBAR_PACKAGE, { cause: error })
+  } catch (primeiroErro) {
+    // O import acima resolve a partir DESTE pacote, e um gerenciador que instala por link
+    // (pnpm, bun) deixa a peer no consumidor, nao aqui — entao ele falha mesmo com o zbar
+    // instalado corretamente. A segunda tentativa parte do processo, que e onde ele esta.
+    try {
+      const requireFromHost = createRequire(join(process.cwd(), 'noop.js'))
+      return requireFromHost(ZBAR_PACKAGE) as ZbarModule
+    } catch {
+      throw new VisionEngineUnavailableError(ENGINE_NAME, ZBAR_PACKAGE, { cause: primeiroErro })
+    }
   }
 }
 
