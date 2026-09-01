@@ -19,3 +19,9 @@ ninguem decora.
 
 Migration `0001`, aditiva, com indice GIN em marca e apelidos: sem eles, procurar "guarana" varre a
 tabela inteira, que e exatamente o caso de uso que os campos criam.
+
+O indice do apelido e de expressao, sobre `catalog.immutable_array_to_string(aliases)`. Um GIN de
+array (`@>`, `&&`) nao atende `ilike` com curinga: o indice existiria e a busca varreria a tabela do
+mesmo jeito. O `array_to_string` nativo do Postgres e STABLE e nao pode indexar, dai o wrapper
+IMMUTABLE — e a query repete a expressao exata, sem o que o planejador nao casa os dois. Ha teste
+comparando a query com a migration.

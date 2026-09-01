@@ -30,13 +30,17 @@ export function productSearchCondition(params: { companyId: string; search: stri
 
   // Nome, marca e apelido, nesta ordem de leitura. O apelido e o que faz "guarana" achar o
   // refrigerante cadastrado pelo nome da marca — o cliente digita como fala, nao como esta no
-  // cadastro. `array_to_string` porque `ilike` nao opera sobre array.
+  // cadastro.
+  //
+  // `catalog.immutable_array_to_string` e nao o `array_to_string` nativo: a expressao aqui tem de
+  // ser IDENTICA a que indexa a coluna (migration 0001), senao o planejador nao casa a query com
+  // o indice e a busca por apelido varre a tabela.
   return and(
     productListCondition(params),
     sql`(
       ${products.name} ilike ${pattern}
       or coalesce(${products.brand}, '') ilike ${pattern}
-      or array_to_string(${products.aliases}, ' ') ilike ${pattern}
+      or catalog.immutable_array_to_string(${products.aliases}) ilike ${pattern}
     )`,
   )!
 }

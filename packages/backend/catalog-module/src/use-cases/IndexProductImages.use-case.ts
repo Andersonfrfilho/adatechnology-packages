@@ -6,7 +6,7 @@
  * silencioso desta capacidade, porque nada quebra.
  */
 
-import { VisionDisabledError } from '@adatechnology/catalog-contracts'
+import { ImageStorageDisabledError, VisionDisabledError } from '@adatechnology/catalog-contracts'
 
 import { PRODUCT_EMBEDDING_SOURCE } from '../schema/vision.schema'
 import { VISION } from '../shared/vision.constant'
@@ -33,11 +33,10 @@ export class IndexProductImagesUseCase {
   async execute(params: IndexProductImagesParams): Promise<IndexProductImagesResult> {
     const { vision, productEmbeddings, imageStorage } = this.dependencies
     if (!vision?.embeddingModel || !productEmbeddings) throw new VisionDisabledError()
-    // Storage sem leitura e o caso do host que so publica imagem e nunca reprocessa. Falhar aqui
-    // nomeia a porta que falta, em vez de varrer a base inteira para indexar zero produtos.
-    if (!imageStorage?.fetch) {
-      throw new VisionDisabledError()
-    }
+    // Storage sem leitura e o caso do host que so publica imagem e nunca reprocessa. O erro e o
+    // do storage, e nao o da visao: dizer "busca por imagem desligada" mandaria o operador
+    // conferir a porta de visao, que esta certa, sem pista de que falta o `fetch` do bucket.
+    if (!imageStorage?.fetch) throw new ImageStorageDisabledError()
 
     const batchSize = params.batchSize ?? VISION.INDEX_BATCH_SIZE
     const rows = await this.dependencies.products.listIndexableImages({

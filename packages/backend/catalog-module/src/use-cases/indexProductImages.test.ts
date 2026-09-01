@@ -4,6 +4,8 @@
 
 import { describe, expect, it } from 'bun:test'
 
+import { CATALOG_ERROR_CODES } from '@adatechnology/catalog-contracts'
+
 import type { CatalogDependencies } from './catalogModule.types'
 import { IndexProductImagesUseCase } from './IndexProductImages.use-case'
 
@@ -59,12 +61,15 @@ describe('pre-condicoes', () => {
     await expect(useCase.execute({ companyId: 'e1' })).rejects.toThrow('desligada')
   })
 
-  it('storage sem leitura falha nomeando a porta, em vez de indexar zero', async () => {
-    // O host que so publica imagem e nunca implementou `fetch` varreria a base inteira para
-    // gravar nada, e o sintoma seria uma busca visual que nunca acha.
+  it('storage sem leitura culpa o storage, nao a visao', async () => {
+    // O host que so publica imagem e nunca implementou `fetch` varreria a base inteira para gravar
+    // nada. Afirmar o CODIGO e nao a mensagem e o que faz este teste valer: com um `toThrow`
+    // generico ele passava tambem com o erro da porta errada, que era justamente o defeito.
     const useCase = buildUseCase({ withFetch: false })
 
-    await expect(useCase.execute({ companyId: 'e1' })).rejects.toThrow('desligada')
+    await expect(useCase.execute({ companyId: 'e1' })).rejects.toMatchObject({
+      code: CATALOG_ERROR_CODES.IMAGE_STORAGE_DISABLED,
+    })
   })
 })
 

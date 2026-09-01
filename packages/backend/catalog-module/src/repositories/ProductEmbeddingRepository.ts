@@ -35,8 +35,11 @@ export class ProductEmbeddingRepository {
   constructor(private readonly db: CatalogDatabase) {}
 
   /**
-   * Upsert na chave (produto, modelo): reindexar substitui, nunca acumula. Duas linhas do mesmo
-   * produto concorreriam entre si na busca e gastariam o orçamento de candidatos com repetição.
+   * Upsert na chave (produto, modelo, origem): reindexar a MESMA origem substitui, nunca acumula.
+   *
+   * Origens diferentes convivem de proposito — a foto de estudio e as fotos reais de clientes sao
+   * o que especializa o indice. Por isso `findNearest` deduplica por produto: varios vetores do
+   * mesmo item sao esperados aqui, e nao podem virar o mesmo item repetido na conversa.
    */
   async upsert(params: {
     readonly companyId: string
