@@ -76,28 +76,60 @@ jobs:
 
       # Pacotes de escopo saem como restricted quando o package.json não declara
       # publishConfig.access, e o npm responde 404 para quem não tem acesso — o pacote
-      # parece não existir. Os package.json agora declaram access: public, mas quem já
-      # foi publicado antes disso precisa ser corrigido no registry uma vez.
-      # `|| true`: uma vez públicos, repetir o comando é inofensivo, e um pacote ainda
-      # não publicado não deve derrubar o job.
-      - name: Ensure scoped packages are public
+      # parece não existir.
+      #
+      # Este passo verifica o ESTADO FINAL, e não o resultado do comando. `npm access set`
+      # devolve 403 quando o token publica mas não administra o escopo, e engolir esse 403
+      # deixa o job verde sem nenhuma garantia de que o pacote ficou instalável.
+      #
+      # A lista é derivada do workspace, nunca escrita à mão. A versão anterior era uma lista
+      # fixa de dez nomes: pacote criado depois dela nunca passava por aqui, e ninguém
+      # descobria — o job continuava verde de qualquer forma.
+      #
+      # As tentativas com espera existem porque o registry leva alguns segundos para servir o
+      # que acabou de receber; sem elas o passo acusaria falta do que estava só a caminho.
+      - name: Verificar que os pacotes publicados estão acessíveis publicamente
         run: |
-          for pkg in \
-            keycloak-jwt \
-            secret-envelope \
-            meta-graph-core \
-            meta-whatsapp-contracts \
-            meta-whatsapp-provider \
-            meta-catalog-provider \
-            meta-whatsapp-module \
-            text-moderation \
-            conversations-ui \
-            products-ui
-          do
-            echo "--- @adatechnology/$pkg"
-            npm access set status=public "@adatechnology/$pkg" || true
-            npm view "@adatechnology/$pkg" version dist-tags || echo "    (não encontrado no registry)"
+          faltando=""
+
+          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
+            [ -f "$manifest" ] || continue
+
+            nome=$(jq -r '.name' "$manifest")
+            versao=$(jq -r '.version' "$manifest")
+            privado=$(jq -r '.private // false' "$manifest")
+
+            case "$nome" in @adatechnology/*) ;; *) continue ;; esac
+            [ "$privado" = "true" ] && continue
+
+            npm access set status=public "$nome" >/dev/null 2>&1 || true
+
+            # Sem credencial, de propósito: é a visão de quem vai instalar. `npm view` com o
+            # token do CI enxerga pacote privado e diria que está tudo bem.
+            url="https://registry.npmjs.org/$(printf '%s' "$nome" | sed 's|/|%2f|')/$versao"
+
+            publico=""
+            for tentativa in 1 2 3; do
+              if curl -fsS -o /dev/null "$url"; then publico=1; break; fi
+              # O registry leva alguns segundos para propagar o que acabou de receber.
+              sleep 10
+            done
+
+            if [ -n "$publico" ]; then
+              echo "ok       $nome@$versao"
+            else
+              echo "FALTANDO $nome@$versao"
+              faltando="$faltando $nome@$versao"
+            fi
           done
+
+          if [ -n "$faltando" ]; then
+            echo
+            echo "::error::Publicado com sucesso mas inacessível para quem instala:$faltando"
+            echo "Torne o pacote público no registry (npm access set status=public) com uma conta"
+            echo "que administre o escopo @adatechnology, ou dê essa permissão ao token do CI."
+            exit 1
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
