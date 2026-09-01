@@ -59,7 +59,8 @@
     "@adatechnology/image-cutout": "0.0.0",
     "@adatechnology/document-intake": "0.1.0-rc.0",
     "@adatechnology/audio-transcription-mcp": "0.1.0-rc.1",
-    "@adatechnology/identity-reconciliation": "0.0.0"
+    "@adatechnology/identity-reconciliation": "0.0.0",
+    "@adatechnology/product-vision-provider": "0.1.0-rc.1"
   },
   "changesets": [
     "acoes-viram-botoes-de-verdade",
@@ -84,8 +85,12 @@
     "catalog-image-storage-provider",
     "catalog-inventory",
     "catalog-list-products",
+    "catalog-retail-fields",
     "catalog-review-verdict",
     "catalog-trio",
+    "catalog-vision-indexing",
+    "catalog-vision-module",
+    "catalog-vision-port",
     "catalog-waba-link",
     "catalog-webhook-route",
     "causa-do-recorte",
@@ -185,6 +190,7 @@
     "product-agnostic-flow-and-session-context",
     "product-form-select-field",
     "product-image-upload",
+    "product-vision-provider",
     "products-dark",
     "products-sidebar-polish",
     "products-toolbar-single-row",
