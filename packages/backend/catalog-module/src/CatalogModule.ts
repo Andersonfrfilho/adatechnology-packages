@@ -62,6 +62,7 @@ import {
   UpdateProductUseCase,
 } from './use-cases/Product.use-cases'
 import { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'
+import { IndexProductImagesUseCase } from './use-cases/IndexProductImages.use-case'
 
 export type CatalogModuleProviders = {
   /** Guarda de reentrega do webhook de catálogo. Ausente, evento reentregue é processado de novo. */
@@ -120,6 +121,8 @@ export type CatalogModule = {
     readonly receiveCatalogWebhook?: ReceiveCatalogWebhookUseCase
     /** Idem para a visão: sem `providers.vision`, identificar produto por foto não existe. */
     readonly identifyProductByImage?: IdentifyProductByImageUseCase
+    /** Varredura que popula o índice visual; exige `imageStorage.fetch` além da porta de visão. */
+    readonly indexProductImages?: IndexProductImagesUseCase
   }
   /** Reexposta para as rotas decidirem o que montar sem receber a config por fora. */
   readonly config: CatalogModuleConfig
@@ -207,6 +210,9 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       recordMetaReviewVerdict: new RecordMetaReviewVerdictUseCase(dependencies),
       ...(params.config.webhook ? { receiveCatalogWebhook: new ReceiveCatalogWebhookUseCase(dependencies) } : {}),
       ...(params.providers?.vision ? { identifyProductByImage: new IdentifyProductByImageUseCase(dependencies) } : {}),
+      ...(embeddingModel && params.providers?.imageStorage?.fetch
+        ? { indexProductImages: new IndexProductImagesUseCase(dependencies) }
+        : {}),
     },
 
     config: params.config,

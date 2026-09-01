@@ -21,6 +21,8 @@ export type { ProductEmbeddingRow, NewProductEmbeddingRow } from './schema/visio
 export { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
 export type { NearestProductRow, FindNearestParams } from './repositories/ProductEmbeddingRepository'
 export { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'
+export { IndexProductImagesUseCase } from './use-cases/IndexProductImages.use-case'
+export type { IndexProductImagesParams, IndexProductImagesResult } from './use-cases/IndexProductImages.use-case'
 export type {
   IdentifyProductByImageParams,
   IdentifyProductByImageResult,

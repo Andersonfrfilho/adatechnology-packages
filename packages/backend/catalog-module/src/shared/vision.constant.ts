@@ -14,4 +14,9 @@ export const VISION = {
    * cliente lê isso como "o bot não me entendeu", que é pior que "não encontrei".
    */
   MIN_SCORE: 0.6,
+  /**
+   * Produtos por lote de indexacao. Cada um custa um download do bucket e uma inferencia de CPU:
+   * lote grande prende o worker, e lote pequeno multiplica ida e volta ao banco.
+   */
+  INDEX_BATCH_SIZE: 50,
 } as const

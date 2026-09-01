@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { and, asc, eq, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm'
 import { InsufficientInventoryError } from '@adatechnology/catalog-contracts'
 
 import type { CatalogDatabase } from '../database.types'
@@ -211,6 +211,33 @@ export class ProductRepository {
       .from(products)
       .where(and(productListCondition(params), eq(products.syncStatus, params.syncStatus)))
       .limit(params.limit)
+  }
+
+  /**
+   * Produtos com imagem guardada no bucket, para a indexacao visual. Pagina por `id` em vez de
+   * `offset` porque a varredura roda em lote sobre a base inteira: com offset, uma linha inserida
+   * no meio desloca a janela e pula produtos silenciosamente.
+   */
+  async listIndexableImages(params: {
+    companyId: string
+    limit: number
+    afterId?: string
+  }): Promise<{ id: string; imageStorageKey: string }[]> {
+    const rows = await this.db
+      .select({ id: products.id, imageStorageKey: products.imageStorageKey })
+      .from(products)
+      .where(
+        and(
+          productListCondition(params),
+          eq(products.active, true),
+          isNotNull(products.imageStorageKey),
+          params.afterId ? gt(products.id, params.afterId) : undefined,
+        ),
+      )
+      .orderBy(products.id)
+      .limit(params.limit)
+
+    return rows.flatMap((row) => (row.imageStorageKey ? [{ id: row.id, imageStorageKey: row.imageStorageKey }] : []))
   }
 
   async markSync(params: {
