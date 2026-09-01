@@ -62,3 +62,22 @@ export const OLLAMA_DEFAULT_MODEL = 'qwen2.5vl:3b'
  * ligar o desempate so quando a metrica do vetorial mostrar que vale.
  */
 export const OLLAMA_DEFAULT_TIMEOUT_MS = 30_000
+/**
+ * Quanto o Ollama mantem o modelo na memoria depois de responder.
+ *
+ * Medido: com o modelo frio a primeira resposta leva ~16s; quente, ~4s. Como o desempate e
+ * esporadico por natureza, o default do Ollama (5 minutos) faz quase toda foto pagar o
+ * carregamento — e o cliente que espera 16s ja desistiu.
+ */
+export const OLLAMA_DEFAULT_KEEP_ALIVE = '30m'
+/**
+ * Teto de largura da imagem enviada ao modelo.
+ *
+ * Medido com qwen2.5vl:3b: 1280px custa 1632 tokens de visao e ~6,6s; 896px cai para 1104 tokens e
+ * ~4,2s. Abaixo de 896px NAO adianta — o modelo ja normaliza para o mesmo numero de tokens, e 224px
+ * leva o mesmo tempo que 640px.
+ *
+ * O piso de ~4s e do modelo nesta classe de maquina; para ir abaixo disso e preciso GPU, modelo
+ * menor, ou nao chamar o desempate.
+ */
+export const OLLAMA_DEFAULT_MAX_IMAGE_WIDTH = 896

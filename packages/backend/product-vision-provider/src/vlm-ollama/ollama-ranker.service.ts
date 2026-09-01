@@ -10,6 +10,8 @@
 
 import {
   OLLAMA_DEFAULT_BASE_URL,
+  OLLAMA_DEFAULT_KEEP_ALIVE,
+  OLLAMA_DEFAULT_MAX_IMAGE_WIDTH,
   OLLAMA_DEFAULT_MODEL,
   OLLAMA_DEFAULT_TIMEOUT_MS,
   isSupportedImageMimeType,
@@ -23,6 +25,16 @@ export type OllamaRankerConfig = Readonly<{
   baseUrl?: string
   model?: string
   timeoutMs?: number
+  /** Quanto o Ollama segura o modelo na memoria. Modelo frio custa ~4x o tempo de um quente. */
+  keepAlive?: string
+  /**
+   * Encolhe a foto antes de enviar. Sem isto a imagem vai como veio, e uma foto de celular custa
+   * ~50% mais tempo de prefill que a mesma cena a 896px — sem nenhum ganho de acerto.
+   *
+   * Porta e nao implementacao porque o redimensionador e do host (sharp, jimp): o pacote nao
+   * carrega decodificador de imagem por ninguem.
+   */
+  prepareImage?: (input: VisionInput, maxWidth: number) => Promise<VisionInput>
   fetchImplementation?: (url: string, init: RequestInit) => Promise<Response>
 }>
 
@@ -40,6 +52,7 @@ export function createOllamaRanker(config: OllamaRankerConfig = {}): OllamaRanke
   const baseUrl = (config.baseUrl ?? OLLAMA_DEFAULT_BASE_URL).replace(/\/+$/, '')
   const model = config.model ?? OLLAMA_DEFAULT_MODEL
   const timeoutMs = config.timeoutMs ?? OLLAMA_DEFAULT_TIMEOUT_MS
+  const keepAlive = config.keepAlive ?? OLLAMA_DEFAULT_KEEP_ALIVE
   const fetchImplementation = config.fetchImplementation ?? fetch
 
   async function rank(params: {
@@ -54,6 +67,10 @@ export function createOllamaRanker(config: OllamaRankerConfig = {}): OllamaRanke
       return unico ? { productId: unico.productId, engine: ENGINE_NAME } : { engine: ENGINE_NAME }
     if (!isSupportedImageMimeType(params.image.mimeType)) return { engine: ENGINE_NAME }
 
+    const image = config.prepareImage
+      ? await config.prepareImage(params.image, OLLAMA_DEFAULT_MAX_IMAGE_WIDTH)
+      : params.image
+
     const response = await withTimeout(
       fetchImplementation(`${baseUrl}/api/chat`, {
         method: 'POST',
@@ -61,13 +78,14 @@ export function createOllamaRanker(config: OllamaRankerConfig = {}): OllamaRanke
         body: JSON.stringify({
           model,
           stream: false,
+          keep_alive: keepAlive,
           // Temperatura zero: a pergunta tem resposta certa, e criatividade aqui e alucinacao.
           options: { temperature: 0 },
           messages: [
             {
               role: 'user',
               content: buildPrompt(candidates),
-              images: [params.image.buffer.toString('base64')],
+              images: [image.buffer.toString('base64')],
             },
           ],
         }),

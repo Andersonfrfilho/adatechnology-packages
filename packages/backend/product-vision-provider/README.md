@@ -97,16 +97,34 @@ o menos improvável quando o cliente fotografou algo que a loja não vende.
 **Um candidato só dispensa o desempate**: gastar a inferência para "confirmar" o único item
 transformaria o degrau mais caro da cascata no mais frequente.
 
-### O custo, medido
+### O custo, medido — e onde ele está
 
-| | |
-|---|---|
-| Latência (CPU, Apple Silicon, `qwen2.5vl:3b`) | **5s a 15s** por desempate |
-| Modelo em disco | ~3,2GB |
+Medições em CPU (Apple Silicon, `qwen2.5vl:3b`), imagem sempre nova para não pegar cache de prompt:
 
-Quinze segundos é muito para uma conversa: o cliente manda a foto e fica olhando o "digitando". Este
-número é o argumento mais forte para **ligar o desempate só quando a métrica de acerto do vetorial
-mostrar que vale** — sem `ranker`, os candidatos voltam para a pessoa escolher, o que é instantâneo.
+| Situação | Tempo | Tokens de visão |
+|---|---|---|
+| Modelo **frio** (primeira chamada) | **16,3s** | 1104 |
+| Quente, foto 1280px | 6,6s | 1632 |
+| Quente, foto 896px | 4,6s | 1104 |
+| Quente, foto 640px | 4,2s | 1104 |
+| Quente, foto 224px | 4,2s | 1104 |
+
+**Quase todo o tempo é prefill da imagem** — a geração da resposta leva ~22ms, porque a resposta são
+dois tokens. Daí decorre tudo:
+
+- **`keep_alive` é a maior economia**: 16,3s contra 4,2s. O default do Ollama são 5 minutos, e o
+  desempate é esporádico por natureza — sem isto quase toda foto paga o carregamento. O pacote pede
+  30 minutos.
+- **Encolher a foto para 896px corta ~36%** (6,6s → 4,2s), e é onde o ganho acaba: abaixo disso o
+  modelo normaliza para os mesmos 1104 tokens, então 224px leva o mesmo tempo que 640px. Plugue
+  `prepareImage` para ativar — o pacote não carrega decodificador de imagem por ninguém.
+- **Limitar a saída (`num_predict`) não adianta nada**: ela já são 2 tokens.
+
+**O piso é ~4,2s** nessa classe de máquina com esse modelo. Para ir abaixo: GPU, modelo menor, ou
+**não chamar o desempate** — que é a única economia que corta o custo a zero, e por isso o
+`catalog-module` pula o desempate quando o vizinho mais próximo vence com folga.
+
+Sem `ranker`, os candidatos voltam para a pessoa escolher, o que é instantâneo.
 
 ### Sobre a escolha do modelo
 
