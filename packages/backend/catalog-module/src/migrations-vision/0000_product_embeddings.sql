@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS "catalog"."product_embeddings" (
 	"company_id" uuid NOT NULL,
 	"product_id" uuid NOT NULL,
 	"model" varchar(64) NOT NULL,
+	"source" varchar(16) NOT NULL,
 	"embedding" vector(512) NOT NULL,
 	"source_key" varchar(512) NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -18,7 +19,7 @@ CREATE TABLE IF NOT EXISTS "catalog"."product_embeddings" (
 --> statement-breakpoint
 ALTER TABLE "catalog"."product_embeddings" ADD CONSTRAINT "product_embeddings_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "catalog"."products"("id") ON DELETE cascade ON UPDATE no action;
 --> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "idx_product_embeddings_product_model" ON "catalog"."product_embeddings" USING btree ("product_id","model");
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_product_embeddings_product_model_source" ON "catalog"."product_embeddings" USING btree ("product_id","model","source");
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_product_embeddings_hnsw" ON "catalog"."product_embeddings" USING hnsw ("embedding" vector_cosine_ops);
 --> statement-breakpoint

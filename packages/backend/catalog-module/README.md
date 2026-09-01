@@ -164,6 +164,15 @@ const result = await catalog.useCases.identifyProductByImage?.execute({ companyI
 Sem `providers.vision`, `hasVision` é `false` e `identifyProductByImage` não existe — o canal não
 oferece o affordance em vez de ganhar uma flag.
 
+**Um produto tem mais de um vetor.** A chave do índice é `(produto, modelo, origem)`: `catalog` é a
+foto de estúdio — fundo branco, de frente, iluminada — e `feedback` é a foto real que um cliente
+mandou e alguém confirmou ser aquele produto, com a embalagem amassada na mão e a luz do
+supermercado. São imagens muito diferentes do mesmo objeto, e é por isso que o modelo genérico erra.
+
+Guardar as duas é a especialização mais barata que existe: o índice aprende como os clientes daquela
+loja fotografam, sem treinar nada. A busca deduplica por produto, então a conversa continua vendo
+itens distintos e não o mesmo produto repetido.
+
 **A dimensão do vetor é fixa em 512** (CLIP ViT-B/32), porque o índice HNSW exige tamanho declarado
 e migration não lê configuração. Provider que declare outra dimensão é recusado no boot, em vez de
 gravar vetor truncado num índice que responderia produto errado para sempre.

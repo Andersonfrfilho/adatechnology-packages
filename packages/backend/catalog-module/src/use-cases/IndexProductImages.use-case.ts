@@ -8,6 +8,7 @@
 
 import { VisionDisabledError } from '@adatechnology/catalog-contracts'
 
+import { PRODUCT_EMBEDDING_SOURCE } from '../schema/vision.schema'
 import { VISION } from '../shared/vision.constant'
 import type { CatalogDependencies } from './catalogModule.types'
 
@@ -63,6 +64,9 @@ export class IndexProductImagesUseCase {
           companyId: params.companyId,
           productId: row.id,
           model: vision.embeddingModel.id,
+          // Foto de estudio. O que vier de cliente confirmado entra como `feedback`, sem
+          // sobrescrever esta linha.
+          source: PRODUCT_EMBEDDING_SOURCE.CATALOG,
           embedding: reading.embedding,
           sourceKey: row.imageStorageKey,
         })

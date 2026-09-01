@@ -16,8 +16,8 @@ export {
   CATALOG_VISION_MIGRATIONS_TABLE,
 } from './runVisionMigrations'
 export type { RunCatalogVisionMigrationsParams } from './runVisionMigrations'
-export { productEmbeddings, PRODUCT_EMBEDDING_DIMENSIONS } from './schema/vision.schema'
-export type { ProductEmbeddingRow, NewProductEmbeddingRow } from './schema/vision.schema'
+export { productEmbeddings, PRODUCT_EMBEDDING_DIMENSIONS, PRODUCT_EMBEDDING_SOURCE } from './schema/vision.schema'
+export type { ProductEmbeddingRow, NewProductEmbeddingRow, ProductEmbeddingSource } from './schema/vision.schema'
 export { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
 export type { NearestProductRow, FindNearestParams } from './repositories/ProductEmbeddingRepository'
 export { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'

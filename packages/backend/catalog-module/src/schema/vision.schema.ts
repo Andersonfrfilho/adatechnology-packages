@@ -17,6 +17,23 @@ import { catalogSchema, products } from './schema'
  */
 export const PRODUCT_EMBEDDING_DIMENSIONS = 512
 
+/**
+ * De onde veio a imagem que gerou o vetor.
+ *
+ * `catalog` e a foto de estudio: fundo branco, de frente, iluminada. `feedback` e a foto que um
+ * cliente mandou e que alguem confirmou ser aquele produto — embalagem amassada na mao, luz de
+ * supermercado, angulo torto. Sao imagens muito diferentes do mesmo objeto, e e por isso que o
+ * modelo generico erra.
+ *
+ * Guardar as duas sob o mesmo produto e a especializacao mais barata que existe: o indice aprende
+ * como os clientes daquela loja fotografam, sem treinar nada.
+ */
+export const PRODUCT_EMBEDDING_SOURCE = {
+  CATALOG: 'catalog',
+  FEEDBACK: 'feedback',
+} as const
+export type ProductEmbeddingSource = (typeof PRODUCT_EMBEDDING_SOURCE)[keyof typeof PRODUCT_EMBEDDING_SOURCE]
+
 export const productEmbeddings = catalogSchema.table(
   'product_embeddings',
   {
@@ -30,6 +47,8 @@ export const productEmbeddings = catalogSchema.table(
      * significado — guardar o modelo é o que permite detectar a troca em vez de responder lixo.
      */
     model: varchar('model', { length: 64 }).notNull(),
+    // varchar e nao ENUM nativo (`code-standart.md` §8).
+    source: varchar('source', { length: 16 }).notNull(),
     embedding: vector('embedding', { dimensions: PRODUCT_EMBEDDING_DIMENSIONS }).notNull(),
     /**
      * A chave da imagem que originou o vetor. É como a reindexação sabe que a foto do produto
@@ -39,9 +58,12 @@ export const productEmbeddings = catalogSchema.table(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    // Um vetor por produto por modelo. Reindexar é upsert nesta chave, não acúmulo de linhas
-    // órfãs que continuariam concorrendo na busca.
-    uniqueIndex('idx_product_embeddings_product_model').on(table.productId, table.model),
+    // A `source` entra na chave para o produto ter mais de um vetor: um da foto de catálogo e
+    // outros das fotos reais que os clientes mandaram. Sem ela, gravar o aprendizado do feedback
+    // sobrescreveria a foto de estúdio — e a especialização viraria substituição.
+    //
+    // Reindexar continua sendo upsert, agora por origem: nada de linha órfã concorrendo na busca.
+    uniqueIndex('idx_product_embeddings_product_model_source').on(table.productId, table.model, table.source),
     // HNSW com distância de cosseno: é a métrica dos embeddings de imagem normalizados, e o
     // índice é o que separa uma busca de milissegundos de um seq scan sobre o catálogo inteiro.
     index('idx_product_embeddings_hnsw').using('hnsw', table.embedding.op('vector_cosine_ops')),

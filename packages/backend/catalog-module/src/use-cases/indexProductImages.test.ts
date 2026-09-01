@@ -80,6 +80,9 @@ describe('a varredura', () => {
       companyId: 'e1',
       productId: 'p0',
       model: 'clip-vit-b32',
+      // A origem entra na chave: a foto de estudio nao pode ser sobrescrita pelo que vier de
+      // cliente confirmado, senao a especializacao viraria substituicao.
+      source: 'catalog',
       embedding: [0.1, 0.2],
       // A chave de origem e o que permite saber depois que a foto do produto mudou.
       sourceKey: 'k0',
