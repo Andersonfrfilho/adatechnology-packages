@@ -75,6 +75,21 @@ export const products = catalogSchema.table(
     // Margem: nunca sai na projeção destinada ao cliente final (ver ProductRepository).
     costPriceInCents: integer('cost_price_in_cents'),
     unit: varchar('unit', { length: 16 }),
+    /** Fabricante. Entra na busca por texto junto do nome: quem procura "tio joao" quer o arroz. */
+    brand: varchar('brand', { length: 80 }),
+    /** Conteudo da embalagem ("1L", "5kg"), separado de `unit` porque distingue itens irmaos. */
+    unitSize: varchar('unit_size', { length: 24 }),
+    /**
+     * Onde o produto fica na loja ("Corredor 3", "Hortifruti"). Texto livre e opcional porque cada
+     * loja nomeia o proprio espaco: quem separa le isto para achar o item, entao o valor precisa
+     * ser o que esta escrito na placa pendurada no corredor, nao um codigo de enderecamento.
+     */
+    aisle: varchar('aisle', { length: 60 }),
+    /**
+     * Como o cliente chama o produto ("guarana" para o refrigerante da marca). E o que faz a busca
+     * por texto achar o item pelo nome popular, que raramente e o nome cadastrado.
+     */
+    aliases: text('aliases').array().notNull().default([]),
     barcode: varchar('barcode', { length: 14 }),
     imageUrl: text('image_url'),
     // Separado da URL porque ela pode ser assinada e expirar; a chave é o que permite reemitir

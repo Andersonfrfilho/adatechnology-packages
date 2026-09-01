@@ -9,12 +9,16 @@
  */
 
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import type { SQL } from 'drizzle-orm'
 
 import {
   catalogListCondition,
   catalogOwnedByCondition,
+  productEmbeddingOwnedByCondition,
+  productEmbeddingSearchCondition,
   productListCondition,
   productOwnedByCondition,
   productSearchCondition,
@@ -33,6 +37,11 @@ describe('toda condição escopa por company_id', () => {
     productOwnedByCondition: productOwnedByCondition(params),
     productListCondition: productListCondition(params),
     productSearchCondition: productSearchCondition(params),
+    productEmbeddingSearchCondition: productEmbeddingSearchCondition({ companyId: params.companyId, model: 'clip' }),
+    productEmbeddingOwnedByCondition: productEmbeddingOwnedByCondition({
+      companyId: params.companyId,
+      productId: params.id,
+    }),
     catalogOwnedByCondition: catalogOwnedByCondition(params),
     catalogListCondition: catalogListCondition(params),
     sectionOwnedByCondition: sectionOwnedByCondition(params),
@@ -87,5 +96,38 @@ describe('id sozinho nunca basta', () => {
 
     expect(sql).toContain('company_id')
     expect(sql).toContain('"id"')
+  })
+})
+
+describe('a busca por texto cobre como o cliente fala', () => {
+  it('procura em nome, marca e apelido', () => {
+    // "guarana" nao e o nome cadastrado de nenhum refrigerante, e e o que o cliente digita.
+    const rendered = render(productSearchCondition({ companyId: 'company-a', search: 'guarana' }))
+
+    expect(rendered).toContain('"name" ilike')
+    expect(rendered).toContain('"brand"')
+    expect(rendered).toContain('"aliases"')
+  })
+
+  it('sem perder o escopo de empresa ao ganhar campos', () => {
+    // O `or` dos tres campos precisa estar dentro do `and` do tenant: solto, a busca por marca
+    // atravessaria empresas.
+    const rendered = render(productSearchCondition({ companyId: 'company-a', search: 'x' }))
+
+    expect(rendered.indexOf('company_id')).toBeLessThan(rendered.indexOf('ilike'))
+  })
+})
+
+describe('a busca por apelido casa com o indice que a migration cria', () => {
+  it('usa a mesma expressao do indice, nao o array_to_string nativo', () => {
+    // Indice de expressao so e usado quando a query repete a expressao EXATA. `array_to_string` do
+    // Postgres e STABLE e nem pode indexar; trocar de volta para ele deixaria o indice existindo e
+    // a busca varrendo a tabela — defeito invisivel, porque o resultado continua correto.
+    const rendered = render(productSearchCondition({ companyId: 'company-a', search: 'guarana' }))
+    const migration = readFileSync(join(__dirname, '..', 'migrations', '0001_product_retail_fields.sql'), 'utf8')
+
+    expect(rendered).toContain('catalog.immutable_array_to_string')
+    expect(migration).toContain('immutable_array_to_string')
+    expect(migration).toContain('gin_trgm_ops')
   })
 })

@@ -75,3 +75,44 @@ describe('createS3ProductImageStorage', () => {
     expect(deletes).toEqual([KEY])
   })
 })
+
+describe('leitura para a indexacao visual', () => {
+  function buildReadableStorage(stored?: { contentType: string }) {
+    const storage = {
+      async head() {
+        return stored
+          ? {
+              bucket: 'ada-products',
+              key: KEY,
+              provider: 's3' as const,
+              contentLength: BYTES.byteLength,
+              contentType: stored.contentType,
+              sha256: 'x',
+            }
+          : undefined
+      },
+      async get() {
+        return new Response(new Uint8Array(BYTES)).body as ReadableStream<Uint8Array>
+      },
+    } as unknown as ObjectStorageProvider
+
+    return createS3ProductImageStorage({ storage, bucket: 'ada-products', publicBaseUrl: 'https://cdn.example' })
+  }
+
+  it('devolve os bytes e o mime que o bucket registrou', async () => {
+    const port = buildReadableStorage({ contentType: 'image/png' })
+
+    const result = await port.fetch?.(KEY)
+
+    expect(result?.mimeType).toBe('image/png')
+    expect(result?.buffer.equals(BYTES)).toBe(true)
+  })
+
+  it('imagem sumida do bucket falha em vez de virar vetor em branco', async () => {
+    // Catalogo antigo tem linha apontando para objeto ja apagado. Um stream vazio viraria o
+    // embedding de uma imagem em branco, competindo com os produtos de verdade na busca.
+    const port = buildReadableStorage(undefined)
+
+    await expect(port.fetch?.(KEY)).rejects.toThrow('Imagem de produto não encontrada no bucket')
+  })
+})

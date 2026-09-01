@@ -14,6 +14,7 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import type { ProductVisionPort } from './providers'
 import {
   bulkImportRowSchema,
   createCatalogSchema,
@@ -123,5 +124,38 @@ describe('acoplamento', () => {
 
     expect(providers).toContain('MetaCatalogSyncPort')
     expect(providers).not.toMatch(/^import .*from ['"](?!\.)/m)
+  })
+})
+
+describe('identificação visual é opcional por ausência', () => {
+  it('um engine só de código de barras satisfaz a porta', () => {
+    // O corte que permite o produto sem foto no catálogo (Sakura) identificar produto: sem
+    // `embeddingModel` e sem `rank`, não há índice vetorial nem modelo de visão para subir.
+    // Se algum dia esses campos virarem obrigatórios, é aqui que o build para.
+    const barcodeOnly: ProductVisionPort = {
+      name: 'zbar',
+      async read() {
+        return { barcode: '7891000100103', engine: 'zbar' }
+      },
+    }
+
+    expect(barcodeOnly.embeddingModel).toBeUndefined()
+    expect('rank' in barcodeOnly).toBe(false)
+  })
+
+  it('a leitura pode voltar vazia sem virar erro', async () => {
+    // Foto sem código legível e sem vetor é resultado legítimo — a mesma decisão do
+    // `audio-transcription-provider` com áudio em silêncio. Tratar como falha faria o canal
+    // responder "erro" a uma foto perfeitamente válida de algo que a loja não vende.
+    const blind: ProductVisionPort = {
+      name: 'nenhum',
+      async read() {
+        return { engine: 'nenhum' }
+      },
+    }
+
+    await expect(blind.read({ buffer: Buffer.alloc(0), mimeType: 'image/jpeg' })).resolves.toEqual({
+      engine: 'nenhum',
+    })
   })
 })

@@ -56,6 +56,10 @@ export type {
   MetaSyncOutcome,
   MetaCatalogSyncPort,
   ProductSuggestionPort,
+  ProductVisionPort,
+  ProductVisionReading,
+  ProductVisionCandidate,
+  ProductVisionRanking,
   ClockPort,
   LoggerPort,
   LogMeta,
@@ -77,6 +81,7 @@ export type {
   SyncSucceededEvent,
   SyncFailedEvent,
   BulkImportFinishedEvent,
+  ProductImageUnmatchedEvent,
   CatalogHooks,
 } from './events'
 
@@ -94,6 +99,9 @@ export {
   ConfigMissingError,
   InvalidProductImageError,
   ImageStorageDisabledError,
+  VisionDisabledError,
+  VisionModelMismatchError,
+  VisionDimensionsMismatchError,
   InvalidCatalogWebhookSignatureError,
   CatalogWebhookNotConfiguredError,
 } from './errors'

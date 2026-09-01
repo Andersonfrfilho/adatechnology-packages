@@ -128,6 +128,58 @@ injetar a porta falha no boot.
 O módulo **não importa** o `meta-catalog-provider` — o adaptador é escrito no host, para quem só
 gerencia catálogo interno não carregar cliente de Graph API.
 
+## Busca de produto por imagem (opcional)
+
+Uma foto entra e vira produto, por uma cascata que para no primeiro degrau que decide: **código de
+barras**, depois **vizinho mais próximo por vetor**, depois **desempate por modelo de visão**. Cada
+degrau só roda porque o anterior não resolveu.
+
+Desligada por padrão. Ligar são duas coisas — a porta e a migration:
+
+```ts
+import { createCatalogModule, runCatalogVisionMigrations } from '@adatechnology/catalog-module'
+
+// A extensão `vector` não vem no Postgres padrão: esta migration tem journal próprio
+// (`catalog_vision_migrations`) para que quem não usa busca visual não deixe de subir.
+await runCatalogVisionMigrations({ db, migrate })
+
+const catalog = createCatalogModule({
+  db,
+  config: { currency: 'BRL', locale: 'pt-BR' },
+  providers: { vision },   // satisfeita por @adatechnology/product-vision-provider
+})
+
+const result = await catalog.useCases.identifyProductByImage?.execute({ companyId, bytes, mimeType })
+```
+
+`result` é uma união fechada, porque cada desfecho vira uma mensagem diferente no canal:
+
+| `outcome` | Significa | O canal responde |
+|---|---|---|
+| `barcode` | GTIN lido e produto encontrado | Confirma o item |
+| `matched` | O desempate escolheu | Confirma o item |
+| `candidates` | Vizinhos acima do piso, sem desempate | Botões (≤3) ou lista (4+) |
+| `unmatched` | Nada acima do piso, ou "nenhum destes" | Pede outra foto ou chama uma pessoa |
+
+Sem `providers.vision`, `hasVision` é `false` e `identifyProductByImage` não existe — o canal não
+oferece o affordance em vez de ganhar uma flag.
+
+**Um produto tem mais de um vetor.** A chave do índice é `(produto, modelo, origem)`: `catalog` é a
+foto de estúdio — fundo branco, de frente, iluminada — e `feedback` é a foto real que um cliente
+mandou e alguém confirmou ser aquele produto, com a embalagem amassada na mão e a luz do
+supermercado. São imagens muito diferentes do mesmo objeto, e é por isso que o modelo genérico erra.
+
+Guardar as duas é a especialização mais barata que existe: o índice aprende como os clientes daquela
+loja fotografam, sem treinar nada. A busca deduplica por produto, então a conversa continua vendo
+itens distintos e não o mesmo produto repetido.
+
+**A dimensão do vetor é fixa em 512** (CLIP ViT-B/32), porque o índice HNSW exige tamanho declarado
+e migration não lê configuração. Provider que declare outra dimensão é recusado no boot, em vez de
+gravar vetor truncado num índice que responderia produto errado para sempre.
+
+O provider pode trazer só o leitor de código de barras: sem `embeddingModel`, não há índice
+vetorial nem modelo de visão para subir, e a identificação funciona num catálogo sem foto nenhuma.
+
 ## Canal de conversa
 
 ```ts
