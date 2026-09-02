@@ -9,6 +9,7 @@ import { UserPlus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import type { CreateTeamMemberInput } from './providers/types'
+import type { TeamRoleOption } from './roles'
 import type { UserLabels } from './workspace/labels'
 
 /** O mesmo mínimo do `localCredentialsSchema`: recusar aqui poupa uma ida para descobrir o óbvio. */
@@ -16,6 +17,8 @@ export const TEAM_PASSWORD_MIN_LENGTH = 12
 
 export type TeamMemberFormProps = {
   readonly labels: UserLabels
+  /** Os papéis oferecidos. Quem compõe a tela decide — papel é vocabulário do produto. */
+  readonly roles: readonly TeamRoleOption[]
   readonly saving: boolean
   readonly onSubmit: (input: CreateTeamMemberInput) => void
   readonly onCancel: () => void
@@ -37,8 +40,9 @@ const FIELD =
 const SELECT_FIELD = `${FIELD} cursor-pointer appearance-none pr-9`
 const LABEL = 'mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100'
 
-export function TeamMemberForm({ labels, saving, onSubmit, onCancel }: TeamMemberFormProps) {
-  const [role, setRole] = useState('member')
+export function TeamMemberForm({ labels, roles, saving, onSubmit, onCancel }: TeamMemberFormProps) {
+  // O primeiro da lista é o padrão: quem ordena as opções é quem sabe qual delas é a comum.
+  const [role, setRole] = useState(roles[0]?.value ?? '')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()
@@ -102,8 +106,11 @@ export function TeamMemberForm({ labels, saving, onSubmit, onCancel }: TeamMembe
             onChange={(event) => setRole(event.target.value)}
             value={role}
           >
-            <option value="member">{labels.teamRoleMember}</option>
-            <option value="admin">{labels.teamRoleAdmin}</option>
+            {roles.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
           {/* Decorativa: o `select` ao lado ja anuncia o papel de combobox ao leitor de tela. */}
           <svg
