@@ -194,6 +194,41 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # `latest` em 0.0.0 é acidente de andaime, nunca release: `conversations-ui` e `products-ui`
+      # tiveram o 0.0.0 publicado no mesmo segundo (26/07/2026 13:36:52), antes de terem conteúdo, e
+      # a tag ficou lá. Consequência medida: `npm install @adatechnology/conversations-ui` entregava
+      # um pacote vazio enquanto o código real estava em 0.1.0-rc.44 — e, como antes, sem erro nenhum.
+      #
+      # ⚠️ A regra é **só** o 0.0.0, e isso não é timidez: para a maioria dos pacotes `latest` aponta
+      # de propósito para o **último estável** enquanto uma linha de prerelease corre por fora
+      # (`auth-keycloak` em 0.1.18 com 1.0.0-rc.1 em andamento, `fiscal-provider` em 0.2.0 com
+      # 0.3.0-rc.7). Mover esses empurraria código não lançado para todo mundo que faz `npm install`
+      # sem tag — o oposto do que este passo existe para consertar.
+      - name: Tirar o latest do 0.0.0 de andaime
+        run: |
+          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
+            [ -f "$manifest" ] || continue
+
+            nome=$(jq -r '.name' "$manifest")
+            versao=$(jq -r '.version' "$manifest")
+            privado=$(jq -r '.private // false' "$manifest")
+
+            case "$nome" in @adatechnology/*) ;; *) continue ;; esac
+            [ "$privado" = "true" ] && continue
+
+            atual=$(npm view "$nome" dist-tags.latest 2>/dev/null || true)
+            [ "$atual" = "0.0.0" ] || continue
+            [ "$versao" = "0.0.0" ] && continue
+
+            if npm dist-tag add "$nome@$versao" latest >/dev/null 2>&1; then
+              echo "latest  $nome: 0.0.0 -> $versao"
+            else
+              echo "::warning::Nao consegui mover latest de $nome para $versao"
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Deprecate legacy package lines
         run: |
           deprecate() {
