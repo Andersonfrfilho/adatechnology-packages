@@ -17,7 +17,9 @@ import { describe, expect, it } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const MIGRATIONS_DIR = join(import.meta.dir, 'migrations')
+// `__dirname` e não `import.meta.dir`: é o que o `tsconfig` deste pacote aceita, e o mesmo que
+// `runMigrations.ts` usa para achar esta pasta.
+const MIGRATIONS_DIR = join(__dirname, 'migrations')
 
 function migrationFiles(): readonly string[] {
   return readdirSync(MIGRATIONS_DIR)
