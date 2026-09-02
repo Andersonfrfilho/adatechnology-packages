@@ -139,6 +139,61 @@ jobs:
       # não lê changelog. O registry guarda o aviso por versão, então repetir o comando a
       # cada release é inofensivo; `|| true` evita que uma linha ainda não publicada, ou uma
       # falha de rede no registry, derrube um release que já concluiu a publicação.
+      # Em pre mode, a dist-tag do prerelease (`rc`) precisa apontar para o que acabou de sair.
+      # Ela não estava: medido em 02/09/2026, `document-intake` tinha `rc` em 0.1.0-rc.1 com a
+      # 0.1.0-rc.4 publicada, e `notification-ui` tinha `rc` em 0.1.0-rc.1 com a 0.1.0-rc.9. Quem
+      # instala com `@rc` recebia a primeira versão da linha, meses atrás, sem nenhum erro que
+      # denunciasse isso — o pior tipo de defeito de publicação, porque o install é verde.
+      #
+      # A correção é idempotente e derivada do workspace, nunca de uma lista escrita à mão: a tag sai
+      # de `.changeset/pre.json` e a versão sai do próprio `package.json`, então ela vale para pacote
+      # criado depois deste passo. Fora do pre mode o passo não faz nada.
+      #
+      # ⚠️ Não mexe em `latest`. Que `latest` aponte para prerelease é outro defeito, e mais grave
+      # (`conversations-ui` tem `latest` em 0.0.0), mas corrigi-lo muda o que `npm install` sem tag
+      # entrega em produto de terceiro — é decisão de produto, não de pipeline.
+      - name: Apontar a dist-tag de prerelease para o que foi publicado
+        run: |
+          if [ ! -f .changeset/pre.json ]; then
+            echo "Fora do pre mode: nada a fazer."
+            exit 0
+          fi
+
+          tag=$(jq -r '.tag // empty' .changeset/pre.json)
+          if [ -z "$tag" ]; then
+            echo "pre.json sem tag: nada a fazer."
+            exit 0
+          fi
+
+          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
+            [ -f "$manifest" ] || continue
+
+            nome=$(jq -r '.name' "$manifest")
+            versao=$(jq -r '.version' "$manifest")
+            privado=$(jq -r '.private // false' "$manifest")
+
+            case "$nome" in @adatechnology/*) ;; *) continue ;; esac
+            [ "$privado" = "true" ] && continue
+            # Versão estável não usa a tag de prerelease.
+            case "$versao" in *-*) ;; *) continue ;; esac
+
+            atual=$(npm view "$nome" "dist-tags.$tag" 2>/dev/null || true)
+            if [ "$atual" = "$versao" ]; then
+              echo "ok    $nome  $tag ja em $versao"
+              continue
+            fi
+
+            # `|| true`: a tag é conveniência de instalação, e falhar aqui derrubaria um release que
+            # já publicou. O desvio fica no log, e o passo seguinte de qualquer forma não depende dela.
+            if npm dist-tag add "$nome@$versao" "$tag" >/dev/null 2>&1; then
+              echo "movida $nome  $tag: ${atual:-<ausente>} -> $versao"
+            else
+              echo "::warning::Nao consegui mover $tag de $nome para $versao (era ${atual:-<ausente>})"
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Deprecate legacy package lines
         run: |
           deprecate() {
