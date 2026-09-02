@@ -18,6 +18,7 @@ import { AvatarPicker } from '../AvatarPicker'
 import type { UserProfile } from '../providers/types'
 import { TeamMemberEditForm } from '../TeamMemberEditForm'
 import { TeamMemberForm } from '../TeamMemberForm'
+import { buildDefaultTeamRoles, resolveTeamRole, type TeamRoleOption } from '../roles'
 import { useTeam, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
 
@@ -26,6 +27,14 @@ export type TeamWorkspaceProps = {
   readonly header?: ReactNode
   /** Quantas linhas por página. O padrão do hook cobre uma equipe inteira sem paginar. */
   readonly pageSize?: number
+  /**
+   * Os papéis que esta equipe tem. Ausente, ficam os dois de sempre (`member` e `admin`).
+   *
+   * Papel é vocabulário do produto — o `user-module` guarda `role` como string livre justamente por
+   * isso. Um host com separador, atendente e motorista declara os seus aqui; sem esta lista, o
+   * `<select>` só oferecia dois valores e a tela não servia para cadastrar mais ninguém.
+   */
+  readonly roles?: readonly TeamRoleOption[]
   /**
    * Os três métodos de equipe, quando o host não usa o `UserProvider` deste pacote.
    *
@@ -124,8 +133,16 @@ function TeamSkeletonRows({ hasSelection, hasActions, label }: TeamSkeletonRowsP
   )
 }
 
-export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgroundRemoval }: TeamWorkspaceProps) {
+export function TeamWorkspace({
+  labels: overrides,
+  header,
+  pageSize,
+  api,
+  roles,
+  backgroundRemoval,
+}: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
+  const roleOptions = roles ?? buildDefaultTeamRoles(labels)
   const team = useTeam({ ...(pageSize === undefined ? {} : { pageSize }), ...(api ? { api } : {}) })
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [createdName, setCreatedName] = useState<string>()
@@ -196,6 +213,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
       {isFormOpen && (
         <TeamMemberForm
           labels={labels}
+          roles={roleOptions}
           onCancel={() => setIsFormOpen(false)}
           onSubmit={(input) => void handleCreate(input)}
           saving={team.saving}
@@ -204,6 +222,7 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
 
       {editing && (
         <TeamMemberEditForm
+          roles={roleOptions}
           avatar={
             team.canChangeAvatar ? (
               pendingAvatar ? (
@@ -396,8 +415,10 @@ export function TeamWorkspace({ labels: overrides, header, pageSize, api, backgr
                   {/* O e-mail e dado de apoio: peso menor evita que ele dispute com o nome. */}
                   <td className={`${CELL} text-gray-500 dark:text-gray-400`}>{member.email}</td>
                   <td className={CELL}>
-                    <Badge tone={member.role === 'admin' ? 'accent' : 'neutral'}>
-                      {member.role === 'admin' ? labels.teamRoleAdmin : labels.teamRoleMember}
+                    {/* Papel fora da lista aparece com o valor cru: some da tela quem tem acesso
+                        que o host não sabe explicar — e é justamente quem precisa ser visto. */}
+                    <Badge tone={resolveTeamRole(roleOptions, member.role).tone ?? 'neutral'}>
+                      {resolveTeamRole(roleOptions, member.role).label}
                     </Badge>
                   </td>
                   <td className={CELL}>
