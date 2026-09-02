@@ -108,11 +108,19 @@ jobs:
             # token do CI enxerga pacote privado e diria que está tudo bem.
             url="https://registry.npmjs.org/$(printf '%s' "$nome" | sed 's|/|%2f|')/$versao"
 
+            # Espera crescente, e não três tentativas de 10s: no release de 02/09/2026 o
+            # `identity-reconciliation` e o `product-vision-provider` levaram **minutos** para
+            # aparecer, o job ficou vermelho, e os dois estavam publicos quando se olhou depois. Um
+            # release correto reportado como falha e pior que nenhum relatorio: ensina a ignorar o CI.
+            #
+            # O orcamento (5+10+20+40+60+60 = ~3min por pacote) e o que separa as duas causas que o
+            # 404 esconde: propagacao passa sozinha, restricao de acesso nao passa nunca. Quem lag
+            # cedo tambem paga pelos seguintes — o laco e sequencial, entao o tempo gasto esperando o
+            # primeiro ja propagou os outros.
             publico=""
-            for tentativa in 1 2 3; do
+            for espera in 0 5 10 20 40 60 60; do
+              [ "$espera" -gt 0 ] && sleep "$espera"
               if curl -fsS -o /dev/null "$url"; then publico=1; break; fi
-              # O registry leva alguns segundos para propagar o que acabou de receber.
-              sleep 10
             done
 
             if [ -n "$publico" ]; then
