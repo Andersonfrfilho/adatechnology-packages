@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/meta-graph-core",
-  "version": "0.2.0-rc.8",
+  "version": "0.2.0",
   "description": "Meta Graph API foundation — shared HTTP client and utilities for Meta APIs",
   "publishConfig": {
     "access": "public"

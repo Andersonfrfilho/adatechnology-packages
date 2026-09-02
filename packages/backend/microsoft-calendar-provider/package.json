@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/microsoft-calendar-provider",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0",
   "description": "CalendarSyncPort backed by the Microsoft Graph API v1.0",
   "type": "module",
   "main": "dist/index.js",

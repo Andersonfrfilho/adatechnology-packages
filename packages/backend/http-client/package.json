@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/http-client",
-  "version": "1.0.0-rc.1",
+  "version": "1.0.0",
   "description": "HTTP client with retry, timeout, and automatic tracing headers via @adatechnology/logger context",
   "type": "module",
   "main": "dist/index.js",

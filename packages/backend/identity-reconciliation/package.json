@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/identity-reconciliation",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0",
   "description": "Pure matching rules that reconcile a product user base against an identity provider realm",
   "type": "module",
   "main": "dist/index.js",

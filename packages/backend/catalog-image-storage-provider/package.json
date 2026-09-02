@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/catalog-image-storage-provider",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0",
   "description": "Product image storage for catalog-module over an S3-compatible bucket",
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/keycloak-admin",
-  "version": "1.0.0-rc.3",
+  "version": "1.0.0",
   "description": "Agnostic Keycloak Admin API client authenticated as a service account (client_credentials)",
   "type": "module",
   "main": "dist/index.js",
