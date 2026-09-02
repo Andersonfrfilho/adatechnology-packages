@@ -415,11 +415,7 @@ export function TeamWorkspace({
                   {/* O e-mail e dado de apoio: peso menor evita que ele dispute com o nome. */}
                   <td className={`${CELL} text-gray-500 dark:text-gray-400`}>{member.email}</td>
                   <td className={CELL}>
-                    {/* Papel fora da lista aparece com o valor cru: some da tela quem tem acesso
-                        que o host não sabe explicar — e é justamente quem precisa ser visto. */}
-                    <Badge tone={resolveTeamRole(roleOptions, member.role).tone ?? 'neutral'}>
-                      {resolveTeamRole(roleOptions, member.role).label}
-                    </Badge>
+                    <RoleBadge roles={roleOptions} value={member.role} />
                   </td>
                   <td className={CELL}>
                     <Badge tone={member.isActive ? 'positive' : 'muted'}>
@@ -681,6 +677,23 @@ type BadgeProps = {
  * `ring` em vez de `border`: a borda somaria um pixel a caixa e desalinharia a etiqueta com o texto
  * das celulas vizinhas.
  */
+type RoleBadgeProps = {
+  readonly roles: readonly TeamRoleOption[]
+  readonly value: string
+}
+
+/**
+ * O papel de uma linha.
+ *
+ * Papel fora da lista NÃO some: sai com o valor cru como rótulo e sem destaque. Esconder a linha
+ * tiraria da tela justamente quem tem acesso que o host não sabe explicar.
+ */
+function RoleBadge({ roles, value }: RoleBadgeProps) {
+  const role = resolveTeamRole(roles, value)
+
+  return <Badge tone={role.tone ?? 'neutral'}>{role.label}</Badge>
+}
+
 function Badge({ tone, children }: BadgeProps) {
   return (
     <span
