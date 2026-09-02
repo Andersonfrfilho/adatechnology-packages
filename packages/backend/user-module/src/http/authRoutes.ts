@@ -31,7 +31,7 @@ import {
 import { requireUser } from './requireUser'
 
 export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
-  const { useCases } = module
+  const { useCases, refreshCookieSameSite: sameSite } = module
 
   /** Sem armazenamento plugado a rota nao existe — em vez de existir e responder erro no upload. */
   const avatarRoutes: ModuleRoute[] = module.hasAvatar
@@ -70,6 +70,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
                 'Set-Cookie': buildRefreshTokenCookie({
                   token: session.refreshToken,
                   maxAgeSeconds: session.refreshExpiresInSeconds,
+                  sameSite,
                 }),
               },
             }
@@ -137,6 +138,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
             'Set-Cookie': buildRefreshTokenCookie({
               token: session.refreshToken,
               maxAgeSeconds: session.refreshExpiresInSeconds,
+              sameSite,
             }),
           },
         }
@@ -166,6 +168,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
             'Set-Cookie': buildRefreshTokenCookie({
               token: session.refreshToken,
               maxAgeSeconds: session.refreshExpiresInSeconds,
+              sameSite,
             }),
           },
         }
@@ -181,7 +184,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       async handler(context) {
         const refreshToken = parseCookieHeader(context.headers['cookie'])[REFRESH_TOKEN_COOKIE_NAME]
         if (refreshToken) await useCases.signOut.execute({ refreshToken })
-        return { kind: 'empty', status: 204, headers: { 'Set-Cookie': buildClearRefreshTokenCookie() } }
+        return { kind: 'empty', status: 204, headers: { 'Set-Cookie': buildClearRefreshTokenCookie(sameSite) } }
       },
     },
 

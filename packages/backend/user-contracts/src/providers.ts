@@ -114,8 +114,33 @@ export type AccessTokenConfig = {
   readonly audience?: string
 }
 
+/**
+ * `Lax` não é enviado em requisição cross-site — e `fetch` nunca conta como navegação de topo.
+ *
+ * Cross-site aqui é decidido pelo site registrável (eTLD+1), não pelo domínio pai: dois serviços em
+ * `*.up.railway.app` são cross-site entre si, porque `railway.app` está na Public Suffix List. Web e
+ * api em subdomínios de um domínio próprio (`app.` e `api.` de `exemplo.com.br`) são same-site, e aí
+ * `lax` é o certo.
+ */
+export const REFRESH_COOKIE_SAME_SITE = {
+  /** Padrão. A api e a tela compartilham o site registrável. */
+  LAX: 'lax',
+  /** A tela vive em outro site. Exige HTTPS — o cookie já sai `Secure` sempre. */
+  NONE: 'none',
+} as const
+
+export type RefreshCookieSameSite = (typeof REFRESH_COOKIE_SAME_SITE)[keyof typeof REFRESH_COOKIE_SAME_SITE]
+
 export type RefreshTokenConfig = {
   readonly expiresInSeconds?: number
+  /**
+   * Ausente = `lax`, que é o comportamento de sempre.
+   *
+   * `none` só quando a tela estiver em outro site registrável: ele permite que qualquer origem
+   * inicie requisição com o cookie anexado, e a defesa contra CSRF passa a ser inteiramente do CORS
+   * e da checagem de origem do host.
+   */
+  readonly sameSite?: RefreshCookieSameSite
 }
 
 export type PasswordResetEmailContent = {
