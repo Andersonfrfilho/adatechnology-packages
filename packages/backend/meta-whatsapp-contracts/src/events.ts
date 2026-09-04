@@ -16,8 +16,22 @@ export type MessageHookOutcome = { outcome: 'handled' } | { outcome: 'continue' 
 //   processamento padrão (ex.: não encaminha para o interpretador de fluxo).
 // 'continue': o host apenas observou — o módulo segue com o fluxo normal (motor de fluxo, se
 //   `features.flowEngine` estiver ligado).
+/** O que se sabe de quem mandou a mensagem, além do número. */
+export type InboundContact = {
+  /** Nome que a pessoa escolheu no WhatsApp dela. Ausente quando ela não definiu um. */
+  readonly profileName?: string
+}
+
 export interface MetaWhatsAppHooks {
-  onMessageReceived?: (message: WhatsAppMessage, session: ConversationSession) => Promise<MessageHookOutcome>
+  /**
+   * `contact` traz o nome de perfil de quem mandou, quando a Meta o envia. Terceiro parâmetro e
+   * opcional para não quebrar host que já implementa o hook com dois — quem não usa, ignora.
+   */
+  onMessageReceived?: (
+    message: WhatsAppMessage,
+    session: ConversationSession,
+    contact?: InboundContact,
+  ) => Promise<MessageHookOutcome>
   onStatusUpdate?: (status: WhatsAppStatus, session: ConversationSession | null) => Promise<void>
   onSessionExpired?: (session: ConversationSession) => Promise<void>
   // Disparado quando um handoff humano é solicitado (cliente pediu atendente, ou o fluxo decidiu

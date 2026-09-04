@@ -1,5 +1,6 @@
 import {
   whatsAppWebhookPayloadSchema,
+  resolveContactProfileName,
   whatsAppTemplateStatusUpdateSchema,
   whatsAppPhoneNumberQualityUpdateSchema,
   WHATSAPP_WEBHOOK_FIELDS,
@@ -182,7 +183,10 @@ export class ReceiveWebhookUseCase {
         }
 
         for (const message of change.value.messages ?? []) {
-          await this.handleMessage(input.companyId, message)
+          // O nome sai do `change`, e não da mensagem: a Meta o entrega em `contacts`, ao lado das
+          // mensagens, e não dentro de cada uma.
+          const profileName = resolveContactProfileName({ contacts: change.value.contacts, from: message.from })
+          await this.handleMessage(input.companyId, message, profileName)
           messagesProcessed++
         }
         for (const status of change.value.statuses ?? []) {
@@ -254,7 +258,7 @@ export class ReceiveWebhookUseCase {
     return true
   }
 
-  private async handleMessage(companyId: string, message: WhatsAppMessage): Promise<void> {
+  private async handleMessage(companyId: string, message: WhatsAppMessage, profileName?: string): Promise<void> {
     // Persistir fica na requisição de propósito: é escrita local, custa pouco, e é o que garante
     // que a mensagem do cliente existe no banco mesmo que tudo depois dela falhe.
     const saved = await this.params.logMessage.execute({
@@ -280,6 +284,7 @@ export class ReceiveWebhookUseCase {
       message,
       savedMessageId: saved.id,
       ...(media ? { media } : {}),
+      ...(profileName ? { profileName } : {}),
       receivedAt: Date.now(),
     })
   }

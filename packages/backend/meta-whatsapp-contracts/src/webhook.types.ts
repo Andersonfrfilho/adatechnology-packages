@@ -129,10 +129,24 @@ export type WhatsAppPhoneNumberQualityUpdate = z.infer<typeof whatsAppPhoneNumbe
 // adiciona campo em versão nova sem aviso. Validar aqui como união fechada faria o webhook inteiro
 // (mensagem de cliente inclusive) morrer por causa de um evento administrativo que nem consumimos.
 // A validação estrita de cada evento acontece no roteamento, contra o schema do seu próprio field.
+/**
+ * O contato que a Meta manda junto das mensagens. `profile.name` é o nome que a PESSOA escolheu no
+ * WhatsApp dela — é o único nome que existe antes de alguém digitar um, e sem ele o cliente criado
+ * por mensagem nasce sem nome nenhum.
+ *
+ * `profile` é opcional: a pessoa pode não ter nome definido, e a Meta omite o objeto nesse caso.
+ */
+export const whatsAppContactSchema = z.object({
+  wa_id: z.string(),
+  profile: z.object({ name: z.string() }).optional(),
+})
+export type WhatsAppContact = z.infer<typeof whatsAppContactSchema>
+
 export const whatsAppWebhookValueSchema = z
   .object({
     messaging_product: z.string().optional(),
     messages: z.array(whatsAppMessageSchema).optional(),
+    contacts: z.array(whatsAppContactSchema).optional(),
     message_echoes: z.array(whatsAppMessageEchoSchema).optional(),
     statuses: z.array(whatsAppStatusSchema).optional(),
     metadata: z.object({ display_phone_number: z.string(), phone_number_id: z.string() }).optional(),
@@ -158,3 +172,26 @@ export const whatsAppWebhookPayloadSchema = z.object({
   ),
 })
 export type WhatsAppWebhookPayload = z.infer<typeof whatsAppWebhookPayloadSchema>
+
+/**
+ * O nome de perfil de quem mandou a mensagem.
+ *
+ * Casa por `wa_id`. Quando nenhum casa e há UM contato só, é dele: a Meta agrupa as mensagens de um
+ * mesmo contato num `change`, e o `wa_id` nem sempre é idêntico ao `from` — no Brasil o nono dígito
+ * aparece num e não no outro, e exigir igualdade perderia o nome exatamente nos números móveis.
+ *
+ * Com dois ou mais contatos sem casamento, devolve `undefined`: pendurar o nome errado numa ficha é
+ * pior que ficha sem nome.
+ */
+export function resolveContactProfileName(params: {
+  readonly contacts: readonly WhatsAppContact[] | undefined
+  readonly from: string
+}): string | undefined {
+  const contacts = params.contacts ?? []
+  if (contacts.length === 0) return undefined
+
+  const exact = contacts.find((contact) => contact.wa_id === params.from)
+  if (exact) return exact.profile?.name
+
+  return contacts.length === 1 ? contacts[0]?.profile?.name : undefined
+}
