@@ -14,12 +14,13 @@ import type {
   CustomerSettings,
   DocumentCipherPort,
 } from '@adatechnology/customer-contracts'
-import { CustomerNotFoundError } from '@adatechnology/customer-contracts'
+import { CustomerNotFoundError, WhatsAppPhoneTakenError } from '@adatechnology/customer-contracts'
 
 import type { CustomerDatabase } from '../database.types'
 import type { CustomerAggregate, CustomerRepository } from '../repositories/CustomerRepository'
 import { customerAddresses, customerPhones, customers } from '../schema/schema'
 import { normalizePhone, normalizeZipCode } from '../shared/normalize'
+import { CUSTOMER_CONSTRAINT, isUniqueViolation } from '../shared/postgresErrors'
 import { toCustomerAddress } from './Address.use-case'
 import { SetDocumentUseCase, toCustomerDocuments } from './Document.use-case'
 import { validateAttributes } from './validateAttributes'
@@ -47,7 +48,41 @@ export class CreateCustomerUseCase {
     // que o operador vê é o mesmo.
     validateAttributes({ attributes: input.attributes, catalog: settings.fieldCatalog })
 
-    const customerId = await this.dependencies.db.transaction(async (tx) => {
+    const customerId = await this.createInTransaction({ ...params, input, settings }).catch((error: unknown) => {
+      /*
+       * O número de WhatsApp já é de outro cliente. O `UpsertByPhone` trata isso relendo, porque lá
+       * duas mensagens do mesmo número são a mesma pessoa; AQUI é uma ficha nova sendo cadastrada
+       * com um número que já tem dono, e reler juntaria duas pessoas numa só.
+       *
+       * Sem esta tradução o operador recebe "Erro interno" e não tem o que fazer com isso — o
+       * conflito é 409, e a mensagem diz qual é.
+       */
+      if (isUniqueViolation(error, CUSTOMER_CONSTRAINT.WHATSAPP_PHONE)) throw new WhatsAppPhoneTakenError()
+      throw error
+    })
+
+    // Documento fica FORA da transação de propósito: cifrar chama porta do host, que pode ser
+    // serviço de rede, e prender uma conexão de banco esperando rede é como se esgota o pool.
+    for (const document of input.documents) {
+      await this.dependencies.setDocument.execute({
+        customerId,
+        name: document.name,
+        value: document.value,
+        catalog: settings.documentCatalog,
+      })
+    }
+
+    return customerId
+  }
+
+  private async createInTransaction(params: {
+    companyId?: string
+    input: CreateCustomerInput
+    settings: CustomerSettings
+  }): Promise<string> {
+    const { input } = params
+
+    return this.dependencies.db.transaction(async (tx) => {
       const [row] = await tx
         .insert(customers)
         .values({
@@ -100,19 +135,6 @@ export class CreateCustomerUseCase {
 
       return id
     })
-
-    // Documento fica FORA da transação de propósito: cifrar chama porta do host, que pode ser
-    // serviço de rede, e prender uma conexão de banco esperando rede é como se esgota o pool.
-    for (const document of input.documents) {
-      await this.dependencies.setDocument.execute({
-        customerId,
-        name: document.name,
-        value: document.value,
-        catalog: settings.documentCatalog,
-      })
-    }
-
-    return customerId
   }
 }
 
