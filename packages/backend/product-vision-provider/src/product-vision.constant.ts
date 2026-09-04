@@ -43,3 +43,41 @@ export function normalizeMimeType(value: string): string {
 export function isSupportedImageMimeType(value: string): boolean {
   return (SUPPORTED_IMAGE_MIME_TYPES as readonly string[]).includes(normalizeMimeType(value))
 }
+
+/**
+ * Desempate por modelo de visao, servido por um Ollama local.
+ *
+ * `qwen2.5vl:3b` (~3.2GB) e o default por ter sido o que respondeu. O `moondream`, menor e a
+ * escolha obvia pelo tamanho, devolve string VAZIA no Ollama 0.32 — ate com prompt so de texto —
+ * e o sintoma e indistinguivel de "o modelo nao soube responder".
+ */
+export const OLLAMA_DEFAULT_BASE_URL = 'http://localhost:11434'
+export const OLLAMA_DEFAULT_MODEL = 'qwen2.5vl:3b'
+/**
+ * Medido em CPU (Apple Silicon, qwen2.5vl:3b): 5s a 15s por desempate.
+ *
+ * Isso e MUITO para uma conversa: o cliente manda a foto e fica olhando o "digitando". O teto e
+ * generoso de proposito — estourar devolve os candidatos para a pessoa escolher, que e pior que
+ * responder certo e melhor que nao responder — mas o numero em si e o argumento mais forte para
+ * ligar o desempate so quando a metrica do vetorial mostrar que vale.
+ */
+export const OLLAMA_DEFAULT_TIMEOUT_MS = 30_000
+/**
+ * Quanto o Ollama mantem o modelo na memoria depois de responder.
+ *
+ * Medido: com o modelo frio a primeira resposta leva ~16s; quente, ~4s. Como o desempate e
+ * esporadico por natureza, o default do Ollama (5 minutos) faz quase toda foto pagar o
+ * carregamento — e o cliente que espera 16s ja desistiu.
+ */
+export const OLLAMA_DEFAULT_KEEP_ALIVE = '30m'
+/**
+ * Teto de largura da imagem enviada ao modelo.
+ *
+ * Medido com qwen2.5vl:3b: 1280px custa 1632 tokens de visao e ~6,6s; 896px cai para 1104 tokens e
+ * ~4,2s. Abaixo de 896px NAO adianta — o modelo ja normaliza para o mesmo numero de tokens, e 224px
+ * leva o mesmo tempo que 640px.
+ *
+ * O piso de ~4s e do modelo nesta classe de maquina; para ir abaixo disso e preciso GPU, modelo
+ * menor, ou nao chamar o desempate.
+ */
+export const OLLAMA_DEFAULT_MAX_IMAGE_WIDTH = 896

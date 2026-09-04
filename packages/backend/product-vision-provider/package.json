@@ -20,6 +20,11 @@
       "types": "./dist/clip-local/index.d.ts",
       "import": "./dist/clip-local/index.js",
       "default": "./dist/clip-local/index.js"
+    },
+    "./vlm-ollama": {
+      "types": "./dist/vlm-ollama/index.d.ts",
+      "import": "./dist/vlm-ollama/index.js",
+      "default": "./dist/vlm-ollama/index.js"
     }
   },
   "files": [
