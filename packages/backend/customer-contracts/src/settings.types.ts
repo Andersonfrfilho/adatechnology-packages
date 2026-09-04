@@ -94,4 +94,12 @@ export type CustomerModuleConfig = {
   readonly uniqueDocuments?: readonly string[]
   /** Exclusão lógica. Ausente = remoção física. */
   readonly softDelete?: boolean
+  /**
+   * Código de país aplicado a número digitado sem ele — `'55'`.
+   *
+   * O canal entrega `5516993056772`; quem digita no painel escreve `(16) 99305-6772`. Sem isto os
+   * dois viram clientes diferentes. Não tem padrão de propósito: prefixar dentro do pacote seria
+   * assumir que todo produto que o consome é brasileiro.
+   */
+  readonly defaultCountryCode?: string
 }
