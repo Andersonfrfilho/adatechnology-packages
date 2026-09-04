@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/customer-module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "description": "Stateful customer registry — schema, migrations, repositories and use-cases behind a declared field catalog",
   "publishConfig": {
