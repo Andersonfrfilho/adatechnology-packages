@@ -18,7 +18,37 @@ export const CUSTOMER_ERROR_CODE = {
 
 export type CustomerErrorCode = (typeof CUSTOMER_ERROR_CODE)[keyof typeof CUSTOMER_ERROR_CODE]
 
+/**
+ * O status HTTP de cada código, numa tabela só.
+ *
+ * O filtro do `module-http` reconhece erro de domínio pela FORMA — `statusCode`, `code`, `message`
+ * —, e não por herança. Sem `statusCode` o erro não é reconhecido e vira 500: o cliente que digitou
+ * um número já usado recebia "Erro interno", e a ficha inexistente respondia 500 em vez de 404.
+ *
+ * Derivado do código e não passado em cada construtor porque assim não há como divergir: erro novo
+ * sem entrada aqui não compila.
+ */
+const STATUS_BY_CODE: Readonly<Record<CustomerErrorCode, number>> = {
+  [CUSTOMER_ERROR_CODE.NOT_FOUND]: 404,
+  [CUSTOMER_ERROR_CODE.PHONE_NOT_FOUND]: 404,
+  // Conflito e não 400: o pedido está bem formado, e o que impede é o estado do banco.
+  [CUSTOMER_ERROR_CODE.WHATSAPP_PHONE_TAKEN]: 409,
+  // 400: o corpo em si está errado — campo que não existe, valor que não serve para o tipo.
+  [CUSTOMER_ERROR_CODE.UNKNOWN_FIELD]: 400,
+  [CUSTOMER_ERROR_CODE.INVALID_FIELD_VALUE]: 400,
+  // 422: o corpo é válido, e a REGRA é que recusa.
+  [CUSTOMER_ERROR_CODE.LAST_WHATSAPP_PHONE]: 422,
+  [CUSTOMER_ERROR_CODE.FIELD_NAME_IMMUTABLE]: 422,
+  [CUSTOMER_ERROR_CODE.FIELD_TYPE_IMMUTABLE]: 422,
+  [CUSTOMER_ERROR_CODE.ENCRYPTED_FIELD_REMOVAL]: 422,
+  [CUSTOMER_ERROR_CODE.TOO_MANY_FILTERABLE_FIELDS]: 422,
+  // Composição errada do host, não pedido errado do cliente: quem tem de ver isto é o log.
+  [CUSTOMER_ERROR_CODE.CONFIG_MISSING]: 500,
+}
+
 export class CustomerError extends Error {
+  readonly statusCode: number
+
   constructor(
     message: string,
     readonly code: CustomerErrorCode,
@@ -26,6 +56,7 @@ export class CustomerError extends Error {
   ) {
     super(message)
     this.name = new.target.name
+    this.statusCode = STATUS_BY_CODE[code]
   }
 }
 
