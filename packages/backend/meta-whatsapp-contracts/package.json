@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/meta-whatsapp-contracts",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared types, zod schemas, and port interfaces for the meta-whatsapp trio (contracts only — no runtime behavior)",
   "publishConfig": {
     "access": "public"
