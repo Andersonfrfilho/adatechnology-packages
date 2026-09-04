@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/customer-contracts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "description": "Shared types, zod schemas, error codes and port interfaces for the customer registry (contracts only — no runtime behavior)",
   "publishConfig": {
