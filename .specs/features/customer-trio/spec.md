@@ -61,6 +61,24 @@ só ele pode responder.
 
 ## 4. Modelo de dados — `pgSchema('customer')`
 
+### 4.1 O que é comum, contado
+
+A tabela abaixo não é impressão: saiu de comparar os nomes de coluna dos três schemas.
+
+| coluna | em quantos produtos |
+|---|---|
+| `name`, `email`, `phone`, `created_at`, `updated_at` | **3 de 3** |
+| `birth_date` | 2 — Sakura e financiamento |
+| `whatsapp_number` separado de `phone` | 2 — Sakura e financiamento (no QuickCart o `phone` JÁ é o do WhatsApp) |
+| `document` / `cpf` / `cnpj` | 2, com nomes diferentes → viram `documents` |
+| todo o resto | **1 só** |
+
+O núcleo comum ser tão curto é o argumento a favor deste desenho, não contra: campo que existe em um
+produto só não vira coluna de pacote — vira `documents` quando é documento, e satélite do host
+quando não é (**D1**).
+
+### 4.2 A tabela
+
 ```
 customers
   id                uuid pk
@@ -69,12 +87,18 @@ customers
   name              varchar(255) null
   email             varchar(255) null
   secondary_phone   varchar(20) null       -- o Sakura e o financiamento separam os dois
+  birth_date        date null              -- comum a Sakura e financiamento
   documents         jsonb not null default '[]'
   attributes        jsonb not null default '{}'   -- ver D1
   external_user_id  uuid null        -- vínculo com o user-module, quando o produto tem login
   deleted_at        timestamptz null -- exclusão lógica, ligada por config
   created_at, updated_at
 ```
+
+**Endereço NÃO entra**, e a razão é a mesma contagem: o Sakura tem tabela `addresses` própria, o
+financiamento guarda `city`/`state` em coluna, e o QuickCart guarda o endereço no PEDIDO, porque a
+entrega é do pedido e não do cliente. Três modelos diferentes para a mesma palavra — forçar um só
+quebraria pelo menos dois. Chega por porta opcional na ficha (§8).
 
 **A unicidade é configurável, e isso não é luxo:** o Sakura permite o mesmo número em
 estabelecimentos diferentes; QuickCart e financiamento não. Índice único parcial sobre
@@ -181,8 +205,8 @@ Por produto:
 | produto | o que a cópia precisa preservar |
 |---|---|
 | QuickCart | `user_id` → `external_user_id`; 8 clientes hoje em staging |
-| Sakura | `establishment_id` → `company_id`; `document`, `birth_date` → `documents`; `rating` → `attributes` |
-| Financiamento | CPF/CNPJ cifrados → `documents` cifrados; renda, estado civil, cidade → ver **D1**; `deleted_at` preservado |
+| Sakura | `establishment_id` → `company_id`; `birth_date` → **coluna**; `document` → `documents`; `rating` → **D1** |
+| Financiamento | CPF/CNPJ cifrados → `documents` cifrados; `birth_date` → **coluna**; renda, estado civil, cidade → **D1**; `deleted_at` preservado |
 
 O financiamento é o mais delicado: ele guarda **CPF e renda cifrados** de gente real. A adoção dele
 não começa antes de os outros dois estarem em produção sobre o pacote.
