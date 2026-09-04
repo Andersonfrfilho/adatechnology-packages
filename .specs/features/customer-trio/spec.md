@@ -85,27 +85,82 @@ estabelecimentos diferentes; QuickCart e financiamento não. Índice único parc
 host, separada da chave do banco (`security.md` §5). O financiamento hoje cifra CPF e renda; sem
 isso o pacote seria um retrocesso de segurança para ele.
 
-## 5. Configuração
+## 5. Duas configurações, e elas NÃO são a mesma coisa
+
+Misturá-las é o erro clássico deste tipo de módulo: ou tudo vira env e o operador depende de deploy
+para mudar um rótulo, ou tudo vira tela e alguém desliga a cifra de CPF por engano num sábado.
+
+### 5.1 Configuração de BOOT — código, imutável em execução
 
 ```ts
 type CustomerModuleConfig = {
   readonly tenancy: { mode: 'single' } | { mode: 'multi' }
-  /** Documentos cifrados em repouso, por `name`. */
+  /** Documentos cifrados em repouso, por `name`. A chave é do host. */
   readonly encryptedDocuments?: readonly string[]
   /** Exclusão lógica. Ausente = remoção física. */
   readonly softDelete?: boolean
-  /** Máscara de telefone na LISTAGEM. A ficha sempre mostra inteiro a quem tem escopo. */
-  readonly maskPhoneInList?: boolean
 }
 ```
 
-`maskPhoneInList` é propriedade, e não decisão do pacote: a exposição aceitável muda com o balcão de
-cada produto. O padrão é `true` — telefone é PII, e o padrão deve proteger.
+São **estruturais**: mudam índice, forma de armazenamento e o que é recuperável. Trocar
+`encryptedDocuments` em execução deixaria linhas cifradas e linhas em claro na mesma coluna, sem
+nada dizendo qual é qual. Não vão para tela nenhuma.
+
+### 5.2 Ajustes de OPERAÇÃO — dado, editáveis na tela
+
+Vivem em `customer.settings`, por empresa, e mudam sem deploy:
+
+```
+customer.settings
+  company_id        uuid null pk
+  mask_phone_in_list  boolean not null default true
+  document_catalog    jsonb not null default '[]'
+  updated_at, updated_by_user_id
+```
+
+`document_catalog` é o que a instalação declara existir:
+
+```ts
+type DocumentDefinition = {
+  readonly name: string        // 'cpf' — a chave, estável; renomear quebra o histórico
+  readonly label: string       // 'CPF' — o que a pessoa lê; muda à vontade
+  readonly required: boolean   // se a ficha exige para salvar
+  readonly mask?: string       // '###.###.###-##', quando houver
+  readonly validator?: 'cpf' | 'cnpj' | 'none'
+}
+```
+
+É isto que faz o mesmo pacote servir a um mercado que só quer nome e telefone e a um financiamento
+que exige CPF válido: **o catálogo é dado, não código**.
+
+`mask_phone_in_list` na tela pelo mesmo motivo — a exposição aceitável muda com o balcão, e um
+produto não deveria precisar de deploy para proteger o telefone do cliente. Padrão `true`: telefone
+é PII, e o padrão protege.
+
+### 5.3 A página de configuração
+
+Tela em `customers-ui`, **escopo `admin` apenas**, com:
+
+- o catálogo de documentos: acrescentar, renomear rótulo, marcar obrigatório, escolher validador
+- o interruptor de máscara de telefone na listagem
+- **somente leitura**, e claramente marcado como tal: o que vem do boot (tenancy, quais documentos
+  são cifrados, exclusão lógica). Mostrar sem deixar editar é melhor que esconder — quem configura
+  precisa saber o que está em vigor, e por que não pode mexer dali.
+
+Três regras que a tela precisa respeitar:
+
+1. **`name` de documento é imutável depois de criado.** Ele é a chave no `documents` de cada
+   cliente; renomear órfãna o histórico de todo mundo. O rótulo muda; a chave, não.
+2. **Documento cifrado não pode ser removido do catálogo pela tela.** Sumiria a definição de um dado
+   que continua no banco, cifrado, sem ninguém sabendo o que é.
+3. **Toda alteração vai para a trilha de auditoria** com ator, alvo e timestamp (`security.md` §10) —
+   mexer em obrigatoriedade de documento e em máscara de PII é ação sensível.
 
 ## 6. Use-cases
 
 `CreateCustomer`, `UpsertByPhone`, `UpdateCustomer`, `SetDocument`, `ListCustomers` (paginada, com
-busca por nome e telefone), `GetCustomer`, `LinkToUser`, `SoftDeleteCustomer`.
+busca por nome e telefone), `GetCustomer`, `LinkToUser`, `SoftDeleteCustomer`, `GetSettings`,
+`UpdateSettings`.
 
 `UpsertByPhone` é o que o fluxo de conversa chama a cada mensagem — é o caminho quente e precisa ser
 uma consulta só.
@@ -136,6 +191,9 @@ não começa antes de os outros dois estarem em produção sobre o pacote.
 
 Tela composta: listagem com busca, ordenação, filtros e seleção múltipla (`web.md` §7), e ficha com
 Contato, Documentos, Endereços e Últimos pedidos.
+
+A **página de configuração** (§5.3) faz parte do pacote e some quando a `CustomerApi` não traz
+`updateSettings` — capacidade por ausência, como no `user-ui`.
 
 Endereços e pedidos **não são do pacote** — chegam por porta opcional (`addressesOf`, `ordersOf`).
 Capacidade por ausência: sem a porta, a seção não é desenhada. O Sakura tem as duas; o QuickCart tem
@@ -173,6 +231,9 @@ tela e o multiempresa) → financiamento (PII cifrada, só depois dos dois).
 - [ ] Migração de expansão do QuickCart **preserva os clientes existentes** — teste que conta as
       linhas antes e depois
 - [ ] Telefone mascarado na listagem por padrão, inteiro na ficha
+- [ ] Página de configuração: `name` de documento imutável, documento cifrado não removível pela
+      tela, e config de boot exibida como somente leitura
+- [ ] Alteração de configuração grava trilha de auditoria com ator e timestamp
 - [ ] Nenhum telefone, documento ou renda em log, em nenhum nível
 
 ## 11. Modelos por etapa (`model-economy.md`)

@@ -39,9 +39,13 @@ Referência: `.specs/features/customer-trio/spec.md`.
 - [ ] **T2.4** Use-cases: `CreateCustomer`, `UpsertByPhone`, `UpdateCustomer`, `SetDocument`,
       `GetCustomer`, `LinkToUser`, `SoftDeleteCustomer`.
       **Aceite:** `UpsertByPhone` resolve em UMA consulta — é o caminho quente do fluxo de conversa.
-- [ ] **T2.5** `ListCustomers` paginada, com busca por nome e telefone.
+- [ ] **T2.5** `customer.settings` por empresa, com `GetSettings`/`UpdateSettings` e trilha de
+      auditoria na alteração.
+      **Aceite:** `name` de documento é imutável — o use-case recusa renomear a chave de um
+      documento já existente, e o teste prova; documento cifrado não pode sair do catálogo.
+- [ ] **T2.6** `ListCustomers` paginada, com busca por nome e telefone.
       **Aceite:** teste com volume (≥10 mil linhas) medindo que a busca não degrada para varredura.
-- [ ] **T2.6** `createCustomerRoutes` (`ModuleRouteTable`), com escopo declarado.
+- [ ] **T2.7** `createCustomerRoutes` (`ModuleRouteTable`), com escopo declarado.
       **Aceite:** o `requiredScopes` de cada rota está no teste — a lição do `user:admin`, que o
       host não tinha como adivinhar.
 
@@ -54,7 +58,11 @@ Referência: `.specs/features/customer-trio/spec.md`.
 - [ ] **T3.2** Ficha: Contato, Documentos, Endereços e Últimos pedidos.
       **Aceite:** sem as portas `addressesOf`/`ordersOf`, as seções não são desenhadas — capacidade
       por ausência, com teste.
-- [ ] **T3.3** Rótulos por `labels`, como no `user-ui`.
+- [ ] **T3.3** Página de configuração: catálogo de documentos, interruptor de máscara, e a config
+      de boot exibida como **somente leitura** e marcada como tal.
+      **Aceite:** escopo `admin` apenas; a página some quando a `CustomerApi` não traz
+      `updateSettings`, com teste.
+- [ ] **T3.4** Rótulos por `labels`, como no `user-ui`.
       **Aceite:** nenhum texto fixo em português dentro de componente.
 
 ## Fase 4 — Adoção no QuickCart (o menor risco: não tem tela hoje)
