@@ -32,6 +32,14 @@ export type InboundMessageEffectsJob = {
   message: WhatsAppMessage
   savedMessageId: string
   media?: InboundMediaDescriptor
+  /**
+   * Nome de perfil de quem mandou. Vai no JOB e não é relido depois porque o job pode passar por
+   * fila: o payload da Meta não existe mais quando o worker roda.
+   *
+   * Opcional, e job antigo sem o campo continua válido — é o que permite subir o módulo sem drenar
+   * a fila antes.
+   */
+  profileName?: string
   receivedAt: number
 }
 
@@ -141,7 +149,11 @@ export class InboundEffectsDispatcher {
     // Conversa em atendimento humano não é processada pelo bot — o atendente responde.
     if (sessionRow.mode === 'human') return
 
-    const outcome = await this.params.hooks?.onMessageReceived?.(message, toSessionContract(sessionRow))
+    const outcome = await this.params.hooks?.onMessageReceived?.(
+      message,
+      toSessionContract(sessionRow),
+      job.profileName === undefined ? {} : { profileName: job.profileName },
+    )
     // 'handled' = o host já respondeu e assumiu a mensagem; o módulo não segue com o fluxo.
     if (outcome?.outcome === 'handled') return
 

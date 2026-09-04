@@ -14,6 +14,8 @@ export {
   whatsAppQualityEventSchema,
   whatsAppPhoneNumberQualityUpdateSchema,
   WHATSAPP_WEBHOOK_FIELDS,
+  whatsAppContactSchema,
+  resolveContactProfileName,
 } from './webhook.types'
 export type {
   WhatsAppMedia,
@@ -31,6 +33,7 @@ export type {
   WhatsAppTemplateStatusUpdate,
   WhatsAppQualityEvent,
   WhatsAppPhoneNumberQualityUpdate,
+  WhatsAppContact,
 } from './webhook.types'
 
 export type {
@@ -79,6 +82,7 @@ export type {
 
 export type {
   MetaWhatsAppHooks,
+  InboundContact,
   MessageHookOutcome,
   InboundMediaDescriptor,
   TranscriptionDeferredDescriptor,
