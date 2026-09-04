@@ -141,6 +141,26 @@ suite('rotas de cliente ponta a ponta', () => {
     expect(semPermissao.status).toBe(403)
   })
 
+  it('número de WhatsApp que já tem dono é 409, com mensagem — não "Erro interno"', async () => {
+    const corpo = JSON.stringify({ name: 'Anderson', phones: [{ number: '5516993056772', isWhatsApp: true }] })
+
+    const primeira = await call('/customers', { method: 'POST', scopes: 'customers:write', body: corpo })
+    expect(primeira.status).toBe(201)
+
+    const segunda = await call('/customers', { method: 'POST', scopes: 'customers:write', body: corpo })
+    expect(segunda.status).toBe(409)
+
+    const { error } = (await segunda.json()) as { error: { code: string; message: string } }
+    expect(error.code).toBe('CUSTOMER_WHATSAPP_PHONE_TAKEN')
+    expect(error.message).not.toContain('Erro interno')
+  })
+
+  it('ficha que não existe é 404, e não 500', async () => {
+    const resposta = await call('/customers/00000000-0000-0000-0000-000000000000', { scopes: 'customers:read' })
+
+    expect(resposta.status).toBe(404)
+  })
+
   it('mexer na configuração exige customers:admin — e a autorização vem ANTES da validação do corpo', async () => {
     const negada = await call('/customer-settings', {
       method: 'PUT',
@@ -151,14 +171,18 @@ suite('rotas de cliente ponta a ponta', () => {
     expect(negada.status).toBe(403)
   })
 
-  it('atributo fora do catálogo é recusado na fronteira, não gravado no jsonb', async () => {
+  it('atributo fora do catálogo é 400, e não 500 — o corpo é que está errado', async () => {
     const recusada = await call('/customers', {
       method: 'POST',
       scopes: 'customers:write',
       body: JSON.stringify({ name: 'Anderson', attributes: { renda_secreta: 10 } }),
     })
 
-    expect(recusada.status).toBeGreaterThanOrEqual(400)
+    /*
+     * `toBeGreaterThanOrEqual(400)` estava aqui antes, e passava com 500. Foi essa frouxidão que
+     * escondeu o erro de domínio invisível ao filtro por quase toda a adoção do primeiro produto.
+     */
+    expect(recusada.status).toBe(400)
     const { rows } = await pool.query('select count(*)::int as n from "customer"."customers"')
     expect(rows[0].n).toBe(0)
   })
