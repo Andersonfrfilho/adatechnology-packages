@@ -69,6 +69,7 @@ A tabela abaixo não é impressão: saiu de comparar os nomes de coluna dos trê
 |---|---|
 | `name`, `email`, `phone`, `created_at`, `updated_at` | **3 de 3** |
 | `birth_date` | 2 — Sakura e financiamento |
+| endereço | 3, em **três formatos**: tabela no Sakura, colunas no financiamento, no pedido no QuickCart |
 | `whatsapp_number` separado de `phone` | 2 — Sakura e financiamento (no QuickCart o `phone` JÁ é o do WhatsApp) |
 | `document` / `cpf` / `cnpj` | 2, com nomes diferentes → viram `documents` |
 | todo o resto | **1 só** |
@@ -77,37 +78,97 @@ O núcleo comum ser tão curto é o argumento a favor deste desenho, não contra
 produto só não vira coluna de pacote — vira `documents` quando é documento, e satélite do host
 quando não é (**D1**).
 
-### 4.2 A tabela
+### 4.2 As tabelas
+
+Telefone e endereço são **coleções**, pelo mesmo motivo que documento é: uma pessoa tem mais de um, e
+qual deles é o do WhatsApp é atributo do telefone, não do cliente.
 
 ```
 customers
   id                uuid pk
   company_id        uuid null        -- null em single-tenant; ver tenancy
-  phone             varchar(20) not null   -- número de WhatsApp, dígitos crus
   name              varchar(255) null
   email             varchar(255) null
-  secondary_phone   varchar(20) null       -- o Sakura e o financiamento separam os dois
   birth_date        date null              -- comum a Sakura e financiamento
   documents         jsonb not null default '[]'
   attributes        jsonb not null default '{}'   -- ver D1
   external_user_id  uuid null        -- vínculo com o user-module, quando o produto tem login
   deleted_at        timestamptz null -- exclusão lógica, ligada por config
   created_at, updated_at
+
+customer_phones
+  id            uuid pk
+  customer_id   uuid not null references customers(id) on delete cascade
+  number        varchar(20) not null   -- dígitos crus, sem máscara: '5516993056772'
+  label         varchar(60) null       -- 'celular', 'casa', 'trabalho'
+  is_whatsapp   boolean not null default false
+  is_primary    boolean not null default false
+  created_at, updated_at
+
+customer_addresses
+  id            uuid pk
+  customer_id   uuid not null references customers(id) on delete cascade
+  label         varchar(60) null       -- 'casa', 'trabalho', 'entrega'
+  zip_code      varchar(9) null
+  street        varchar(255) null
+  number        varchar(20) null
+  complement    varchar(120) null
+  district      varchar(120) null
+  city          varchar(120) null
+  state         varchar(2) null
+  is_primary    boolean not null default false
+  created_at, updated_at
 ```
 
-**Endereço NÃO entra**, e a razão é a mesma contagem: o Sakura tem tabela `addresses` própria, o
-financiamento guarda `city`/`state` em coluna, e o QuickCart guarda o endereço no PEDIDO, porque a
-entrega é do pedido e não do cliente. Três modelos diferentes para a mesma palavra — forçar um só
-quebraria pelo menos dois. Chega por porta opcional na ficha (§8).
+### 4.3 A unicidade mora no telefone do WhatsApp, e isso não é detalhe
 
-**A unicidade é configurável, e isso não é luxo:** o Sakura permite o mesmo número em
-estabelecimentos diferentes; QuickCart e financiamento não. Índice único parcial sobre
-`(company_id, phone)` em modo multi e sobre `(phone)` em modo single — a mesma decisão que o
-`user-module` já toma em `resolveScopeCompanyId`.
+O número do WhatsApp é como o fluxo de conversa **descobre de quem é a mensagem**. Se dois clientes
+pudessem ter o mesmo, a próxima mensagem cairia na ficha errada — e não haveria erro, só resposta
+para a pessoa errada.
 
-**Documento cifrado em repouso** quando `config.encryptedDocuments` listar o `name`. A chave é do
-host, separada da chave do banco (`security.md` §5). O financiamento hoje cifra CPF e renda; sem
-isso o pacote seria um retrocesso de segurança para ele.
+```sql
+CREATE UNIQUE INDEX customer_phones_whatsapp_unique
+  ON customer_phones (company_id, number) WHERE is_whatsapp;
+```
+
+Parcial: dois clientes podem ter o mesmo telefone fixo de casa; **nenhum** compartilha o número do
+WhatsApp. E no banco, não na aplicação — entre a checagem e o `INSERT` cabe outra escrita, e só a
+constraint decide (`web.md` §11).
+
+O `company_id` entra no índice porque a unicidade é por empresa no modo multi — o mesmo número pode
+ser cliente de dois estabelecimentos do Sakura. Em modo single, `company_id` é nulo e o índice
+degenera para o número, que é o comportamento do QuickCart e do financiamento hoje.
+
+**Denormalizar o número em `customers` para "acelerar" está proibido**: seria um cache que diverge
+no primeiro update do telefone, e o caminho quente já resolve numa consulta só com este índice.
+
+### 4.4 O caminho quente
+
+`UpsertByPhone` roda a **cada mensagem recebida**. Ele resolve em uma consulta:
+
+```sql
+SELECT c.* FROM customers c
+  JOIN customer_phones p ON p.customer_id = c.id
+ WHERE p.number = $1 AND p.is_whatsapp AND (c.company_id = $2 OR ($2 IS NULL AND c.company_id IS NULL))
+```
+
+Sem cliente, cria os dois — cliente e telefone — na mesma transação, com `is_whatsapp` e
+`is_primary` verdadeiros.
+
+### 4.5 Endereço de CLIENTE não é endereço de PEDIDO
+
+Esta spec dizia antes que endereço ficaria de fora, porque os três produtos o modelam diferente.
+Com a coleção, ele entra — mas a distinção que motivava aquela recusa **continua valendo e é o que
+impede a confusão**:
+
+| | o que é | onde vive |
+|---|---|---|
+| endereço do cliente | cadastro, editável, vários | `customer_addresses` |
+| endereço do pedido | **retrato** de para onde aquela entrega foi | tabela do pedido, no host |
+
+O QuickCart guarda o endereço no pedido de propósito — a entrega é do pedido, e mudar o cadastro do
+cliente **não pode** reescrever para onde uma entrega passada foi. A adoção copia os endereços para
+o cadastro, e o pedido segue com o retrato dele.
 
 ## 5. Duas configurações, e elas NÃO são a mesma coisa
 
@@ -183,8 +244,14 @@ Três regras que a tela precisa respeitar:
 ## 6. Use-cases
 
 `CreateCustomer`, `UpsertByPhone`, `UpdateCustomer`, `SetDocument`, `ListCustomers` (paginada, com
-busca por nome e telefone), `GetCustomer`, `LinkToUser`, `SoftDeleteCustomer`, `GetSettings`,
-`UpdateSettings`.
+busca por nome e por **qualquer** telefone), `GetCustomer`, `LinkToUser`, `SoftDeleteCustomer`,
+`AddPhone`, `RemovePhone`, `SetWhatsAppPhone`, `AddAddress`, `UpdateAddress`, `RemoveAddress`,
+`GetSettings`, `UpdateSettings`.
+
+`SetWhatsAppPhone` é separado de `AddPhone` porque marcar um número como o do WhatsApp **desmarca o
+anterior**: é a chave de identidade da conversa, e dois marcados ao mesmo tempo é o estado que o
+índice parcial recusa. O use-case faz a troca numa transação, em vez de deixar o host coordenar dois
+updates e conseguir parar no meio.
 
 `UpsertByPhone` é o que o fluxo de conversa chama a cada mensagem — é o caminho quente e precisa ser
 uma consulta só.
@@ -204,9 +271,9 @@ Por produto:
 
 | produto | o que a cópia precisa preservar |
 |---|---|
-| QuickCart | `user_id` → `external_user_id`; 8 clientes hoje em staging |
-| Sakura | `establishment_id` → `company_id`; `birth_date` → **coluna**; `document` → `documents`; `rating` → **D1** |
-| Financiamento | CPF/CNPJ cifrados → `documents` cifrados; `birth_date` → **coluna**; renda, estado civil, cidade → **D1**; `deleted_at` preservado |
+| QuickCart | `user_id` → `external_user_id`; `phone` → **uma linha** em `customer_phones` com `is_whatsapp`; endereço fica no pedido e o cadastro nasce vazio; 8 clientes hoje em staging |
+| Sakura | `establishment_id` → `company_id`; `birth_date` → coluna; `document` → `documents`; `whatsapp_number` e `phone` → **duas linhas**, só a primeira com `is_whatsapp`; tabela `addresses` → `customer_addresses`; `rating` → **D1** |
+| Financiamento | CPF/CNPJ cifrados → `documents` cifrados; `birth_date` → coluna; `whatsapp_number` e `phone` → duas linhas; `city`/`state` → **uma linha** em `customer_addresses`; renda e estado civil → **D1**; `deleted_at` preservado |
 
 O financiamento é o mais delicado: ele guarda **CPF e renda cifrados** de gente real. A adoção dele
 não começa antes de os outros dois estarem em produção sobre o pacote.
@@ -219,9 +286,10 @@ Contato, Documentos, Endereços e Últimos pedidos.
 A **página de configuração** (§5.3) faz parte do pacote e some quando a `CustomerApi` não traz
 `updateSettings` — capacidade por ausência, como no `user-ui`.
 
-Endereços e pedidos **não são do pacote** — chegam por porta opcional (`addressesOf`, `ordersOf`).
-Capacidade por ausência: sem a porta, a seção não é desenhada. O Sakura tem as duas; o QuickCart tem
-pedidos e não tem endereço próprio de cliente.
+Telefones, endereços e documentos **são do pacote** e a ficha os edita: acrescentar, remover,
+escolher o principal e marcar qual número é o do WhatsApp.
+
+**Pedidos não são** — chegam por porta opcional `ordersOf`. Sem ela, a seção não é desenhada.
 
 A tela do Sakura (903 linhas) é a referência de conteúdo, e a migração dela é o primeiro teste real
 de que o pacote serve.
@@ -250,10 +318,15 @@ tela e o multiempresa) → financiamento (PII cifrada, só depois dos dois).
 - [ ] Unicidade correta nos dois modos de tenancy, com teste negativo de isolamento
 - [ ] Documento cifrado só entra e sai pela chave do host; teste que prova que o valor cru não é
       persistido
-- [ ] `ListCustomers` com busca por nome e telefone, paginada, e teste com volume
-- [ ] `customers-ui` desenha a ficha sem endereço e sem pedido quando as portas faltam
+- [ ] Índice único parcial garante **um** cliente por número de WhatsApp, por empresa; teste de
+      concorrência prova que duas escritas simultâneas do mesmo número criam um cliente só
+- [ ] `SetWhatsAppPhone` desmarca o anterior na mesma transação
+- [ ] `UpsertByPhone` resolve em UMA consulta mesmo com telefone em tabela filha
+- [ ] `ListCustomers` busca por **qualquer** telefone do cliente, não só o do WhatsApp
+- [ ] A ficha edita telefones, endereços e documentos; sem a porta `ordersOf`, a seção de pedidos
+      não é desenhada
 - [ ] Migração de expansão do QuickCart **preserva os clientes existentes** — teste que conta as
-      linhas antes e depois
+      linhas antes e depois, e que todo cliente sai com exatamente um telefone de WhatsApp
 - [ ] Telefone mascarado na listagem por padrão, inteiro na ficha
 - [ ] Página de configuração: `name` de documento imutável, documento cifrado não removível pela
       tela, e config de boot exibida como somente leitura

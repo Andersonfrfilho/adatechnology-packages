@@ -26,14 +26,19 @@ Referência: `.specs/features/customer-trio/spec.md`.
 ## Fase 2 — `customer-module`
 > 🤖 Modelo: `sonnet` (T2.2 é 🧠 — validar com `opus`)
 
-- [ ] **T2.1** `pgSchema('customer')`, tabela e migrations com journal próprio
+- [ ] **T2.1** `pgSchema('customer')`, as **três** tabelas (`customers`, `customer_phones`,
+      `customer_addresses`) e migrations com journal próprio
       (`customer_migrations`, fora do schema — mesmo raciocínio do `user-module`).
       **Aceite:** migrations **convergentes** (`IF NOT EXISTS`, bloco anônimo em constraint), com o
       teste de forma que o `notification-module@0.1.1` passou a ter.
-- [ ] **T2.2** 🧠 Unicidade por tenancy: índice parcial em `(company_id, phone)` no modo multi e em
-      `(phone)` no single.
-      **Aceite:** teste negativo de isolamento — o mesmo número em duas empresas convive no modo
-      multi e colide no single.
+- [ ] **T2.2** 🧠 Índice único **parcial** sobre `customer_phones (company_id, number) WHERE
+      is_whatsapp`, e `SetWhatsAppPhone` desmarcando o anterior na mesma transação.
+      **Aceite:** o mesmo número convive como telefone comum de dois clientes e COLIDE como
+      WhatsApp; teste de concorrência prova que duas escritas simultâneas do mesmo número criam um
+      cliente só; no modo multi o mesmo número é cliente de duas empresas.
+- [ ] **T2.2b** `UpsertByPhone` em UMA consulta com o telefone em tabela filha, e criação de cliente
+      e telefone na mesma transação.
+      **Aceite:** teste que conta as idas ao banco no caminho quente.
 - [ ] **T2.3** Cifra de documento por `config.encryptedDocuments`, com chave do host.
       **Aceite:** teste que lê a linha crua do banco e prova que o valor não está lá em claro.
 - [ ] **T2.4** Use-cases: `CreateCustomer`, `UpsertByPhone`, `UpdateCustomer`, `SetDocument`,
@@ -55,9 +60,10 @@ Referência: `.specs/features/customer-trio/spec.md`.
 - [ ] **T3.1** Listagem: busca, ordenação, filtros com seleção múltipla, limpar filtros e estado na
       URL (`web.md` §7).
       **Aceite:** telefone **mascarado** por padrão; a máscara é prop, não constante.
-- [ ] **T3.2** Ficha: Contato, Documentos, Endereços e Últimos pedidos.
-      **Aceite:** sem as portas `addressesOf`/`ordersOf`, as seções não são desenhadas — capacidade
-      por ausência, com teste.
+- [ ] **T3.2** Ficha: telefones, endereços e documentos **editáveis** — acrescentar, remover,
+      escolher principal e marcar qual número é o do WhatsApp.
+      **Aceite:** a tela impede deixar zero telefones de WhatsApp; sem a porta `ordersOf`, a seção
+      de pedidos não é desenhada, com teste.
 - [ ] **T3.3** Página de configuração: catálogo de documentos, interruptor de máscara, e a config
       de boot exibida como **somente leitura** e marcada como tal.
       **Aceite:** escopo `admin` apenas; a página some quando a `CustomerApi` não traz
