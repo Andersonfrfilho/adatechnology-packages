@@ -67,12 +67,16 @@ export const customerPhones = customerSchema.table(
      * dividissem, a próxima mensagem cairia na ficha errada — sem erro, só resposta para a pessoa
      * errada. E no BANCO, porque entre consultar e gravar cabe outra escrita.
      *
-     * `nullsNotDistinct` é OBRIGATÓRIO: em single-tenant `companyId` é NULO, e o Postgres trata
-     * nulos como distintos. Sem isso o índice existe, parece certo e não impede nada.
+     * ⚠️ A declaração ABAIXO ESTÁ INCOMPLETA, e de propósito: falta `NULLS NOT DISTINCT`, que o
+     * DSL do Drizzle não expressa em índice (só em constraint, e constraint não pode ser parcial).
+     *
+     * Sem essa cláusula o índice existe, parece certo e NÃO IMPEDE NADA em single-tenant, onde
+     * `companyId` é nulo — o Postgres trata nulos como distintos. A migration em `migrations/` é a
+     * fonte da verdade e a carrega; `whatsAppUniqueness.test.ts` verifica o COMPORTAMENTO no banco,
+     * para a divergência não poder passar calada.
      */
     uniqueIndex('idx_customer_phones_whatsapp')
       .on(table.companyId, table.number)
-      .nullsNotDistinct()
       .where(sql`${table.isWhatsApp}`),
     index('idx_customer_phones_customer').on(table.customerId),
     index('idx_customer_phones_number_trgm').using('gin', sql`${table.number} gin_trgm_ops`),
@@ -148,11 +152,11 @@ export const customerSettings = customerSchema.table(
   },
   (table) => [
     /*
-     * `NULLS NOT DISTINCT` e não chave primária em `company_id`: em single-tenant ele é NULO, e
-     * chave primária não aceita nulo. Sem essa cláusula, o índice único deixaria passar N linhas
-     * nulas — e a instalação teria várias configurações concorrendo, sem nenhuma ser a verdadeira.
+     * Mesma incompletude do índice de telefone, e pela mesma razão: `NULLS NOT DISTINCT` vive na
+     * migration. Sem ela, a instalação single-tenant teria N configurações concorrendo e nenhuma
+     * sendo a verdadeira.
      */
-    uniqueIndex('idx_customer_settings_company').on(table.companyId).nullsNotDistinct(),
+    uniqueIndex('idx_customer_settings_company').on(table.companyId),
   ],
 )
 
