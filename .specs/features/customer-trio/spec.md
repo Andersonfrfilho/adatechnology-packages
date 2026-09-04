@@ -263,6 +263,88 @@ O que isso dá e o que custa, dito de frente:
 Sem o índice cego, a única alternativa seria decifrar a base inteira a cada busca — inviável e pior
 para a segurança.
 
+### 4.7 Como fica dinâmico E rápido
+
+A tensão é real: campo é declarado em execução, índice é DDL. Não se cria B-tree para uma coluna que
+ainda não existe. A saída é reconhecer que **as consultas não são todas iguais** e cobrar DDL só da
+minoria que precisa.
+
+#### Camada 1 — o que já é rápido sem nada declarado
+
+Um GIN `jsonb_path_ops` sobre `attributes` inteiro serve **igualdade e contenção em qualquer chave,
+inclusive nas que ainda não existem**:
+
+```sql
+CREATE INDEX customers_attributes_gin ON customers USING gin (attributes jsonb_path_ops);
+```
+
+```sql
+WHERE attributes @> '{"estado_civil": "casado"}'     -- usa o índice
+WHERE attributes @> '{"rating": 5}'                  -- usa o mesmo índice
+```
+
+Um índice, todas as chaves, zero DDL por campo. **É aqui que a maioria das consultas de campo
+customizado cai** — filtro é quase sempre igualdade: estado civil, tipo de pessoa, origem do lead.
+
+#### Camada 2 — busca textual, também sem DDL por campo
+
+Nome e telefone já têm GIN trigram (§4.6). Para o texto dos campos customizados, uma coluna
+`search_vector tsvector` mantida por trigger, concentrando o que é pesquisável em um lugar só:
+
+```sql
+CREATE INDEX customers_search ON customers USING gin (search_vector);
+```
+
+Continua sendo um índice para N campos. Quem entra no vetor é decidido pelo catálogo (`searchable:
+true`), sem migration.
+
+#### Camada 3 — faixa e ordenação, o único caso que exige DDL
+
+`renda > 5000` e `ordenar por renda` não saem de GIN. Aí é índice de expressão, por chave:
+
+```sql
+CREATE INDEX CONCURRENTLY customers_attr_renda_mensal
+  ON customers (((attributes->>'renda_mensal')::numeric));
+```
+
+**E é a própria página de configuração que o cria.** Marcar um campo como `filterable` no catálogo
+enfileira a criação do índice; desmarcar enfileira a remoção. O operador declara a intenção, o módulo
+resolve o DDL.
+
+Cinco regras que isso obriga, e nenhuma é opcional:
+
+1. **`CREATE INDEX CONCURRENTLY`, fora de transação e fora da requisição.** Concorrente para não
+   travar escrita numa tabela que o fluxo de conversa escreve a cada mensagem; em job, porque em
+   tabela grande leva minutos e nenhum HTTP espera isso. A tela mostra "criando" até terminar.
+
+2. **⚠️ `name` vai para dentro de DDL — é injeção de SQL esperando acontecer.** O nome do campo vem
+   de um formulário. Validação estrita no contrato, `^[a-z][a-z0-9_]{0,40}$`, e identificador citado
+   na montagem. Sem isso, a página de configuração é um console de SQL com outro nome.
+
+3. **O cast segue o `type` declarado** — `::numeric`, `::date`, texto por padrão. Cast errado faz o
+   índice existir e o planejador ignorá-lo, que é o pior dos mundos: custo de escrita sem ganho de
+   leitura.
+
+4. **Teto de campos filtráveis, e ele é baixo.** Proposta: **8**. Todo índice cobra INSERT e UPDATE,
+   e `UpsertByPhone` escreve **a cada mensagem recebida** — vinte índices em `customers` fariam a
+   conversa pagar por relatórios que ninguém abre. A tela recusa o nono e diz por quê.
+
+5. **Trocar o `type` de campo já filtrável** derruba e recria o índice, na mesma fila.
+
+#### Onde cada consulta cai
+
+| consulta | camada | custo de declaração |
+|---|---|---|
+| quem mandou a mensagem | índice único parcial (§4.3) | nenhum |
+| nome ou telefone, parcial | GIN trigram | nenhum |
+| campo customizado = valor | GIN `jsonb_path_ops` | nenhum |
+| texto em campo customizado | `search_vector` | marcar `searchable` |
+| faixa ou ordenação por campo | índice de expressão | marcar `filterable`, e conta no teto de 8 |
+
+Três das cinco linhas não custam nada, e são as que a operação usa todo dia. A quinta é a única com
+DDL, é a mais rara, e agora tem dono: quem quer o relatório assume o custo de escrita, explicitamente,
+numa tela.
+
 ## 5. Duas configurações, e elas NÃO são a mesma coisa
 
 Misturá-las é o erro clássico deste tipo de módulo: ou tudo vira env e o operador depende de deploy
@@ -325,7 +407,8 @@ produto não deveria precisar de deploy para proteger o telefone do cliente. Pad
 Tela em `customers-ui`, **escopo `admin` apenas**, com:
 
 - o catálogo de documentos: acrescentar, renomear rótulo, marcar obrigatório, escolher validador
-- o catálogo de campos customizados: nome, rótulo, tipo, opções, obrigatoriedade
+- o catálogo de campos customizados: nome, rótulo, tipo, opções, obrigatoriedade, e os dois
+  interruptores de busca — `searchable` (grátis) e `filterable` (cria índice, teto de 8)
 - o interruptor de máscara de telefone na listagem
 - **somente leitura**, e claramente marcado como tal: o que vem do boot (tenancy, quais documentos
   são cifrados, exclusão lógica). Mostrar sem deixar editar é melhor que esconder — quem configura
@@ -409,12 +492,16 @@ campos, e o pacote passa a saber o que cada chave é:
 
 ```ts
 type FieldDefinition = {
-  readonly name: string           // 'renda_mensal' — chave estável, imutável depois de criada
+  readonly name: string           // 'renda_mensal' — chave estável, imutável; ^[a-z][a-z0-9_]{0,40}$
   readonly label: string          // 'Renda mensal'
   readonly type: 'text' | 'number' | 'date' | 'money' | 'boolean' | 'select'
   readonly options?: readonly { value: string; label: string }[]   // para `select`
   readonly required: boolean
   readonly encrypted?: boolean    // cifrado em repouso, pela chave do host
+  /** Entra no `search_vector`. Sem DDL. */
+  readonly searchable?: boolean
+  /** Ganha índice de expressão para faixa e ordenação. Custa DDL e escrita; teto de 8 (§4.7). */
+  readonly filterable?: boolean
 }
 ```
 
@@ -458,6 +545,10 @@ tela e o multiempresa) → financiamento (PII cifrada, só depois dos dois).
       varredura sequencial (`EXPLAIN` no teste, não cronômetro)
 - [ ] Documento cifrado é encontrável por igualdade via índice cego, e o valor cru não aparece em
       lugar nenhum — nem na coluna, nem no índice
+- [ ] Marcar um campo como `filterable` cria índice de expressão em job, `CONCURRENTLY`, e a tela
+      mostra o estado até concluir; desmarcar remove
+- [ ] `name` fora de `^[a-z][a-z0-9_]{0,40}$` é recusado no contrato — teste com `renda"; DROP`
+- [ ] O nono campo `filterable` é recusado, com a razão dita ao operador
 - [ ] A ficha edita telefones, endereços e documentos; sem a porta `ordersOf`, a seção de pedidos
       não é desenhada
 - [ ] Migração de expansão do QuickCart **preserva os clientes existentes** — teste que conta as

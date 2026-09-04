@@ -62,6 +62,14 @@ Referência: `.specs/features/customer-trio/spec.md`.
       varredura sequencial, não sobre cronômetro, que varia com a máquina.
 - [ ] **T2.6b** Normalização do termo de busca de telefone para dígitos.
       **Aceite:** `(16) 99305-6772` acha `5516993056772`.
+- [ ] **T2.6d** 🧠 Índices dinâmicos: marcar um campo como `filterable` enfileira
+      `CREATE INDEX CONCURRENTLY` de expressão, com o cast do `type` declarado; desmarcar remove.
+      **Aceite:** roda em job e fora de transação (`CONCURRENTLY` não vive dentro de uma);
+      `name` fora de `^[a-z][a-z0-9_]{0,40}$` é recusado no contrato — teste com `renda"; DROP`;
+      o nono campo filtrável é recusado com a razão dita; `EXPLAIN` prova que a faixa passa a usar
+      o índice depois de criado.
+- [ ] **T2.6e** `search_vector` mantido por trigger com os campos marcados `searchable`.
+      **Aceite:** marcar `searchable` num campo passa a encontrá-lo na busca livre, sem DDL.
 - [ ] **T2.6c** 🧠 Índice cego para documento cifrado: HMAC-SHA256 do valor normalizado, com chave
       do host, guardado ao lado do valor cifrado.
       **Aceite:** busca por CPF exato encontra; o valor cru não aparece na coluna nem no índice;
