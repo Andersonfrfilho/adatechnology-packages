@@ -2,16 +2,20 @@
 
 Referência: `.specs/features/customer-trio/spec.md`.
 
-> ⛔ **Nada começa antes de D1 fechar.** Ela decide onde moram renda, estado civil e `rating`, e
-> muda o schema. Implementar antes é retrabalho garantido.
+> ✅ **D1 e D2 fechadas** — campo customizado em `attributes`, com catálogo declarado, do mesmo jeito
+> que `documents`. A Fase 1 está liberada.
 
 ## Fase 0 — Decisão
 > 🤖 Modelo: `opus` 🧠
 
-- [ ] **T0.1** Fechar **D1** com os três produtos na mesa: `attributes` livre, tabela satélite do
-      host, ou campos por config. Registrar como ADR em `docs/adr/`.
-      **Aceite:** ADR escrito, com o que foi descartado e por quê.
-- [ ] **T0.2** Fechar **D2** (o `rating` do Sakura) e **D3** (ordem de adoção) na esteira de D1.
+- [x] **T0.1** ✅ **D1**: campo customizado em `attributes` com catálogo declarado (`name`, `label`,
+      `type`, `options`, `required`, `encrypted`). Descartadas: tabela satélite do host (devolve a
+      cada produto repositório, migration e formulário próprios) e colunas geradas por config
+      (migration no pacote a cada campo novo).
+- [x] **T0.2** ✅ **D2**: o `rating` do Sakura é campo customizado do tipo `number`.
+- [ ] **T0.3** Registrar D1 e D2 como ADR em `docs/adr/`, com o custo assumido: filtrar e ordenar
+      por campo em jsonb é mais caro que por coluna, e o remédio é índice de expressão pontual,
+      quando medido.
 
 ## Fase 1 — `customer-contracts`
 > 🤖 Modelo: `sonnet`
@@ -44,10 +48,13 @@ Referência: `.specs/features/customer-trio/spec.md`.
 - [ ] **T2.4** Use-cases: `CreateCustomer`, `UpsertByPhone`, `UpdateCustomer`, `SetDocument`,
       `GetCustomer`, `LinkToUser`, `SoftDeleteCustomer`.
       **Aceite:** `UpsertByPhone` resolve em UMA consulta — é o caminho quente do fluxo de conversa.
-- [ ] **T2.5** `customer.settings` por empresa, com `GetSettings`/`UpdateSettings` e trilha de
-      auditoria na alteração.
-      **Aceite:** `name` de documento é imutável — o use-case recusa renomear a chave de um
-      documento já existente, e o teste prova; documento cifrado não pode sair do catálogo.
+- [ ] **T2.5** `customer.settings` por empresa, com os **dois** catálogos (documentos e campos
+      customizados), `GetSettings`/`UpdateSettings` e trilha de auditoria na alteração.
+      **Aceite:** `name` é imutável nos dois catálogos; nada cifrado sai do catálogo pela tela;
+      trocar `type` de campo já usado é recusado — testes para os três.
+- [ ] **T2.5b** Validação de `attributes` contra o catálogo: tipo, obrigatoriedade e opção fora da
+      lista. Cifra do que o catálogo declarar cifrado.
+      **Aceite:** teste que lê a linha crua e prova que o valor cifrado não está em claro no jsonb.
 - [ ] **T2.6** `ListCustomers` paginada, com busca por nome e telefone.
       **Aceite:** teste com volume (≥10 mil linhas) medindo que a busca não degrada para varredura.
 - [ ] **T2.7** `createCustomerRoutes` (`ModuleRouteTable`), com escopo declarado.
@@ -64,7 +71,10 @@ Referência: `.specs/features/customer-trio/spec.md`.
       escolher principal e marcar qual número é o do WhatsApp.
       **Aceite:** a tela impede deixar zero telefones de WhatsApp; sem a porta `ordersOf`, a seção
       de pedidos não é desenhada, com teste.
-- [ ] **T3.3** Página de configuração: catálogo de documentos, interruptor de máscara, e a config
+- [ ] **T3.2b** Campos customizados desenhados a partir do catálogo, por tipo.
+      **Aceite:** acrescentar um campo `select` na configuração faz a ficha renderizá-lo sem
+      nenhuma mudança de código.
+- [ ] **T3.3** Página de configuração: os dois catálogos, interruptor de máscara, e a config
       de boot exibida como **somente leitura** e marcada como tal.
       **Aceite:** escopo `admin` apenas; a página some quando a `CustomerApi` não traz
       `updateSettings`, com teste.

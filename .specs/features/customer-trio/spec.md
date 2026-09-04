@@ -199,9 +199,14 @@ Vivem em `customer.settings`, por empresa, e mudam sem deploy:
 customer.settings
   company_id        uuid null pk
   mask_phone_in_list  boolean not null default true
-  document_catalog    jsonb not null default '[]'
+  document_catalog    jsonb not null default '[]'   -- CPF, CNPJ, RG…
+  field_catalog       jsonb not null default '[]'   -- renda, estado civil, rating… (D1)
   updated_at, updated_by_user_id
 ```
+
+Dois catálogos e não um: documento tem validador, máscara e a semântica de "identifica a pessoa";
+campo customizado tem tipo e opções. Unificá-los pareceria elegante e obrigaria metade das
+propriedades a ficar sem uso na outra metade.
 
 `document_catalog` é o que a instalação declara existir:
 
@@ -227,6 +232,7 @@ produto não deveria precisar de deploy para proteger o telefone do cliente. Pad
 Tela em `customers-ui`, **escopo `admin` apenas**, com:
 
 - o catálogo de documentos: acrescentar, renomear rótulo, marcar obrigatório, escolher validador
+- o catálogo de campos customizados: nome, rótulo, tipo, opções, obrigatoriedade
 - o interruptor de máscara de telefone na listagem
 - **somente leitura**, e claramente marcado como tal: o que vem do boot (tenancy, quais documentos
   são cifrados, exclusão lógica). Mostrar sem deixar editar é melhor que esconder — quem configura
@@ -234,11 +240,14 @@ Tela em `customers-ui`, **escopo `admin` apenas**, com:
 
 Três regras que a tela precisa respeitar:
 
-1. **`name` de documento é imutável depois de criado.** Ele é a chave no `documents` de cada
-   cliente; renomear órfãna o histórico de todo mundo. O rótulo muda; a chave, não.
-2. **Documento cifrado não pode ser removido do catálogo pela tela.** Sumiria a definição de um dado
-   que continua no banco, cifrado, sem ninguém sabendo o que é.
-3. **Toda alteração vai para a trilha de auditoria** com ator, alvo e timestamp (`security.md` §10) —
+1. **`name` é imutável depois de criado**, nos dois catálogos. Ele é a chave dentro do `documents`
+   e do `attributes` de cada cliente; renomear órfãna o histórico de todo mundo. O rótulo muda; a
+   chave, não.
+2. **Nada cifrado sai do catálogo pela tela.** Sumiria a definição de um dado que continua no banco,
+   cifrado, sem ninguém sabendo o que é.
+3. **Trocar `type` de um campo já usado é recusado.** Já existe valor gravado na forma antiga, e
+   converter em massa é migration, não clique.
+4. **Toda alteração vai para a trilha de auditoria** com ator, alvo e timestamp (`security.md` §10) —
    mexer em obrigatoriedade de documento e em máscara de PII é ação sensível.
 
 ## 6. Use-cases
@@ -296,17 +305,46 @@ de que o pacote serve.
 
 ## 9. Decisões abertas
 
-**D1 — o que fazer com campo de domínio que não é documento.** Renda mensal, estado civil, cidade,
-faturamento e co-participante do financiamento não cabem em `documents`. Três saídas:
+**✅ D1 — RESOLVIDA: campo customizado em `attributes`, com catálogo declarado.**
 
-- **(a) `attributes` jsonb livre** no pacote. Simples, mas vira depósito sem forma, e dado cifrado
-  dentro de jsonb livre é difícil de auditar.
-- **(b) Tabela satélite do host** (`financing_client_profile`) com FK para `customer.customers`. O
-  pacote fica limpo, o produto guarda o que é dele. **Recomendada.**
-- **(c) Campos declarados por config**, com o pacote gerando colunas. Poderoso e caro; é migration no
-  pacote a cada produto novo, exatamente o que a seção 2 evita.
+Renda mensal, estado civil, faturamento e co-participante não cabem em `documents`. A saída é a
+mesma que já funcionou para documento: **jsonb com catálogo**, não jsonb solto.
 
-**D2 — o `rating` do Sakura** é `attributes` ou satélite? Cai junto com D1.
+A distinção é tudo. `attributes` livre seria depósito sem forma — ninguém sabe o que existe, nada
+valida, e dado cifrado lá dentro é impossível de auditar. Com catálogo, a instalação **declara** os
+campos, e o pacote passa a saber o que cada chave é:
+
+```ts
+type FieldDefinition = {
+  readonly name: string           // 'renda_mensal' — chave estável, imutável depois de criada
+  readonly label: string          // 'Renda mensal'
+  readonly type: 'text' | 'number' | 'date' | 'money' | 'boolean' | 'select'
+  readonly options?: readonly { value: string; label: string }[]   // para `select`
+  readonly required: boolean
+  readonly encrypted?: boolean    // cifrado em repouso, pela chave do host
+}
+```
+
+Com isso o pacote **valida** (tipo, obrigatoriedade, opção fora da lista), **cifra o que foi
+declarado cifrado** e a `customers-ui` **desenha o formulário sozinha** — o financiamento acrescenta
+"estado civil" numa tela de configuração, sem migration e sem deploy.
+
+Duas saídas descartadas, e por quê:
+
+- **Tabela satélite do host** (era a minha recomendação) resolveria a tipagem, mas devolve a cada
+  produto a obrigação de escrever repositório, migration e formulário próprios — o pacote entregaria
+  metade do problema. E não serve ao produto que só quer um campo a mais.
+- **Colunas geradas por config** dariam tipagem e índice de graça, ao custo de migration no pacote a
+  cada campo novo de cada produto — exatamente o que a §2 existe para evitar.
+
+**O custo que isto tem, e vale saber antes:** filtrar e ordenar por campo em jsonb é mais caro que
+por coluna. Para exibir e editar, é indiferente. Para uma tela que filtra por faixa de renda com
+volume, o remédio é índice de expressão sobre a chave específica
+(`CREATE INDEX ... ON customers ((attributes->>'renda_mensal'))`) — pontual, quando medido, e nunca
+por antecipação.
+
+**✅ D2 — RESOLVIDA:** o `rating` do Sakura é campo customizado do tipo `number`. Cai em `attributes`
+pela mesma regra.
 
 **D3 — a ordem de adoção.** Proposta: QuickCart (não tem tela, é o menor risco) → Sakura (valida a
 tela e o multiempresa) → financiamento (PII cifrada, só depois dos dois).
