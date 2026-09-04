@@ -170,6 +170,99 @@ O QuickCart guarda o endereço no pedido de propósito — a entrega é do pedid
 cliente **não pode** reescrever para onde uma entrega passada foi. A adoção copia os endereços para
 o cadastro, e o pedido segue com o retrato dele.
 
+### 4.6 Índices e busca
+
+Cada consulta que o produto faz de verdade, e o índice que a sustenta. Nada aqui é preventivo: o que
+não tem consulta correspondente não vira índice.
+
+**Dependência:** o módulo exige `pg_trgm`. A primeira migration faz
+`CREATE EXTENSION IF NOT EXISTS pg_trgm` — sem isso, a busca parcial vira varredura sequencial e a
+listagem degrada com o catálogo de clientes crescendo.
+
+#### a) Achar quem mandou a mensagem — o caminho quente
+
+```sql
+WHERE p.number = $1 AND p.is_whatsapp
+```
+
+Servido pelo índice único parcial de §4.3. Igualdade em B-tree, exato. É o mesmo índice que garante
+a unicidade — não há um segundo a criar.
+
+#### b) Busca da listagem, por nome ou por qualquer telefone
+
+`ilike '%termo%'` **não usa B-tree**: o curinga à esquerda impede. Com dez mil clientes vira
+varredura. Daí GIN com trigram, e não índice comum:
+
+```sql
+CREATE INDEX customers_name_trgm ON customers USING gin (name gin_trgm_ops);
+CREATE INDEX customer_phones_number_trgm ON customer_phones USING gin (number gin_trgm_ops);
+```
+
+O telefone mora na tabela filha, então a busca é por existência, e não por junção que multiplica
+linhas:
+
+```sql
+WHERE c.name ILIKE $1
+   OR EXISTS (SELECT 1 FROM customer_phones p WHERE p.customer_id = c.id AND p.number ILIKE $1)
+```
+
+**O termo digitado é normalizado para dígitos antes de virar padrão de telefone.** A pessoa digita
+`(16) 99305-6772` e o banco guarda `5516993056772`: sem normalizar, a busca não acha nada e parece
+defeito de índice quando é de entrada.
+
+#### c) Ordenar por nome
+
+Trigram não ordena. B-tree próprio, e parcial quando há exclusão lógica:
+
+```sql
+CREATE INDEX customers_name_sort ON customers (company_id, name) WHERE deleted_at IS NULL;
+```
+
+`WHERE deleted_at IS NULL` mantém o índice do tamanho do que a tela realmente lista.
+
+#### d) Filtrar por campo customizado
+
+Dois casos, e confundi-los é o que faz jsonb ter má fama:
+
+| consulta | índice |
+|---|---|
+| igualdade / contém (`estado civil = casado`) | `CREATE INDEX ... USING gin (attributes jsonb_path_ops)` — um só, serve a todas as chaves |
+| faixa ou ordenação (`renda > 5000`) | índice de EXPRESSÃO, por chave: `CREATE INDEX ... ON customers (((attributes->>'renda_mensal')::numeric))` |
+
+O GIN entra com o módulo. O de expressão é **pontual, criado pelo host quando medir a necessidade** —
+um por campo que realmente se filtra por faixa. Criar um para cada campo declarado seria pagar
+escrita por consulta que ninguém faz.
+
+#### e) ⚠️ Buscar por documento CIFRADO — o caso que não fecha sozinho
+
+Aqui está a armadilha. Documento cifrado **não é pesquisável** por índice nenhum: dois CPFs iguais
+geram textos cifrados diferentes se a cifra tiver nonce, e o índice não tem o que comparar. "Achar o
+cliente pelo CPF" simplesmente não funcionaria no financiamento.
+
+A saída é um **índice cego**: junto do valor cifrado, guarda-se o HMAC-SHA256 do valor normalizado,
+com chave do host.
+
+```
+documents: [{ name: 'cpf', value: '<cifrado>', fingerprint: '<hmac hex>' }]
+```
+
+```sql
+CREATE INDEX customers_documents_fingerprint
+  ON customers USING gin ((attributes -> 'fingerprints') jsonb_path_ops);
+```
+
+O que isso dá e o que custa, dito de frente:
+
+- **dá** busca por igualdade exata — que é como se busca CPF, sempre
+- **não dá** busca parcial nem faixa; e não deveria dar, num dado desses
+- **vaza** que dois clientes têm o mesmo documento, porque o HMAC é igual. É consequência
+  inevitável de qualquer busca por igualdade sobre dado cifrado, e é aceitável: documento repetido
+  entre dois cadastros é justamente o que se quer descobrir
+- a chave do HMAC é **a mesma classe de segredo** da chave de cifra: fora do banco, e girada junto
+
+Sem o índice cego, a única alternativa seria decifrar a base inteira a cada busca — inviável e pior
+para a segurança.
+
 ## 5. Duas configurações, e elas NÃO são a mesma coisa
 
 Misturá-las é o erro clássico deste tipo de módulo: ou tudo vira env e o operador depende de deploy
@@ -338,10 +431,8 @@ Duas saídas descartadas, e por quê:
   cada campo novo de cada produto — exatamente o que a §2 existe para evitar.
 
 **O custo que isto tem, e vale saber antes:** filtrar e ordenar por campo em jsonb é mais caro que
-por coluna. Para exibir e editar, é indiferente. Para uma tela que filtra por faixa de renda com
-volume, o remédio é índice de expressão sobre a chave específica
-(`CREATE INDEX ... ON customers ((attributes->>'renda_mensal'))`) — pontual, quando medido, e nunca
-por antecipação.
+por coluna. Para exibir e editar, é indiferente. O detalhamento dos índices — incluindo o índice
+cego que torna documento cifrado pesquisável — está em §4.6.
 
 **✅ D2 — RESOLVIDA:** o `rating` do Sakura é campo customizado do tipo `number`. Cai em `attributes`
 pela mesma regra.
@@ -361,6 +452,12 @@ tela e o multiempresa) → financiamento (PII cifrada, só depois dos dois).
 - [ ] `SetWhatsAppPhone` desmarca o anterior na mesma transação
 - [ ] `UpsertByPhone` resolve em UMA consulta mesmo com telefone em tabela filha
 - [ ] `ListCustomers` busca por **qualquer** telefone do cliente, não só o do WhatsApp
+- [ ] A busca por telefone normaliza o termo para dígitos antes de consultar — teste com
+      `(16) 99305-6772` achando `5516993056772`
+- [ ] Índice GIN trigram em nome e número; teste com ≥10 mil clientes provando que a busca não vira
+      varredura sequencial (`EXPLAIN` no teste, não cronômetro)
+- [ ] Documento cifrado é encontrável por igualdade via índice cego, e o valor cru não aparece em
+      lugar nenhum — nem na coluna, nem no índice
 - [ ] A ficha edita telefones, endereços e documentos; sem a porta `ordersOf`, a seção de pedidos
       não é desenhada
 - [ ] Migração de expansão do QuickCart **preserva os clientes existentes** — teste que conta as

@@ -55,8 +55,17 @@ Referência: `.specs/features/customer-trio/spec.md`.
 - [ ] **T2.5b** Validação de `attributes` contra o catálogo: tipo, obrigatoriedade e opção fora da
       lista. Cifra do que o catálogo declarar cifrado.
       **Aceite:** teste que lê a linha crua e prova que o valor cifrado não está em claro no jsonb.
-- [ ] **T2.6** `ListCustomers` paginada, com busca por nome e telefone.
-      **Aceite:** teste com volume (≥10 mil linhas) medindo que a busca não degrada para varredura.
+- [ ] **T2.6** `ListCustomers` paginada, com busca por nome e por **qualquer** telefone, e os
+      índices de §4.6: `pg_trgm` na migration, GIN trigram em nome e número, B-tree parcial para
+      ordenação, GIN `jsonb_path_ops` em `attributes`.
+      **Aceite:** teste com ≥10 mil clientes usando `EXPLAIN` — a asserção é sobre o PLANO não ser
+      varredura sequencial, não sobre cronômetro, que varia com a máquina.
+- [ ] **T2.6b** Normalização do termo de busca de telefone para dígitos.
+      **Aceite:** `(16) 99305-6772` acha `5516993056772`.
+- [ ] **T2.6c** 🧠 Índice cego para documento cifrado: HMAC-SHA256 do valor normalizado, com chave
+      do host, guardado ao lado do valor cifrado.
+      **Aceite:** busca por CPF exato encontra; o valor cru não aparece na coluna nem no índice;
+      girar a chave do HMAC é procedimento escrito, não improviso.
 - [ ] **T2.7** `createCustomerRoutes` (`ModuleRouteTable`), com escopo declarado.
       **Aceite:** o `requiredScopes` de cada rota está no teste — a lição do `user:admin`, que o
       host não tinha como adivinhar.
