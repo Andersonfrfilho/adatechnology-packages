@@ -108,6 +108,10 @@ CREATE INDEX IF NOT EXISTS "idx_customer_phones_number_trgm" ON "customer"."cust
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_customer_documents_customer" ON "customer"."customer_documents" ("customer_id");
 --> statement-breakpoint
+-- Um documento de cada tipo por cliente. Sem isto, regravar o CPF criaria uma segunda linha em vez
+-- de atualizar a primeira, e a busca acharia duas com valores diferentes.
+CREATE UNIQUE INDEX IF NOT EXISTS "idx_customer_documents_identity" ON "customer"."customer_documents" ("customer_id","name");
+--> statement-breakpoint
 -- O índice cego: igualdade sobre dado cifrado, comparando a impressão e nunca o texto cifrado.
 CREATE INDEX IF NOT EXISTS "idx_customer_documents_fingerprint" ON "customer"."customer_documents" ("name","fingerprint") WHERE "fingerprint" IS NOT NULL;
 --> statement-breakpoint

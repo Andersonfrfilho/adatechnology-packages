@@ -33,12 +33,16 @@ export const customers = customerSchema.table(
   },
   (table) => [
     // Ordenação e listagem. Parcial: o índice fica do tamanho do que a tela realmente mostra.
-    index('idx_customers_company_name').on(table.companyId, table.name).where(sql`${table.deletedAt} is null`),
+    index('idx_customers_company_name')
+      .on(table.companyId, table.name)
+      .where(sql`${table.deletedAt} is null`),
     // Igualdade em QUALQUER chave de `attributes`, inclusive nas que ainda não existem.
     index('idx_customers_attributes').using('gin', table.attributes.op('jsonb_path_ops')),
     // Busca parcial por nome: `ilike '%x%'` não usa B-tree, o curinga à esquerda impede.
     index('idx_customers_name_trgm').using('gin', sql`${table.name} gin_trgm_ops`),
-    uniqueIndex('idx_customers_external_user').on(table.externalUserId).where(sql`${table.externalUserId} is not null`),
+    uniqueIndex('idx_customers_external_user')
+      .on(table.externalUserId)
+      .where(sql`${table.externalUserId} is not null`),
   ],
 )
 
@@ -108,12 +112,20 @@ export const customerDocuments = customerSchema.table(
   },
   (table) => [
     index('idx_customer_documents_customer').on(table.customerId),
+    /*
+     * Um documento de cada tipo por cliente. É o que o `onConflictDoUpdate` do `SetDocument`
+     * ancora: sem esta constraint, regravar o CPF criaria uma segunda linha em vez de atualizar a
+     * primeira — e a busca passaria a achar duas, com valores diferentes.
+     */
+    uniqueIndex('idx_customer_documents_identity').on(table.customerId, table.name),
     // O índice cego: busca por igualdade sobre dado cifrado.
     index('idx_customer_documents_fingerprint')
       .on(table.name, table.fingerprint)
       .where(sql`${table.fingerprint} is not null`),
     // Documento em claro busca pelo próprio valor.
-    index('idx_customer_documents_value').on(table.name, table.value).where(sql`${table.fingerprint} is null`),
+    index('idx_customer_documents_value')
+      .on(table.name, table.value)
+      .where(sql`${table.fingerprint} is null`),
   ],
 )
 

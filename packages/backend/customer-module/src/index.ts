@@ -19,3 +19,13 @@ export {
 export { validateAttributes } from './use-cases/validateAttributes'
 export { normalizePhone, normalizeDocument, toSearchPattern } from './shared/normalize'
 export { resolveScopeCompanyId } from './shared/tenancy'
+export { SetDocumentUseCase, FindByDocumentUseCase, toCustomerDocuments } from './use-cases/Document.use-case'
+export { GetSettingsUseCase, UpdateSettingsUseCase } from './use-cases/Settings.use-case'
+export { SettingsRepository } from './repositories/SettingsRepository'
+export {
+  AddAddressUseCase,
+  UpdateAddressUseCase,
+  RemoveAddressUseCase,
+  toCustomerAddress,
+} from './use-cases/Address.use-case'
+export type { AddressInput } from './use-cases/Address.use-case'

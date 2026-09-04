@@ -47,3 +47,8 @@ export function toSearchPattern(term: string): { readonly text: string; readonly
   const digits = normalizePhone(term)
   return { text: `%${escaped}%`, ...(digits.length >= 3 ? { digits: `%${digits}%` } : {}) }
 }
+
+/** CEP guardado só com dígitos: a máscara é da tela, e duas formas do mesmo CEP não se cruzam. */
+export function normalizeZipCode(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 8)
+}
