@@ -9,27 +9,39 @@ import { z } from 'zod'
 import { DOCUMENT_VALIDATOR, FIELD_NAME_PATTERN, FIELD_TYPE, MAX_FILTERABLE_FIELDS } from './settings.types'
 
 /** Só dígitos: `(16) 99305-6772` e `5516993056772` são o mesmo telefone, e o banco guarda um só. */
+/**
+ * Aceita o que uma PESSOA digita — `(16) 99305-6772` — e entrega dígitos.
+ *
+ * Recusar a máscara aqui obrigaria cada tela a limpar antes de enviar, e a que esquecesse mandaria
+ * o operador corrigir um telefone que estava certo. A normalização é uma só, e é esta.
+ */
 export const phoneNumberSchema = z
   .string()
-  .regex(/^\d{10,15}$/, 'Telefone deve conter apenas dígitos, com DDD')
+  .transform((value) => value.replace(/\D/g, ''))
+  .refine((digits) => /^\d{10,15}$/.test(digits), 'Telefone deve ter DDD e de 10 a 15 dígitos')
 
 export const customerPhoneInputSchema = z.object({
   number: phoneNumberSchema,
   label: z.string().min(1).max(60).optional(),
   isWhatsApp: z.boolean().default(false),
-  isPrimary: z.boolean().default(false),
+  /** Ausente ≠ `false`: sem ninguém marcado, o primeiro da lista assume. */
+  isPrimary: z.boolean().optional(),
 })
 
 export const customerAddressInputSchema = z.object({
   label: z.string().min(1).max(60).optional(),
-  zipCode: z.string().regex(/^\d{5}-?\d{3}$/, 'CEP deve ter 8 dígitos').optional(),
+  zipCode: z
+    .string()
+    .regex(/^\d{5}-?\d{3}$/, 'CEP deve ter 8 dígitos')
+    .optional(),
   street: z.string().min(1).max(255).optional(),
   number: z.string().min(1).max(20).optional(),
   complement: z.string().min(1).max(120).optional(),
   district: z.string().min(1).max(120).optional(),
   city: z.string().min(1).max(120).optional(),
   state: z.string().length(2).optional(),
-  isPrimary: z.boolean().default(false),
+  /** Ausente ≠ `false`: sem ninguém marcado, o primeiro da lista assume. */
+  isPrimary: z.boolean().optional(),
 })
 
 /**
@@ -75,22 +87,19 @@ export const updateSettingsSchema = z
     documentCatalog: z.array(documentDefinitionSchema),
     fieldCatalog: z.array(fieldDefinitionSchema),
   })
-  .refine(
-    (settings) => settings.fieldCatalog.filter((field) => field.filterable).length <= MAX_FILTERABLE_FIELDS,
-    {
-      message: `No máximo ${MAX_FILTERABLE_FIELDS} campos filtráveis — cada um cobra escrita a cada mensagem recebida`,
-      path: ['fieldCatalog'],
-    },
-  )
+  .refine((settings) => settings.fieldCatalog.filter((field) => field.filterable).length <= MAX_FILTERABLE_FIELDS, {
+    message: `No máximo ${MAX_FILTERABLE_FIELDS} campos filtráveis — cada um cobra escrita a cada mensagem recebida`,
+    path: ['fieldCatalog'],
+  })
   /* Chave duplicada faria a segunda definição sobrescrever a primeira em silêncio. */
   .refine((settings) => new Set(settings.fieldCatalog.map((f) => f.name)).size === settings.fieldCatalog.length, {
     message: 'Há campos com o mesmo `name`',
     path: ['fieldCatalog'],
   })
-  .refine(
-    (settings) => new Set(settings.documentCatalog.map((d) => d.name)).size === settings.documentCatalog.length,
-    { message: 'Há documentos com o mesmo `name`', path: ['documentCatalog'] },
-  )
+  .refine((settings) => new Set(settings.documentCatalog.map((d) => d.name)).size === settings.documentCatalog.length, {
+    message: 'Há documentos com o mesmo `name`',
+    path: ['documentCatalog'],
+  })
 
 export const createCustomerSchema = z.object({
   name: z.string().min(1).max(255).optional(),

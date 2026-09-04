@@ -29,3 +29,8 @@ export {
   toCustomerAddress,
 } from './use-cases/Address.use-case'
 export type { AddressInput } from './use-cases/Address.use-case'
+export { createCustomerModule } from './CustomerModule'
+export type { CustomerModule, CreateCustomerModuleParams } from './CustomerModule'
+export { createCustomerRoutes, CUSTOMER_SCOPE } from './http/routes'
+export type { CreateCustomerRoutesParams } from './http/routes'
+export { CreateCustomerUseCase, UpdateCustomerUseCase, toCustomer } from './use-cases/Customer.use-case'

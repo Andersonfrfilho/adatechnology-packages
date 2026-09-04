@@ -7,12 +7,7 @@
 
 import { describe, expect, it } from 'bun:test'
 
-import {
-  createCustomerSchema,
-  customerPhoneInputSchema,
-  fieldDefinitionSchema,
-  updateSettingsSchema,
-} from './schemas'
+import { createCustomerSchema, customerPhoneInputSchema, fieldDefinitionSchema, updateSettingsSchema } from './schemas'
 import { FIELD_TYPE, MAX_FILTERABLE_FIELDS } from './settings.types'
 
 function campo(overrides: Record<string, unknown> = {}) {
@@ -71,9 +66,17 @@ describe('updateSettingsSchema', () => {
 })
 
 describe('telefone', () => {
-  it('exige dígitos crus — máscara vira dois clientes para a mesma pessoa', () => {
-    expect(customerPhoneInputSchema.safeParse({ number: '5516993056772' }).success).toBe(true)
-    expect(customerPhoneInputSchema.safeParse({ number: '(16) 99305-6772' }).success).toBe(false)
+  it('NORMALIZA a máscara — sem isto, o mesmo telefone vira dois clientes', () => {
+    const digitado = customerPhoneInputSchema.parse({ number: '(16) 99305-6772' })
+    const doCanal = customerPhoneInputSchema.parse({ number: '16993056772' })
+
+    expect(digitado.number).toBe(doCanal.number)
+  })
+
+  it('recusa o que não é telefone, com ou sem máscara', () => {
+    expect(customerPhoneInputSchema.safeParse({ number: '99305-6772' }).success).toBe(false)
+    expect(customerPhoneInputSchema.safeParse({ number: 'liga pra mim' }).success).toBe(false)
+    expect(customerPhoneInputSchema.safeParse({ number: '1'.repeat(16) }).success).toBe(false)
   })
 
   it('nasce sem marcação: quem decide o WhatsApp é o use-case, não o payload', () => {
