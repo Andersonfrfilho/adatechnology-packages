@@ -30,8 +30,8 @@ Referência: `.specs/features/customer-trio/spec.md`.
 ## Fase 2 — `customer-module`
 > 🤖 Modelo: `sonnet` (T2.2 é 🧠 — validar com `opus`)
 
-- [ ] **T2.1** `pgSchema('customer')`, as **três** tabelas (`customers`, `customer_phones`,
-      `customer_addresses`) e migrations com journal próprio
+- [ ] **T2.1** `pgSchema('customer')`, as **quatro** tabelas (`customers`, `customer_phones`,
+      `customer_documents`, `customer_addresses`) e migrations com journal próprio
       (`customer_migrations`, fora do schema — mesmo raciocínio do `user-module`).
       **Aceite:** migrations **convergentes** (`IF NOT EXISTS`, bloco anônimo em constraint), com o
       teste de forma que o `notification-module@0.1.1` passou a ter.
@@ -71,9 +71,12 @@ Referência: `.specs/features/customer-trio/spec.md`.
 - [ ] **T2.6e** `search_vector` mantido por trigger com os campos marcados `searchable`.
       **Aceite:** marcar `searchable` num campo passa a encontrá-lo na busca livre, sem DDL.
 - [ ] **T2.6c** 🧠 Índice cego para documento cifrado: HMAC-SHA256 do valor normalizado, com chave
-      do host, guardado ao lado do valor cifrado.
+      do host, na coluna `fingerprint` ao lado do valor cifrado, com B-tree em `(name, fingerprint)`.
       **Aceite:** busca por CPF exato encontra; o valor cru não aparece na coluna nem no índice;
       girar a chave do HMAC é procedimento escrito, não improviso.
+- [ ] **T2.6f** `uniqueDocuments` gera índice único parcial por `name` — sobre `fingerprint` quando
+      cifrado, sobre `value` quando não.
+      **Aceite:** o segundo cliente com o mesmo CPF é recusado pelo BANCO, não pela aplicação.
 - [ ] **T2.7** `createCustomerRoutes` (`ModuleRouteTable`), com escopo declarado.
       **Aceite:** o `requiredScopes` de cada rota está no teste — a lição do `user:admin`, que o
       host não tinha como adivinhar.

@@ -36,16 +36,19 @@ export type CustomerAddress = {
 }
 
 /**
- * Documento do cliente. O `name` é a chave que o produto conhece (`cpf`), e é IMUTÁVEL: ele indexa
- * o histórico de todo mundo, e renomear órfãna os dados existentes.
+ * Documento do cliente. Vive em TABELA, não em jsonb, e a razão é busca: "quem é o dono deste CPF?"
+ * é consulta de igualdade, e coluna com B-tree resolve isso melhor que GIN sobre documento aninhado.
+ *
+ * O `name` é a chave que o produto conhece (`cpf`) e é IMUTÁVEL: ele identifica o documento no
+ * catálogo e no histórico de todo mundo.
  */
 export type CustomerDocument = {
+  readonly id: string
   readonly name: string
-  readonly label: string
+  /** Cifrado em repouso quando o catálogo declarar. Quem lê pelo módulo recebe decifrado. */
   readonly value: string
   /** Resultado da última validação, quando houve. Ausente = nunca foi validado. */
   readonly valid?: boolean
-  readonly required?: boolean
 }
 
 export type Customer = {
@@ -58,7 +61,12 @@ export type Customer = {
   readonly phones: readonly CustomerPhone[]
   readonly addresses: readonly CustomerAddress[]
   readonly documents: readonly CustomerDocument[]
-  /** Campos customizados, validados contra o catálogo da instalação. */
+  /**
+   * Campos customizados, validados contra o catálogo da instalação.
+   *
+   * É o único jsonb que sobrou, e por um motivo: a forma dele é declarada em EXECUÇÃO, então não
+   * há coluna a criar. Telefone, documento e endereço têm forma conhecida e viraram tabela.
+   */
   readonly attributes: Readonly<Record<string, unknown>>
   /** Vínculo com o `user-module`, quando o produto tem login e a pessoa se cadastrou. */
   readonly externalUserId?: string

@@ -80,8 +80,12 @@ quando não é (**D1**).
 
 ### 4.2 As tabelas
 
-Telefone e endereço são **coleções**, pelo mesmo motivo que documento é: uma pessoa tem mais de um, e
-qual deles é o do WhatsApp é atributo do telefone, não do cliente.
+Telefone, documento e endereço são **tabelas**, não jsonb: uma pessoa tem mais de um de cada, e os
+três precisam ser pesquisáveis por igualdade — coisa que coluna e B-tree fazem melhor que GIN sobre
+jsonb.
+
+Em `attributes` fica só o que é genuinamente livre: o campo customizado, cuja forma a instalação
+declara em execução e por isso não pode virar coluna.
 
 ```
 customers
@@ -90,8 +94,7 @@ customers
   name              varchar(255) null
   email             varchar(255) null
   birth_date        date null              -- comum a Sakura e financiamento
-  documents         jsonb not null default '[]'
-  attributes        jsonb not null default '{}'   -- ver D1
+  attributes        jsonb not null default '{}'   -- campos customizados (D1)
   external_user_id  uuid null        -- vínculo com o user-module, quando o produto tem login
   deleted_at        timestamptz null -- exclusão lógica, ligada por config
   created_at, updated_at
@@ -103,6 +106,15 @@ customer_phones
   label         varchar(60) null       -- 'celular', 'casa', 'trabalho'
   is_whatsapp   boolean not null default false
   is_primary    boolean not null default false
+  created_at, updated_at
+
+customer_documents
+  id            uuid pk
+  customer_id   uuid not null references customers(id) on delete cascade
+  name          varchar(40) not null   -- 'cpf', 'cnpj' — a chave do catálogo
+  value         text not null          -- cifrado quando o catálogo mandar
+  fingerprint   varchar(64) null       -- HMAC do valor normalizado; só quando cifrado
+  valid         boolean null           -- resultado da última validação, quando houve
   created_at, updated_at
 
 customer_addresses
@@ -169,6 +181,20 @@ impede a confusão**:
 O QuickCart guarda o endereço no pedido de propósito — a entrega é do pedido, e mudar o cadastro do
 cliente **não pode** reescrever para onde uma entrega passada foi. A adoção copia os endereços para
 o cadastro, e o pedido segue com o retrato dele.
+
+### 4.5b Documento único, quando o produto quiser
+
+Com documento em tabela, "um CPF pertence a um cliente só" deixa de ser regra na aplicação e vira
+constraint. É opcional, porque nem todo produto quer: um mercado pode ter dois cadastros do mesmo
+CPF por engano e preferir tratar depois; o financiamento não pode.
+
+```ts
+readonly uniqueDocuments?: readonly string[]   // ['cpf'] — em config de BOOT
+```
+
+Gera índice único parcial por `name`, sobre `fingerprint` quando cifrado e sobre `value` quando não.
+É de boot e não da tela: ligar depois, com duplicata já gravada, falharia a criação do índice — e a
+tela não tem como resolver o conflito por conta própria.
 
 ### 4.6 Índices e busca
 
@@ -239,16 +265,17 @@ Aqui está a armadilha. Documento cifrado **não é pesquisável** por índice n
 geram textos cifrados diferentes se a cifra tiver nonce, e o índice não tem o que comparar. "Achar o
 cliente pelo CPF" simplesmente não funcionaria no financiamento.
 
-A saída é um **índice cego**: junto do valor cifrado, guarda-se o HMAC-SHA256 do valor normalizado,
-com chave do host.
+A saída é um **índice cego**: ao lado do valor cifrado, o HMAC-SHA256 do valor normalizado, com
+chave do host. Com documento em tabela, ele é um B-tree comum — não precisa de GIN nem de jsonb:
 
-```
-documents: [{ name: 'cpf', value: '<cifrado>', fingerprint: '<hmac hex>' }]
+```sql
+CREATE INDEX customer_documents_fingerprint
+  ON customer_documents (name, fingerprint) WHERE fingerprint IS NOT NULL;
 ```
 
 ```sql
-CREATE INDEX customers_documents_fingerprint
-  ON customers USING gin ((attributes -> 'fingerprints') jsonb_path_ops);
+-- "quem é o dono deste CPF?"
+WHERE d.name = 'cpf' AND d.fingerprint = $1
 ```
 
 O que isso dá e o que custa, dito de frente:
@@ -259,6 +286,9 @@ O que isso dá e o que custa, dito de frente:
   inevitável de qualquer busca por igualdade sobre dado cifrado, e é aceitável: documento repetido
   entre dois cadastros é justamente o que se quer descobrir
 - a chave do HMAC é **a mesma classe de segredo** da chave de cifra: fora do banco, e girada junto
+
+Documento **não cifrado** dispensa a impressão: busca-se pelo próprio valor, com índice em
+`(name, value)`.
 
 Sem o índice cego, a única alternativa seria decifrar a base inteira a cada busca — inviável e pior
 para a segurança.
@@ -457,8 +487,8 @@ Por produto:
 | produto | o que a cópia precisa preservar |
 |---|---|
 | QuickCart | `user_id` → `external_user_id`; `phone` → **uma linha** em `customer_phones` com `is_whatsapp`; endereço fica no pedido e o cadastro nasce vazio; 8 clientes hoje em staging |
-| Sakura | `establishment_id` → `company_id`; `birth_date` → coluna; `document` → `documents`; `whatsapp_number` e `phone` → **duas linhas**, só a primeira com `is_whatsapp`; tabela `addresses` → `customer_addresses`; `rating` → **D1** |
-| Financiamento | CPF/CNPJ cifrados → `documents` cifrados; `birth_date` → coluna; `whatsapp_number` e `phone` → duas linhas; `city`/`state` → **uma linha** em `customer_addresses`; renda e estado civil → **D1**; `deleted_at` preservado |
+| Sakura | `establishment_id` → `company_id`; `birth_date` → coluna; `document` → linha em `customer_documents`; `whatsapp_number` e `phone` → **duas linhas**, só a primeira com `is_whatsapp`; tabela `addresses` → `customer_addresses`; `rating` → **D1** |
+| Financiamento | CPF/CNPJ cifrados → linhas em `customer_documents`, com impressão para o índice cego; `birth_date` → coluna; `whatsapp_number` e `phone` → duas linhas; `city`/`state` → **uma linha** em `customer_addresses`; renda e estado civil → **D1**; `deleted_at` preservado |
 
 O financiamento é o mais delicado: ele guarda **CPF e renda cifrados** de gente real. A adoção dele
 não começa antes de os outros dois estarem em produção sobre o pacote.
@@ -543,8 +573,10 @@ tela e o multiempresa) → financiamento (PII cifrada, só depois dos dois).
       `(16) 99305-6772` achando `5516993056772`
 - [ ] Índice GIN trigram em nome e número; teste com ≥10 mil clientes provando que a busca não vira
       varredura sequencial (`EXPLAIN` no teste, não cronômetro)
-- [ ] Documento cifrado é encontrável por igualdade via índice cego, e o valor cru não aparece em
-      lugar nenhum — nem na coluna, nem no índice
+- [ ] Documento cifrado é encontrável por igualdade via índice cego (B-tree em
+      `(name, fingerprint)`), e o valor cru não aparece em lugar nenhum — nem na coluna, nem no
+      índice
+- [ ] `uniqueDocuments` gera índice único parcial e recusa o segundo cliente com o mesmo CPF
 - [ ] Marcar um campo como `filterable` cria índice de expressão em job, `CONCURRENTLY`, e a tela
       mostra o estado até concluir; desmarcar remove
 - [ ] `name` fora de `^[a-z][a-z0-9_]{0,40}$` é recusado no contrato — teste com `renda"; DROP`

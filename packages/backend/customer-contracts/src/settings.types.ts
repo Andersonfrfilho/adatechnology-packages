@@ -85,6 +85,13 @@ export type CustomerModuleConfig = {
   readonly tenancy: TenancyConfig
   /** Documentos cifrados em repouso, por `name`. */
   readonly encryptedDocuments?: readonly string[]
+  /**
+   * Documentos que pertencem a um cliente só, por `name` — vira índice único parcial.
+   *
+   * De BOOT e não da tela: ligar depois, com duplicata já gravada, faria a criação do índice
+   * falhar, e a tela não teria como resolver o conflito sozinha.
+   */
+  readonly uniqueDocuments?: readonly string[]
   /** Exclusão lógica. Ausente = remoção física. */
   readonly softDelete?: boolean
 }
