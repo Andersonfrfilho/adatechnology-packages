@@ -858,6 +858,12 @@ export type NfeXmlParty = {
   readonly name?: string
   readonly tradeName?: string
   readonly stateRegistration?: string
+  /**
+   * O `<email>` do participante. ⚠️ Ele é **irmão** de `<enderDest>`, não filho: no layout da NF-e o
+   * telefone mora no endereço e o e-mail mora na parte, e por isso ele não está em `NfeXmlAddress`.
+   * `<transporta>` não tem o campo, então `parseCarrier` não o lê.
+   */
+  readonly email?: string
   readonly address?: NfeXmlAddress
 }
 
