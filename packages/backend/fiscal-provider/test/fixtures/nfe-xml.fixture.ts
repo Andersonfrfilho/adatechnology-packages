@@ -117,6 +117,8 @@ function buildNfeNode(params: BuildNfeXmlParams): string {
     '<UF>RJ</UF><CEP>20040002</CEP><cPais>1058</cPais><xPais>BRASIL</xPais>',
     '<fone>2133334444</fone></enderDest>',
     '<indIEDest>1</indIEDest><IE>222222222222</IE>',
+    /* O `<email>` é irmão de `<enderDest>`, não filho: ele é do participante, não do endereço. */
+    '<email>destinatario@example.test</email>',
     '</dest>',
     '<det nItem="1"><prod>',
     '<cProd>SKU-001</cProd><cEAN>SEM GTIN</cEAN>',

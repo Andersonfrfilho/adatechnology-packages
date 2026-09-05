@@ -25,6 +25,37 @@ afterEach(() => {
 })
 
 describe('@adatechnology/fiscal-provider public NF-e XML import contract', () => {
+  /**
+   * O `<email>` do destinatário chega em 2337 de 2372 NF-e reais medidas em 2026-09-05, ao lado do
+   * `<fone>` que o importador já lia — e era descartado porque `NfeXmlParty` não tinha o campo.
+   *
+   * ⚠️ Ele é **irmão** de `<enderDest>`, não filho. Lê-lo do endereço, por analogia com o telefone,
+   * devolveria `undefined` em toda nota sem nenhum erro: é o modo de falha que este bloco tranca.
+   */
+  describe('e-mail do participante', () => {
+    test('lê o e-mail do destinatário, que fica fora do endereço', () => {
+      const document = asRecord(asRecord(importarNfeXml(buildAuthorizedNfeXml()))['document'])
+      const recipient = asRecord(document['recipient'])
+
+      expect(recipient['email']).toBe('destinatario@example.test')
+      expect(asRecord(recipient['address'])['email']).toBeUndefined()
+    })
+
+    test('nota sem o campo não inventa e-mail', () => {
+      const withoutEmail = buildAuthorizedNfeXml().replace('<email>destinatario@example.test</email>', '')
+      const document = asRecord(asRecord(importarNfeXml(withoutEmail))['document'])
+
+      expect(asRecord(document['recipient'])['email']).toBeUndefined()
+    })
+
+    /** `<transporta>` não tem `<email>` no layout, e `parseCarrier` não foi tocado. */
+    test('o transportador continua sem e-mail', () => {
+      const document = asRecord(asRecord(importarNfeXml(buildAuthorizedNfeXml()))['document'])
+
+      expect(asRecord(document['carrier'])['email']).toBeUndefined()
+    })
+  })
+
   test('normalizes an authorized nfeProc without losing the legacy DFe summary', () => {
     const result = asRecord(importarNfeXml(buildAuthorizedNfeXml()))
 
@@ -77,6 +108,7 @@ describe('@adatechnology/fiscal-provider public NF-e XML import contract', () =>
         taxId: RECIPIENT_CNPJ,
         name: 'DESTINATARIO TESTE LTDA',
         stateRegistration: '222222222222',
+        email: 'destinatario@example.test',
         address: {
           street: 'Rua Destino',
           number: '200',
