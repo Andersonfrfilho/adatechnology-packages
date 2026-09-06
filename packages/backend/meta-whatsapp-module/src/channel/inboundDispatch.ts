@@ -8,6 +8,8 @@
  * A segunda metade rodava dentro da requisição do webhook. Um deploy no meio de uma conversa
  * matava a chamada em voo, e o cliente ficava sem resposta sem que nada registrasse a perda. Com
  * uma fila no host, derrubar o processo vira atraso: o job espera e é retomado.
+ *
+ * Guia de implementação: `docs/webhook-durability.md`.
  */
 
 import type {
