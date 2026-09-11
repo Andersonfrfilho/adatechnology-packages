@@ -9,9 +9,7 @@ const QUICK_REPLIES: RichComposerQuickReply[] = [
   { id: 'greeting', label: 'Saudação', text: 'Olá!', tooltip: 'Abre o atendimento' },
 ]
 
-const VARIABLES: RichComposerVariable[] = [
-  { id: 'name', label: 'Nome do cliente', value: '{{nome}}' },
-]
+const VARIABLES: RichComposerVariable[] = [{ id: 'name', label: 'Nome do cliente', value: '{{nome}}' }]
 
 describe('RichMessageComposer', () => {
   it('mostra as dicas padrão em todas as ações da barra', () => {
@@ -80,7 +78,12 @@ describe('RichMessageComposer', () => {
       <RichMessageComposer value="" onChange={noop} onSend={noop} idleAction={<button aria-label="Gravar áudio" />} />,
     )
     const comTexto = renderToStaticMarkup(
-      <RichMessageComposer value="oi" onChange={noop} onSend={noop} idleAction={<button aria-label="Gravar áudio" />} />,
+      <RichMessageComposer
+        value="oi"
+        onChange={noop}
+        onSend={noop}
+        idleAction={<button aria-label="Gravar áudio" />}
+      />,
     )
 
     expect(vazio).toContain('aria-label="Gravar áudio"')
@@ -109,5 +112,20 @@ describe('RichMessageComposer', () => {
 
     expect(markup).toContain('data-cv-tooltip="Enviar"')
     expect(markup).not.toContain('aria-label="Gravar áudio"')
+  })
+
+  it('sem savedQuickReplies, não desenha o botão de raio', () => {
+    const withPort = renderToStaticMarkup(
+      <RichMessageComposer
+        value=""
+        onChange={noop}
+        onSend={noop}
+        savedQuickReplies={{ listQuickReplies: async () => [], conversationId: 'c1' }}
+      />,
+    )
+    const withoutPort = renderToStaticMarkup(<RichMessageComposer value="" onChange={noop} onSend={noop} />)
+
+    expect(withPort).toContain('data-cv-tooltip="Mensagens prontas"')
+    expect(withoutPort).not.toContain('data-cv-tooltip="Mensagens prontas"')
   })
 })

@@ -18,11 +18,7 @@ import { MessageComposer, applyQuickReplyVariables, type QuickReply } from '../M
 import { RichMessageComposer, type RichComposerVariable } from '../RichMessageComposer'
 import { WindowExpiredNotice, isWindowBlocking } from '../WindowExpiredNotice'
 import { windowOf } from '../conversationWindow'
-import {
-  buildTranscriptFilename,
-  buildTranscriptText,
-  downloadTextFile,
-} from '../conversationTranscript'
+import { buildTranscriptFilename, buildTranscriptText, downloadTextFile } from '../conversationTranscript'
 import { useConversationContext } from '../hooks/useConversationContext'
 import { useConversationMessages } from '../hooks/useConversationMessages'
 import { useConversationRealtime } from '../hooks/useConversationRealtime'
@@ -296,6 +292,17 @@ export function ConversationPane({
         ? applyQuickReplyVariables(reply.text, quickReplyVariables ?? {})
         : reply.text(quickReplyVariables ?? {}),
   }))
+  /**
+   * Botão de raio e atalho `/` dos dois composers. `listQuickReplies` é a capacidade — sem ela na
+   * porta do host, nenhum dos dois aparece, em vez de um botão que abre uma lista sempre vazia.
+   */
+  const savedQuickReplies = api.listQuickReplies
+    ? {
+        listQuickReplies: api.listQuickReplies,
+        conversationId: conversation.id,
+        variables: quickReplyVariables,
+      }
+    : undefined
   const botOwnsConversation = Boolean(requireTakeoverToReply) && conversation.mode !== 'human'
 
   return (
@@ -356,10 +363,20 @@ export function ConversationPane({
         <div className="cv-workspace-selection">
           <span>{labels.messagesSelected(selectedMessageIds.size)}</span>
           <div className="cv-workspace-selection__actions">
-            <button data-cv-tooltip={labels.bulkClear} aria-label={labels.bulkClear} type="button" onClick={() => setSelectedMessageIds(new Set())}>
+            <button
+              data-cv-tooltip={labels.bulkClear}
+              aria-label={labels.bulkClear}
+              type="button"
+              onClick={() => setSelectedMessageIds(new Set())}
+            >
               {labels.bulkClear}
             </button>
-            <button data-cv-tooltip={labels.copySelected} aria-label={labels.copySelected} type="button" onClick={copySelectedMessages}>
+            <button
+              data-cv-tooltip={labels.copySelected}
+              aria-label={labels.copySelected}
+              type="button"
+              onClick={copySelectedMessages}
+            >
               {labels.copySelected}
             </button>
           </div>
@@ -373,10 +390,7 @@ export function ConversationPane({
       ) : null}
 
       {blocked ? (
-        <WindowExpiredNotice
-          disabled={busy}
-          onSendTemplate={() => void handleSendTemplate()}
-        />
+        <WindowExpiredNotice disabled={busy} onSendTemplate={() => void handleSendTemplate()} />
       ) : botOwnsConversation ? (
         // Responder com a conversa no bot atropelaria o fluxo automático no meio de uma pergunta.
         <p className="cv-workspace-notice">{labels.takeoverToReply}</p>
@@ -432,6 +446,7 @@ export function ConversationPane({
             : {})}
           {...(richQuickReplies ? { quickReplies: [...richQuickReplies] } : {})}
           {...(composerVariables ? { variables: [...composerVariables] } : {})}
+          {...(savedQuickReplies ? { savedQuickReplies } : {})}
         />
       ) : (
         <MessageComposer
@@ -444,6 +459,7 @@ export function ConversationPane({
           placeholder={labels.composerPlaceholder}
           {...(quickReplies ? { quickReplies } : {})}
           {...(quickReplyVariables ? { quickReplyVariables } : {})}
+          {...(savedQuickReplies ? { savedQuickReplies } : {})}
         />
       )}
     </div>
