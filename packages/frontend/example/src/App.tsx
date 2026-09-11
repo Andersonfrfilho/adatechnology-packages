@@ -21,6 +21,7 @@ import type {
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Search } from 'lucide-react'
+import { AttendanceScreen } from './AttendanceScreen'
 
 // ——— Mock data ———
 
@@ -202,11 +203,34 @@ const INITIAL_QUICK_REPLIES: SavedQuickReply[] = [
     shortcut: 'tchau',
     body: 'Obrigado {{nome_completo}}, foi um prazer atender você. Qualquer dúvida, é só chamar!',
   },
+  {
+    id: '6',
+    title: 'Documentos para análise',
+    shortcut: 'docs',
+    body: 'Olá {{nome}}, segue a lista de documentos necessários para prosseguir com a análise.',
+    attachments: [
+      { uploadId: 'seed-docs-1', filename: 'Checklist de documentos.pdf', mimeType: 'application/pdf', sizeBytes: 84213 },
+      { uploadId: 'seed-docs-2', filename: 'Tabela de taxas.png', mimeType: 'image/png', sizeBytes: 152340 },
+    ],
+  },
+  {
+    id: '7',
+    title: 'Teste de falha',
+    shortcut: 'falha',
+    body: 'Segue o envio de teste com um anexo que falha propositalmente.',
+    attachments: [
+      { uploadId: 'seed-falha-1', filename: 'Comprovante-com-falha.pdf', mimeType: 'application/pdf', sizeBytes: 40012 },
+      { uploadId: 'seed-falha-2', filename: 'Anexo seguinte.png', mimeType: 'image/png', sizeBytes: 60321 },
+    ],
+  },
 ]
 
 const QUICK_REPLY_SHORTCUT_TAKEN_MESSAGE = 'Atalho já existe'
-const SHOW_QUICK_REPLIES_SCREEN_LABEL = 'Ver Mensagens Prontas'
-const BACK_TO_CHAT_LABEL = 'Voltar para Chat'
+const CHAT_SCREEN_LABEL = 'Chat'
+const QUICK_REPLIES_SCREEN_LABEL = 'Mensagens prontas'
+const ATTENDANCE_SCREEN_LABEL = 'Atendimento (workspace)'
+const STORED_ATTACHMENT_SEND_DELAY_MS = 400
+const FAILURE_FILENAME_MARKER = 'falha'
 
 class QuickReplyShortcutTakenError extends Error {
   readonly code = 'QUICK_REPLY_SHORTCUT_TAKEN'
@@ -219,25 +243,46 @@ function mockApi() {
   // Estado do mock por instância de `mockApi()`, não módulo-wide: cada montagem de `App` parte de
   // `INITIAL_QUICK_REPLIES` de novo, em vez de todo mundo dividir a mesma lista global mutável.
   let quickReplies = INITIAL_QUICK_REPLIES
+  // Transcript por conversa: o workspace de atendimento lê e escreve por `conversationId`, e cada
+  // envio precisa aparecer nessa mesma lista para o `refetch` do pacote mostrar a mensagem nova.
+  const messagesByConversation: Record<string, MessagePayload[]> = { '1': [...MOCK_MESSAGES] }
+  function messagesFor(conversationId: string): MessagePayload[] {
+    if (!messagesByConversation[conversationId]) messagesByConversation[conversationId] = []
+    return messagesByConversation[conversationId]
+  }
   return {
-    fetchMessages: async () => MOCK_MESSAGES,
+    fetchMessages: async (conversationId: string) => messagesFor(conversationId),
     fetchConversations: async () => MOCK_CONVERSATIONS,
-    sendMessage: async (_id: string, text: string) => ({
-      id: String(Date.now()),
-      type: 'text' as const,
-      content: text,
-      direction: 'outbound' as const,
-      sender: 'agent' as const,
-      timestamp: new Date().toISOString(),
-      status: 'sent' as const,
-    }),
-    sendMedia: async () => ({
-      id: String(Date.now()),
-      type: 'image' as const,
-      direction: 'outbound' as const,
-      sender: 'agent' as const,
-      timestamp: new Date().toISOString(),
-    }),
+    sendMessage: async (conversationId: string, text: string) => {
+      const message: MessagePayload = {
+        id: String(Date.now()),
+        type: 'text',
+        content: text,
+        direction: 'outbound',
+        sender: 'agent',
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+      }
+      messagesByConversation[conversationId] = [...messagesFor(conversationId), message]
+      return message
+    },
+    sendMedia: async (
+      conversationId: string,
+      data: { base64: string; mimeType: string; filename: string; caption?: string },
+    ) => {
+      const message: MessagePayload = {
+        id: String(Date.now()),
+        type: 'image',
+        base64: data.base64,
+        caption: data.caption,
+        direction: 'outbound',
+        sender: 'agent',
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+      }
+      messagesByConversation[conversationId] = [...messagesFor(conversationId), message]
+      return message
+    },
     sendTemplate: async () => {},
     markRead: async () => {},
     getContext: async () => ({}),
@@ -334,11 +379,27 @@ function mockApi() {
       uploadIds: readonly string[]
       idempotencyKey: string
     }): Promise<{ results: readonly StoredAttachmentSendResult[] }> => {
-      await new Promise((resolve) => setTimeout(resolve, 120))
-      const results: StoredAttachmentSendResult[] = params.uploadIds.map((uploadId) => ({
-        uploadId,
-        status: 'sent',
-      }))
+      // Nomes de arquivo do seed indicam o cenário: qualquer anexo com "falha" no nome falha, e
+      // tudo que vem depois dele na mesma leva é pulado — como um lote real que aborta no meio.
+      const attachmentsByUploadId = new Map(
+        quickReplies.flatMap((quickReply) => quickReply.attachments ?? []).map((attachment) => [attachment.uploadId, attachment]),
+      )
+      const results: StoredAttachmentSendResult[] = []
+      let alreadyFailed = false
+      for (const uploadId of params.uploadIds) {
+        await new Promise((resolve) => setTimeout(resolve, STORED_ATTACHMENT_SEND_DELAY_MS))
+        if (alreadyFailed) {
+          results.push({ uploadId, status: 'skipped' })
+          continue
+        }
+        const filename = attachmentsByUploadId.get(uploadId)?.filename ?? ''
+        if (filename.toLowerCase().includes(FAILURE_FILENAME_MARKER)) {
+          results.push({ uploadId, status: 'failed', errorCode: 'UPLOAD_FAILED' })
+          alreadyFailed = true
+        } else {
+          results.push({ uploadId, status: 'sent' })
+        }
+      }
       return { results }
     },
   }
@@ -579,8 +640,36 @@ function WhatsAppLayout({ api }: WhatsAppLayoutProps) {
   )
 }
 
+type Screen = 'whatsapp' | 'quickreplies' | 'attendance'
+
+const SCREEN_SWITCHER_ITEMS: ReadonlyArray<{ readonly screen: Screen; readonly label: string }> = [
+  { screen: 'whatsapp', label: CHAT_SCREEN_LABEL },
+  { screen: 'quickreplies', label: QUICK_REPLIES_SCREEN_LABEL },
+  { screen: 'attendance', label: ATTENDANCE_SCREEN_LABEL },
+]
+
+function ScreenSwitcher({ screen, onSelect }: { readonly screen: Screen; readonly onSelect: (screen: Screen) => void }) {
+  return (
+    <div className="flex gap-2 p-2 border-b border-[#e9edef] bg-white">
+      {SCREEN_SWITCHER_ITEMS.map((item) => (
+        <button
+          key={item.screen}
+          onClick={() => onSelect(item.screen)}
+          className={
+            item.screen === screen
+              ? 'px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md'
+              : 'px-4 py-2 bg-blue-100 text-blue-700 text-sm font-medium rounded-md hover:bg-blue-200'
+          }
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function App() {
-  const [screen, setScreen] = useState<'whatsapp' | 'quickreplies'>('whatsapp')
+  const [screen, setScreen] = useState<Screen>('whatsapp')
   // Uma instância por montagem: recriar a cada render zerava as mensagens prontas cadastradas.
   const [api] = useState(mockApi)
   const [sse] = useState(mockSse)
@@ -588,34 +677,22 @@ export default function App() {
   return (
     <ToastProvider>
       <ConversationsProvider api={api} sse={sse}>
-        {screen === 'whatsapp' ? (
-          <div className="flex flex-col h-screen">
-            <button
-              onClick={() => setScreen('quickreplies')}
-              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 self-start m-2"
-            >
-              {SHOW_QUICK_REPLIES_SCREEN_LABEL}
-            </button>
-            <div className="flex-1 overflow-hidden">
+        <div className="flex flex-col h-screen">
+          <ScreenSwitcher screen={screen} onSelect={setScreen} />
+          <div className="flex-1 overflow-hidden">
+            {screen === 'whatsapp' ? (
               <WhatsAppLayout api={api} />
-            </div>
+            ) : screen === 'quickreplies' ? (
+              <div className="h-full overflow-auto p-6 bg-white">
+                <QuickRepliesWorkspace api={api} variables={CONVERSATION_VARIABLES} />
+              </div>
+            ) : (
+              <div className="h-full overflow-auto p-6 bg-white">
+                <AttendanceScreen conversationVariables={CONVERSATION_VARIABLES} />
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="flex flex-col h-screen p-6 bg-white">
-            <button
-              onClick={() => setScreen('whatsapp')}
-              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 mb-4 w-fit"
-            >
-              {BACK_TO_CHAT_LABEL}
-            </button>
-            <div className="flex-1 overflow-auto">
-              <QuickRepliesWorkspace
-                api={api}
-                variables={CONVERSATION_VARIABLES}
-              />
-            </div>
-          </div>
-        )}
+        </div>
       </ConversationsProvider>
     </ToastProvider>
   )
