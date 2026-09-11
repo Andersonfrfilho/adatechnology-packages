@@ -170,6 +170,10 @@ const CONVERSATION_VARIABLES: ConversationVariable[] = [
   { id: 'produto', label: 'Produto', marker: '{{produto}}', value: 'Financiamento Imobiliário' },
 ]
 
+const QUICK_REPLY_VARIABLES: Readonly<Record<string, string>> = Object.fromEntries(
+  CONVERSATION_VARIABLES.map((variable) => [variable.id, variable.value]),
+)
+
 const INITIAL_QUICK_REPLIES: SavedQuickReply[] = [
   { id: '1', title: 'Boas-vindas', shortcut: 'ola', body: 'Olá {{nome}}, bem-vindo!' },
   {
@@ -326,7 +330,11 @@ function InstallBanner() {
 
 // ——— WhatsApp Web UI ———
 
-function WhatsAppLayout() {
+type WhatsAppLayoutProps = {
+  readonly api: ReturnType<typeof mockApi>
+}
+
+function WhatsAppLayout({ api }: WhatsAppLayoutProps) {
   const [selected, setSelected] = useState<string | null>('1')
   const [composerText, setComposerText] = useState('')
   const [messages, setMessages] = useState(MOCK_MESSAGES)
@@ -477,6 +485,11 @@ function WhatsAppLayout() {
               onChange={setComposerText}
               onSend={handleSend}
               placeholder="Digite uma mensagem"
+              savedQuickReplies={{
+                listQuickReplies: (params) => api.listQuickReplies(params),
+                conversationId: selected ?? '',
+                variables: QUICK_REPLY_VARIABLES,
+              }}
             />
           </div>
         </div>
@@ -500,11 +513,13 @@ function WhatsAppLayout() {
 
 export default function App() {
   const [screen, setScreen] = useState<'whatsapp' | 'quickreplies'>('whatsapp')
-  const api = mockApi()
+  // Uma instância por montagem: recriar a cada render zerava as mensagens prontas cadastradas.
+  const [api] = useState(mockApi)
+  const [sse] = useState(mockSse)
 
   return (
     <ToastProvider>
-      <ConversationsProvider api={api} sse={mockSse()}>
+      <ConversationsProvider api={api} sse={sse}>
         {screen === 'whatsapp' ? (
           <div className="flex flex-col h-screen">
             <button
@@ -514,7 +529,7 @@ export default function App() {
               {SHOW_QUICK_REPLIES_SCREEN_LABEL}
             </button>
             <div className="flex-1 overflow-hidden">
-              <WhatsAppLayout />
+              <WhatsAppLayout api={api} />
             </div>
           </div>
         ) : (
