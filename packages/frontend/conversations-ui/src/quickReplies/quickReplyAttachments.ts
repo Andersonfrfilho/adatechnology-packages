@@ -213,6 +213,37 @@ export async function retryStoredAttachments(
   return { remainingQueue: applySendResults(queue, results), sentAttachmentKeys }
 }
 
+export type ResolveRetryOutcomeParams = {
+  readonly conversationIdAtRetry: string
+  readonly currentConversationId: string
+  readonly sentAttachmentKeys: readonly string[]
+  readonly queue: readonly QueuedAttachment[]
+}
+
+/**
+ * Decide o que gravar na fila depois de um retry avulso resolver (H2/M5): `undefined` quando a
+ * conversa trocou no meio do retry — o resultado é de outra thread e o chamador deve ignorá-lo,
+ * mantendo a fila corrente intocada. Na mesma conversa, tira só as chaves enviadas — nunca
+ * sobrescreve com uma fila capturada antes do `await`, que perderia item adicionado durante o envio.
+ */
+export function resolveRetryOutcome(params: ResolveRetryOutcomeParams): readonly QueuedAttachment[] | undefined {
+  const { conversationIdAtRetry, currentConversationId, sentAttachmentKeys, queue } = params
+  if (conversationIdAtRetry !== currentConversationId) return undefined
+  const sentKeys = new Set(sentAttachmentKeys)
+  return queue.filter((item) => !sentKeys.has(attachmentKey(item)))
+}
+
+/** Tira da fila de um envio completo os itens com retry avulso em voo (M-retry-race): a chave de
+ * idempotência do retry é outra, e mandar o mesmo item nos dois pipelines ao mesmo tempo deixa o
+ * servidor sem jeito de deduplicar. */
+export function excludeRetryingItems(
+  queue: readonly QueuedAttachment[],
+  retryingKeys: ReadonlySet<string>,
+): readonly QueuedAttachment[] {
+  if (retryingKeys.size === 0) return queue
+  return queue.filter((item) => !retryingKeys.has(attachmentKey(item)))
+}
+
 /**
  * Orquestra QR-34/QR-37/QR-43: texto primeiro; se falhar, nada de anexo sai. Depois os `stored` (em
  * lote, um resultado por arquivo) e por último os `local` (sem legenda — o texto já foi mandado).

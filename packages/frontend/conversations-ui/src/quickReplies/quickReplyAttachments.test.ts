@@ -4,10 +4,12 @@ import {
   applySendResults,
   attachmentKey,
   canAddAttachments,
+  excludeRetryingItems,
   orderOutgoingItems,
   queuedAttachmentsFromQuickReply,
   resolveIdempotencyKey,
   resolveMaxAttachmentSizeBytes,
+  resolveRetryOutcome,
   retryStoredAttachments,
   sendQueuedMessage,
 } from './quickReplyAttachments'
@@ -350,5 +352,45 @@ describe('attachmentKey', () => {
     const first: QueuedAttachment = { kind: 'local', localId: 'local-a', file }
     const second: QueuedAttachment = { kind: 'local', localId: 'local-b', file }
     expect(attachmentKey(first)).not.toBe(attachmentKey(second))
+  })
+})
+
+describe('resolveRetryOutcome', () => {
+  it('conversa diferente da do retry devolve undefined, deixando a fila corrente intocada', () => {
+    const outcome = resolveRetryOutcome({
+      conversationIdAtRetry: 'conversation-1',
+      currentConversationId: 'conversation-2',
+      sentAttachmentKeys: ['a'],
+      queue: [],
+    })
+    expect(outcome).toBeUndefined()
+  })
+
+  it('mesma conversa: tira só as chaves enviadas e mantém item adicionado durante o retry', () => {
+    const addedMidRetry: QueuedAttachment = {
+      kind: 'stored',
+      uploadId: 'c',
+      filename: 'c.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 1,
+    }
+    const outcome = resolveRetryOutcome({
+      conversationIdAtRetry: 'conversation-1',
+      currentConversationId: 'conversation-1',
+      sentAttachmentKeys: ['a'],
+      queue: [FIRST, SECOND, addedMidRetry],
+    })
+    expect(outcome).toEqual([SECOND, addedMidRetry])
+  })
+})
+
+describe('excludeRetryingItems', () => {
+  it('sem chaves em retry devolve a fila como veio', () => {
+    expect(excludeRetryingItems([FIRST, LOCAL], new Set())).toEqual([FIRST, LOCAL])
+  })
+
+  it('tira só os itens cuja chave está em retry avulso', () => {
+    const result = excludeRetryingItems([FIRST, SECOND, LOCAL], new Set(['b']))
+    expect(result).toEqual([FIRST, LOCAL])
   })
 })

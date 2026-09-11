@@ -12,10 +12,11 @@
  * mesmo item duas vezes.
  */
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   attachmentKey,
   resolveIdempotencyKey,
+  resolveRetryOutcome,
   retryStoredAttachments,
   type AttachmentSendStatus,
   type IdempotencyKeyState,
@@ -35,12 +36,18 @@ export type UseComposerAttachmentRetryParams = {
   readonly api: Pick<ConversationsApi, 'sendStoredAttachments'>
   readonly onSendAttachments?: (files: readonly File[], caption: string) => Promise<void>
   readonly labels: { readonly attachFailure: string }
+  /** Espelha o envio completo do rascunho (`useComposerQueue`): um retry avulso não pode disparar
+   * enquanto o composer inteiro está em voo — as duas chaves de idempotência colidiriam no mesmo item. */
+  readonly sendInFlightRef: { readonly current: boolean }
 }
 
 export type UseComposerAttachmentRetryResult = {
   readonly retryQueuedAttachment: (item: QueuedAttachment) => void
   /** Chamado por `useComposerQueue` ao trocar de conversa: descarta chave de idempotência e travas. */
   readonly resetRetryState: () => void
+  /** Chaves com retry avulso em voo — `useComposerQueue` exclui estas de um envio completo (evita
+   * duplo envio do mesmo item), e a UI desabilita o botão "Tentar de novo" enquanto durar. */
+  readonly retryingKeys: ReadonlySet<string>
 }
 
 export function useComposerAttachmentRetry(params: UseComposerAttachmentRetryParams): UseComposerAttachmentRetryResult {
@@ -54,10 +61,23 @@ export function useComposerAttachmentRetry(params: UseComposerAttachmentRetryPar
     api,
     onSendAttachments,
     labels,
+    sendInFlightRef,
   } = params
   const retryIdempotencyKeyRef = useRef<IdempotencyKeyState | undefined>(undefined)
   /** Chaves com retry em voo — impede duplo clique de reenviar o mesmo item duas vezes. */
   const retryingKeysRef = useRef<Set<string>>(new Set())
+  /** Espelho reativo de `retryingKeysRef` — o ref sozinho não repinta o botão desabilitado. */
+  const [retryingKeys, setRetryingKeys] = useState<ReadonlySet<string>>(new Set())
+
+  function markRetrying(key: string): void {
+    retryingKeysRef.current.add(key)
+    setRetryingKeys(new Set(retryingKeysRef.current))
+  }
+
+  function unmarkRetrying(key: string): void {
+    retryingKeysRef.current.delete(key)
+    setRetryingKeys(new Set(retryingKeysRef.current))
+  }
 
   async function retryLocalAttachment(item: Extract<QueuedAttachment, { kind: 'local' }>): Promise<void> {
     if (!onSendAttachments) return
@@ -96,21 +116,28 @@ export function useComposerAttachmentRetry(params: UseComposerAttachmentRetryPar
           if (isSameConversation()) setAttachmentStatus((current) => ({ ...current, [statusKey]: status }))
         },
       })
-      if (!isSameConversation()) return
-      const sentKeys = new Set(result.sentAttachmentKeys)
-      setQueue((current) => current.filter((queued) => !sentKeys.has(attachmentKey(queued))))
+      setQueue(
+        (current) =>
+          resolveRetryOutcome({
+            conversationIdAtRetry,
+            currentConversationId: currentConversationIdRef.current,
+            sentAttachmentKeys: result.sentAttachmentKeys,
+            queue: current,
+          }) ?? current,
+      )
     } catch (error: unknown) {
       if (isSameConversation()) setSendFailure(error instanceof Error ? error.message : labels.attachFailure)
     }
   }
 
   function retryQueuedAttachment(item: QueuedAttachment): void {
+    // Um envio completo já está em voo — deixá-lo terminar antes de aceitar retry avulso, senão as
+    // duas chaves de idempotência disputam o mesmo item.
+    if (sendInFlightRef.current) return
     const key = attachmentKey(item)
     if (retryingKeysRef.current.has(key)) return
-    retryingKeysRef.current.add(key)
-    const release = (): void => {
-      retryingKeysRef.current.delete(key)
-    }
+    markRetrying(key)
+    const release = (): void => unmarkRetrying(key)
     if (item.kind === 'local') {
       void retryLocalAttachment(item).finally(release)
       return
@@ -121,7 +148,8 @@ export function useComposerAttachmentRetry(params: UseComposerAttachmentRetryPar
   const resetRetryState = useCallback((): void => {
     retryIdempotencyKeyRef.current = undefined
     retryingKeysRef.current.clear()
+    setRetryingKeys(new Set())
   }, [])
 
-  return { retryQueuedAttachment, resetRetryState }
+  return { retryQueuedAttachment, resetRetryState, retryingKeys }
 }

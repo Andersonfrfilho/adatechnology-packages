@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   attachmentKey,
+  excludeRetryingItems,
   resolveIdempotencyKey,
   sendQueuedMessage,
   type AttachmentSendStatus,
@@ -34,6 +35,8 @@ export type UseComposerQueueResult = {
   readonly handleRichSend: () => Promise<void>
   readonly removeQueuedAttachment: (item: QueuedAttachment) => void
   readonly retryQueuedAttachment: (item: QueuedAttachment) => void
+  /** Chaves com retry avulso em voo — a UI desabilita o botão "Tentar de novo" desses itens. */
+  readonly retryingKeys: ReadonlySet<string>
 }
 
 export function useComposerQueue(params: UseComposerQueueParams): UseComposerQueueResult {
@@ -49,7 +52,7 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
   /** Espelha `conversationId` sem esperar o repaint (H2) — lido depois do `await` de um envio. */
   const currentConversationIdRef = useRef(conversationId)
 
-  const { retryQueuedAttachment, resetRetryState } = useComposerAttachmentRetry({
+  const { retryQueuedAttachment, resetRetryState, retryingKeys } = useComposerAttachmentRetry({
     conversationId,
     currentConversationIdRef,
     queue,
@@ -58,6 +61,7 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
     setSendFailure,
     api,
     labels,
+    sendInFlightRef,
     ...(onSendAttachments ? { onSendAttachments } : {}),
   })
 
@@ -98,15 +102,18 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
   /** Fila só com `local`, como antes da feature de guardados: uma chamada só, rascunho como legenda. */
   async function sendLocalOnlyAttachments(isSameConversation: () => boolean): Promise<void> {
     if (!onSendAttachments) return
-    const files = queue
+    const files = excludeRetryingItems(queue, retryingKeys)
       .filter((item): item is Extract<QueuedAttachment, { kind: 'local' }> => item.kind === 'local')
       .map((item) => item.file)
     try {
       const didSend = await runSend(() => onSendAttachments(files, draft), labels.attachFailure)
       if (!isSameConversation()) return
       if (didSend) {
-        setQueue([])
-        setAttachmentStatus({})
+        // Preserva item com retry avulso em voo (excluído deste envio) — ele ainda não foi resolvido.
+        setQueue((current) => current.filter((item) => retryingKeys.has(attachmentKey(item))))
+        setAttachmentStatus((current) =>
+          Object.fromEntries(Object.entries(current).filter(([key]) => retryingKeys.has(key))),
+        )
         idempotencyKeyRef.current = undefined
         setDraft('')
       }
@@ -121,7 +128,10 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
   /** Texto -> guardados (lote, um resultado por arquivo) -> locais. Só o que não saiu continua na fila. */
   async function sendQueuedDraft(isSameConversation: () => boolean): Promise<void> {
     const sendStoredAttachmentsApi = api.sendStoredAttachments
-    const storedUploadIds = queue
+    // Item com retry avulso em voo fica de fora deste envio (chave de idempotência diferente) —
+    // senão o servidor recebe o mesmo anexo em dois lotes sem jeito de deduplicar.
+    const sendableQueue = excludeRetryingItems(queue, retryingKeys)
+    const storedUploadIds = sendableQueue
       .filter((item): item is Extract<QueuedAttachment, { kind: 'stored' }> => item.kind === 'stored')
       .map((item) => item.uploadId)
     const idempotencyState = resolveIdempotencyKey(idempotencyKeyRef.current, storedUploadIds)
@@ -129,7 +139,7 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
     try {
       const result = await sendQueuedMessage({
         text: draft,
-        queue,
+        queue: sendableQueue,
         idempotencyKey: idempotencyState.key,
         sendText: (text) => runSend(() => api.sendMessage(conversationId, text), labels.sendFailure),
         ...(sendStoredAttachmentsApi
@@ -152,8 +162,15 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
       // Filtra por chave sobre a fila CORRENTE, não sobrescreve com `result.remainingQueue` (que foi
       // calculado sobre a fila capturada antes do `await` e perderia item adicionado durante o envio).
       const sentKeys = new Set(result.sentAttachmentKeys)
-      setQueue((current) => current.filter((item) => !sentKeys.has(attachmentKey(item))))
-      if (result.remainingQueue.length === 0) {
+      // Decide "tudo saiu" sobre a fila CORRENTE dentro do updater, não sobre `result.remainingQueue`
+      // (snapshot de antes do `await` — ficaria obsoleto se algo mudou a fila durante o envio).
+      let queueEmptyAfterSend = false
+      setQueue((current) => {
+        const next = current.filter((item) => !sentKeys.has(attachmentKey(item)))
+        queueEmptyAfterSend = next.length === 0
+        return next
+      })
+      if (queueEmptyAfterSend) {
         idempotencyKeyRef.current = undefined
         setAttachmentStatus({})
       }
@@ -198,5 +215,6 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
     handleRichSend,
     removeQueuedAttachment,
     retryQueuedAttachment,
+    retryingKeys,
   }
 }

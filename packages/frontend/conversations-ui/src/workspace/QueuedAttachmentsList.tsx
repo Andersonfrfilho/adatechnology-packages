@@ -25,6 +25,8 @@ export type QueuedAttachmentsListProps = {
   readonly statusOf: (key: string) => AttachmentSendStatus
   readonly onRemove: (item: QueuedAttachment) => void
   readonly onRetry?: (item: QueuedAttachment) => void
+  /** Chaves com retry avulso em voo — desabilita o botão "Tentar de novo" desse item específico. */
+  readonly retryingKeys?: ReadonlySet<string>
   readonly getThumbnailUrl?: (uploadId: string) => Promise<string>
   readonly labels: QueuedAttachmentsListLabels
   readonly busy: boolean
@@ -134,6 +136,7 @@ export function QueuedAttachmentsList({
   statusOf,
   onRemove,
   onRetry,
+  retryingKeys,
   getThumbnailUrl,
   labels,
   busy,
@@ -168,7 +171,13 @@ export function QueuedAttachmentsList({
               </span>
             </span>
             {(status === 'failed' || status === 'skipped') && onRetry ? (
-              <button type="button" className="cv-attachment-item__retry" onClick={() => onRetry(item)}>
+              <button
+                type="button"
+                className="cv-attachment-item__retry"
+                disabled={busy || (retryingKeys?.has(key) ?? false)}
+                aria-busy={retryingKeys?.has(key) ?? false}
+                onClick={() => onRetry(item)}
+              >
                 {labels.retry}
               </button>
             ) : null}

@@ -166,6 +166,7 @@ export function ConversationPane({
     handleRichSend,
     removeQueuedAttachment,
     retryQueuedAttachment,
+    retryingKeys,
   } = useComposerQueue({
     conversationId: conversation.id,
     draft,
@@ -456,6 +457,7 @@ export function ConversationPane({
                     statusOf={(key) => attachmentStatus[key] ?? 'waiting'}
                     onRemove={removeQueuedAttachment}
                     onRetry={retryQueuedAttachment}
+                    retryingKeys={retryingKeys}
                     getThumbnailUrl={getQueuedAttachmentThumbnailUrl}
                     busy={isSendingDraft}
                     labels={{
