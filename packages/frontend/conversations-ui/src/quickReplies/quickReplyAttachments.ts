@@ -22,9 +22,13 @@ export function queuedAttachmentsFromQuickReply(
   )
 }
 
-/** Chave estável do item na fila — `uploadId` para guardado, identidade do `File` para local. */
+/**
+ * Chave estável do item na fila — `uploadId` para guardado, `localId` gerado para local. A
+ * identidade do `File` (nome+tamanho+data) não bastava: duas cópias do mesmo arquivo colidiam na
+ * mesma chave e removê-la de uma removia as duas.
+ */
 export function attachmentKey(item: QueuedAttachment): string {
-  return item.kind === 'stored' ? item.uploadId : `local:${item.file.name}:${item.file.size}:${item.file.lastModified}`
+  return item.kind === 'stored' ? item.uploadId : item.localId
 }
 
 export type AttachmentSendStatus = 'waiting' | 'sending' | 'sent' | 'failed'

@@ -62,6 +62,9 @@ export interface QuickRepliesWorkspaceLabels {
   readonly attachmentsAdd: string
   readonly attachmentsEmpty: string
   readonly attachmentUploading: (percent: number) => string
+  /** @deprecated Sem uso: não existe um "processando" observável entre a resposta do upload e o
+   * item entrar em `editing.attachments` — as duas atualizações de estado acontecem no mesmo
+   * commit do React. Mantido no tipo só para não quebrar quem já customiza este campo. */
   readonly attachmentProcessing: string
   readonly attachmentRetry: string
   readonly attachmentRemove: string

@@ -32,7 +32,7 @@ export type QuickReplyAttachment = {
  * (veio de uma mensagem pronta) e é enviado por referência, sem baixar e subir de novo.
  */
 export type QueuedAttachment =
-  | { readonly kind: 'local'; readonly file: File }
+  | { readonly kind: 'local'; readonly localId: string; readonly file: File }
   | {
       readonly kind: 'stored'
       readonly uploadId: string

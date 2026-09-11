@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { formatFileSize } from '../lib/format'
 import { useQuickRepliesWorkspace, insertAtCursor, type QuickRepliesWorkspaceApi } from './useQuickRepliesWorkspace'
 import { DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS, type QuickRepliesWorkspaceLabels } from './labels'
+import type { MaxAttachmentSizeBytes } from './quickReplyAttachments'
 import type { ConversationVariable } from './quickReply.types'
 
 const TABLE_SKELETON_ROWS = 3
@@ -14,6 +15,8 @@ export interface QuickRepliesWorkspaceProps {
   readonly variables?: readonly ConversationVariable[]
   readonly labels?: Partial<QuickRepliesWorkspaceLabels>
   readonly className?: string
+  /** Sobrescreve o teto por tipo de arquivo. Ausente, usa `DEFAULT_MAX_ATTACHMENT_SIZE_BYTES`. */
+  readonly attachmentSizeLimits?: MaxAttachmentSizeBytes
 }
 
 /**
@@ -21,7 +24,13 @@ export interface QuickRepliesWorkspaceProps {
  * exclusão com confirmação. Some o formulário quando o host não passa `createQuickReply` — vira
  * consulta, a mesma regra de capacidade do resto do pacote.
  */
-export function QuickRepliesWorkspace({ api, variables, labels, className }: QuickRepliesWorkspaceProps) {
+export function QuickRepliesWorkspace({
+  api,
+  variables,
+  labels,
+  className,
+  attachmentSizeLimits,
+}: QuickRepliesWorkspaceProps) {
   const text = { ...DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS, ...labels }
   const bodyFieldRef = useRef<HTMLTextAreaElement>(null)
   const formId = useId()
@@ -83,7 +92,7 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
     moveAttachmentAt,
     attachmentRejections,
     dismissAttachmentRejections,
-  } = useQuickRepliesWorkspace({ api, labels: text })
+  } = useQuickRepliesWorkspace({ api, labels: text, ...(attachmentSizeLimits ? { attachmentSizeLimits } : {}) })
 
   const attachmentFileInputRef = useRef<HTMLInputElement>(null)
   const hasPendingUploads = pendingUploads.length > 0
@@ -290,8 +299,6 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
                         <span className="flex-none text-gray-500 dark:text-gray-400">
                           {text.attachmentUploading(Math.round(pending.progress * 100))}
                         </span>
-                      ) : pending.status === 'processing' ? (
-                        <span className="flex-none text-gray-500 dark:text-gray-400">{text.attachmentProcessing}</span>
                       ) : (
                         <>
                           <span role="alert" className="flex-none text-red-600 dark:text-red-400">
@@ -402,13 +409,13 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
               Array.from({ length: TABLE_SKELETON_ROWS }).map((_, index) => (
                 <tr key={index} aria-hidden="true">
                   <td className="px-3 py-3">
-                    <span className="cv-skeleton-line block" style={{ width: '70%', height: '0.75rem' }} />
+                    <span className="cv-skeleton-line cv-skeleton-line--title block" />
                   </td>
                   <td className="px-3 py-3">
-                    <span className="cv-skeleton-line block" style={{ width: '50%', height: '0.75rem' }} />
+                    <span className="cv-skeleton-line cv-skeleton-line--shortcut block" />
                   </td>
                   <td className="hidden px-3 py-3 sm:table-cell">
-                    <span className="cv-skeleton-line block" style={{ width: '90%', height: '0.75rem' }} />
+                    <span className="cv-skeleton-line cv-skeleton-line--body block" />
                   </td>
                   {!readOnly ? <td className="px-3 py-3" /> : null}
                 </tr>

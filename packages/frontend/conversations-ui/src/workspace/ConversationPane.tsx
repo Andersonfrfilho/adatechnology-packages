@@ -583,7 +583,9 @@ export function ConversationPane({
                 onAttachFiles: (files: FileList) =>
                   setQueue((current) => [
                     ...current,
-                    ...Array.from(files).map((file): QueuedAttachment => ({ kind: 'local', file })),
+                    ...Array.from(files).map(
+                      (file): QueuedAttachment => ({ kind: 'local', localId: crypto.randomUUID(), file }),
+                    ),
                   ]),
               }
             : onAttach

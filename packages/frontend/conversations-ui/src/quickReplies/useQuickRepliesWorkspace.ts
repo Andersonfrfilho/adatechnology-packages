@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createUploadQueue } from './createUploadQueue'
 import { filterQuickReplies } from './quickReplySearch'
 import { moveAttachment, validateAttachmentFiles } from './quickReplyAttachmentUpload'
+import type { MaxAttachmentSizeBytes } from './quickReplyAttachments'
 import type { QuickReply, QuickReplyAttachment, QuickReplyInput } from './quickReply.types'
 import type { QuickRepliesWorkspaceLabels } from './labels'
 
@@ -38,7 +39,7 @@ export type QuickRepliesWorkspaceEditing = {
 export type PendingAttachmentUpload = {
   readonly localId: string
   readonly file: File
-  readonly status: 'uploading' | 'processing' | 'error'
+  readonly status: 'uploading' | 'error'
   readonly progress: number
   readonly error?: string
 }
@@ -204,6 +205,8 @@ export function insertAtCursor(text: string, start: number, end: number, marker:
 export type UseQuickRepliesWorkspaceParams = {
   readonly api: QuickRepliesWorkspaceApi
   readonly labels: QuickRepliesWorkspaceLabels
+  /** Sobrescreve o teto por tipo de arquivo. Ausente, usa `DEFAULT_MAX_ATTACHMENT_SIZE_BYTES`. */
+  readonly attachmentSizeLimits?: MaxAttachmentSizeBytes
 }
 
 export type UseQuickRepliesWorkspaceResult = {
@@ -245,6 +248,7 @@ export type UseQuickRepliesWorkspaceResult = {
 export function useQuickRepliesWorkspace({
   api,
   labels,
+  attachmentSizeLimits,
 }: UseQuickRepliesWorkspaceParams): UseQuickRepliesWorkspaceResult {
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -385,7 +389,9 @@ export function useQuickRepliesWorkspace({
 
   const removeAttachment = useCallback((uploadId: string) => {
     setEditing((current) =>
-      current ? { ...current, attachments: current.attachments.filter((a) => a.uploadId !== uploadId) } : current,
+      current
+        ? { ...current, attachments: current.attachments.filter((attachment) => attachment.uploadId !== uploadId) }
+        : current,
     )
   }, [])
 
@@ -407,8 +413,12 @@ export function useQuickRepliesWorkspace({
   }, [])
 
   /** Sobe um arquivo já validado, através da fila compartilhada (M1): progresso real por
-   * `onProgress`, "processando" enquanto a promessa não resolve, e o resultado entra em
-   * `editing.attachments` na ordem de chegada. Enfileira e retorna — quem chama não espera. */
+   * `onProgress`, e o resultado entra em `editing.attachments` na ordem de chegada assim que a
+   * promessa resolve. Enfileira e retorna — quem chama não espera.
+   *
+   * Não existe um "processando" observável entre a resposta do upload e o item entrar em
+   * `editing.attachments`: as duas atualizações de estado abaixo acontecem no mesmo tick, e o
+   * React as agrupa num commit só — um status `processing` nunca chegaria a ser pintado na tela. */
   const uploadOneFile = useCallback(
     (localId: string, file: File) => {
       const upload = api.uploadQuickReplyAttachment
@@ -422,7 +432,6 @@ export function useQuickRepliesWorkspace({
             signal,
           })
           if (!isMountedRef.current) return
-          updatePendingUpload(localId, { status: 'processing', progress: 1 })
           setEditing((current) =>
             current ? { ...current, attachments: [...current.attachments, attachment] } : current,
           )
@@ -455,7 +464,7 @@ export function useQuickRepliesWorkspace({
     (files: FileList | readonly File[]) => {
       if (!editing || !api.uploadQuickReplyAttachment) return
       const currentCount = editing.attachments.length + pendingUploads.length
-      const { accepted, rejected } = validateAttachmentFiles(Array.from(files), currentCount)
+      const { accepted, rejected } = validateAttachmentFiles(Array.from(files), currentCount, attachmentSizeLimits)
       setAttachmentRejections(rejected)
       if (accepted.length === 0) return
       const newItems: PendingAttachmentUpload[] = accepted.map((file) => ({
@@ -468,7 +477,7 @@ export function useQuickRepliesWorkspace({
       // Até 3 em paralelo (QR-31), somando com retries em voo — a fila compartilhada decide (M1).
       for (const item of newItems) uploadOneFile(item.localId, item.file)
     },
-    [editing, api.uploadQuickReplyAttachment, pendingUploads.length, uploadOneFile],
+    [editing, api.uploadQuickReplyAttachment, pendingUploads.length, uploadOneFile, attachmentSizeLimits],
   )
 
   return {

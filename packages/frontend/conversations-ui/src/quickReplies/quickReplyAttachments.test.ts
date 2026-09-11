@@ -13,7 +13,11 @@ import {
 } from './quickReplyAttachments'
 import type { QueuedAttachment } from './quickReply.types'
 
-const LOCAL: QueuedAttachment = { kind: 'local', file: new File(['x'], 'local.pdf', { type: 'application/pdf' }) }
+const LOCAL: QueuedAttachment = {
+  kind: 'local',
+  localId: 'local-1',
+  file: new File(['x'], 'local.pdf', { type: 'application/pdf' }),
+}
 const FIRST: QueuedAttachment = {
   kind: 'stored',
   uploadId: 'a',
@@ -285,8 +289,15 @@ describe('queuedAttachmentsFromQuickReply', () => {
 })
 
 describe('attachmentKey', () => {
-  it('usa o uploadId para guardado e a identidade do arquivo para local', () => {
+  it('usa o uploadId para guardado e o localId para local', () => {
     expect(attachmentKey(FIRST)).toBe('a')
-    expect(attachmentKey(LOCAL)).toBe(`local:local.pdf:1:${LOCAL.kind === 'local' ? LOCAL.file.lastModified : ''}`)
+    expect(attachmentKey(LOCAL)).toBe('local-1')
+  })
+
+  it('distingue duas cópias do mesmo arquivo local pelo localId gerado, não pela identidade do File', () => {
+    const file = new File(['x'], 'same.pdf', { type: 'application/pdf' })
+    const first: QueuedAttachment = { kind: 'local', localId: 'local-a', file }
+    const second: QueuedAttachment = { kind: 'local', localId: 'local-b', file }
+    expect(attachmentKey(first)).not.toBe(attachmentKey(second))
   })
 })

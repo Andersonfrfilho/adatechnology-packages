@@ -4,7 +4,7 @@
  * de envio de cada item (QR-32, QR-33, QR-47).
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { formatFileSize } from '../lib/format'
 import { attachmentKey, type AttachmentSendStatus } from '../quickReplies/quickReplyAttachments'
@@ -86,14 +86,30 @@ function AttachmentThumbnail({
   )
 }
 
+/**
+ * Parte pura da transição: quais itens saíram da fila entre a última lista renderizada e a nova.
+ * Separada de `useDepartingItems` para ser testável sem montar um componente.
+ */
+export function departedItemsOf(
+  previouslyRendered: readonly QueuedAttachment[],
+  items: readonly QueuedAttachment[],
+): readonly QueuedAttachment[] {
+  const currentKeys = new Set(items.map(attachmentKey))
+  return previouslyRendered.filter((item) => !currentKeys.has(attachmentKey(item)))
+}
+
 /** Mantém o item visível por uma transição curta depois de sair da fila (QR-47), sem travar props. */
 function useDepartingItems(items: readonly QueuedAttachment[]) {
   const [rendered, setRendered] = useState(items)
   const [departingKeys, setDepartingKeys] = useState<ReadonlySet<string>>(new Set())
+  // Espelha `rendered` num ref lido dentro do efeito: assim o array de dependências fica completo
+  // (só `items`, que é o que deve reiniciar a transição) sem o efeito reagir à própria escrita em
+  // `rendered` via `setRendered`, o que recriaria o timer em loop.
+  const renderedRef = useRef(rendered)
+  renderedRef.current = rendered
 
   useEffect(() => {
-    const currentKeys = new Set(items.map(attachmentKey))
-    const removedItems = rendered.filter((item) => !currentKeys.has(attachmentKey(item)))
+    const removedItems = departedItemsOf(renderedRef.current, items)
     if (removedItems.length === 0) {
       setRendered(items)
       return
@@ -107,9 +123,6 @@ function useDepartingItems(items: readonly QueuedAttachment[]) {
       setDepartingKeys(new Set())
     }, delay)
     return () => clearTimeout(timer)
-    // `rendered` fica de fora do array por propósito: é o próprio efeito que o atualiza (via
-    // `setRendered`), então incluí-lo recriaria o timer em loop — só a fila vinda de fora (`items`)
-    // deve reiniciar a transição de saída.
   }, [items])
 
   return { rendered: departingKeys.size > 0 ? [...rendered] : items, departingKeys }

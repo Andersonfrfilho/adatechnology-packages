@@ -888,6 +888,11 @@
 @media (prefers-reduced-motion: reduce) {
   .cv-skeleton-line { animation: none; }
 }
+/* Larguras da linha de esqueleto da tabela de mensagens prontas: uma por coluna, porque colunas
+   diferentes leem melhor com proporções diferentes em vez de todas do mesmo tamanho. */
+.cv-skeleton-line--title { width: 70%; height: 0.75rem; }
+.cv-skeleton-line--shortcut { width: 50%; height: 0.75rem; }
+.cv-skeleton-line--body { width: 90%; height: 0.75rem; }
 
 /* Linha excluída sai com transição curta em vez de sumir de repente (QR-47). */
 .cv-row-departing {
