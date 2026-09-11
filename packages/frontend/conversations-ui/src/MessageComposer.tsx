@@ -168,6 +168,7 @@ export const MessageComposer = ({
   const [quickRepliesMode, setQuickRepliesMode] = useState<'shortcut' | 'button'>('shortcut')
   const [caretPosition, setCaretPosition] = useState(0)
   const quickRepliesPopoverRef = useRef<HTMLDivElement>(null)
+  const quickRepliesTriggerRef = useRef<HTMLButtonElement>(null)
 
   const isControlled = externalValue !== undefined
   const text = isControlled ? externalValue : internalText
@@ -268,19 +269,29 @@ export const MessageComposer = ({
   })
 
   // Botão de raio: abre o picker com busca própria — o campo de mensagem não é tocado (QR-04).
+  // Clicar de novo com o picker já aberto nesse modo fecha — o raio é um toggle, não só um "abrir".
   const openQuickRepliesViaButton = useCallback(() => {
+    if (isQuickRepliesOpen && quickRepliesMode === 'button') {
+      closeQuickRepliesAndRefocus()
+      return
+    }
     setQuickRepliesMode('button')
     setQuickRepliesTerm('')
     setShortcutStart(null)
     setIsQuickRepliesOpen(true)
-  }, [])
+  }, [isQuickRepliesOpen, quickRepliesMode, closeQuickRepliesAndRefocus])
 
   // Clique fora do popover em modo botão fecha e devolve o foco ao campo — a busca própria não
-  // tem `blur` do campo para fechar sozinha, como o modo atalho tem.
+  // tem `blur` do campo para fechar sozinha, como o modo atalho tem. O próprio botão de raio é
+  // ignorado aqui: o `mousedown` nele já é tratado por `openQuickRepliesViaButton` como toggle, e
+  // sem essa exclusão o outside-click fechava primeiro e o `onClick` do botão reabria em seguida.
   useEffect(() => {
     if (!isQuickRepliesOpen || quickRepliesMode !== 'button') return
     const handleOutsideClick = (event: MouseEvent) => {
-      if (!quickRepliesPopoverRef.current?.contains(event.target as Node)) closeQuickRepliesAndRefocus()
+      const target = event.target as Node
+      if (quickRepliesPopoverRef.current?.contains(target)) return
+      if (quickRepliesTriggerRef.current?.contains(target)) return
+      closeQuickRepliesAndRefocus()
     }
     document.addEventListener('mousedown', handleOutsideClick)
     return () => document.removeEventListener('mousedown', handleOutsideClick)
@@ -499,6 +510,7 @@ export const MessageComposer = ({
           {isQuickRepliesOpen && (
             <div ref={quickRepliesPopoverRef} className="absolute bottom-full left-0 mb-2 z-10">
               <QuickRepliesPicker
+                key={quickRepliesMode}
                 id={quickRepliesListboxId}
                 items={quickRepliesPicker.items}
                 search={quickRepliesTerm}
@@ -508,6 +520,7 @@ export const MessageComposer = ({
                 onHover={quickRepliesPicker.setHighlightedIndex}
                 onSelect={insertSavedQuickReply}
                 labels={savedQuickReplies?.labels}
+                variables={savedQuickReplies?.variables}
                 ownSearch={
                   quickRepliesMode === 'button'
                     ? {
@@ -525,6 +538,7 @@ export const MessageComposer = ({
 
         {showQuickRepliesButton && (
           <button
+            ref={quickRepliesTriggerRef}
             type="button"
             data-cv-tooltip={quickRepliesLabel}
             aria-label={quickRepliesLabel}

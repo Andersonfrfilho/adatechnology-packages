@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { cn } from '../lib/cn'
 import { useQuickRepliesWorkspace, insertAtCursor, type QuickRepliesWorkspaceApi } from './useQuickRepliesWorkspace'
 import { DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS, type QuickRepliesWorkspaceLabels } from './labels'
@@ -27,8 +27,30 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
   /** Linha da tabela pedindo confirmação antes de excluir — em vez de `window.confirm`, que trava a
    * aba inteira e não segue os tokens visuais do pacote. */
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
+  /** Um botão "Excluir" por linha — para onde o foco volta quando a confirmação é cancelada. */
+  const deleteButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const confirmButtonRef = useRef<HTMLButtonElement>(null)
+
+  // A confirmação nasce sem foco nenhum: sem isto, Tab a partir de onde o operador estava levaria
+  // por cima dela, e quem usa teclado nunca saberia que ela apareceu.
+  useEffect(() => {
+    if (confirmingDeleteId) confirmButtonRef.current?.focus()
+  }, [confirmingDeleteId])
+
+  const cancelDeleteConfirm = (id: string) => {
+    setConfirmingDeleteId(null)
+    deleteButtonRefs.current[id]?.focus()
+  }
+
+  const handleDeleteConfirmKeyDown = (id: string) => (event: KeyboardEvent<HTMLSpanElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      cancelDeleteConfirm(id)
+    }
+  }
 
   const {
+    quickReplies,
     filtered,
     isLoading,
     loadError,
@@ -64,7 +86,9 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
     <div className={cn('space-y-4', className)}>
       <header className="space-y-0.5">
         <h2 className="text-lg font-semibold">{text.title}</h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{text.subtitle(filtered.length)}</p>
+        {/* Total cadastrado, nunca o filtrado — a busca não deve fazer parecer que sumiram
+            mensagens; a contagem de resultado da busca fica em `noResults`/`empty`. */}
+        <p className="text-sm text-gray-500 dark:text-gray-400">{text.subtitle(quickReplies.length)}</p>
       </header>
 
       {readOnly ? <p className="text-sm text-gray-500 dark:text-gray-400">{text.readOnlyNotice}</p> : null}
@@ -257,9 +281,15 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
                       confirmingDeleteId === quickReply.id ? (
                         // Linha de confirmação inline em vez de `window.confirm`: trava a aba
                         // inteira e não segue os tokens visuais do pacote (`web.md` §14).
-                        <span role="alert" className="flex items-center gap-2 text-xs">
+                        <span
+                          role="group"
+                          aria-label={text.removeConfirm(quickReply.title)}
+                          onKeyDown={handleDeleteConfirmKeyDown(quickReply.id)}
+                          className="flex items-center gap-2 text-xs"
+                        >
                           {text.removeConfirm(quickReply.title)}
                           <button
+                            ref={confirmButtonRef}
                             type="button"
                             onClick={() => {
                               setConfirmingDeleteId(null)
@@ -271,7 +301,7 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
                           </button>
                           <button
                             type="button"
-                            onClick={() => setConfirmingDeleteId(null)}
+                            onClick={() => cancelDeleteConfirm(quickReply.id)}
                             className="text-gray-500 hover:underline dark:text-gray-400"
                           >
                             {text.cancel}
@@ -279,6 +309,9 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
                         </span>
                       ) : (
                         <button
+                          ref={(node) => {
+                            deleteButtonRefs.current[quickReply.id] = node
+                          }}
                           type="button"
                           onClick={() => setConfirmingDeleteId(quickReply.id)}
                           className="text-xs text-red-600 hover:underline dark:text-red-400"

@@ -9,6 +9,13 @@ const ITEMS: QuickReply[] = [
   { id: '2', title: 'Pedido de documento', shortcut: 'doc', body: 'Envie o RG.' },
 ]
 
+const GREETING_WITH_VARIABLE: QuickReply = {
+  id: '3',
+  title: 'Boas-vindas',
+  shortcut: 'bv',
+  body: 'Olá {{nome}}, bem-vindo!',
+}
+
 describe('QuickRepliesPicker', () => {
   it('mostra o estado vazio quando não há mensagens cadastradas', () => {
     const markup = renderToStaticMarkup(
@@ -86,5 +93,22 @@ describe('QuickRepliesPicker', () => {
     )
     expect(markup).toContain('<mark')
     expect(markup).toContain('Pedido de ')
+  })
+
+  it('mostra a prévia do corpo com a variável já resolvida (QR-04), nunca o marcador cru', () => {
+    const markup = renderToStaticMarkup(
+      <QuickRepliesPicker
+        id="qr"
+        items={[GREETING_WITH_VARIABLE]}
+        search=""
+        highlightedIndex={0}
+        isLoading={false}
+        onHover={() => {}}
+        onSelect={() => {}}
+        variables={{ nome: 'João' }}
+      />,
+    )
+    expect(markup).toContain('Olá João, bem-vindo!')
+    expect(markup).not.toContain('{{nome}}')
   })
 })

@@ -36,6 +36,11 @@ describe('filterQuickReplies', () => {
   it('sem correspondência devolve lista vazia', () => {
     expect(filterQuickReplies({ quickReplies: [GREETING, DOCS], search: 'boleto' })).toEqual([])
   })
+
+  it('termo só de marca combinante normaliza para vazio e não filtra nada', () => {
+    // "́" sozinho (acento agudo combinante, sem base) normaliza para string vazia.
+    expect(filterQuickReplies({ quickReplies: [GREETING, DOCS], search: '́' })).toEqual([GREETING, DOCS])
+  })
 })
 
 describe('highlightMatch', () => {
@@ -73,5 +78,11 @@ describe('highlightMatch', () => {
     const segments = highlightMatch(text, 'istanbul')
     expect(segments.map((segment) => segment.text).join('')).toBe(text)
     expect(segments.some((segment) => segment.isMatch)).toBe(true)
+  })
+
+  it('termo só de marca combinante normaliza para vazio — não trava em loop e devolve o texto inteiro', () => {
+    // Sem o guard, `indexOf('')` sempre acha posição 0 e o cursor nunca avança: loop infinito.
+    const segments = highlightMatch('Saudação', '́')
+    expect(segments).toEqual([{ text: 'Saudação', isMatch: false }])
   })
 })

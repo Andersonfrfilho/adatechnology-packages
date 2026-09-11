@@ -1,4 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { applyQuickReplyVariables } from '../MessageComposer'
 import { cn } from '../lib/cn'
 import { highlightMatch } from './quickReplySearch'
 import type { QuickReply } from './quickReply.types'
@@ -30,6 +31,9 @@ export type QuickRepliesPickerProps = {
   readonly labels?: Partial<QuickRepliesPickerLabels>
   readonly className?: string
   readonly ownSearch?: QuickRepliesPickerOwnSearch
+  /** Resolve `{{marcador}}` antes de destacar e mostrar a prévia (QR-04) — quem busca "joão" espera
+   * ver "Olá João" na lista, não o marcador cru. */
+  readonly variables?: Readonly<Record<string, string>>
 }
 
 /**
@@ -48,6 +52,7 @@ export function QuickRepliesPicker({
   labels,
   className,
   ownSearch,
+  variables,
 }: QuickRepliesPickerProps) {
   const text = { ...DEFAULT_QUICK_REPLIES_PICKER_LABELS, ...labels }
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -95,28 +100,42 @@ export function QuickRepliesPicker({
           </li>
         ) : null}
         {!isLoading && !hasError
-          ? items.map((quickReply, index) => (
-              <li
-                key={quickReply.id}
-                id={`${id}-option-${index}`}
-                role="option"
-                aria-selected={index === highlightedIndex}
-                className={cn(
-                  'flex cursor-pointer flex-col gap-0.5 px-3 py-2 text-sm',
-                  index === highlightedIndex ? 'bg-gray-100 dark:bg-gray-800' : undefined,
-                )}
-                onMouseEnter={() => onHover(index)}
-                // `mousedown` (não `click`): o campo mantém o foco, então o `blur` não fecha o
-                // picker antes da seleção acontecer.
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                  onSelect(quickReply)
-                }}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-gray-400">/{quickReply.shortcut}</span>
-                  <span className="truncate font-medium">
-                    {highlightMatch(quickReply.title, search).map((segment, segmentIndex) =>
+          ? items.map((quickReply, index) => {
+              const resolvedBody = applyQuickReplyVariables(quickReply.body, variables)
+              return (
+                <li
+                  key={quickReply.id}
+                  id={`${id}-option-${index}`}
+                  role="option"
+                  aria-selected={index === highlightedIndex}
+                  className={cn(
+                    'flex cursor-pointer flex-col gap-0.5 px-3 py-2 text-sm',
+                    index === highlightedIndex ? 'bg-gray-100 dark:bg-gray-800' : undefined,
+                  )}
+                  onMouseEnter={() => onHover(index)}
+                  // `mousedown` (não `click`): o campo mantém o foco, então o `blur` não fecha o
+                  // picker antes da seleção acontecer.
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    onSelect(quickReply)
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-gray-400">/{quickReply.shortcut}</span>
+                    <span className="truncate font-medium">
+                      {highlightMatch(quickReply.title, search).map((segment, segmentIndex) =>
+                        segment.isMatch ? (
+                          <mark key={segmentIndex} className="rounded-sm bg-yellow-200 dark:bg-yellow-700/60">
+                            {segment.text}
+                          </mark>
+                        ) : (
+                          <span key={segmentIndex}>{segment.text}</span>
+                        ),
+                      )}
+                    </span>
+                  </span>
+                  <span className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    {highlightMatch(resolvedBody, search).map((segment, segmentIndex) =>
                       segment.isMatch ? (
                         <mark key={segmentIndex} className="rounded-sm bg-yellow-200 dark:bg-yellow-700/60">
                           {segment.text}
@@ -126,10 +145,9 @@ export function QuickRepliesPicker({
                       ),
                     )}
                   </span>
-                </span>
-                <span className="truncate text-xs text-gray-500 dark:text-gray-400">{quickReply.body}</span>
-              </li>
-            ))
+                </li>
+              )
+            })
           : null}
       </ul>
     </div>

@@ -159,6 +159,24 @@ describe('submitQuickReply', () => {
     const result = await submitQuickReply({ api, editing: VALID_EDITING, labels: LABELS })
     expect(result).toEqual({ outcome: 'rejected', fieldErrors: { shortcut: LABELS.shortcutTaken } })
   })
+
+  it('erro que se referencia (error.error === error) não trava em recursão infinita', async () => {
+    const circular: Record<string, unknown> = {}
+    circular.error = circular
+    const api: QuickRepliesWorkspaceApi = {
+      createQuickReply: async () => {
+        throw circular
+      },
+    }
+    const result = await submitQuickReply({ api, editing: VALID_EDITING, labels: LABELS })
+    expect(result).toEqual({ outcome: 'rejected', fieldErrors: {}, formError: LABELS.saveError })
+  })
+
+  it('editando sem updateQuickReply na porta, rejeita com saveUnavailable em vez de fingir sucesso', async () => {
+    const api: QuickRepliesWorkspaceApi = {}
+    const result = await submitQuickReply({ api, editing: { ...VALID_EDITING, id: '1' }, labels: LABELS })
+    expect(result).toEqual({ outcome: 'rejected', fieldErrors: {}, formError: LABELS.saveUnavailable })
+  })
 })
 
 describe('insertAtCursor', () => {

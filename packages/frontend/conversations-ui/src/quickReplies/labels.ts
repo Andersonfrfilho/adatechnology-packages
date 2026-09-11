@@ -53,7 +53,7 @@ export interface QuickRepliesWorkspaceLabels {
 
 export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels = {
   title: 'Mensagens prontas',
-  subtitle: (total) => `${total} mensagem${total === 1 ? '' : 's'} cadastrada${total === 1 ? '' : 's'}`,
+  subtitle: (total) => `${total} ${total === 1 ? 'mensagem cadastrada' : 'mensagens cadastradas'}`,
   searchPlaceholder: 'Buscar por título, atalho ou texto',
   loading: 'Carregando mensagens prontas…',
   failure: 'Não foi possível carregar as mensagens prontas.',

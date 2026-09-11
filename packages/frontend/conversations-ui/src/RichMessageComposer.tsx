@@ -224,6 +224,7 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
      * o raio nunca insere `/` no campo (QR-04). */
     const [quickRepliesMode, setQuickRepliesMode] = useState<'shortcut' | 'button'>('shortcut')
     const quickRepliesPopoverRef = useRef<HTMLDivElement>(null)
+    const quickRepliesTriggerRef = useRef<HTMLButtonElement>(null)
     /** Cursor guardado ao abrir pelo botão — o foco vai para a busca própria, e é a ele que a
      * inserção volta antes de escrever o corpo resolvido. */
     const savedRangeRef = useRef<Range | undefined>(undefined)
@@ -429,6 +430,10 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
           }
           insertAtCursor(resolvedBody)
           closeQuickReplies()
+          // Rede de segurança: fechar o picker desmonta a busca própria, que tinha o foco do
+          // navegador — sem isto o foco cai para `document.body` em vez de voltar ao campo com o
+          // cursor logo depois do texto inserido.
+          requestAnimationFrame(() => editor?.focus())
           return
         }
 
@@ -471,18 +476,28 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
 
     // Botão de raio: guarda o cursor e abre o picker com busca própria — o campo não é tocado
     // (QR-04). O cursor guardado é para onde a seleção volta ao inserir o corpo escolhido.
+    // Clicar de novo com o picker já aberto nesse modo fecha — o raio é um toggle.
     const openQuickRepliesViaButton = useCallback(() => {
+      if (isQuickRepliesOpen && quickRepliesMode === 'button') {
+        closeQuickRepliesAndRefocus()
+        return
+      }
       savedRangeRef.current = currentRange()
       setQuickRepliesMode('button')
       setQuickRepliesTerm('')
       setIsQuickRepliesOpen(true)
-    }, [currentRange])
+    }, [isQuickRepliesOpen, quickRepliesMode, currentRange, closeQuickRepliesAndRefocus])
 
-    // Clique fora do popover em modo botão fecha e devolve o foco ao campo.
+    // Clique fora do popover em modo botão fecha e devolve o foco ao campo. O próprio botão de
+    // raio é ignorado: seu `mousedown` já é tratado como toggle por `openQuickRepliesViaButton`,
+    // e sem essa exclusão o outside-click fechava primeiro e o `onClick` reabria em seguida.
     useEffect(() => {
       if (!isQuickRepliesOpen || quickRepliesMode !== 'button') return
       const handleOutsideClick = (event: MouseEvent) => {
-        if (!quickRepliesPopoverRef.current?.contains(event.target as Node)) closeQuickRepliesAndRefocus()
+        const target = event.target as Node
+        if (quickRepliesPopoverRef.current?.contains(target)) return
+        if (quickRepliesTriggerRef.current?.contains(target)) return
+        closeQuickRepliesAndRefocus()
       }
       document.addEventListener('mousedown', handleOutsideClick)
       return () => document.removeEventListener('mousedown', handleOutsideClick)
@@ -723,6 +738,7 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
           {showQuickRepliesButton && shows(RICH_COMPOSER_ACTION.QUICK_REPLIES) ? (
             <div className="relative">
               <button
+                ref={quickRepliesTriggerRef}
                 type="button"
                 onClick={openQuickRepliesViaButton}
                 data-cv-tooltip={tooltipOf('quickReplies')}
@@ -737,6 +753,7 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
               {isQuickRepliesOpen ? (
                 <div ref={quickRepliesPopoverRef} className="absolute bottom-full left-0 z-20 mb-2">
                   <QuickRepliesPicker
+                    key={quickRepliesMode}
                     id={quickRepliesListboxId}
                     items={quickRepliesPicker.items}
                     search={quickRepliesTerm}
@@ -746,6 +763,7 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
                     onHover={quickRepliesPicker.setHighlightedIndex}
                     onSelect={insertSavedQuickReply}
                     labels={savedQuickReplies?.labels}
+                    variables={savedQuickReplies?.variables}
                     ownSearch={
                       quickRepliesMode === 'button'
                         ? {

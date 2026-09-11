@@ -47,6 +47,8 @@ export function filterQuickReplies({
   search,
   variables,
 }: FilterQuickRepliesParams): readonly QuickReply[] {
+  // Termo composto só de marcas combinantes (ex.: "́" sozinho) normaliza para string vazia —
+  // tratar como termo vazio, senão `indexOf('')` em `highlightMatch` casaria em todo índice.
   const term = normalizeForSearch(search.trim())
   if (!term) return quickReplies
   return quickReplies.filter((quickReply) => {
@@ -73,6 +75,9 @@ export function highlightMatch(text: string, search: string): readonly MatchSegm
   if (!term) return [{ text, isMatch: false }]
   const { normalized: normalizedText, originalIndexOf } = normalizeForSearchWithMap(text)
   const normalizedTerm = normalizeForSearch(term)
+  // Termo só de marcas combinantes (ex.: "́") normaliza para "" — `indexOf('')` sempre acha
+  // posição 0 e o laço abaixo nunca avança o cursor, travando a aba num loop infinito.
+  if (!normalizedTerm) return [{ text, isMatch: false }]
   // Índice original correspondente a uma posição do texto normalizado — o comprimento do texto
   // original fecha o mapa para quando a posição cai depois do último caractere normalizado.
   const originalIndexAt = (normalizedIndex: number): number =>

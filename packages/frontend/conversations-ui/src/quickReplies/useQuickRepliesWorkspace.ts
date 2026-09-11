@@ -40,7 +40,14 @@ type ApiErrorShape = { readonly code?: unknown; readonly details?: unknown }
  * (alguns wrappers de fetch). Sem isto, a rejeição real do servidor nunca chega ao formulário e o
  * operador só vê "não foi possível salvar", mesmo quando a API já mandou o campo certo.
  */
-function apiErrorEnvelopeOf(error: unknown): ApiErrorShape | undefined {
+const MAX_ERROR_ENVELOPE_DEPTH = 3
+
+/**
+ * Desce no máximo `MAX_ERROR_ENVELOPE_DEPTH` níveis: um erro que se referencia (`error.error ===
+ * error`, comum em `Error` customizado com `cause` circular) faria a recursão nunca terminar.
+ */
+function apiErrorEnvelopeOf(error: unknown, depth = 0): ApiErrorShape | undefined {
+  if (depth >= MAX_ERROR_ENVELOPE_DEPTH) return undefined
   if (!error || typeof error !== 'object') return undefined
   const candidate = error as Record<string, unknown>
   if ('code' in candidate || 'details' in candidate) return candidate as ApiErrorShape
@@ -48,7 +55,7 @@ function apiErrorEnvelopeOf(error: unknown): ApiErrorShape | undefined {
     (candidate.error as unknown) ??
     (candidate.response as Record<string, unknown> | undefined)?.data ??
     (candidate.body as unknown)
-  if (nested && typeof nested === 'object') return apiErrorEnvelopeOf(nested)
+  if (nested && typeof nested === 'object') return apiErrorEnvelopeOf(nested, depth + 1)
   return undefined
 }
 
@@ -120,9 +127,17 @@ export async function submitQuickReply({
   if (Object.keys(validationErrors).length > 0) return { outcome: 'invalid', fieldErrors: validationErrors }
 
   const editingId = editing.id
+  if (editingId === null && !api.createQuickReply) {
+    return { outcome: 'rejected', fieldErrors: {}, formError: labels.saveUnavailable }
+  }
+  if (editingId !== null && !api.updateQuickReply) {
+    return { outcome: 'rejected', fieldErrors: {}, formError: labels.saveUnavailable }
+  }
   const save =
-    editingId === null ? api.createQuickReply : (input: QuickReplyInput) => api.updateQuickReply?.(editingId, input)
-  if (!save) return { outcome: 'rejected', fieldErrors: {}, formError: labels.saveUnavailable }
+    editingId === null
+      ? (api.createQuickReply as NonNullable<QuickRepliesWorkspaceApi['createQuickReply']>)
+      : (input: QuickReplyInput) =>
+          (api.updateQuickReply as NonNullable<QuickRepliesWorkspaceApi['updateQuickReply']>)(editingId, input)
 
   try {
     const quickReply = await save(input)
