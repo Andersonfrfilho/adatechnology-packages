@@ -5,6 +5,7 @@ import {
   attachmentKey,
   canAddAttachments,
   excludeRetryingItems,
+  hasSentEveryStoredUpload,
   orderOutgoingItems,
   queuedAttachmentsFromQuickReply,
   resolveIdempotencyKey,
@@ -258,6 +259,30 @@ describe('resolveIdempotencyKey', () => {
   it('gera chave nova quando a ordem muda, mesmo com o mesmo conjunto', () => {
     const previous = { key: 'k1', uploadIds: ['a', 'b'] }
     expect(resolveIdempotencyKey(previous, ['b', 'a'], () => 'k2')).toEqual({ key: 'k2', uploadIds: ['b', 'a'] })
+  })
+})
+
+describe('hasSentEveryStoredUpload', () => {
+  it('true quando não havia guardado nenhum nesta tentativa', () => {
+    expect(hasSentEveryStoredUpload([], [])).toBe(true)
+    expect(hasSentEveryStoredUpload([], ['a'])).toBe(true)
+  })
+
+  it('true quando todo uploadId da tentativa saiu', () => {
+    expect(hasSentEveryStoredUpload(['a', 'b'], ['a', 'b'])).toBe(true)
+    expect(hasSentEveryStoredUpload(['a', 'b'], ['b', 'a'])).toBe(true)
+  })
+
+  it('true mesmo com chave extra em sentAttachmentKeys (ex: anexo local também enviado)', () => {
+    expect(hasSentEveryStoredUpload(['a'], ['a', 'local-1'])).toBe(true)
+  })
+
+  it('falso quando um uploadId falhou ou foi pulado', () => {
+    expect(hasSentEveryStoredUpload(['a', 'b'], ['a'])).toBe(false)
+  })
+
+  it('falso quando nada saiu', () => {
+    expect(hasSentEveryStoredUpload(['a', 'b'], [])).toBe(false)
   })
 })
 

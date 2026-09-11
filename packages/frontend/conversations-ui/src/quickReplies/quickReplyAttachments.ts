@@ -112,6 +112,22 @@ function sameUploadIds(a: readonly string[], b: readonly string[]): boolean {
   return a.every((id, index) => id === b[index])
 }
 
+/**
+ * Decide se a chave de idempotência pode ser descartada depois de um envio (M3-bug): todo
+ * `uploadId` da tentativa saiu com sucesso. `setState` com updater NÃO roda de forma síncrona
+ * dentro do handler — uma variável `let` atualizada por ele e lida logo em seguida sempre lê o
+ * valor antigo. Esta decisão usa só os parâmetros da própria tentativa (nunca o estado da fila),
+ * então não depende de nenhum `setState` ter aplicado.
+ */
+export function hasSentEveryStoredUpload(
+  storedUploadIds: readonly string[],
+  sentAttachmentKeys: readonly string[],
+): boolean {
+  if (storedUploadIds.length === 0) return true
+  const sentKeys = new Set(sentAttachmentKeys)
+  return storedUploadIds.every((uploadId) => sentKeys.has(uploadId))
+}
+
 export type SendQueuedMessageParams = {
   readonly text: string
   readonly queue: readonly QueuedAttachment[]
