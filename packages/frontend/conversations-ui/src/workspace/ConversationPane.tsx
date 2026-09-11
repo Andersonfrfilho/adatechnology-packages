@@ -26,8 +26,10 @@ import { useScrollToLatestMessage } from '../hooks/useScrollToLatestMessage'
 import { useConversations } from '../providers/ConversationsProvider'
 import type { ConversationSummary } from '../providers/types'
 import type { ConversationsWorkspaceLabels } from './labels'
-import type { ConversationVariable } from '../quickReplies/quickReply.types'
+import type { ConversationVariable, QueuedAttachment } from '../quickReplies/quickReply.types'
+import { attachmentKey, sendQueuedMessage, type AttachmentSendStatus } from '../quickReplies/quickReplyAttachments'
 import { resolveConversationVariables } from '../quickReplies/resolveConversationVariables'
+import { QueuedAttachmentsList } from './QueuedAttachmentsList'
 
 export interface ConversationPaneProps {
   readonly conversation: ConversationSummary
@@ -150,17 +152,25 @@ export function ConversationPane({
   const [sendFailure, setSendFailure] = useState<string | undefined>(undefined)
   const [selectedMessageIds, setSelectedMessageIds] = useState<ReadonlySet<string>>(new Set())
   const [draft, setDraft] = useState(initialComposerText ?? '')
-  const [queuedFiles, setQueuedFiles] = useState<readonly File[]>([])
+  const [queue, setQueue] = useState<readonly QueuedAttachment[]>([])
+  const [attachmentStatus, setAttachmentStatus] = useState<Record<string, AttachmentSendStatus>>({})
   const [isSendingDraft, setIsSendingDraft] = useState(false)
   /** Ref, não estado: entre dois cliques seguidos o React ainda não teria repintado a trava. */
   const sendInFlightRef = useRef(false)
+  /**
+   * Uma por clique (QR-38): gerada na primeira tentativa e reusada em todo reenvio do que sobrou —
+   * só zera quando a fila esvazia de vez.
+   */
+  const idempotencyKeyRef = useRef<string | undefined>(undefined)
 
   // Trocar de conversa zera as duas coisas: seleção de mensagem e rascunho pertencem à thread, e
   // levá-los adiante faria copiar o trecho errado ou responder ao cliente errado.
   useEffect(() => {
     setSelectedMessageIds(new Set())
     setDraft(initialComposerText ?? '')
-    setQueuedFiles([])
+    setQueue([])
+    setAttachmentStatus({})
+    idempotencyKeyRef.current = undefined
   }, [conversation.id, initialComposerText])
 
   function toggleMessageSelected(messageId: string): void {
@@ -233,25 +243,50 @@ export function ConversationPane({
    * O texto escrito é a legenda do anexo, não uma segunda mensagem: no WhatsApp a foto chega com a
    * frase embaixo, e mandar as duas separadas invertia a ordem quando a mídia demorava a subir.
    */
+  /**
+   * Texto primeiro, como mensagem própria; se falhar, nenhum anexo sai (QR-34, QR-43). Depois os
+   * anexos guardados (mensagem pronta), na ordem cadastrada; por último os locais, sem legenda — o
+   * texto já foi mandado. Só o que não saiu (falha, pulado, ou sem porta) continua na fila.
+   */
   async function handleRichSend(): Promise<void> {
     // O upload da mídia demora e não dá retorno na tela; sem esta trava o segundo clique — ou o
     // Enter impaciente — mandava o mesmo arquivo outra vez.
     if (sendInFlightRef.current) return
+    if (!draft.trim() && queue.length === 0) return
     sendInFlightRef.current = true
     setIsSendingDraft(true)
+    setSendFailure(undefined)
+    if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID()
     try {
-      if (onSendAttachments && queuedFiles.length > 0) {
-        const files = queuedFiles
-        const caption = draft
-        const didSend = await runSend(() => onSendAttachments(files, caption), labels.attachFailure)
-        if (didSend) {
-          setQueuedFiles([])
-          setDraft('')
-        }
+      const result = await sendQueuedMessage({
+        text: draft,
+        queue,
+        idempotencyKey: idempotencyKeyRef.current,
+        sendText: (text) => runSend(() => api.sendMessage(conversation.id, text), labels.sendFailure),
+        ...(api.sendStoredAttachments
+          ? {
+              sendStoredAttachments: (params: { uploadIds: readonly string[]; idempotencyKey: string }) =>
+                api.sendStoredAttachments!({ conversationId: conversation.id, ...params }),
+            }
+          : {}),
+        ...(onSendAttachments
+          ? { sendLocalAttachments: (files: readonly File[]) => onSendAttachments(files, '') }
+          : {}),
+        onAttachmentStatus: (key, status) => setAttachmentStatus((current) => ({ ...current, [key]: status })),
+      })
+      if (!result.textSent) {
+        setSendFailure(labels.sendFailure)
         return
       }
-      if (!draft.trim()) return
-      if (await handleSend(draft)) setDraft('')
+      setQueue(result.remainingQueue)
+      if (result.remainingQueue.length === 0) {
+        idempotencyKeyRef.current = undefined
+        setAttachmentStatus({})
+      }
+      if (draft.trim()) setDraft('')
+      await refetch()
+    } catch (error: unknown) {
+      setSendFailure(error instanceof Error ? error.message : labels.attachFailure)
     } finally {
       sendInFlightRef.current = false
       setIsSendingDraft(false)
@@ -261,6 +296,15 @@ export function ConversationPane({
   async function handleAttach(file: File): Promise<void> {
     if (!onAttach) return
     await runSend(() => onAttach(file), labels.attachFailure)
+  }
+
+  function removeQueuedAttachment(item: QueuedAttachment): void {
+    setQueue((current) => current.filter((queued) => attachmentKey(queued) !== attachmentKey(item)))
+  }
+
+  function retryQueuedAttachment(item: QueuedAttachment): void {
+    setAttachmentStatus((current) => ({ ...current, [attachmentKey(item)]: 'waiting' }))
+    void handleRichSend()
   }
 
   function handleDownload(): void {
@@ -402,7 +446,13 @@ export function ConversationPane({
           onChange={setDraft}
           onSend={() => void handleRichSend()}
           {...(onSendAttachments
-            ? { onAttachFiles: (files: FileList) => setQueuedFiles((current) => [...current, ...Array.from(files)]) }
+            ? {
+                onAttachFiles: (files: FileList) =>
+                  setQueue((current) => [
+                    ...current,
+                    ...Array.from(files).map((file): QueuedAttachment => ({ kind: 'local', file })),
+                  ]),
+              }
             : onAttach
               ? {
                   onAttachFiles: (files: FileList) => {
@@ -412,7 +462,7 @@ export function ConversationPane({
               : {})}
           placeholder={labels.composerPlaceholder}
           isSending={busy || isSendingDraft}
-          hasQueuedAttachments={queuedFiles.length > 0}
+          hasQueuedAttachments={queue.length > 0}
           {...(onRecordAudio
             ? {
                 idleAction: (
@@ -423,26 +473,25 @@ export function ConversationPane({
                 ),
               }
             : {})}
-          {...(queuedFiles.length > 0
+          {...(queue.length > 0
             ? {
                 attachmentsPreview: (
-                  <ul className="cv-workspace-attachments">
-                    {queuedFiles.map((file, index) => (
-                      <li key={`${file.name}-${index}`}>
-                        <span>{file.name}</span>
-                        <button
-                          data-cv-tooltip={labels.attachmentRemove}
-                          type="button"
-                          aria-label={labels.attachmentRemove}
-                          onClick={() =>
-                            setQueuedFiles((current) => current.filter((_, position) => position !== index))
-                          }
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <QueuedAttachmentsList
+                    items={queue}
+                    statusOf={(key) => attachmentStatus[key] ?? 'waiting'}
+                    onRemove={removeQueuedAttachment}
+                    onRetry={retryQueuedAttachment}
+                    getThumbnailUrl={(uploadId) => api.getDocumentUrl(uploadId, 'inline')}
+                    busy={isSendingDraft}
+                    labels={{
+                      remove: labels.attachmentRemove,
+                      waiting: labels.attachmentWaiting,
+                      sending: labels.attachmentSending,
+                      sent: labels.attachmentSent,
+                      failed: labels.attachmentFailed,
+                      retry: labels.attachmentRetry,
+                    }}
+                  />
                 ),
               }
             : {})}
