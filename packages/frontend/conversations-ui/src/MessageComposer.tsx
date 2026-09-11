@@ -74,6 +74,13 @@ export interface MessageComposerSavedQuickReplies {
   readonly conversationId: string
   readonly variables?: Readonly<Record<string, string>>
   readonly labels?: Partial<QuickRepliesPickerLabels>
+  /**
+   * Avisada antes de inserir o texto, para o host empurrar os anexos da mensagem escolhida na fila
+   * do composer (QR-32). Sem esta prop nada muda — o texto continua sendo inserido do mesmo jeito.
+   */
+  readonly onSelect?: (quickReply: SavedQuickReply) => void
+  /** Sem `sendStoredAttachments` no host, a linha com anexo avisa em vez de prometer envio (QR-33). */
+  readonly hasAttachmentsCapability?: boolean
 }
 
 export interface MessageComposerProps {
@@ -221,6 +228,7 @@ export const MessageComposer = ({
 
   const insertSavedQuickReply = useCallback(
     (quickReply: SavedQuickReply) => {
+      savedQuickReplies?.onSelect?.(quickReply)
       const ta = textareaRef.current
       if (!ta) return
       const resolvedBody = applyQuickReplyVariables(quickReply.body, savedQuickReplies?.variables)
@@ -521,6 +529,7 @@ export const MessageComposer = ({
                 onSelect={insertSavedQuickReply}
                 labels={savedQuickReplies?.labels}
                 variables={savedQuickReplies?.variables}
+                hasAttachmentsCapability={savedQuickReplies?.hasAttachmentsCapability}
                 ownSearch={
                   quickRepliesMode === 'button'
                     ? {

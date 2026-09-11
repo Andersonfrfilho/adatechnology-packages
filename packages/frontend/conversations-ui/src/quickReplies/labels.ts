@@ -8,6 +8,10 @@ export interface QuickRepliesPickerLabels {
   readonly error: string
   readonly empty: string
   readonly noResults: string
+  /** Contagem ao lado do clipe na linha (QR-32): "2 anexos". */
+  readonly attachmentsCount: (count: number) => string
+  /** Mostrado na linha quando a mensagem tem anexo, mas o produto não sabe mandá-lo (QR-33). */
+  readonly attachmentsUnavailable: string
 }
 
 export const DEFAULT_QUICK_REPLIES_PICKER_LABELS: QuickRepliesPickerLabels = {
@@ -15,6 +19,8 @@ export const DEFAULT_QUICK_REPLIES_PICKER_LABELS: QuickRepliesPickerLabels = {
   error: 'Não foi possível carregar as mensagens prontas.',
   empty: 'Nenhuma mensagem pronta cadastrada ainda.',
   noResults: 'Nenhuma mensagem encontrada.',
+  attachmentsCount: (count) => `${count} ${count === 1 ? 'anexo' : 'anexos'}`,
+  attachmentsUnavailable: 'Este produto não envia os anexos desta mensagem — só o texto entra.',
 }
 
 export interface QuickRepliesWorkspaceLabels {

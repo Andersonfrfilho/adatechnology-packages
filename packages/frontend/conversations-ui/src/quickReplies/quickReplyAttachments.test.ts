@@ -5,6 +5,7 @@ import {
   attachmentKey,
   canAddAttachments,
   orderOutgoingItems,
+  queuedAttachmentsFromQuickReply,
   resolveMaxAttachmentSizeBytes,
   sendQueuedMessage,
 } from './quickReplyAttachments'
@@ -157,6 +158,31 @@ describe('sendQueuedMessage', () => {
       },
     })
     expect(keys).toEqual(['retry-key', 'retry-key'])
+  })
+})
+
+describe('queuedAttachmentsFromQuickReply', () => {
+  const quickReplyWithAttachments = {
+    attachments: [
+      { uploadId: 'a', filename: 'a.pdf', mimeType: 'application/pdf', sizeBytes: 1 },
+      { uploadId: 'b', filename: 'b.png', mimeType: 'image/png', sizeBytes: 2 },
+    ],
+  }
+
+  it('empurra os anexos como itens guardados quando o host sabe mandar (QR-32)', () => {
+    expect(queuedAttachmentsFromQuickReply(quickReplyWithAttachments, true)).toEqual([
+      { kind: 'stored', uploadId: 'a', filename: 'a.pdf', mimeType: 'application/pdf', sizeBytes: 1 },
+      { kind: 'stored', uploadId: 'b', filename: 'b.png', mimeType: 'image/png', sizeBytes: 2 },
+    ])
+  })
+
+  it('não empurra nada sem a porta (QR-33)', () => {
+    expect(queuedAttachmentsFromQuickReply(quickReplyWithAttachments, false)).toEqual([])
+  })
+
+  it('não empurra nada quando a mensagem não tem anexo', () => {
+    expect(queuedAttachmentsFromQuickReply({ attachments: [] }, true)).toEqual([])
+    expect(queuedAttachmentsFromQuickReply({ attachments: undefined }, true)).toEqual([])
   })
 })
 

@@ -26,8 +26,17 @@ import { useScrollToLatestMessage } from '../hooks/useScrollToLatestMessage'
 import { useConversations } from '../providers/ConversationsProvider'
 import type { ConversationSummary } from '../providers/types'
 import type { ConversationsWorkspaceLabels } from './labels'
-import type { ConversationVariable, QueuedAttachment } from '../quickReplies/quickReply.types'
-import { attachmentKey, sendQueuedMessage, type AttachmentSendStatus } from '../quickReplies/quickReplyAttachments'
+import type {
+  ConversationVariable,
+  QueuedAttachment,
+  QuickReply as SavedQuickReply,
+} from '../quickReplies/quickReply.types'
+import {
+  attachmentKey,
+  queuedAttachmentsFromQuickReply,
+  sendQueuedMessage,
+  type AttachmentSendStatus,
+} from '../quickReplies/quickReplyAttachments'
 import { resolveConversationVariables } from '../quickReplies/resolveConversationVariables'
 import { QueuedAttachmentsList } from './QueuedAttachmentsList'
 
@@ -347,6 +356,14 @@ export function ConversationPane({
         listQuickReplies: (params?: { search?: string }) => api.listQuickReplies!(params),
         conversationId: conversation.id,
         variables: quickReplyVariables,
+        hasAttachmentsCapability: Boolean(api.sendStoredAttachments),
+        // Empurra os anexos da mensagem escolhida como itens guardados (QR-32) — sem a porta, a
+        // linha do picker já avisou e o texto entra sozinho, sem silenciosamente perder o anexo.
+        onSelect: (quickReply: SavedQuickReply) => {
+          const attachments = queuedAttachmentsFromQuickReply(quickReply, Boolean(api.sendStoredAttachments))
+          if (attachments.length === 0) return
+          setQueue((current) => [...current, ...attachments])
+        },
       }
     : undefined
   const botOwnsConversation = Boolean(requireTakeoverToReply) && conversation.mode !== 'human'

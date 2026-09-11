@@ -1,5 +1,26 @@
 import { QUICK_REPLY_ATTACHMENT_LIMIT } from './quickReply.types'
-import type { QueuedAttachment, StoredAttachmentSendResult } from './quickReply.types'
+import type { QueuedAttachment, QuickReply, StoredAttachmentSendResult } from './quickReply.types'
+
+/**
+ * Anexos de uma mensagem pronta escolhida no picker, prontos para entrar na fila como `stored`
+ * (QR-32). Vazio sem `hasAttachmentsCapability` — sem `sendStoredAttachments` no host, empurrar o
+ * item só encalharia na fila sem jeito de sair; a linha do picker já avisou disso antes do clique.
+ */
+export function queuedAttachmentsFromQuickReply(
+  quickReply: Pick<QuickReply, 'attachments'>,
+  hasAttachmentsCapability: boolean,
+): readonly QueuedAttachment[] {
+  if (!hasAttachmentsCapability || !quickReply.attachments?.length) return []
+  return quickReply.attachments.map(
+    (attachment): QueuedAttachment => ({
+      kind: 'stored',
+      uploadId: attachment.uploadId,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+    }),
+  )
+}
 
 /** Chave estável do item na fila — `uploadId` para guardado, identidade do `File` para local. */
 export function attachmentKey(item: QueuedAttachment): string {

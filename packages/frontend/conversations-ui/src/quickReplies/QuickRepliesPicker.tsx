@@ -1,9 +1,12 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { Paperclip } from 'lucide-react'
 import { applyQuickReplyVariables } from '../MessageComposer'
 import { cn } from '../lib/cn'
 import { highlightMatch } from './quickReplySearch'
 import type { QuickReply } from './quickReply.types'
 import { DEFAULT_QUICK_REPLIES_PICKER_LABELS, type QuickRepliesPickerLabels } from './labels'
+
+const LOADING_SKELETON_ROWS = 4
 
 /**
  * Presente só no modo botão: o picker desenha e é dono da própria busca — focada ao abrir, dona de
@@ -34,6 +37,8 @@ export type QuickRepliesPickerProps = {
   /** Resolve `{{marcador}}` antes de destacar e mostrar a prévia (QR-04) — quem busca "joão" espera
    * ver "Olá João" na lista, não o marcador cru. */
   readonly variables?: Readonly<Record<string, string>>
+  /** Sem `sendStoredAttachments` no host, a linha com anexo avisa em vez de prometer envio (QR-33). */
+  readonly hasAttachmentsCapability?: boolean
 }
 
 /**
@@ -53,6 +58,7 @@ export function QuickRepliesPicker({
   className,
   ownSearch,
   variables,
+  hasAttachmentsCapability,
 }: QuickRepliesPickerProps) {
   const text = { ...DEFAULT_QUICK_REPLIES_PICKER_LABELS, ...labels }
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -88,7 +94,17 @@ export function QuickRepliesPicker({
         id={id}
         className="max-h-64 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-900"
       >
-        {isLoading ? <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">{text.loading}</li> : null}
+        {isLoading ? (
+          <li aria-busy="true" aria-live="polite">
+            <span className="sr-only">{text.loading}</span>
+            {Array.from({ length: LOADING_SKELETON_ROWS }).map((_, index) => (
+              <span key={index} className="flex flex-col gap-1 px-3 py-2">
+                <span className="cv-skeleton-line" style={{ width: '60%', height: '0.75rem' }} />
+                <span className="cv-skeleton-line" style={{ width: '85%', height: '0.625rem' }} />
+              </span>
+            ))}
+          </li>
+        ) : null}
         {!isLoading && hasError ? (
           <li role="alert" className="px-3 py-2 text-sm text-red-600 dark:text-red-400">
             {text.error}
@@ -133,7 +149,24 @@ export function QuickRepliesPicker({
                         ),
                       )}
                     </span>
+                    {quickReply.attachments && quickReply.attachments.length > 0 ? (
+                      <span
+                        className={cn(
+                          'flex flex-none items-center gap-0.5 text-xs',
+                          hasAttachmentsCapability
+                            ? 'text-gray-500 dark:text-gray-400'
+                            : 'text-amber-600 dark:text-amber-400',
+                        )}
+                        title={hasAttachmentsCapability ? undefined : text.attachmentsUnavailable}
+                      >
+                        <Paperclip aria-hidden="true" className="h-3 w-3" />
+                        {text.attachmentsCount(quickReply.attachments.length)}
+                      </span>
+                    ) : null}
                   </span>
+                  {quickReply.attachments && quickReply.attachments.length > 0 && !hasAttachmentsCapability ? (
+                    <span className="text-xs text-amber-600 dark:text-amber-400">{text.attachmentsUnavailable}</span>
+                  ) : null}
                   <span className="truncate text-xs text-gray-500 dark:text-gray-400">
                     {highlightMatch(resolvedBody, search).map((segment, segmentIndex) =>
                       segment.isMatch ? (
