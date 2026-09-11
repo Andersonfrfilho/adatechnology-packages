@@ -846,6 +846,8 @@
 .dark .cv-attachment-item--failed .cv-attachment-item__meta { color: rgb(248 113 113); }
 .cv-attachment-item--sent .cv-attachment-item__meta { color: rgb(22 163 74); }
 .dark .cv-attachment-item--sent .cv-attachment-item__meta { color: rgb(74 222 128); }
+.cv-attachment-item--skipped .cv-attachment-item__meta { color: rgb(180 83 9); }
+.dark .cv-attachment-item--skipped .cv-attachment-item__meta { color: rgb(251 191 36); }
 .cv-attachment-item__retry {
   flex: none;
   border: 0;

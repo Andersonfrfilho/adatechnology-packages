@@ -624,6 +624,7 @@ export function ConversationPane({
                       sending: labels.attachmentSending,
                       sent: labels.attachmentSent,
                       failed: labels.attachmentFailed,
+                      skipped: labels.attachmentSkipped,
                       retry: labels.attachmentRetry,
                     }}
                   />

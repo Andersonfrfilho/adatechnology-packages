@@ -58,6 +58,42 @@ describe('applySendResults', () => {
   })
 })
 
+describe('onAttachmentStatus: pulado distinto de falhou', () => {
+  it('sendQueuedMessage reporta skipped, não failed, para um item pulado no lote', async () => {
+    const statuses: { key: string; status: string }[] = []
+    await sendQueuedMessage({
+      text: '',
+      queue: [FIRST, SECOND],
+      idempotencyKey: 'k1',
+      sendText: async () => true,
+      sendStoredAttachments: async () => ({
+        results: [
+          { uploadId: 'a', status: 'failed', errorCode: 'UPLOAD_FAILED' },
+          { uploadId: 'b', status: 'skipped' },
+        ],
+      }),
+      onAttachmentStatus: (key, status) => statuses.push({ key, status }),
+    })
+    expect(statuses).toContainEqual({ key: 'a', status: 'failed' })
+    expect(statuses).toContainEqual({ key: 'b', status: 'skipped' })
+  })
+
+  it('retryStoredAttachments reporta skipped, não failed, para o item pulado', async () => {
+    const statuses: { key: string; status: string }[] = []
+    await retryStoredAttachments({
+      queue: [FIRST],
+      uploadIds: ['a'],
+      idempotencyKey: 'k',
+      sendStoredAttachments: async () => ({ results: [{ uploadId: 'a', status: 'skipped' }] }),
+      onAttachmentStatus: (key, status) => statuses.push({ key, status }),
+    })
+    expect(statuses).toEqual([
+      { key: 'a', status: 'sending' },
+      { key: 'a', status: 'skipped' },
+    ])
+  })
+})
+
 describe('canAddAttachments', () => {
   it('aceita até o teto e recusa acima', () => {
     expect(canAddAttachments(8, 2)).toBe(true)

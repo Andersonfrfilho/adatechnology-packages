@@ -41,6 +41,8 @@ export interface ConversationsWorkspaceLabels {
   readonly attachmentSending: string
   readonly attachmentSent: string
   readonly attachmentFailed: string
+  /** Servidor parou antes de tentar este arquivo, por causa de uma falha anterior no mesmo lote. */
+  readonly attachmentSkipped: string
   readonly attachmentRetry: string
   readonly recordFailure: string
   readonly sendFailure: string
@@ -86,6 +88,7 @@ export const DEFAULT_CONVERSATIONS_WORKSPACE_LABELS: ConversationsWorkspaceLabel
   attachmentSending: 'Enviando…',
   attachmentSent: 'Enviado ✓',
   attachmentFailed: 'Falhou',
+  attachmentSkipped: 'Não enviado — aguardando o anterior',
   attachmentRetry: 'Tentar de novo',
   recordFailure: 'Falha ao gravar o áudio.',
   sendFailure: 'Falha ao enviar a mensagem.',

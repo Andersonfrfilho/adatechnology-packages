@@ -16,6 +16,7 @@ export type QueuedAttachmentsListLabels = {
   readonly sending: string
   readonly sent: string
   readonly failed: string
+  readonly skipped: string
   readonly retry: string
 }
 
@@ -144,6 +145,7 @@ export function QueuedAttachmentsList({
     if (status === 'sending') return labels.sending
     if (status === 'sent') return labels.sent
     if (status === 'failed') return labels.failed
+    if (status === 'skipped') return labels.skipped
     return labels.waiting
   }
 
@@ -165,7 +167,7 @@ export function QueuedAttachmentsList({
                 {formatFileSize(sizeOf(item))} · {statusLabelOf(status)}
               </span>
             </span>
-            {status === 'failed' && onRetry ? (
+            {(status === 'failed' || status === 'skipped') && onRetry ? (
               <button type="button" className="cv-attachment-item__retry" onClick={() => onRetry(item)}>
                 {labels.retry}
               </button>

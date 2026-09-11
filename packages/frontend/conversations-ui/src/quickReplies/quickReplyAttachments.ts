@@ -31,7 +31,7 @@ export function attachmentKey(item: QueuedAttachment): string {
   return item.kind === 'stored' ? item.uploadId : item.localId
 }
 
-export type AttachmentSendStatus = 'waiting' | 'sending' | 'sent' | 'failed'
+export type AttachmentSendStatus = 'waiting' | 'sending' | 'sent' | 'failed' | 'skipped'
 
 /** Espelha os tetos da API; o host sobrescreve quando o backend dele aceita outro tamanho. */
 export const DEFAULT_MAX_ATTACHMENT_SIZE_BYTES = {
@@ -138,10 +138,19 @@ export type SendQueuedMessageResult = {
 type SendStoredAttachmentsPort = NonNullable<SendQueuedMessageParams['sendStoredAttachments']>
 type StoredQueuedAttachment = Extract<QueuedAttachment, { kind: 'stored' }>
 
+/** Traduz o status do resultado do servidor para o status visual do item na fila. */
+function attachmentSendStatusOf(status: StoredAttachmentSendResult['status']): AttachmentSendStatus {
+  if (status === 'sent') return 'sent'
+  if (status === 'skipped') return 'skipped'
+  return 'failed'
+}
+
 /**
  * Manda um lote de itens `stored` e traduz a resposta em status por item — usado tanto pelo envio
  * normal quanto pelo retry avulso (M5): guardado sem resultado no lote é tratado como falha, e o
  * lote inteiro falhando (rede, 500) marca cada item como falha em vez de sumir da tela sem explicação.
+ * `skipped` (o servidor parou antes de tentar este arquivo, por causa de uma falha anterior no
+ * mesmo lote) fica distinto de `failed` — o item não falhou, só não chegou a ser tentado.
  */
 async function sendStoredBatch(
   stored: readonly StoredQueuedAttachment[],
@@ -158,7 +167,7 @@ async function sendStoredBatch(
       if (!resultedUploadIds.has(item.uploadId)) results = [...results, { uploadId: item.uploadId, status: 'failed' }]
     }
     for (const result of results) {
-      onAttachmentStatus?.(result.uploadId, result.status === 'sent' ? 'sent' : 'failed')
+      onAttachmentStatus?.(result.uploadId, attachmentSendStatusOf(result.status))
     }
     return results
   } catch {
