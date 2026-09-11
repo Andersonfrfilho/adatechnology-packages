@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { createUploadQueue } from './createUploadQueue'
+import { useCallback, useEffect, useState } from 'react'
 import { filterQuickReplies } from './quickReplySearch'
-import { moveAttachment, validateAttachmentFiles } from './quickReplyAttachmentUpload'
+import { moveAttachment } from './quickReplyAttachmentUpload'
+import { useQuickReplyAttachmentUploads } from './useQuickReplyAttachmentUploads'
+import type { PendingAttachmentUpload } from './useQuickReplyAttachmentUploads'
+import type { AttachmentFileRejection } from './quickReplyAttachmentUpload'
 import type { MaxAttachmentSizeBytes } from './quickReplyAttachments'
 import type { QuickReply, QuickReplyAttachment, QuickReplyInput } from './quickReply.types'
 import type { QuickRepliesWorkspaceLabels } from './labels'
+
+export type { PendingAttachmentUpload } from './useQuickReplyAttachmentUploads'
 
 /**
  * Portas que a tela de cadastro precisa. `create`/`update`/`delete` ausentes não impedem a leitura
@@ -33,15 +37,6 @@ export type QuickRepliesWorkspaceEditing = {
   readonly body: string
   /** Já subidos — a ordem daqui é a ordem de envio salva (QR-30). */
   readonly attachments: readonly QuickReplyAttachment[]
-}
-
-/** Item em upload no formulário: estado local, nunca persistido — some ao terminar ou ser removido. */
-export type PendingAttachmentUpload = {
-  readonly localId: string
-  readonly file: File
-  readonly status: 'uploading' | 'error'
-  readonly progress: number
-  readonly error?: string
 }
 
 const TITLE_MAX_LENGTH = 40
@@ -240,7 +235,7 @@ export type UseQuickRepliesWorkspaceResult = {
   readonly cancelAttachmentUpload: (localId: string) => void
   readonly removeAttachment: (uploadId: string) => void
   readonly moveAttachmentAt: (index: number, direction: -1 | 1) => void
-  readonly attachmentRejections: readonly { readonly file: File; readonly reason: 'limit' | 'size' }[]
+  readonly attachmentRejections: readonly AttachmentFileRejection[]
   readonly dismissAttachmentRejections: () => void
 }
 
@@ -259,23 +254,26 @@ export function useQuickRepliesWorkspace({
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | undefined>(undefined)
   const [deletingId, setDeletingId] = useState<string | undefined>(undefined)
-  const [pendingUploads, setPendingUploads] = useState<readonly PendingAttachmentUpload[]>([])
-  const [attachmentRejections, setAttachmentRejections] = useState<
-    readonly { readonly file: File; readonly reason: 'limit' | 'size' }[]
-  >([])
-  /** Fila compartilhada (M1): no máximo 3 uploads em voo ao mesmo tempo, somando o que
-   * `addAttachmentFiles` e `retryAttachmentUpload` enfileiram — nenhum dos dois abre janela própria. */
-  const uploadQueueRef = useRef(createUploadQueue(3))
-  /** M2: depois do unmount, nenhuma promessa de upload em voo pode chamar setState — só aborta. */
-  const isMountedRef = useRef(true)
 
-  useEffect(
-    () => () => {
-      isMountedRef.current = false
-      uploadQueueRef.current.abortAll()
-    },
-    [],
-  )
+  const uploadAttachment = useCallback((attachment: QuickReplyAttachment): void => {
+    setEditing((current) => (current ? { ...current, attachments: [...current.attachments, attachment] } : current))
+  }, [])
+
+  const {
+    pendingUploads,
+    attachmentRejections,
+    addAttachmentFiles,
+    retryAttachmentUpload,
+    cancelAttachmentUpload,
+    dismissAttachmentRejections,
+    abortAllUploads,
+  } = useQuickReplyAttachmentUploads({
+    ...(api.uploadQuickReplyAttachment ? { upload: api.uploadQuickReplyAttachment } : {}),
+    labels,
+    ...(attachmentSizeLimits ? { attachmentSizeLimits } : {}),
+    attachmentsCount: editing?.attachments.length ?? 0,
+    onUploaded: uploadAttachment,
+  })
 
   useEffect(() => {
     if (!api.listQuickReplies) return
@@ -300,25 +298,18 @@ export function useQuickRepliesWorkspace({
 
   const filtered = filterQuickReplies({ quickReplies, search })
 
-  /** Cancela todo upload em voo — trocar de registro sem isso deixaria um `fetch` órfão terminando
-   * sozinho e tentando atualizar um estado que já não existe mais. */
-  const abortAllUploads = useCallback(() => {
-    uploadQueueRef.current.abortAll()
-    setPendingUploads([])
-  }, [])
-
   const startCreate = useCallback(() => {
     abortAllUploads()
-    setAttachmentRejections([])
+    dismissAttachmentRejections()
     setEditing({ id: null, title: '', shortcut: '', body: '', attachments: [] })
     setFieldErrors({})
     setSaveError(undefined)
-  }, [abortAllUploads])
+  }, [abortAllUploads, dismissAttachmentRejections])
 
   const startEdit = useCallback(
     (quickReply: QuickReply) => {
       abortAllUploads()
-      setAttachmentRejections([])
+      dismissAttachmentRejections()
       setEditing({
         id: quickReply.id,
         title: quickReply.title,
@@ -329,16 +320,16 @@ export function useQuickRepliesWorkspace({
       setFieldErrors({})
       setSaveError(undefined)
     },
-    [abortAllUploads],
+    [abortAllUploads, dismissAttachmentRejections],
   )
 
   const cancelEdit = useCallback(() => {
     abortAllUploads()
-    setAttachmentRejections([])
+    dismissAttachmentRejections()
     setEditing(undefined)
     setFieldErrors({})
     setSaveError(undefined)
-  }, [abortAllUploads])
+  }, [abortAllUploads, dismissAttachmentRejections])
 
   const updateField = useCallback((field: QuickReplyFormField, value: string) => {
     setEditing((current) => (current ? { ...current, [field]: value } : current))
@@ -400,85 +391,6 @@ export function useQuickRepliesWorkspace({
       current ? { ...current, attachments: moveAttachment(current.attachments, index, direction) } : current,
     )
   }, [])
-
-  const dismissAttachmentRejections = useCallback(() => setAttachmentRejections([]), [])
-
-  const cancelAttachmentUpload = useCallback((localId: string) => {
-    uploadQueueRef.current.abort(localId)
-    setPendingUploads((current) => current.filter((item) => item.localId !== localId))
-  }, [])
-
-  const updatePendingUpload = useCallback((localId: string, patch: Partial<PendingAttachmentUpload>) => {
-    setPendingUploads((current) => current.map((item) => (item.localId === localId ? { ...item, ...patch } : item)))
-  }, [])
-
-  /** Sobe um arquivo já validado, através da fila compartilhada (M1): progresso real por
-   * `onProgress`, e o resultado entra em `editing.attachments` na ordem de chegada assim que a
-   * promessa resolve. Enfileira e retorna — quem chama não espera.
-   *
-   * Não existe um "processando" observável entre a resposta do upload e o item entrar em
-   * `editing.attachments`: as duas atualizações de estado abaixo acontecem no mesmo tick, e o
-   * React as agrupa num commit só — um status `processing` nunca chegaria a ser pintado na tela. */
-  const uploadOneFile = useCallback(
-    (localId: string, file: File) => {
-      const upload = api.uploadQuickReplyAttachment
-      if (!upload) return
-      uploadQueueRef.current.enqueue(localId, async (signal) => {
-        try {
-          const attachment = await upload(file, {
-            onProgress: (fraction) => {
-              if (isMountedRef.current) updatePendingUpload(localId, { progress: fraction })
-            },
-            signal,
-          })
-          if (!isMountedRef.current) return
-          setEditing((current) =>
-            current ? { ...current, attachments: [...current.attachments, attachment] } : current,
-          )
-          setPendingUploads((current) => current.filter((item) => item.localId !== localId))
-        } catch (caught: unknown) {
-          if (signal.aborted || !isMountedRef.current) return
-          updatePendingUpload(localId, {
-            status: 'error',
-            error: caught instanceof Error ? caught.message : labels.saveError,
-          })
-        }
-      })
-    },
-    [api, updatePendingUpload, labels.saveError],
-  )
-
-  const retryAttachmentUpload = useCallback(
-    (localId: string) => {
-      const item = pendingUploads.find((pending) => pending.localId === localId)
-      if (!item) return
-      updatePendingUpload(localId, { status: 'uploading', progress: 0, error: undefined })
-      uploadOneFile(localId, item.file)
-    },
-    [pendingUploads, updatePendingUpload, uploadOneFile],
-  )
-
-  /** Valida (teto de 10, tamanho por tipo) ANTES de subir (QR-31) — só o aceito vira upload; o
-   * recusado fica em `attachmentRejections` para a tela explicar por quê, sem gastar rede nele. */
-  const addAttachmentFiles = useCallback(
-    (files: FileList | readonly File[]) => {
-      if (!editing || !api.uploadQuickReplyAttachment) return
-      const currentCount = editing.attachments.length + pendingUploads.length
-      const { accepted, rejected } = validateAttachmentFiles(Array.from(files), currentCount, attachmentSizeLimits)
-      setAttachmentRejections(rejected)
-      if (accepted.length === 0) return
-      const newItems: PendingAttachmentUpload[] = accepted.map((file) => ({
-        localId: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
-        file,
-        status: 'uploading',
-        progress: 0,
-      }))
-      setPendingUploads((current) => [...current, ...newItems])
-      // Até 3 em paralelo (QR-31), somando com retries em voo — a fila compartilhada decide (M1).
-      for (const item of newItems) uploadOneFile(item.localId, item.file)
-    },
-    [editing, api.uploadQuickReplyAttachment, pendingUploads.length, uploadOneFile, attachmentSizeLimits],
-  )
 
   return {
     quickReplies,
