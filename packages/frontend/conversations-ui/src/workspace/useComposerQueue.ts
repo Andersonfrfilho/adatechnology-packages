@@ -169,13 +169,19 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
       // então ler uma variável escrita por ele aqui sempre pegaria o valor antigo (bug real em
       // produção — a chave nunca era descartada e o segundo envio do mesmo anexo era recusado pelo
       // servidor como replay).
-      if (hasSentEveryStoredUpload(idempotencyState.uploadIds, result.sentAttachmentKeys)) {
+      setAttachmentStatus((current) => {
+        const next = { ...current }
+        for (const key of sentKeys) delete next[key]
+        return next
+      })
+      // Descarta a chave só se ninguém a trocou por identidade desde o `await` (mesmo cuidado do
+      // retry avulso em `shouldResetRetryKey`) — senão um envio concorrente que já trocou o ref
+      // teria sua chave nova apagada por esta tentativa mais antiga.
+      if (
+        idempotencyKeyRef.current === idempotencyState &&
+        hasSentEveryStoredUpload(idempotencyState.uploadIds, result.sentAttachmentKeys)
+      ) {
         idempotencyKeyRef.current = undefined
-        setAttachmentStatus((current) => {
-          const next = { ...current }
-          for (const key of sentKeys) delete next[key]
-          return next
-        })
       }
       if (draft.trim()) setDraft('')
       await refetch()

@@ -18,6 +18,7 @@ import {
   resolveIdempotencyKey,
   resolveRetryOutcome,
   retryStoredAttachments,
+  shouldResetRetryKey,
   type AttachmentSendStatus,
   type IdempotencyKeyState,
 } from '../quickReplies/quickReplyAttachments'
@@ -116,6 +117,19 @@ export function useComposerAttachmentRetry(params: UseComposerAttachmentRetryPar
           if (isSameConversation()) setAttachmentStatus((current) => ({ ...current, [statusKey]: status }))
         },
       })
+      // Descarta a chave só se este retry a enviou E nenhum retry mais novo do mesmo `uploadId`
+      // já trocou o ref por identidade (ver `shouldResetRetryKey`) — senão um segundo retry rápido
+      // do mesmo anexo (mensagens prontas reusam `uploadId`) reenviaria com chave já consumida.
+      if (
+        shouldResetRetryKey({
+          current: retryIdempotencyKeyRef.current,
+          attempted: idempotencyState,
+          sentAttachmentKeys: result.sentAttachmentKeys,
+          uploadId: item.uploadId,
+        })
+      ) {
+        retryIdempotencyKeyRef.current = undefined
+      }
       setQueue(
         (current) =>
           resolveRetryOutcome({

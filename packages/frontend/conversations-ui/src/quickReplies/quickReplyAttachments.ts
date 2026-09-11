@@ -128,6 +128,29 @@ export function hasSentEveryStoredUpload(
   return storedUploadIds.every((uploadId) => sentKeys.has(uploadId))
 }
 
+export type ShouldResetRetryKeyParams = {
+  /** Valor corrente do ref no momento da checagem — lido depois do `await`. */
+  readonly current: IdempotencyKeyState | undefined
+  /** Estado usado NESTA tentativa, capturado antes do `await`. */
+  readonly attempted: IdempotencyKeyState
+  readonly sentAttachmentKeys: readonly string[]
+  readonly uploadId: string
+}
+
+/**
+ * Decide se a chave de idempotência do retry avulso pode ser descartada (M3-retry-bug): o item
+ * saiu com sucesso E ninguém trocou o ref por identidade desde então. A checagem de identidade
+ * (`current === attempted`) importa porque um retry avulso reusa `uploadId` de itens guardados
+ * (mensagens prontas) — um segundo retry do MESMO `uploadId` pode começar e sobrescrever o ref
+ * antes desta tentativa terminar; sem a checagem, o `undefined` desta tentativa apagaria a chave
+ * da tentativa mais nova, e o próximo envio dela reusaria uma chave já consumida pelo servidor.
+ */
+export function shouldResetRetryKey(params: ShouldResetRetryKeyParams): boolean {
+  const { current, attempted, sentAttachmentKeys, uploadId } = params
+  if (!sentAttachmentKeys.includes(uploadId)) return false
+  return current === attempted
+}
+
 export type SendQueuedMessageParams = {
   readonly text: string
   readonly queue: readonly QueuedAttachment[]

@@ -13,6 +13,8 @@ import {
   resolveRetryOutcome,
   retryStoredAttachments,
   sendQueuedMessage,
+  shouldResetRetryKey,
+  type IdempotencyKeyState,
 } from './quickReplyAttachments'
 import type { QueuedAttachment } from './quickReply.types'
 
@@ -283,6 +285,50 @@ describe('hasSentEveryStoredUpload', () => {
 
   it('falso quando nada saiu', () => {
     expect(hasSentEveryStoredUpload(['a', 'b'], [])).toBe(false)
+  })
+})
+
+describe('shouldResetRetryKey', () => {
+  const stateA: IdempotencyKeyState = { key: 'key-a', uploadIds: ['upload-1'] }
+  const stateB: IdempotencyKeyState = { key: 'key-b', uploadIds: ['upload-1'] }
+
+  it('descarta quando o item saiu e o ref ainda é o mesmo da tentativa (duas tentativas seguidas do mesmo uploadId recebem chaves diferentes)', () => {
+    expect(
+      shouldResetRetryKey({
+        current: stateA,
+        attempted: stateA,
+        sentAttachmentKeys: ['upload-1'],
+        uploadId: 'upload-1',
+      }),
+    ).toBe(true)
+  })
+
+  it('mantém a chave quando o retry falhou (uploadId não está em sentAttachmentKeys)', () => {
+    expect(
+      shouldResetRetryKey({ current: stateA, attempted: stateA, sentAttachmentKeys: [], uploadId: 'upload-1' }),
+    ).toBe(false)
+  })
+
+  it('mantém a chave quando um retry concorrente já trocou o ref por identidade', () => {
+    expect(
+      shouldResetRetryKey({
+        current: stateB,
+        attempted: stateA,
+        sentAttachmentKeys: ['upload-1'],
+        uploadId: 'upload-1',
+      }),
+    ).toBe(false)
+  })
+
+  it('mantém a chave quando o ref já foi limpo (undefined) por outra resolução', () => {
+    expect(
+      shouldResetRetryKey({
+        current: undefined,
+        attempted: stateA,
+        sentAttachmentKeys: ['upload-1'],
+        uploadId: 'upload-1',
+      }),
+    ).toBe(false)
   })
 })
 
