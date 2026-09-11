@@ -34,8 +34,11 @@ import type {
 import {
   attachmentKey,
   queuedAttachmentsFromQuickReply,
+  resolveIdempotencyKey,
+  retryStoredAttachments,
   sendQueuedMessage,
   type AttachmentSendStatus,
+  type IdempotencyKeyState,
 } from '../quickReplies/quickReplyAttachments'
 import { resolveConversationVariables } from '../quickReplies/resolveConversationVariables'
 import { QueuedAttachmentsList } from './QueuedAttachmentsList'
@@ -167,10 +170,14 @@ export function ConversationPane({
   /** Ref, não estado: entre dois cliques seguidos o React ainda não teria repintado a trava. */
   const sendInFlightRef = useRef(false)
   /**
-   * Uma por clique (QR-38): gerada na primeira tentativa e reusada em todo reenvio do que sobrou —
-   * só zera quando a fila esvazia de vez.
+   * Uma por conjunto de `uploadId` guardado em voo (QR-38, M3): `resolveIdempotencyKey` decide se a
+   * chave de `handleRichSend` sobrevive ao reenvio do que sobrou, ou se precisa de uma nova porque o
+   * conjunto mudou.
    */
-  const idempotencyKeyRef = useRef<string | undefined>(undefined)
+  const idempotencyKeyRef = useRef<IdempotencyKeyState | undefined>(undefined)
+  /** A mesma decisão, mas para o "Tentar de novo" de um item avulso — nunca a mesma chave do envio
+   * do rascunho, porque o conjunto de `uploadId` de um retry solo é sempre outro (M3). */
+  const retryIdempotencyKeyRef = useRef<IdempotencyKeyState | undefined>(undefined)
   /**
    * Espelha `conversation.id` sem esperar o repaint: um envio em andamento lê isto depois do
    * `await` para saber se o atendente já trocou de conversa (H2) — `conversation.id` capturado no
@@ -206,6 +213,7 @@ export function ConversationPane({
     setQueue([])
     setAttachmentStatus({})
     idempotencyKeyRef.current = undefined
+    retryIdempotencyKeyRef.current = undefined
     sendInFlightRef.current = false
     setIsSendingDraft(false)
   }, [conversation.id, initialComposerText])
@@ -277,10 +285,6 @@ export function ConversationPane({
   }
 
   /**
-   * O texto escrito é a legenda do anexo, não uma segunda mensagem: no WhatsApp a foto chega com a
-   * frase embaixo, e mandar as duas separadas invertia a ordem quando a mídia demorava a subir.
-   */
-  /**
    * Texto primeiro, como mensagem própria; se falhar, nenhum anexo sai (QR-34, QR-43). Depois os
    * anexos guardados (mensagem pronta), na ordem cadastrada; por último os locais, sem legenda — o
    * texto já foi mandado. Só o que não saiu (falha, pulado, ou sem porta) continua na fila.
@@ -325,17 +329,22 @@ export function ConversationPane({
       return
     }
 
-    if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID()
+    const sendStoredAttachmentsApi = api.sendStoredAttachments
+    const storedUploadIds = queue
+      .filter((item): item is Extract<QueuedAttachment, { kind: 'stored' }> => item.kind === 'stored')
+      .map((item) => item.uploadId)
+    const idempotencyState = resolveIdempotencyKey(idempotencyKeyRef.current, storedUploadIds)
+    idempotencyKeyRef.current = idempotencyState
     try {
       const result = await sendQueuedMessage({
         text: draft,
         queue,
-        idempotencyKey: idempotencyKeyRef.current,
+        idempotencyKey: idempotencyState.key,
         sendText: (text) => runSend(() => api.sendMessage(conversation.id, text), labels.sendFailure),
-        ...(api.sendStoredAttachments
+        ...(sendStoredAttachmentsApi
           ? {
               sendStoredAttachments: (params: { uploadIds: readonly string[]; idempotencyKey: string }) =>
-                api.sendStoredAttachments!({ conversationId: conversation.id, ...params }),
+                sendStoredAttachmentsApi({ conversationId: conversation.id, ...params }),
             }
           : {}),
         ...(onSendAttachments
@@ -376,9 +385,51 @@ export function ConversationPane({
     setQueue((current) => current.filter((queued) => attachmentKey(queued) !== attachmentKey(item)))
   }
 
+  /**
+   * "Tentar de novo" de um item é sobre aquele anexo, nunca sobre o rascunho inteiro (M3): local
+   * volta por `onSendAttachments` sem legenda (o texto, se havia, já saiu); guardado vai sozinho
+   * por `retryStoredAttachments`, com sua própria chave de idempotência.
+   */
   function retryQueuedAttachment(item: QueuedAttachment): void {
-    setAttachmentStatus((current) => ({ ...current, [attachmentKey(item)]: 'waiting' }))
-    void handleRichSend()
+    if (item.kind === 'local') {
+      void retryLocalAttachment(item)
+      return
+    }
+    void retryStoredAttachment(item)
+  }
+
+  async function retryLocalAttachment(item: Extract<QueuedAttachment, { kind: 'local' }>): Promise<void> {
+    if (!onSendAttachments) return
+    const key = attachmentKey(item)
+    setAttachmentStatus((current) => ({ ...current, [key]: 'sending' }))
+    try {
+      await onSendAttachments([item.file], '')
+      setAttachmentStatus((current) => ({ ...current, [key]: 'sent' }))
+      setQueue((current) => current.filter((queued) => attachmentKey(queued) !== key))
+    } catch (error: unknown) {
+      setAttachmentStatus((current) => ({ ...current, [key]: 'failed' }))
+      setSendFailure(error instanceof Error ? error.message : labels.attachFailure)
+    }
+  }
+
+  async function retryStoredAttachment(item: Extract<QueuedAttachment, { kind: 'stored' }>): Promise<void> {
+    const sendStoredAttachmentsApi = api.sendStoredAttachments
+    if (!sendStoredAttachmentsApi) return
+    const uploadIds = [item.uploadId]
+    const idempotencyState = resolveIdempotencyKey(retryIdempotencyKeyRef.current, uploadIds)
+    retryIdempotencyKeyRef.current = idempotencyState
+    try {
+      const result = await retryStoredAttachments({
+        queue,
+        uploadIds,
+        idempotencyKey: idempotencyState.key,
+        sendStoredAttachments: (params) => sendStoredAttachmentsApi({ conversationId: conversation.id, ...params }),
+        onAttachmentStatus: (key, status) => setAttachmentStatus((current) => ({ ...current, [key]: status })),
+      })
+      setQueue(result.remainingQueue)
+    } catch (error: unknown) {
+      setSendFailure(error instanceof Error ? error.message : labels.attachFailure)
+    }
   }
 
   function handleDownload(): void {

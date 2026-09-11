@@ -82,6 +82,32 @@ export function resolveMaxAttachmentSizeBytes(
   return limits.document
 }
 
+export type IdempotencyKeyState = {
+  readonly key: string
+  /** Conjunto ORDENADO de `uploadId` desta tentativa — a chave só sobrevive enquanto for igual. */
+  readonly uploadIds: readonly string[]
+}
+
+/**
+ * Decide se a chave de idempotência de `previous` ainda serve (M3): serve quando o conjunto
+ * ORDENADO de `uploadIds` não mudou desde a tentativa anterior. Mudou — um anexo saiu, entrou, ou
+ * trocou de posição — vira uma tentativa diferente perante o backend, e precisa de chave nova; a
+ * mesma chave reenviaria o lote antigo como se fosse o novo (ou o servidor recusaria por conflito).
+ */
+export function resolveIdempotencyKey(
+  previous: IdempotencyKeyState | undefined,
+  uploadIds: readonly string[],
+  generateKey: () => string = () => crypto.randomUUID(),
+): IdempotencyKeyState {
+  if (previous && sameUploadIds(previous.uploadIds, uploadIds)) return previous
+  return { key: generateKey(), uploadIds }
+}
+
+function sameUploadIds(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((id, index) => id === b[index])
+}
+
 export type SendQueuedMessageParams = {
   readonly text: string
   readonly queue: readonly QueuedAttachment[]
@@ -105,6 +131,68 @@ export type SendQueuedMessageResult = {
   readonly remainingQueue: readonly QueuedAttachment[]
 }
 
+type SendStoredAttachmentsPort = NonNullable<SendQueuedMessageParams['sendStoredAttachments']>
+type StoredQueuedAttachment = Extract<QueuedAttachment, { kind: 'stored' }>
+
+/**
+ * Manda um lote de itens `stored` e traduz a resposta em status por item — usado tanto pelo envio
+ * normal quanto pelo retry avulso (M5): guardado sem resultado no lote é tratado como falha, e o
+ * lote inteiro falhando (rede, 500) marca cada item como falha em vez de sumir da tela sem explicação.
+ */
+async function sendStoredBatch(
+  stored: readonly StoredQueuedAttachment[],
+  idempotencyKey: string,
+  sendStoredAttachments: SendStoredAttachmentsPort,
+  onAttachmentStatus?: (key: string, status: AttachmentSendStatus) => void,
+): Promise<readonly StoredAttachmentSendResult[]> {
+  for (const item of stored) onAttachmentStatus?.(attachmentKey(item), 'sending')
+  try {
+    const response = await sendStoredAttachments({ uploadIds: stored.map((item) => item.uploadId), idempotencyKey })
+    let results = response.results
+    const resultedUploadIds = new Set(results.map((result) => result.uploadId))
+    for (const item of stored) {
+      if (!resultedUploadIds.has(item.uploadId)) results = [...results, { uploadId: item.uploadId, status: 'failed' }]
+    }
+    for (const result of results) {
+      onAttachmentStatus?.(result.uploadId, result.status === 'sent' ? 'sent' : 'failed')
+    }
+    return results
+  } catch {
+    for (const item of stored) onAttachmentStatus?.(attachmentKey(item), 'failed')
+    return stored.map((item) => ({ uploadId: item.uploadId, status: 'failed' as const }))
+  }
+}
+
+export type RetryStoredAttachmentsParams = {
+  readonly queue: readonly QueuedAttachment[]
+  /** Só este subconjunto é reenviado — o resto da fila (texto já mandado) fica intocado. */
+  readonly uploadIds: readonly string[]
+  readonly idempotencyKey: string
+  readonly sendStoredAttachments: SendStoredAttachmentsPort
+  readonly onAttachmentStatus?: (key: string, status: AttachmentSendStatus) => void
+}
+
+export type RetryStoredAttachmentsResult = {
+  readonly remainingQueue: readonly QueuedAttachment[]
+}
+
+/**
+ * Reenvia só os `stored` de `uploadIds` — nunca o texto do rascunho (M3): o botão "Tentar de novo"
+ * de um item é sobre aquele anexo, não sobre a mensagem inteira que já foi lida ou já saiu.
+ */
+export async function retryStoredAttachments(
+  params: RetryStoredAttachmentsParams,
+): Promise<RetryStoredAttachmentsResult> {
+  const { queue, uploadIds, idempotencyKey, sendStoredAttachments, onAttachmentStatus } = params
+  const targetIds = new Set(uploadIds)
+  const targets = queue.filter(
+    (item): item is StoredQueuedAttachment => item.kind === 'stored' && targetIds.has(item.uploadId),
+  )
+  if (targets.length === 0) return { remainingQueue: queue }
+  const results = await sendStoredBatch(targets, idempotencyKey, sendStoredAttachments, onAttachmentStatus)
+  return { remainingQueue: applySendResults(queue, results) }
+}
+
 /**
  * Orquestra QR-34/QR-37/QR-43: texto primeiro; se falhar, nada de anexo sai. Depois os `stored` (em
  * lote, um resultado por arquivo) e por último os `local` (sem legenda — o texto já foi mandado).
@@ -120,35 +208,15 @@ export async function sendQueuedMessage(params: SendQueuedMessageParams): Promis
   }
 
   const { attachments } = orderOutgoingItems(text, queue)
-  const stored = attachments.filter(
-    (item): item is Extract<QueuedAttachment, { kind: 'stored' }> => item.kind === 'stored',
-  )
+  const stored = attachments.filter((item): item is StoredQueuedAttachment => item.kind === 'stored')
   const local = attachments.filter(
     (item): item is Extract<QueuedAttachment, { kind: 'local' }> => item.kind === 'local',
   )
 
-  let results: readonly StoredAttachmentSendResult[] = []
-  if (stored.length > 0 && sendStoredAttachments) {
-    for (const item of stored) onAttachmentStatus?.(attachmentKey(item), 'sending')
-    try {
-      const response = await sendStoredAttachments({ uploadIds: stored.map((item) => item.uploadId), idempotencyKey })
-      results = response.results
-      const resultedUploadIds = new Set(results.map((result) => result.uploadId))
-      for (const item of stored) {
-        // Guardado sem resultado no lote é tratado como falha: silêncio do host não pode ler como
-        // sucesso — o item continua na fila para o atendente tentar de novo (M5).
-        if (!resultedUploadIds.has(item.uploadId)) results = [...results, { uploadId: item.uploadId, status: 'failed' }]
-      }
-      for (const result of results) {
-        onAttachmentStatus?.(result.uploadId, result.status === 'sent' ? 'sent' : 'failed')
-      }
-    } catch {
-      // O lote pode falhar inteiro (rede, 500): nenhum item guardado saiu, e cada um volta para a
-      // fila marcado como falha em vez de sumir da tela sem explicação (H3).
-      results = stored.map((item) => ({ uploadId: item.uploadId, status: 'failed' as const }))
-      for (const item of stored) onAttachmentStatus?.(attachmentKey(item), 'failed')
-    }
-  }
+  const results =
+    stored.length > 0 && sendStoredAttachments
+      ? await sendStoredBatch(stored, idempotencyKey, sendStoredAttachments, onAttachmentStatus)
+      : []
 
   let remainingQueue = applySendResults(queue, results)
 

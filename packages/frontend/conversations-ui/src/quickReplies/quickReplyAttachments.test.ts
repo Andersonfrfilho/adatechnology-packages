@@ -6,7 +6,9 @@ import {
   canAddAttachments,
   orderOutgoingItems,
   queuedAttachmentsFromQuickReply,
+  resolveIdempotencyKey,
   resolveMaxAttachmentSizeBytes,
+  retryStoredAttachments,
   sendQueuedMessage,
 } from './quickReplyAttachments'
 import type { QueuedAttachment } from './quickReply.types'
@@ -183,6 +185,77 @@ describe('sendQueuedMessage', () => {
       },
     })
     expect(keys).toEqual(['retry-key', 'retry-key'])
+  })
+})
+
+describe('resolveIdempotencyKey', () => {
+  it('gera chave nova sem estado anterior', () => {
+    const state = resolveIdempotencyKey(undefined, ['a', 'b'], () => 'new-key')
+    expect(state).toEqual({ key: 'new-key', uploadIds: ['a', 'b'] })
+  })
+
+  it('reusa a chave quando o conjunto ordenado de uploadIds não muda', () => {
+    const previous = { key: 'k1', uploadIds: ['a', 'b'] }
+    const state = resolveIdempotencyKey(previous, ['a', 'b'], () => 'should-not-be-used')
+    expect(state).toBe(previous)
+  })
+
+  it('gera chave nova quando um uploadId entra ou sai', () => {
+    const previous = { key: 'k1', uploadIds: ['a', 'b'] }
+    expect(resolveIdempotencyKey(previous, ['a'], () => 'k2')).toEqual({ key: 'k2', uploadIds: ['a'] })
+    expect(resolveIdempotencyKey(previous, ['a', 'b', 'c'], () => 'k3')).toEqual({
+      key: 'k3',
+      uploadIds: ['a', 'b', 'c'],
+    })
+  })
+
+  it('gera chave nova quando a ordem muda, mesmo com o mesmo conjunto', () => {
+    const previous = { key: 'k1', uploadIds: ['a', 'b'] }
+    expect(resolveIdempotencyKey(previous, ['b', 'a'], () => 'k2')).toEqual({ key: 'k2', uploadIds: ['b', 'a'] })
+  })
+})
+
+describe('retryStoredAttachments', () => {
+  it('reenvia só o uploadId pedido, sem tocar no resto da fila', async () => {
+    const calls: { uploadIds: readonly string[]; idempotencyKey: string }[] = []
+    const result = await retryStoredAttachments({
+      queue: [FIRST, SECOND, LOCAL],
+      uploadIds: ['b'],
+      idempotencyKey: 'retry-b',
+      sendStoredAttachments: async ({ uploadIds, idempotencyKey }) => {
+        calls.push({ uploadIds, idempotencyKey })
+        return { results: [{ uploadId: 'b', status: 'sent' as const }] }
+      },
+    })
+    expect(calls).toEqual([{ uploadIds: ['b'], idempotencyKey: 'retry-b' }])
+    expect(result.remainingQueue).toEqual([FIRST, LOCAL])
+  })
+
+  it('sem item correspondente na fila, não chama a porta e devolve a fila intacta', async () => {
+    let called = false
+    const result = await retryStoredAttachments({
+      queue: [FIRST],
+      uploadIds: ['nao-existe'],
+      idempotencyKey: 'k',
+      sendStoredAttachments: async () => {
+        called = true
+        return { results: [] }
+      },
+    })
+    expect(called).toBe(false)
+    expect(result.remainingQueue).toEqual([FIRST])
+  })
+
+  it('mantém o item na fila quando o reenvio falha', async () => {
+    const result = await retryStoredAttachments({
+      queue: [FIRST],
+      uploadIds: ['a'],
+      idempotencyKey: 'k',
+      sendStoredAttachments: async () => {
+        throw new Error('rede caiu')
+      },
+    })
+    expect(result.remainingQueue).toEqual([FIRST])
   })
 })
 
