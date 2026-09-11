@@ -133,6 +133,10 @@ export type SendQueuedMessageResult = {
   readonly textSent: boolean
   /** O que não foi enviado — falha, pulado ou sem porta — para o atendente tentar de novo. */
   readonly remainingQueue: readonly QueuedAttachment[]
+  /** Chaves (`attachmentKey`) dos itens que saíram — para o chamador remover por chave de um estado
+   * corrente, em vez de sobrescrever a fila com este `remainingQueue` (calculado sobre uma fila
+   * capturada antes do `await`, que já pode estar desatualizada). */
+  readonly sentAttachmentKeys: readonly string[]
 }
 
 type SendStoredAttachmentsPort = NonNullable<SendQueuedMessageParams['sendStoredAttachments']>
@@ -187,6 +191,8 @@ export type RetryStoredAttachmentsParams = {
 
 export type RetryStoredAttachmentsResult = {
   readonly remainingQueue: readonly QueuedAttachment[]
+  /** Chaves (`uploadId`) dos itens que saíram — ver `SendQueuedMessageResult.sentAttachmentKeys`. */
+  readonly sentAttachmentKeys: readonly string[]
 }
 
 /**
@@ -201,9 +207,10 @@ export async function retryStoredAttachments(
   const targets = queue.filter(
     (item): item is StoredQueuedAttachment => item.kind === 'stored' && targetIds.has(item.uploadId),
   )
-  if (targets.length === 0) return { remainingQueue: queue }
+  if (targets.length === 0) return { remainingQueue: queue, sentAttachmentKeys: [] }
   const results = await sendStoredBatch(targets, idempotencyKey, sendStoredAttachments, onAttachmentStatus)
-  return { remainingQueue: applySendResults(queue, results) }
+  const sentAttachmentKeys = results.filter((result) => result.status === 'sent').map((result) => result.uploadId)
+  return { remainingQueue: applySendResults(queue, results), sentAttachmentKeys }
 }
 
 /**
@@ -217,7 +224,7 @@ export async function sendQueuedMessage(params: SendQueuedMessageParams): Promis
 
   if (text.trim()) {
     const textSent = await sendText(text)
-    if (!textSent) return { textSent: false, remainingQueue: queue }
+    if (!textSent) return { textSent: false, remainingQueue: queue, sentAttachmentKeys: [] }
   }
 
   const { attachments } = orderOutgoingItems(text, queue)
@@ -232,6 +239,7 @@ export async function sendQueuedMessage(params: SendQueuedMessageParams): Promis
       : []
 
   let remainingQueue = applySendResults(queue, results)
+  const sentAttachmentKeys = results.filter((result) => result.status === 'sent').map((result) => result.uploadId)
 
   if (local.length > 0 && sendLocalAttachments) {
     for (const item of local) onAttachmentStatus?.(attachmentKey(item), 'sending')
@@ -240,10 +248,11 @@ export async function sendQueuedMessage(params: SendQueuedMessageParams): Promis
       for (const item of local) onAttachmentStatus?.(attachmentKey(item), 'sent')
       const sentKeys = new Set(local.map((item) => attachmentKey(item)))
       remainingQueue = remainingQueue.filter((item) => item.kind !== 'local' || !sentKeys.has(attachmentKey(item)))
+      sentAttachmentKeys.push(...sentKeys)
     } catch {
       for (const item of local) onAttachmentStatus?.(attachmentKey(item), 'failed')
     }
   }
 
-  return { textSent: true, remainingQueue }
+  return { textSent: true, remainingQueue, sentAttachmentKeys }
 }

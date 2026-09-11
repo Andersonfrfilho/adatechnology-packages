@@ -49,8 +49,9 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
   /** Espelha `conversationId` sem esperar o repaint (H2) — lido depois do `await` de um envio. */
   const currentConversationIdRef = useRef(conversationId)
 
-  const { retryQueuedAttachment } = useComposerAttachmentRetry({
+  const { retryQueuedAttachment, resetRetryState } = useComposerAttachmentRetry({
     conversationId,
+    currentConversationIdRef,
     queue,
     setQueue,
     setAttachmentStatus,
@@ -69,7 +70,8 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
     idempotencyKeyRef.current = undefined
     sendInFlightRef.current = false
     setIsSendingDraft(false)
-  }, [conversationId])
+    resetRetryState()
+  }, [conversationId, resetRetryState])
 
   const enqueueAttachments = useCallback((items: readonly QueuedAttachment[]) => {
     if (items.length === 0) return
@@ -144,11 +146,13 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
         },
       })
       if (!isSameConversation()) return
-      if (!result.textSent) {
-        setSendFailure(labels.sendFailure)
-        return
-      }
-      setQueue(result.remainingQueue)
+      // `runSend` já gravou o erro específico do texto (`setSendFailure`) — não sobrescrever com o
+      // rótulo genérico.
+      if (!result.textSent) return
+      // Filtra por chave sobre a fila CORRENTE, não sobrescreve com `result.remainingQueue` (que foi
+      // calculado sobre a fila capturada antes do `await` e perderia item adicionado durante o envio).
+      const sentKeys = new Set(result.sentAttachmentKeys)
+      setQueue((current) => current.filter((item) => !sentKeys.has(attachmentKey(item))))
       if (result.remainingQueue.length === 0) {
         idempotencyKeyRef.current = undefined
         setAttachmentStatus({})

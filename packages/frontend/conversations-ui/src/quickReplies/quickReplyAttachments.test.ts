@@ -136,6 +136,10 @@ describe('sendQueuedMessage', () => {
     expect(order).toEqual(['text:oi', 'stored:a,b:k1', 'local:local.pdf'])
     expect(result.textSent).toBe(true)
     expect(result.remainingQueue).toEqual([])
+    // sentAttachmentKeys deixa o chamador remover por chave de um estado corrente em vez de
+    // sobrescrever com remainingQueue (calculado sobre a fila capturada antes do await) — o item
+    // adicionado durante o envio (MEDIUM 1) não pode se perder nessa troca.
+    expect([...result.sentAttachmentKeys].sort()).toEqual(['a', 'b', 'local-1'])
   })
 
   it('não manda anexo nenhum quando o texto falha (QR-43)', async () => {
@@ -269,6 +273,17 @@ describe('retryStoredAttachments', () => {
     })
     expect(calls).toEqual([{ uploadIds: ['b'], idempotencyKey: 'retry-b' }])
     expect(result.remainingQueue).toEqual([FIRST, LOCAL])
+    expect(result.sentAttachmentKeys).toEqual(['b'])
+  })
+
+  it('sentAttachmentKeys vem vazio quando o reenvio falha (nada para remover por chave)', async () => {
+    const result = await retryStoredAttachments({
+      queue: [FIRST],
+      uploadIds: ['a'],
+      idempotencyKey: 'k',
+      sendStoredAttachments: async () => ({ results: [{ uploadId: 'a', status: 'failed' as const }] }),
+    })
+    expect(result.sentAttachmentKeys).toEqual([])
   })
 
   it('sem item correspondente na fila, não chama a porta e devolve a fila intacta', async () => {
