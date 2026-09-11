@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createUploadQueue } from './createUploadQueue'
 import { filterQuickReplies } from './quickReplySearch'
-import { mapWithConcurrencyLimit, moveAttachment, validateAttachmentFiles } from './quickReplyAttachmentUpload'
+import { moveAttachment, validateAttachmentFiles } from './quickReplyAttachmentUpload'
 import type { QuickReply, QuickReplyAttachment, QuickReplyInput } from './quickReply.types'
 import type { QuickRepliesWorkspaceLabels } from './labels'
 
@@ -258,8 +259,19 @@ export function useQuickRepliesWorkspace({
   const [attachmentRejections, setAttachmentRejections] = useState<
     readonly { readonly file: File; readonly reason: 'limit' | 'size' }[]
   >([])
-  /** Um `AbortController` por upload em voo — a única forma de cancelar de verdade um `fetch` preso. */
-  const uploadControllersRef = useRef<Record<string, AbortController>>({})
+  /** Fila compartilhada (M1): no máximo 3 uploads em voo ao mesmo tempo, somando o que
+   * `addAttachmentFiles` e `retryAttachmentUpload` enfileiram — nenhum dos dois abre janela própria. */
+  const uploadQueueRef = useRef(createUploadQueue(3))
+  /** M2: depois do unmount, nenhuma promessa de upload em voo pode chamar setState — só aborta. */
+  const isMountedRef = useRef(true)
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false
+      uploadQueueRef.current.abortAll()
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!api.listQuickReplies) return
@@ -287,8 +299,7 @@ export function useQuickRepliesWorkspace({
   /** Cancela todo upload em voo — trocar de registro sem isso deixaria um `fetch` órfão terminando
    * sozinho e tentando atualizar um estado que já não existe mais. */
   const abortAllUploads = useCallback(() => {
-    for (const controller of Object.values(uploadControllersRef.current)) controller.abort()
-    uploadControllersRef.current = {}
+    uploadQueueRef.current.abortAll()
     setPendingUploads([])
   }, [])
 
@@ -387,8 +398,7 @@ export function useQuickRepliesWorkspace({
   const dismissAttachmentRejections = useCallback(() => setAttachmentRejections([]), [])
 
   const cancelAttachmentUpload = useCallback((localId: string) => {
-    uploadControllersRef.current[localId]?.abort()
-    delete uploadControllersRef.current[localId]
+    uploadQueueRef.current.abort(localId)
     setPendingUploads((current) => current.filter((item) => item.localId !== localId))
   }, [])
 
@@ -396,33 +406,37 @@ export function useQuickRepliesWorkspace({
     setPendingUploads((current) => current.map((item) => (item.localId === localId ? { ...item, ...patch } : item)))
   }, [])
 
-  /** Sobe um arquivo já validado: progresso real por `onProgress`, "processando" enquanto a
-   * promessa não resolve, e o resultado entra em `editing.attachments` na ordem de chegada. */
+  /** Sobe um arquivo já validado, através da fila compartilhada (M1): progresso real por
+   * `onProgress`, "processando" enquanto a promessa não resolve, e o resultado entra em
+   * `editing.attachments` na ordem de chegada. Enfileira e retorna — quem chama não espera. */
   const uploadOneFile = useCallback(
-    async (localId: string, file: File) => {
+    (localId: string, file: File) => {
       const upload = api.uploadQuickReplyAttachment
       if (!upload) return
-      const controller = new AbortController()
-      uploadControllersRef.current[localId] = controller
-      try {
-        const attachment = await upload(file, {
-          onProgress: (fraction) => updatePendingUpload(localId, { progress: fraction }),
-          signal: controller.signal,
-        })
-        updatePendingUpload(localId, { status: 'processing', progress: 1 })
-        delete uploadControllersRef.current[localId]
-        setEditing((current) => (current ? { ...current, attachments: [...current.attachments, attachment] } : current))
-        setPendingUploads((current) => current.filter((item) => item.localId !== localId))
-      } catch (caught: unknown) {
-        delete uploadControllersRef.current[localId]
-        if (controller.signal.aborted) return
-        updatePendingUpload(localId, {
-          status: 'error',
-          error: caught instanceof Error ? caught.message : labels.saveError,
-        })
-      }
+      uploadQueueRef.current.enqueue(localId, async (signal) => {
+        try {
+          const attachment = await upload(file, {
+            onProgress: (fraction) => {
+              if (isMountedRef.current) updatePendingUpload(localId, { progress: fraction })
+            },
+            signal,
+          })
+          if (!isMountedRef.current) return
+          updatePendingUpload(localId, { status: 'processing', progress: 1 })
+          setEditing((current) =>
+            current ? { ...current, attachments: [...current.attachments, attachment] } : current,
+          )
+          setPendingUploads((current) => current.filter((item) => item.localId !== localId))
+        } catch (caught: unknown) {
+          if (signal.aborted || !isMountedRef.current) return
+          updatePendingUpload(localId, {
+            status: 'error',
+            error: caught instanceof Error ? caught.message : labels.saveError,
+          })
+        }
+      })
     },
-    [api, labels, updatePendingUpload],
+    [api, updatePendingUpload, labels.saveError],
   )
 
   const retryAttachmentUpload = useCallback(
@@ -430,7 +444,7 @@ export function useQuickRepliesWorkspace({
       const item = pendingUploads.find((pending) => pending.localId === localId)
       if (!item) return
       updatePendingUpload(localId, { status: 'uploading', progress: 0, error: undefined })
-      void uploadOneFile(localId, item.file)
+      uploadOneFile(localId, item.file)
     },
     [pendingUploads, updatePendingUpload, uploadOneFile],
   )
@@ -451,8 +465,8 @@ export function useQuickRepliesWorkspace({
         progress: 0,
       }))
       setPendingUploads((current) => [...current, ...newItems])
-      // Até 3 em paralelo (QR-31): o limitador testado em `quickReplyAttachmentUpload.ts`.
-      void mapWithConcurrencyLimit(newItems, 3, (item) => uploadOneFile(item.localId, item.file))
+      // Até 3 em paralelo (QR-31), somando com retries em voo — a fila compartilhada decide (M1).
+      for (const item of newItems) uploadOneFile(item.localId, item.file)
     },
     [editing, api.uploadQuickReplyAttachment, pendingUploads.length, uploadOneFile],
   )
