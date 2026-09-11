@@ -18,6 +18,7 @@ import type {
   QuickReplyAttachment,
   StoredAttachmentSendResult,
 } from '@adatechnology/conversations-ui'
+import { createMockEventSource } from '@adatechnology/conversations-ui/preview'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Search } from 'lucide-react'
@@ -392,21 +393,52 @@ function mockApi() {
           results.push({ uploadId, status: 'skipped' })
           continue
         }
-        const filename = attachmentsByUploadId.get(uploadId)?.filename ?? ''
+        const attachment = attachmentsByUploadId.get(uploadId)
+        const filename = attachment?.filename ?? ''
         if (filename.toLowerCase().includes(FAILURE_FILENAME_MARKER)) {
           results.push({ uploadId, status: 'failed', errorCode: 'UPLOAD_FAILED' })
           alreadyFailed = true
         } else {
           results.push({ uploadId, status: 'sent' })
+          if (attachment) {
+            appendAttachmentMessage(params.conversationId, attachment)
+          }
         }
       }
       return { results }
     },
   }
+
+  /**
+   * Depois de um anexo `sent`, o transcript precisa mostrar a mensagem — do jeito que o produto
+   * real mostra o texto atrás do arquivo, não só o resultado do lote. `ConversationPane` chama
+   * `refetch()` (que lê `fetchMessages`) logo depois de `sendStoredAttachments` resolver, então
+   * basta empurrar aqui para a próxima leitura já trazer o anexo.
+   */
+  function appendAttachmentMessage(conversationId: string, attachment: QuickReplyAttachment): void {
+    const isImage = attachment.mimeType.startsWith('image/')
+    const message: MessagePayload = {
+      id: `${Date.now()}-${attachment.uploadId}`,
+      type: isImage ? 'image' : 'document',
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+      direction: 'outbound',
+      sender: 'agent',
+      timestamp: new Date().toISOString(),
+      status: 'sent',
+    }
+    messagesByConversation[conversationId] = [...messagesFor(conversationId), message]
+  }
 }
 
 function mockSse() {
-  return { connectConversationStream: () => new EventSource(''), connectGlobalStream: () => new EventSource('') }
+  // `EventSource('')` dispara `net::ERR_INVALID_URL` no console sem servidor nenhum do outro lado —
+  // o preview do pacote já resolve isso com um stub sem rede, reusado aqui em vez de reinventado.
+  return {
+    connectConversationStream: () => createMockEventSource(),
+    connectGlobalStream: () => createMockEventSource(),
+  }
 }
 
 function formatPhone(number: string) {
