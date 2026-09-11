@@ -135,6 +135,31 @@ describe('sendQueuedMessage', () => {
     expect(result.remainingQueue).toEqual([SECOND, LOCAL])
   })
 
+  it('marca todo guardado como falha quando o lote lança (H3)', async () => {
+    const result = await sendQueuedMessage({
+      text: '',
+      queue: [FIRST, SECOND],
+      idempotencyKey: 'k1',
+      sendText: async () => true,
+      sendStoredAttachments: async () => {
+        throw new Error('rede caiu')
+      },
+    })
+    expect(result.textSent).toBe(true)
+    expect(result.remainingQueue).toEqual([FIRST, SECOND])
+  })
+
+  it('trata guardado ausente do resultado do lote como falha (M5)', async () => {
+    const result = await sendQueuedMessage({
+      text: '',
+      queue: [FIRST, SECOND],
+      idempotencyKey: 'k1',
+      sendText: async () => true,
+      sendStoredAttachments: async () => ({ results: [{ uploadId: 'a', status: 'sent' as const }] }),
+    })
+    expect(result.remainingQueue).toEqual([SECOND])
+  })
+
   it('reusa a mesma chave de idempotência ao reenviar o que sobrou', async () => {
     const keys: string[] = []
     await sendQueuedMessage({

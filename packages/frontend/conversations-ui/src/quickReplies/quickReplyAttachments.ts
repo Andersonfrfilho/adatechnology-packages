@@ -130,10 +130,23 @@ export async function sendQueuedMessage(params: SendQueuedMessageParams): Promis
   let results: readonly StoredAttachmentSendResult[] = []
   if (stored.length > 0 && sendStoredAttachments) {
     for (const item of stored) onAttachmentStatus?.(attachmentKey(item), 'sending')
-    const response = await sendStoredAttachments({ uploadIds: stored.map((item) => item.uploadId), idempotencyKey })
-    results = response.results
-    for (const result of results) {
-      onAttachmentStatus?.(result.uploadId, result.status === 'sent' ? 'sent' : 'failed')
+    try {
+      const response = await sendStoredAttachments({ uploadIds: stored.map((item) => item.uploadId), idempotencyKey })
+      results = response.results
+      const resultedUploadIds = new Set(results.map((result) => result.uploadId))
+      for (const item of stored) {
+        // Guardado sem resultado no lote é tratado como falha: silêncio do host não pode ler como
+        // sucesso — o item continua na fila para o atendente tentar de novo (M5).
+        if (!resultedUploadIds.has(item.uploadId)) results = [...results, { uploadId: item.uploadId, status: 'failed' }]
+      }
+      for (const result of results) {
+        onAttachmentStatus?.(result.uploadId, result.status === 'sent' ? 'sent' : 'failed')
+      }
+    } catch {
+      // O lote pode falhar inteiro (rede, 500): nenhum item guardado saiu, e cada um volta para a
+      // fila marcado como falha em vez de sumir da tela sem explicação (H3).
+      results = stored.map((item) => ({ uploadId: item.uploadId, status: 'failed' as const }))
+      for (const item of stored) onAttachmentStatus?.(attachmentKey(item), 'failed')
     }
   }
 
