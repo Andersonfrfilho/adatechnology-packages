@@ -60,4 +60,18 @@ describe('highlightMatch', () => {
   it('sem correspondência, devolve um único segmento sem destaque', () => {
     expect(highlightMatch('Saudação', 'boleto')).toEqual([{ text: 'Saudação', isMatch: false }])
   })
+
+  it('casa e recorta certo quando o texto vem em NFD (acento como combinante separado)', () => {
+    const nfdText = 'José'.normalize('NFD') // "José" com o acento como caractere combinante
+    const segments = highlightMatch(nfdText, 'jose')
+    expect(segments.map((segment) => segment.text).join('')).toBe(nfdText)
+    expect(segments.some((segment) => segment.isMatch)).toBe(true)
+  })
+
+  it('casa e recorta certo quando minúscula tem mais caracteres que a maiúscula (İ)', () => {
+    const text = 'İstanbul'
+    const segments = highlightMatch(text, 'istanbul')
+    expect(segments.map((segment) => segment.text).join('')).toBe(text)
+    expect(segments.some((segment) => segment.isMatch)).toBe(true)
+  })
 })

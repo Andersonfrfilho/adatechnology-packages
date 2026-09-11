@@ -3,15 +3,35 @@ import type { QuickReply } from './quickReply.types'
 
 const DIACRITIC_PATTERN = /[\u0300-\u036f]/g
 
+export type NormalizedIndexMap = {
+  readonly normalized: string
+  /** `normalized[i]` veio do caractere original que começa em `originalIndexOf[i]` (UTF-16). */
+  readonly originalIndexOf: readonly number[]
+}
+
 /**
- * Normaliza caractere a caractere (não a string inteira) para que o índice do resultado continue
- * batendo com o índice do texto original — é o que `highlightMatch` precisa para recortar sem
- * atropelar acento.
+ * Normaliza caractere a caractere (não a string inteira) e guarda, para cada posição do resultado,
+ * de qual índice do texto original ela veio. Um caractere de entrada não produz sempre um único
+ * caractere de saída: `'İ'.toLowerCase()` vira dois (`'i̇'`), e um acento em NFD normaliza para uma
+ * base sem o combinante. Sem o mapa, `highlightMatch` recorta o texto original no índice errado
+ * assim que a entrada tem um desses casos — foi o que quebrava com "José" em NFD e com maiúscula
+ * que cresce ao virar minúscula.
  */
+export function normalizeForSearchWithMap(value: string): NormalizedIndexMap {
+  let normalized = ''
+  const originalIndexOf: number[] = []
+  let originalCursor = 0
+  for (const char of value) {
+    const piece = char.normalize('NFD').replace(DIACRITIC_PATTERN, '').toLowerCase()
+    for (let i = 0; i < piece.length; i++) originalIndexOf.push(originalCursor)
+    normalized += piece
+    originalCursor += char.length
+  }
+  return { normalized, originalIndexOf }
+}
+
 export function normalizeForSearch(value: string): string {
-  return Array.from(value)
-    .map((char) => char.normalize('NFD').replace(DIACRITIC_PATTERN, '').toLowerCase())
-    .join('')
+  return normalizeForSearchWithMap(value).normalized
 }
 
 export type FilterQuickRepliesParams = {
@@ -51,20 +71,29 @@ export type MatchSegment = {
 export function highlightMatch(text: string, search: string): readonly MatchSegment[] {
   const term = search.trim()
   if (!term) return [{ text, isMatch: false }]
-  const normalizedText = normalizeForSearch(text)
+  const { normalized: normalizedText, originalIndexOf } = normalizeForSearchWithMap(text)
   const normalizedTerm = normalizeForSearch(term)
+  // Índice original correspondente a uma posição do texto normalizado — o comprimento do texto
+  // original fecha o mapa para quando a posição cai depois do último caractere normalizado.
+  const originalIndexAt = (normalizedIndex: number): number =>
+    normalizedIndex < originalIndexOf.length ? originalIndexOf[normalizedIndex]! : text.length
+
   const segments: MatchSegment[] = []
-  let cursor = 0
-  while (cursor < text.length) {
-    const matchIndex = normalizedText.indexOf(normalizedTerm, cursor)
-    if (matchIndex === -1) {
-      segments.push({ text: text.slice(cursor), isMatch: false })
-      break
+  let normalizedCursor = 0
+  let originalCursor = 0
+  while (normalizedCursor < normalizedText.length) {
+    const matchIndex = normalizedText.indexOf(normalizedTerm, normalizedCursor)
+    if (matchIndex === -1) break
+    const matchOriginalStart = originalIndexAt(matchIndex)
+    if (matchOriginalStart > originalCursor) {
+      segments.push({ text: text.slice(originalCursor, matchOriginalStart), isMatch: false })
     }
-    if (matchIndex > cursor) segments.push({ text: text.slice(cursor, matchIndex), isMatch: false })
-    const matchEnd = matchIndex + normalizedTerm.length
-    segments.push({ text: text.slice(matchIndex, matchEnd), isMatch: true })
-    cursor = matchEnd
+    const matchNormalizedEnd = matchIndex + normalizedTerm.length
+    const matchOriginalEnd = originalIndexAt(matchNormalizedEnd)
+    segments.push({ text: text.slice(matchOriginalStart, matchOriginalEnd), isMatch: true })
+    normalizedCursor = matchNormalizedEnd
+    originalCursor = matchOriginalEnd
   }
+  if (originalCursor < text.length) segments.push({ text: text.slice(originalCursor), isMatch: false })
   return segments
 }

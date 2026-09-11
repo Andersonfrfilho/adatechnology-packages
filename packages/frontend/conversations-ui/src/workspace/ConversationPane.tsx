@@ -298,7 +298,9 @@ export function ConversationPane({
    */
   const savedQuickReplies = api.listQuickReplies
     ? {
-        listQuickReplies: api.listQuickReplies,
+        // Arrow em vez de repassar o método direto: `api.listQuickReplies` solto perde o `this` do
+        // objeto que o implementa, e um cliente HTTP real costuma depender dele internamente.
+        listQuickReplies: (params?: { search?: string }) => api.listQuickReplies!(params),
         conversationId: conversation.id,
         variables: quickReplyVariables,
       }

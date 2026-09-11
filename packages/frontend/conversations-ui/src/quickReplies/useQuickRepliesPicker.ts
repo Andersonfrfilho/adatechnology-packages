@@ -5,8 +5,6 @@ import type { QuickReply } from './quickReply.types'
 export type UseQuickRepliesPickerParams = {
   readonly isOpen: boolean
   readonly search: string
-  /** Chave do cache — trocar de conversa não deve carregar tudo de novo. */
-  readonly conversationId: string
   readonly listQuickReplies?: (params?: { search?: string }) => Promise<QuickReply[]>
   readonly quickReplyVariables?: Readonly<Record<string, string>>
   readonly onSelect: (quickReply: QuickReply) => void
@@ -22,59 +20,69 @@ export function nextHighlightedIndex(current: number, length: number, delta: 1 |
 export type UseQuickRepliesPickerResult = {
   readonly items: readonly QuickReply[]
   readonly isLoading: boolean
-  readonly error: string | undefined
+  /** Sinalizador puro — a mensagem exibida é sempre a do rótulo do host, nunca `caught.message` cru. */
+  readonly hasError: boolean
   readonly highlightedIndex: number
   readonly setHighlightedIndex: (index: number) => void
   readonly handleKeyDown: (event: { key: string; preventDefault: () => void }) => void
+  /** Refaz a busca ignorando o cache — usado quando o host quer forçar atualização da lista. */
+  readonly refetch: () => void
 }
 
 /**
- * Estado do picker do atalho `/` e do botão de raio. A lista crua é carregada uma vez por conversa
- * (guardada em `cacheRef`, sobrevive a fechar/abrir o picker) — reabrir não deve refazer a chamada
- * que a primeira abertura já fez.
+ * Estado do picker do atalho `/` e do botão de raio. A lista é da instalação inteira, não por
+ * conversa — carregada uma vez por instância do hook (`cacheRef`, sobrevive a fechar/abrir o
+ * picker) e nunca reconsultada só porque a conversa mudou. `requestIdRef` descarta resposta de
+ * pedido antigo: trocar de conversa ou reabrir rápido não pode deixar `isLoading` preso em `true`
+ * nem aplicar um resultado que não é mais o mais recente.
  */
 export function useQuickRepliesPicker({
   isOpen,
   search,
-  conversationId,
   listQuickReplies,
   quickReplyVariables,
   onSelect,
   onClose,
 }: UseQuickRepliesPickerParams): UseQuickRepliesPickerResult {
-  const cacheRef = useRef<Map<string, QuickReply[]>>(new Map())
+  const cacheRef = useRef<QuickReply[] | undefined>(undefined)
+  const requestIdRef = useRef(0)
   const [items, setItems] = useState<QuickReply[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | undefined>(undefined)
+  const [hasError, setHasError] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState(0)
+
+  const load = useCallback(() => {
+    if (!listQuickReplies) return
+    const requestId = ++requestIdRef.current
+    setIsLoading(true)
+    setHasError(false)
+    listQuickReplies()
+      .then((result) => {
+        if (requestIdRef.current !== requestId) return
+        cacheRef.current = result
+        setItems(result)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (requestIdRef.current !== requestId) return
+        setHasError(true)
+        setIsLoading(false)
+      })
+  }, [listQuickReplies])
 
   useEffect(() => {
     if (!isOpen || !listQuickReplies) return
-    const cached = cacheRef.current.get(conversationId)
-    if (cached) {
-      setItems(cached)
+    if (cacheRef.current) {
+      setItems(cacheRef.current)
       return
     }
-    let cancelled = false
-    setIsLoading(true)
-    setError(undefined)
-    listQuickReplies()
-      .then((result) => {
-        if (cancelled) return
-        cacheRef.current.set(conversationId, result)
-        setItems(result)
-      })
-      .catch((caught: unknown) => {
-        if (cancelled) return
-        setError(caught instanceof Error ? caught.message : 'Não foi possível carregar as mensagens prontas.')
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [isOpen, conversationId, listQuickReplies])
+    load()
+  }, [isOpen, listQuickReplies, load])
+
+  const refetch = useCallback(() => {
+    cacheRef.current = undefined
+    load()
+  }, [load])
 
   const filtered = filterQuickReplies({ quickReplies: items, search, variables: quickReplyVariables })
 
@@ -109,5 +117,5 @@ export function useQuickRepliesPicker({
     [filtered, highlightedIndex, onSelect, onClose],
   )
 
-  return { items: filtered, isLoading, error, highlightedIndex, setHighlightedIndex, handleKeyDown }
+  return { items: filtered, isLoading, hasError, highlightedIndex, setHighlightedIndex, handleKeyDown, refetch }
 }

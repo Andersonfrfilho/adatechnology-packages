@@ -220,6 +220,13 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
     const showQuickRepliesButton = Boolean(savedQuickReplies)
     const [isQuickRepliesOpen, setIsQuickRepliesOpen] = useState(false)
     const [quickRepliesTerm, setQuickRepliesTerm] = useState('')
+    /** `shortcut`: a busca vem do `/termo` digitado no campo. `button`: busca própria do picker —
+     * o raio nunca insere `/` no campo (QR-04). */
+    const [quickRepliesMode, setQuickRepliesMode] = useState<'shortcut' | 'button'>('shortcut')
+    const quickRepliesPopoverRef = useRef<HTMLDivElement>(null)
+    /** Cursor guardado ao abrir pelo botão — o foco vai para a busca própria, e é a ele que a
+     * inserção volta antes de escrever o corpo resolvido. */
+    const savedRangeRef = useRef<Range | undefined>(undefined)
 
     const barWidth = useContainerWidth(barRef)
     const isCompact = barWidth !== undefined && barWidth < COMPOSER_COMPACT_WIDTH
@@ -266,17 +273,6 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
       document.addEventListener('mousedown', closeOnOutsideClick)
       return () => document.removeEventListener('mousedown', closeOnOutsideClick)
     }, [isVariablesOpen])
-
-    // Deriva o picker só do texto plano: digitar "/doc" abre, apagar a "/" fecha.
-    useEffect(() => {
-      if (!showQuickRepliesButton) {
-        setIsQuickRepliesOpen(false)
-        return
-      }
-      const match = detectQuickReplyShortcut(value)
-      setIsQuickRepliesOpen(Boolean(match))
-      setQuickRepliesTerm(match?.term ?? '')
-    }, [value, showQuickRepliesButton])
 
     useEffect(() => {
       if (!isFormattingOpen) return
@@ -334,6 +330,48 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
       return selection.getRangeAt(0)
     }, [])
 
+    /**
+     * Como `currentRange`, mas sem forçar foco no campo — usada para detectar o atalho a cada
+     * mudança de `value`, inclusive quando o campo não é o elemento focado (ex.: `value` trocado
+     * de fora). Forçar foco ali roubaria o foco de quem estava digitando em outro lugar.
+     */
+    const rangeIfFocused = useCallback((): Range | undefined => {
+      const editor = editorRef.current
+      if (!editor || document.activeElement !== editor) return undefined
+      const selection = window.getSelection()
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return undefined
+      return selection.getRangeAt(0)
+    }, [])
+
+    /**
+     * Texto plano do início do campo até o cursor, direto da árvore do DOM — nunca do `value`
+     * emitido (que já passou pelo `htmlToWA` e carrega `&nbsp;`/marcação, não o texto que o
+     * operador vê antes do cursor).
+     */
+    const textBeforeCaret = useCallback((range: Range): string => {
+      const editor = editorRef.current
+      if (!editor) return ''
+      const preRange = document.createRange()
+      preRange.selectNodeContents(editor)
+      preRange.setEnd(range.startContainer, range.startOffset)
+      return preRange.toString()
+    }, [])
+
+    // Deriva o picker do texto plano até o cursor, lido do DOM (não do `value` com HTML emitido):
+    // digitar "/doc" abre, apagar a "/" ou mover o cursor para antes dela fecha.
+    useEffect(() => {
+      if (!showQuickRepliesButton) {
+        setIsQuickRepliesOpen(false)
+        return
+      }
+      if (quickRepliesMode === 'button') return
+      const range = rangeIfFocused()
+      const textToCaret = range ? textBeforeCaret(range) : ''
+      const match = detectQuickReplyShortcut(textToCaret)
+      setIsQuickRepliesOpen(Boolean(match))
+      setQuickRepliesTerm(match?.term ?? '')
+    }, [value, showQuickRepliesButton, quickRepliesMode, rangeIfFocused, textBeforeCaret])
+
     const commitRange = useCallback(
       (range: Range, node: Node) => {
         const selection = window.getSelection()
@@ -358,51 +396,97 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
       [commitRange, currentRange],
     )
 
-    const closeQuickReplies = useCallback(() => setIsQuickRepliesOpen(false), [])
+    const closeQuickReplies = useCallback(() => {
+      setIsQuickRepliesOpen(false)
+      setQuickRepliesTerm('')
+      setQuickRepliesMode('shortcut')
+    }, [])
+
+    const closeQuickRepliesAndRefocus = useCallback(() => {
+      closeQuickReplies()
+      editorRef.current?.focus()
+    }, [closeQuickReplies])
 
     /**
-     * Troca o `/termo` pelo corpo resolvido. Assume que o atalho inteiro está no mesmo nó de texto do
-     * cursor — verdadeiro no caso comum (o operador acabou de digitá-lo) — e recua `startOffset` pelo
-     * tamanho do atalho antes de apagar e inserir, em vez de tentar mapear o índice do texto plano
-     * (`value`) para dentro do HTML formatado.
+     * Troca o `/termo` pelo corpo resolvido (modo atalho) ou insere o corpo na posição guardada ao
+     * abrir pelo botão (modo botão — nunca houve `/` para trocar). No modo atalho, assume que o
+     * atalho inteiro está no mesmo nó de texto do cursor — verdadeiro no caso comum, o operador
+     * acabou de digitá-lo; fora desse caso, não insere nada em vez de arriscar deixar o "/termo"
+     * literal no meio do texto.
      */
     const insertSavedQuickReply = useCallback(
       (quickReply: SavedQuickReply) => {
-        const range = currentRange()
-        const match = detectQuickReplyShortcut(value)
-        if (!range || !match) return
         const resolvedBody = applyQuickReplyVariables(quickReply.body, savedQuickReplies?.variables)
-        const shortcutLength = value.length - match.start
+
+        if (quickRepliesMode === 'button') {
+          const editor = editorRef.current
+          const savedRange = savedRangeRef.current
+          if (editor && savedRange) {
+            editor.focus()
+            const selection = window.getSelection()
+            selection?.removeAllRanges()
+            selection?.addRange(savedRange)
+          }
+          insertAtCursor(resolvedBody)
+          closeQuickReplies()
+          return
+        }
+
+        const range = currentRange()
+        if (!range) return
+        const match = detectQuickReplyShortcut(textBeforeCaret(range))
+        if (!match) {
+          closeQuickReplies()
+          return
+        }
+        const shortcutLength = match.term.length + 1
         if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset >= shortcutLength) {
           range.setStart(range.startContainer, range.startOffset - shortcutLength)
+          range.deleteContents()
+          const textNode = document.createTextNode(resolvedBody)
+          range.insertNode(textNode)
+          commitRange(range, textNode)
         }
-        range.deleteContents()
-        const textNode = document.createTextNode(resolvedBody)
-        range.insertNode(textNode)
-        commitRange(range, textNode)
         closeQuickReplies()
       },
-      [value, currentRange, commitRange, savedQuickReplies, closeQuickReplies],
+      [
+        quickRepliesMode,
+        currentRange,
+        textBeforeCaret,
+        commitRange,
+        insertAtCursor,
+        savedQuickReplies,
+        closeQuickReplies,
+      ],
     )
 
     const quickRepliesPicker = useQuickRepliesPicker({
       isOpen: isQuickRepliesOpen,
       search: quickRepliesTerm,
-      conversationId: savedQuickReplies?.conversationId ?? '',
       listQuickReplies: savedQuickReplies?.listQuickReplies,
       quickReplyVariables: savedQuickReplies?.variables,
       onSelect: insertSavedQuickReply,
-      onClose: closeQuickReplies,
+      onClose: closeQuickRepliesAndRefocus,
     })
 
-    // Botão de raio: insere "/" no cursor e deixa a detecção abaixo abrir o picker — clique e
-    // digitação viram o mesmo caminho.
+    // Botão de raio: guarda o cursor e abre o picker com busca própria — o campo não é tocado
+    // (QR-04). O cursor guardado é para onde a seleção volta ao inserir o corpo escolhido.
     const openQuickRepliesViaButton = useCallback(() => {
-      const range = currentRange()
-      const before = range?.startContainer.textContent?.slice(0, range.startOffset) ?? ''
-      const needsSpace = before.length > 0 && !/\s$/.test(before)
-      insertAtCursor(needsSpace ? ' /' : '/')
-    }, [currentRange, insertAtCursor])
+      savedRangeRef.current = currentRange()
+      setQuickRepliesMode('button')
+      setQuickRepliesTerm('')
+      setIsQuickRepliesOpen(true)
+    }, [currentRange])
+
+    // Clique fora do popover em modo botão fecha e devolve o foco ao campo.
+    useEffect(() => {
+      if (!isQuickRepliesOpen || quickRepliesMode !== 'button') return
+      const handleOutsideClick = (event: MouseEvent) => {
+        if (!quickRepliesPopoverRef.current?.contains(event.target as Node)) closeQuickRepliesAndRefocus()
+      }
+      document.addEventListener('mousedown', handleOutsideClick)
+      return () => document.removeEventListener('mousedown', handleOutsideClick)
+    }, [isQuickRepliesOpen, quickRepliesMode, closeQuickRepliesAndRefocus])
 
     /**
      * Envolve a seleção no elemento da formatação. Sem seleção não faz nada: abrir a marcação e
@@ -472,7 +556,8 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
 
     const handleKeyDown = useCallback(
       (event: KeyboardEvent<HTMLDivElement>) => {
-        if (isQuickRepliesOpen) {
+        // Em modo botão quem recebe as teclas é a busca própria do picker, não o campo.
+        if (isQuickRepliesOpen && quickRepliesMode === 'shortcut') {
           quickRepliesPicker.handleKeyDown(event)
           return
         }
@@ -482,7 +567,7 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
           if (!disabled && !isSending) onSend()
         }
       },
-      [disabled, isSending, onSend, isQuickRepliesOpen, quickRepliesPicker],
+      [disabled, isSending, onSend, isQuickRepliesOpen, quickRepliesMode, quickRepliesPicker],
     )
 
     const handleFileChange = useCallback(
@@ -650,17 +735,27 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
                 <Zap size={18} />
               </button>
               {isQuickRepliesOpen ? (
-                <div className="absolute bottom-full left-0 z-20 mb-2">
+                <div ref={quickRepliesPopoverRef} className="absolute bottom-full left-0 z-20 mb-2">
                   <QuickRepliesPicker
                     id={quickRepliesListboxId}
                     items={quickRepliesPicker.items}
                     search={quickRepliesTerm}
                     highlightedIndex={quickRepliesPicker.highlightedIndex}
                     isLoading={quickRepliesPicker.isLoading}
-                    error={quickRepliesPicker.error}
+                    hasError={quickRepliesPicker.hasError}
                     onHover={quickRepliesPicker.setHighlightedIndex}
                     onSelect={insertSavedQuickReply}
                     labels={savedQuickReplies?.labels}
+                    ownSearch={
+                      quickRepliesMode === 'button'
+                        ? {
+                            value: quickRepliesTerm,
+                            onChange: setQuickRepliesTerm,
+                            onKeyDown: quickRepliesPicker.handleKeyDown,
+                            label: tooltipOf('quickReplies'),
+                          }
+                        : undefined
+                    }
                   />
                 </div>
               ) : null}
@@ -699,7 +794,9 @@ export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMes
             aria-expanded={showQuickRepliesButton ? isQuickRepliesOpen : undefined}
             aria-controls={showQuickRepliesButton ? quickRepliesListboxId : undefined}
             aria-activedescendant={
-              isQuickRepliesOpen ? `${quickRepliesListboxId}-option-${quickRepliesPicker.highlightedIndex}` : undefined
+              isQuickRepliesOpen && quickRepliesMode === 'shortcut'
+                ? `${quickRepliesListboxId}-option-${quickRepliesPicker.highlightedIndex}`
+                : undefined
             }
             data-placeholder={placeholder}
             onInput={handleInput}
