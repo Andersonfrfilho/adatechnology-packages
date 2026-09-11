@@ -258,9 +258,21 @@ export type { QuickReply } from './MessageComposer'
 export type {
   QuickReply as SavedQuickReply,
   QuickReplyInput,
+  QuickReplyAttachment,
+  QueuedAttachment,
+  StoredAttachmentSendResult,
   ConversationVariable,
 } from './quickReplies/quickReply.types'
 
+export { QUICK_REPLY_ATTACHMENT_LIMIT } from './quickReplies/quickReply.types'
+export {
+  DEFAULT_MAX_ATTACHMENT_SIZE_BYTES,
+  applySendResults,
+  canAddAttachments,
+  orderOutgoingItems,
+  resolveMaxAttachmentSizeBytes,
+} from './quickReplies/quickReplyAttachments'
+export type { MaxAttachmentSizeBytes, OutgoingItems } from './quickReplies/quickReplyAttachments'
 export { QuickRepliesWorkspace, QuickRepliesPicker } from './quickReplies'
 export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps } from './quickReplies'
 export { DEFAULT_QUICK_REPLIES_PICKER_LABELS, DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS } from './quickReplies/labels'

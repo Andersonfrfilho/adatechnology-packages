@@ -1,4 +1,9 @@
-import type { QuickReply, QuickReplyInput } from '../quickReplies/quickReply.types'
+import type {
+  QuickReply,
+  QuickReplyAttachment,
+  QuickReplyInput,
+  StoredAttachmentSendResult,
+} from '../quickReplies/quickReply.types'
 import type { MessagePayload, MessageTranscription } from '../types'
 import type { ConversationChannel } from '../conversationChannel'
 
@@ -182,6 +187,25 @@ export interface ConversationsApi {
   createQuickReply?(input: QuickReplyInput): Promise<QuickReply>
   updateQuickReply?(id: string, input: QuickReplyInput): Promise<QuickReply>
   deleteQuickReply?(id: string): Promise<void>
+  /**
+   * Sobe um anexo de mensagem pronta. O pacote não sabe COMO o host sobe (URL assinada, multipart):
+   * só precisa de progresso e cancelamento. Ausente, a tela de cadastro não oferece anexos.
+   * A miniatura de imagem reusa `getDocumentUrl(uploadId, 'inline')` — não há porta própria.
+   */
+  uploadQuickReplyAttachment?(
+    file: File,
+    options?: { onProgress?: (fraction: number) => void; signal?: AbortSignal },
+  ): Promise<QuickReplyAttachment>
+  /**
+   * Envia por referência anexos já guardados. A chave de idempotência protege o reenvio depois de
+   * queda de rede; o resultado vem por arquivo porque a falha é parcial. Ausente, mensagem pronta
+   * com anexo insere só o texto.
+   */
+  sendStoredAttachments?(params: {
+    conversationId: string
+    uploadIds: readonly string[]
+    idempotencyKey: string
+  }): Promise<{ results: readonly StoredAttachmentSendResult[] }>
 
   /**
    * Transcrição completa gerada pelo servidor. Existe ao lado de `buildTranscriptText`, que monta
