@@ -15,6 +15,8 @@ import type {
   ConversationVariable,
   SavedQuickReply,
   QuickReplyInput,
+  QuickReplyAttachment,
+  StoredAttachmentSendResult,
 } from '@adatechnology/conversations-ui'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -240,7 +242,14 @@ function mockApi() {
     markRead: async () => {},
     getContext: async () => ({}),
     getDocuments: async () => [],
-    getDocumentUrl: async () => '',
+    getDocumentUrl: async (uploadId: string) => {
+      // Para uploads do preview, retorna uma imagem placeholder data URL
+      if (uploadId.startsWith('upload-')) {
+        // Imagem placeholder 1x1 PNG
+        return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+      }
+      return ''
+    },
     getMediaProxyUrl: async () => ({ mimeType: 'image/jpeg', data: '' }),
     listQuickReplies: async (params?: { search?: string }) => {
       if (!params?.search) return quickReplies
@@ -272,6 +281,65 @@ function mockApi() {
     },
     deleteQuickReply: async (id: string) => {
       quickReplies = quickReplies.filter((quickReply) => quickReply.id !== id)
+    },
+    uploadQuickReplyAttachment: async (
+      file: File,
+      options?: { onProgress?: (fraction: number) => void; signal?: AbortSignal },
+    ): Promise<QuickReplyAttachment> => {
+      return new Promise((resolve, reject) => {
+        if (options?.signal?.aborted) {
+          reject(new DOMException('Aborted', 'AbortError'))
+          return
+        }
+
+        const abortHandler = () => {
+          reject(new DOMException('Aborted', 'AbortError'))
+        }
+        options?.signal?.addEventListener('abort', abortHandler)
+
+        const steps = 6
+        const stepDuration = 1500 / steps
+        let step = 0
+
+        const progressInterval = setInterval(() => {
+          if (options?.signal?.aborted) {
+            clearInterval(progressInterval)
+            options.signal.removeEventListener('abort', abortHandler)
+            reject(new DOMException('Aborted', 'AbortError'))
+            return
+          }
+
+          step += 1
+          const progress = step / steps
+          if (progress <= 1 && options?.onProgress) {
+            options.onProgress(Math.round(progress * 100))
+          }
+
+          if (step >= steps) {
+            clearInterval(progressInterval)
+            options?.signal?.removeEventListener('abort', abortHandler)
+            const result: QuickReplyAttachment = {
+              uploadId: `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+              filename: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+            }
+            resolve(result)
+          }
+        }, stepDuration)
+      })
+    },
+    sendStoredAttachments: async (params: {
+      conversationId: string
+      uploadIds: readonly string[]
+      idempotencyKey: string
+    }): Promise<{ results: readonly StoredAttachmentSendResult[] }> => {
+      await new Promise((resolve) => setTimeout(resolve, 120))
+      const results: StoredAttachmentSendResult[] = params.uploadIds.map((uploadId) => ({
+        uploadId,
+        status: 'sent',
+      }))
+      return { results }
     },
   }
 }
@@ -541,7 +609,10 @@ export default function App() {
               {BACK_TO_CHAT_LABEL}
             </button>
             <div className="flex-1 overflow-auto">
-              <QuickRepliesWorkspace api={api} variables={CONVERSATION_VARIABLES} />
+              <QuickRepliesWorkspace
+                api={api}
+                variables={CONVERSATION_VARIABLES}
+              />
             </div>
           </div>
         )}
