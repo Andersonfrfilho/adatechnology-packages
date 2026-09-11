@@ -1,0 +1,74 @@
+/**
+ * Vocabulário das telas de mensagens prontas. Sobrescrevível campo a campo — mesma convenção de
+ * `documents/labels.ts` e `workspace/labels.ts`.
+ */
+
+export interface QuickRepliesPickerLabels {
+  readonly loading: string
+  readonly error: string
+  readonly empty: string
+  readonly noResults: string
+}
+
+export const DEFAULT_QUICK_REPLIES_PICKER_LABELS: QuickRepliesPickerLabels = {
+  loading: 'Carregando mensagens prontas…',
+  error: 'Não foi possível carregar as mensagens prontas.',
+  empty: 'Nenhuma mensagem pronta cadastrada ainda.',
+  noResults: 'Nenhuma mensagem encontrada.',
+}
+
+export interface QuickRepliesWorkspaceLabels {
+  readonly title: string
+  readonly subtitle: (total: number) => string
+  readonly searchPlaceholder: string
+  readonly loading: string
+  readonly failure: string
+  readonly empty: string
+  readonly noResults: string
+  readonly create: string
+  readonly edit: string
+  readonly remove: string
+  readonly removeConfirm: (title: string) => string
+  readonly save: string
+  readonly cancel: string
+  readonly columnTitle: string
+  readonly columnShortcut: string
+  readonly columnBody: string
+  readonly columnActions: string
+  readonly fieldTitle: string
+  readonly fieldShortcut: string
+  readonly fieldShortcutHint: string
+  readonly fieldBody: string
+  readonly insertVariable: string
+  readonly shortcutTaken: string
+  readonly readOnlyNotice: string
+  readonly saveError: string
+}
+
+export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels = {
+  title: 'Mensagens prontas',
+  subtitle: (total) => `${total} mensagem${total === 1 ? '' : 's'} cadastrada${total === 1 ? '' : 's'}`,
+  searchPlaceholder: 'Buscar por título, atalho ou texto',
+  loading: 'Carregando mensagens prontas…',
+  failure: 'Não foi possível carregar as mensagens prontas.',
+  empty: 'Nenhuma mensagem pronta cadastrada ainda.',
+  noResults: 'Nenhuma mensagem encontrada para a busca.',
+  create: 'Nova mensagem',
+  edit: 'Editar',
+  remove: 'Excluir',
+  removeConfirm: (title) => `Excluir a mensagem "${title}"?`,
+  save: 'Salvar',
+  cancel: 'Cancelar',
+  columnTitle: 'Título',
+  columnShortcut: 'Atalho',
+  columnBody: 'Texto',
+  columnActions: 'Ações',
+  fieldTitle: 'Título',
+  fieldShortcut: 'Atalho',
+  fieldShortcutHint: 'Letras minúsculas, números e hífen, sem espaço nem acento.',
+  fieldBody: 'Texto',
+  insertVariable: 'Inserir variável',
+  shortcutTaken: 'Esse atalho já está em uso — escolha outro.',
+  readOnlyNotice: 'Você só pode consultar as mensagens prontas.',
+  saveError: 'Não foi possível salvar a mensagem.',
+}
