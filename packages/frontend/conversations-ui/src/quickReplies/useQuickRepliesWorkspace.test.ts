@@ -104,14 +104,60 @@ describe('submitQuickReply', () => {
     })
   })
 
-  it('erro sem details vira mensagem geral do formulário', async () => {
+  it('erro sem details vira o rótulo do formulário, nunca a mensagem crua da exceção', async () => {
     const api: QuickRepliesWorkspaceApi = {
       createQuickReply: async () => {
-        throw new Error('Falha de rede')
+        throw new Error('ECONNRESET: socket hang up')
       },
     }
     const result = await submitQuickReply({ api, editing: VALID_EDITING, labels: LABELS })
-    expect(result).toEqual({ outcome: 'rejected', fieldErrors: {}, formError: 'Falha de rede' })
+    expect(result).toEqual({ outcome: 'rejected', fieldErrors: {}, formError: LABELS.saveError })
+  })
+
+  it('409 com code aninhado em error.response.data.error (axios) vira erro no atalho', async () => {
+    const api: QuickRepliesWorkspaceApi = {
+      createQuickReply: async () => {
+        throw {
+          response: {
+            data: {
+              error: {
+                code: 'QUICK_REPLY_SHORTCUT_TAKEN',
+                message: 'Atalho já existe',
+                details: [{ field: 'shortcut', message: 'Atalho já existe' }],
+              },
+            },
+          },
+        }
+      },
+    }
+    const result = await submitQuickReply({ api, editing: VALID_EDITING, labels: LABELS })
+    expect(result).toEqual({ outcome: 'rejected', fieldErrors: { shortcut: 'Atalho já existe' } })
+  })
+
+  it('erro aninhado em error.error (envelope { error: {...} }) vira erro no atalho', async () => {
+    const api: QuickRepliesWorkspaceApi = {
+      createQuickReply: async () => {
+        throw {
+          error: {
+            code: 'QUICK_REPLY_SHORTCUT_TAKEN',
+            message: 'Atalho já existe',
+            details: [{ field: 'shortcut', message: 'Atalho já existe' }],
+          },
+        }
+      },
+    }
+    const result = await submitQuickReply({ api, editing: VALID_EDITING, labels: LABELS })
+    expect(result).toEqual({ outcome: 'rejected', fieldErrors: { shortcut: 'Atalho já existe' } })
+  })
+
+  it('erro aninhado em error.body.error vira erro no atalho', async () => {
+    const api: QuickRepliesWorkspaceApi = {
+      createQuickReply: async () => {
+        throw { body: { error: { code: 'QUICK_REPLY_SHORTCUT_TAKEN' } } }
+      },
+    }
+    const result = await submitQuickReply({ api, editing: VALID_EDITING, labels: LABELS })
+    expect(result).toEqual({ outcome: 'rejected', fieldErrors: { shortcut: LABELS.shortcutTaken } })
   })
 })
 

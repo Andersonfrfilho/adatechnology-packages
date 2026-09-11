@@ -46,6 +46,9 @@ export interface QuickRepliesWorkspaceLabels {
   readonly shortcutTaken: string
   readonly readOnlyNotice: string
   readonly saveError: string
+  /** Sem `createQuickReply`/`updateQuickReply` na porta — a tela não deveria nem oferecer o botão,
+   * mas o formulário ainda precisa de um texto caso chame `submit` de outro jeito. */
+  readonly saveUnavailable: string
 }
 
 export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels = {
@@ -77,4 +80,5 @@ export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels
   shortcutTaken: 'Esse atalho já está em uso — escolha outro.',
   readOnlyNotice: 'Você só pode consultar as mensagens prontas.',
   saveError: 'Não foi possível salvar a mensagem.',
+  saveUnavailable: 'Salvar mensagens prontas não está disponível.',
 }

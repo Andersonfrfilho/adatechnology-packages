@@ -32,9 +32,30 @@ const SHORTCUT_PATTERN = /^[a-z0-9-]{1,20}$/
 /** Casca genérica de erro de API com `code` e `details[]` (`apis.md`) — sem acoplar a um cliente HTTP específico. */
 type ApiErrorShape = { readonly code?: unknown; readonly details?: unknown }
 
+/**
+ * Desembrulha a casca `{ code, details }` de onde quer que o cliente HTTP do host a tenha
+ * pendurado. `apis.md` define o envelope `{ error: { code, message, details } }`, mas cada cliente
+ * (fetch cru, axios, o `Error` que o `ConversationsProvider` relança) expõe o objeto lançado de um
+ * jeito diferente — `error.error`, `error.response.data.error` (axios) ou `error.body.error`
+ * (alguns wrappers de fetch). Sem isto, a rejeição real do servidor nunca chega ao formulário e o
+ * operador só vê "não foi possível salvar", mesmo quando a API já mandou o campo certo.
+ */
+function apiErrorEnvelopeOf(error: unknown): ApiErrorShape | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const candidate = error as Record<string, unknown>
+  if ('code' in candidate || 'details' in candidate) return candidate as ApiErrorShape
+  const nested =
+    (candidate.error as unknown) ??
+    (candidate.response as Record<string, unknown> | undefined)?.data ??
+    (candidate.body as unknown)
+  if (nested && typeof nested === 'object') return apiErrorEnvelopeOf(nested)
+  return undefined
+}
+
 function fieldErrorsOf(error: unknown): QuickRepliesWorkspaceFieldErrors {
-  if (!error || typeof error !== 'object') return {}
-  const details = (error as ApiErrorShape).details
+  const envelope = apiErrorEnvelopeOf(error)
+  if (!envelope) return {}
+  const details = envelope.details
   if (!Array.isArray(details)) return {}
   const result: QuickRepliesWorkspaceFieldErrors = {}
   for (const detail of details) {
@@ -53,8 +74,7 @@ function isFormField(value: string): value is QuickReplyFormField {
 }
 
 function errorCodeOf(error: unknown): string | undefined {
-  if (!error || typeof error !== 'object') return undefined
-  const code = (error as ApiErrorShape).code
+  const code = apiErrorEnvelopeOf(error)?.code
   return typeof code === 'string' ? code : undefined
 }
 
@@ -99,11 +119,10 @@ export async function submitQuickReply({
   const validationErrors = validateQuickReplyInput(input, labels)
   if (Object.keys(validationErrors).length > 0) return { outcome: 'invalid', fieldErrors: validationErrors }
 
+  const editingId = editing.id
   const save =
-    editing.id === null
-      ? api.createQuickReply
-      : (input: QuickReplyInput) => api.updateQuickReply?.(editing.id as string, input)
-  if (!save) return { outcome: 'invalid', fieldErrors: {} }
+    editingId === null ? api.createQuickReply : (input: QuickReplyInput) => api.updateQuickReply?.(editingId, input)
+  if (!save) return { outcome: 'rejected', fieldErrors: {}, formError: labels.saveUnavailable }
 
   try {
     const quickReply = await save(input)
@@ -120,10 +139,12 @@ export async function submitQuickReply({
         fieldErrors: { ...detailErrors, ...(shortcutMessage ? { shortcut: shortcutMessage } : {}) },
       }
     }
+    // Nunca `caught.message` cru: é texto de exceção interna (rede, parsing), não algo que o
+    // operador deva ler — a mensagem exibida é sempre o rótulo do host (QR-10).
     return {
       outcome: 'rejected',
       fieldErrors: {},
-      formError: caught instanceof Error ? caught.message : labels.saveError,
+      formError: labels.saveError,
     }
   }
 }

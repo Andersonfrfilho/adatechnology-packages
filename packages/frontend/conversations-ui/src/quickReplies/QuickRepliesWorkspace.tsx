@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
 import { useQuickRepliesWorkspace, insertAtCursor, type QuickRepliesWorkspaceApi } from './useQuickRepliesWorkspace'
 import { DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS, type QuickRepliesWorkspaceLabels } from './labels'
@@ -20,6 +20,13 @@ export interface QuickRepliesWorkspaceProps {
 export function QuickRepliesWorkspace({ api, variables, labels, className }: QuickRepliesWorkspaceProps) {
   const text = { ...DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS, ...labels }
   const bodyFieldRef = useRef<HTMLTextAreaElement>(null)
+  const formId = useId()
+  const titleFieldId = `${formId}-title`
+  const shortcutFieldId = `${formId}-shortcut`
+  const bodyFieldId = `${formId}-body`
+  /** Linha da tabela pedindo confirmação antes de excluir — em vez de `window.confirm`, que trava a
+   * aba inteira e não segue os tokens visuais do pacote. */
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null)
 
   const {
     filtered,
@@ -99,68 +106,68 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
           }}
         >
           <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor="quick-reply-title">
+            <label className="block text-sm font-medium" htmlFor={titleFieldId}>
               {text.fieldTitle}
             </label>
             <input
-              id="quick-reply-title"
+              id={titleFieldId}
               type="text"
               maxLength={40}
               value={editing.title}
               onChange={(event) => updateField('title', event.target.value)}
               aria-invalid={Boolean(fieldErrors.title)}
-              aria-describedby={fieldErrors.title ? 'quick-reply-title-error' : undefined}
+              aria-describedby={fieldErrors.title ? `${titleFieldId}-error` : undefined}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
             {fieldErrors.title ? (
-              <p id="quick-reply-title-error" role="alert" className="text-xs text-red-600 dark:text-red-400">
+              <p id={`${titleFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
                 {fieldErrors.title}
               </p>
             ) : null}
           </div>
 
           <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor="quick-reply-shortcut">
+            <label className="block text-sm font-medium" htmlFor={shortcutFieldId}>
               {text.fieldShortcut}
             </label>
             <input
-              id="quick-reply-shortcut"
+              id={shortcutFieldId}
               type="text"
               maxLength={20}
               value={editing.shortcut}
               onChange={(event) => updateField('shortcut', event.target.value)}
               aria-invalid={Boolean(fieldErrors.shortcut)}
-              aria-describedby={fieldErrors.shortcut ? 'quick-reply-shortcut-error' : 'quick-reply-shortcut-hint'}
+              aria-describedby={fieldErrors.shortcut ? `${shortcutFieldId}-error` : `${shortcutFieldId}-hint`}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono dark:border-gray-700 dark:bg-gray-900"
             />
             {fieldErrors.shortcut ? (
-              <p id="quick-reply-shortcut-error" role="alert" className="text-xs text-red-600 dark:text-red-400">
+              <p id={`${shortcutFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
                 {fieldErrors.shortcut}
               </p>
             ) : (
-              <p id="quick-reply-shortcut-hint" className="text-xs text-gray-400">
+              <p id={`${shortcutFieldId}-hint`} className="text-xs text-gray-400">
                 {text.fieldShortcutHint}
               </p>
             )}
           </div>
 
           <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor="quick-reply-body">
+            <label className="block text-sm font-medium" htmlFor={bodyFieldId}>
               {text.fieldBody}
             </label>
             <textarea
-              id="quick-reply-body"
+              id={bodyFieldId}
               ref={bodyFieldRef}
               maxLength={1000}
               rows={4}
               value={editing.body}
               onChange={(event) => updateField('body', event.target.value)}
               aria-invalid={Boolean(fieldErrors.body)}
-              aria-describedby={fieldErrors.body ? 'quick-reply-body-error' : undefined}
+              aria-describedby={fieldErrors.body ? `${bodyFieldId}-error` : undefined}
               className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
             {fieldErrors.body ? (
-              <p id="quick-reply-body-error" role="alert" className="text-xs text-red-600 dark:text-red-400">
+              <p id={`${bodyFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
                 {fieldErrors.body}
               </p>
             ) : null}
@@ -247,15 +254,38 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
                       </button>
                     ) : null}
                     {canDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm(text.removeConfirm(quickReply.title))) void remove(quickReply.id)
-                        }}
-                        className="text-xs text-red-600 hover:underline dark:text-red-400"
-                      >
-                        {text.remove}
-                      </button>
+                      confirmingDeleteId === quickReply.id ? (
+                        // Linha de confirmação inline em vez de `window.confirm`: trava a aba
+                        // inteira e não segue os tokens visuais do pacote (`web.md` §14).
+                        <span role="alert" className="flex items-center gap-2 text-xs">
+                          {text.removeConfirm(quickReply.title)}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirmingDeleteId(null)
+                              void remove(quickReply.id)
+                            }}
+                            className="font-medium text-red-600 hover:underline dark:text-red-400"
+                          >
+                            {text.remove}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingDeleteId(null)}
+                            className="text-gray-500 hover:underline dark:text-gray-400"
+                          >
+                            {text.cancel}
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingDeleteId(quickReply.id)}
+                          className="text-xs text-red-600 hover:underline dark:text-red-400"
+                        >
+                          {text.remove}
+                        </button>
+                      )
                     ) : null}
                   </td>
                 ) : null}
