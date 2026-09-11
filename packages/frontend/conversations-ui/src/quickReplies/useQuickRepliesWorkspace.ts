@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { filterQuickReplies } from './quickReplySearch'
-import type { QuickReply, QuickReplyInput } from './quickReply.types'
+import { mapWithConcurrencyLimit, moveAttachment, validateAttachmentFiles } from './quickReplyAttachmentUpload'
+import type { QuickReply, QuickReplyAttachment, QuickReplyInput } from './quickReply.types'
 import type { QuickRepliesWorkspaceLabels } from './labels'
 
 /**
@@ -12,6 +13,11 @@ export interface QuickRepliesWorkspaceApi {
   readonly createQuickReply?: (input: QuickReplyInput) => Promise<QuickReply>
   readonly updateQuickReply?: (id: string, input: QuickReplyInput) => Promise<QuickReply>
   readonly deleteQuickReply?: (id: string) => Promise<void>
+  /** Sem esta porta, a seção de anexos não aparece — nem no formulário. */
+  readonly uploadQuickReplyAttachment?: (
+    file: File,
+    options?: { onProgress?: (fraction: number) => void; signal?: AbortSignal },
+  ) => Promise<QuickReplyAttachment>
 }
 
 export type QuickReplyFormField = 'title' | 'shortcut' | 'body'
@@ -23,6 +29,17 @@ export type QuickRepliesWorkspaceEditing = {
   readonly title: string
   readonly shortcut: string
   readonly body: string
+  /** Já subidos — a ordem daqui é a ordem de envio salva (QR-30). */
+  readonly attachments: readonly QuickReplyAttachment[]
+}
+
+/** Item em upload no formulário: estado local, nunca persistido — some ao terminar ou ser removido. */
+export type PendingAttachmentUpload = {
+  readonly localId: string
+  readonly file: File
+  readonly status: 'uploading' | 'processing' | 'error'
+  readonly progress: number
+  readonly error?: string
 }
 
 const TITLE_MAX_LENGTH = 40
@@ -122,7 +139,16 @@ export async function submitQuickReply({
   editing,
   labels,
 }: SubmitQuickReplyParams): Promise<SubmitQuickReplyResult> {
-  const input: QuickReplyInput = { title: editing.title.trim(), shortcut: editing.shortcut.trim(), body: editing.body }
+  const input: QuickReplyInput = {
+    title: editing.title.trim(),
+    shortcut: editing.shortcut.trim(),
+    body: editing.body,
+    // Só manda a lista quando o host oferece a porta de upload — ausente, `attachmentUploadIds`
+    // some do payload e o backend não mexe nos anexos já gravados (contrato do tipo).
+    ...(api.uploadQuickReplyAttachment
+      ? { attachmentUploadIds: editing.attachments.map((attachment) => attachment.uploadId) }
+      : {}),
+  }
   const validationErrors = validateQuickReplyInput(input, labels)
   if (Object.keys(validationErrors).length > 0) return { outcome: 'invalid', fieldErrors: validationErrors }
 
@@ -200,9 +226,21 @@ export type UseQuickRepliesWorkspaceResult = {
   readonly saveError: string | undefined
   readonly submit: () => Promise<void>
   readonly remove: (id: string) => Promise<void>
+  /** Excluindo agora — para o botão da linha mostrar o spinner certo (QR-47). */
+  readonly deletingId: string | undefined
+  /** Sem `uploadQuickReplyAttachment`, a seção de anexos não aparece no formulário (QR-31). */
+  readonly hasAttachmentsCapability: boolean
+  readonly pendingUploads: readonly PendingAttachmentUpload[]
+  readonly addAttachmentFiles: (files: FileList | readonly File[]) => void
+  readonly retryAttachmentUpload: (localId: string) => void
+  readonly cancelAttachmentUpload: (localId: string) => void
+  readonly removeAttachment: (uploadId: string) => void
+  readonly moveAttachmentAt: (index: number, direction: -1 | 1) => void
+  readonly attachmentRejections: readonly { readonly file: File; readonly reason: 'limit' | 'size' }[]
+  readonly dismissAttachmentRejections: () => void
 }
 
-/** Estado da tela de cadastro: lista, busca, formulário de criação/edição e exclusão. */
+/** Estado da tela de cadastro: lista, busca, formulário de criação/edição, anexos e exclusão. */
 export function useQuickRepliesWorkspace({
   api,
   labels,
@@ -215,6 +253,13 @@ export function useQuickRepliesWorkspace({
   const [fieldErrors, setFieldErrors] = useState<QuickRepliesWorkspaceFieldErrors>({})
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | undefined>(undefined)
+  const [deletingId, setDeletingId] = useState<string | undefined>(undefined)
+  const [pendingUploads, setPendingUploads] = useState<readonly PendingAttachmentUpload[]>([])
+  const [attachmentRejections, setAttachmentRejections] = useState<
+    readonly { readonly file: File; readonly reason: 'limit' | 'size' }[]
+  >([])
+  /** Um `AbortController` por upload em voo — a única forma de cancelar de verdade um `fetch` preso. */
+  const uploadControllersRef = useRef<Record<string, AbortController>>({})
 
   useEffect(() => {
     if (!api.listQuickReplies) return
@@ -239,23 +284,46 @@ export function useQuickRepliesWorkspace({
 
   const filtered = filterQuickReplies({ quickReplies, search })
 
-  const startCreate = useCallback(() => {
-    setEditing({ id: null, title: '', shortcut: '', body: '' })
-    setFieldErrors({})
-    setSaveError(undefined)
+  /** Cancela todo upload em voo — trocar de registro sem isso deixaria um `fetch` órfão terminando
+   * sozinho e tentando atualizar um estado que já não existe mais. */
+  const abortAllUploads = useCallback(() => {
+    for (const controller of Object.values(uploadControllersRef.current)) controller.abort()
+    uploadControllersRef.current = {}
+    setPendingUploads([])
   }, [])
 
-  const startEdit = useCallback((quickReply: QuickReply) => {
-    setEditing({ id: quickReply.id, title: quickReply.title, shortcut: quickReply.shortcut, body: quickReply.body })
+  const startCreate = useCallback(() => {
+    abortAllUploads()
+    setAttachmentRejections([])
+    setEditing({ id: null, title: '', shortcut: '', body: '', attachments: [] })
     setFieldErrors({})
     setSaveError(undefined)
-  }, [])
+  }, [abortAllUploads])
+
+  const startEdit = useCallback(
+    (quickReply: QuickReply) => {
+      abortAllUploads()
+      setAttachmentRejections([])
+      setEditing({
+        id: quickReply.id,
+        title: quickReply.title,
+        shortcut: quickReply.shortcut,
+        body: quickReply.body,
+        attachments: quickReply.attachments ?? [],
+      })
+      setFieldErrors({})
+      setSaveError(undefined)
+    },
+    [abortAllUploads],
+  )
 
   const cancelEdit = useCallback(() => {
+    abortAllUploads()
+    setAttachmentRejections([])
     setEditing(undefined)
     setFieldErrors({})
     setSaveError(undefined)
-  }, [])
+  }, [abortAllUploads])
 
   const updateField = useCallback((field: QuickReplyFormField, value: string) => {
     setEditing((current) => (current ? { ...current, [field]: value } : current))
@@ -269,7 +337,9 @@ export function useQuickRepliesWorkspace({
   }, [])
 
   const submit = useCallback(async () => {
-    if (!editing) return
+    // Rede de segurança: o botão já fica desabilitado com upload em voo (QR-47), mas salvar antes
+    // da resposta chegar mandaria a mensagem sem o anexo que o operador acabou de anexar.
+    if (!editing || pendingUploads.length > 0) return
     setIsSaving(true)
     setSaveError(undefined)
     setFieldErrors({})
@@ -286,15 +356,105 @@ export function useQuickRepliesWorkspace({
     }
     setFieldErrors(result.fieldErrors)
     if (result.outcome === 'rejected') setSaveError(result.formError)
-  }, [editing, api, labels])
+  }, [editing, api, labels, pendingUploads.length])
 
   const remove = useCallback(
     async (id: string) => {
       if (!api.deleteQuickReply) return
-      await api.deleteQuickReply(id)
-      setQuickReplies((current) => current.filter((item) => item.id !== id))
+      setDeletingId(id)
+      try {
+        await api.deleteQuickReply(id)
+        setQuickReplies((current) => current.filter((item) => item.id !== id))
+      } finally {
+        setDeletingId(undefined)
+      }
     },
     [api],
+  )
+
+  const removeAttachment = useCallback((uploadId: string) => {
+    setEditing((current) =>
+      current ? { ...current, attachments: current.attachments.filter((a) => a.uploadId !== uploadId) } : current,
+    )
+  }, [])
+
+  const moveAttachmentAt = useCallback((index: number, direction: -1 | 1) => {
+    setEditing((current) =>
+      current ? { ...current, attachments: moveAttachment(current.attachments, index, direction) } : current,
+    )
+  }, [])
+
+  const dismissAttachmentRejections = useCallback(() => setAttachmentRejections([]), [])
+
+  const cancelAttachmentUpload = useCallback((localId: string) => {
+    uploadControllersRef.current[localId]?.abort()
+    delete uploadControllersRef.current[localId]
+    setPendingUploads((current) => current.filter((item) => item.localId !== localId))
+  }, [])
+
+  const updatePendingUpload = useCallback((localId: string, patch: Partial<PendingAttachmentUpload>) => {
+    setPendingUploads((current) => current.map((item) => (item.localId === localId ? { ...item, ...patch } : item)))
+  }, [])
+
+  /** Sobe um arquivo já validado: progresso real por `onProgress`, "processando" enquanto a
+   * promessa não resolve, e o resultado entra em `editing.attachments` na ordem de chegada. */
+  const uploadOneFile = useCallback(
+    async (localId: string, file: File) => {
+      const upload = api.uploadQuickReplyAttachment
+      if (!upload) return
+      const controller = new AbortController()
+      uploadControllersRef.current[localId] = controller
+      try {
+        const attachment = await upload(file, {
+          onProgress: (fraction) => updatePendingUpload(localId, { progress: fraction }),
+          signal: controller.signal,
+        })
+        updatePendingUpload(localId, { status: 'processing', progress: 1 })
+        delete uploadControllersRef.current[localId]
+        setEditing((current) => (current ? { ...current, attachments: [...current.attachments, attachment] } : current))
+        setPendingUploads((current) => current.filter((item) => item.localId !== localId))
+      } catch (caught: unknown) {
+        delete uploadControllersRef.current[localId]
+        if (controller.signal.aborted) return
+        updatePendingUpload(localId, {
+          status: 'error',
+          error: caught instanceof Error ? caught.message : labels.saveError,
+        })
+      }
+    },
+    [api, labels, updatePendingUpload],
+  )
+
+  const retryAttachmentUpload = useCallback(
+    (localId: string) => {
+      const item = pendingUploads.find((pending) => pending.localId === localId)
+      if (!item) return
+      updatePendingUpload(localId, { status: 'uploading', progress: 0, error: undefined })
+      void uploadOneFile(localId, item.file)
+    },
+    [pendingUploads, updatePendingUpload, uploadOneFile],
+  )
+
+  /** Valida (teto de 10, tamanho por tipo) ANTES de subir (QR-31) — só o aceito vira upload; o
+   * recusado fica em `attachmentRejections` para a tela explicar por quê, sem gastar rede nele. */
+  const addAttachmentFiles = useCallback(
+    (files: FileList | readonly File[]) => {
+      if (!editing || !api.uploadQuickReplyAttachment) return
+      const currentCount = editing.attachments.length + pendingUploads.length
+      const { accepted, rejected } = validateAttachmentFiles(Array.from(files), currentCount)
+      setAttachmentRejections(rejected)
+      if (accepted.length === 0) return
+      const newItems: PendingAttachmentUpload[] = accepted.map((file) => ({
+        localId: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
+        file,
+        status: 'uploading',
+        progress: 0,
+      }))
+      setPendingUploads((current) => [...current, ...newItems])
+      // Até 3 em paralelo (QR-31): o limitador testado em `quickReplyAttachmentUpload.ts`.
+      void mapWithConcurrencyLimit(newItems, 3, (item) => uploadOneFile(item.localId, item.file))
+    },
+    [editing, api.uploadQuickReplyAttachment, pendingUploads.length, uploadOneFile],
   )
 
   return {
@@ -317,5 +477,15 @@ export function useQuickRepliesWorkspace({
     saveError,
     submit,
     remove,
+    deletingId,
+    hasAttachmentsCapability: Boolean(api.uploadQuickReplyAttachment),
+    pendingUploads,
+    addAttachmentFiles,
+    retryAttachmentUpload,
+    cancelAttachmentUpload,
+    removeAttachment,
+    moveAttachmentAt,
+    attachmentRejections,
+    dismissAttachmentRejections,
   }
 }

@@ -12,7 +12,13 @@ import type { QuickReply } from './quickReply.types'
 
 const LABELS = DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS
 
-const VALID_EDITING: QuickRepliesWorkspaceEditing = { id: null, title: 'Saudação', shortcut: 'ola', body: 'Olá!' }
+const VALID_EDITING: QuickRepliesWorkspaceEditing = {
+  id: null,
+  title: 'Saudação',
+  shortcut: 'ola',
+  body: 'Olá!',
+  attachments: [],
+}
 const SAVED: QuickReply = { id: '1', title: 'Saudação', shortcut: 'ola', body: 'Olá!' }
 
 describe('validateQuickReplyInput', () => {
@@ -61,6 +67,32 @@ describe('submitQuickReply', () => {
     const result = await submitQuickReply({ api, editing: { ...VALID_EDITING, id: '1' }, labels: LABELS })
     expect(result).toEqual({ outcome: 'saved', quickReply: SAVED })
     expect(calledWith).toBe('1')
+  })
+
+  it('manda attachmentUploadIds só quando o host tem a porta de upload (QR-30)', async () => {
+    let receivedInput: unknown
+    const withUpload: QuickRepliesWorkspaceApi = {
+      createQuickReply: async (input) => {
+        receivedInput = input
+        return SAVED
+      },
+      uploadQuickReplyAttachment: async () => ({ uploadId: 'x', filename: 'x', mimeType: 'x', sizeBytes: 1 }),
+    }
+    const editingWithAttachments = {
+      ...VALID_EDITING,
+      attachments: [{ uploadId: 'a', filename: 'a.pdf', mimeType: 'application/pdf', sizeBytes: 1 }],
+    }
+    await submitQuickReply({ api: withUpload, editing: editingWithAttachments, labels: LABELS })
+    expect((receivedInput as { attachmentUploadIds?: readonly string[] }).attachmentUploadIds).toEqual(['a'])
+
+    const withoutUpload: QuickRepliesWorkspaceApi = {
+      createQuickReply: async (input) => {
+        receivedInput = input
+        return SAVED
+      },
+    }
+    await submitQuickReply({ api: withoutUpload, editing: editingWithAttachments, labels: LABELS })
+    expect((receivedInput as { attachmentUploadIds?: readonly string[] }).attachmentUploadIds).toBeUndefined()
   })
 
   it('não chama a api quando a validação falha', async () => {

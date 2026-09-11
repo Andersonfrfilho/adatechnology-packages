@@ -1,8 +1,12 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { Paperclip, X } from 'lucide-react'
 import { cn } from '../lib/cn'
+import { formatFileSize } from '../lib/format'
 import { useQuickRepliesWorkspace, insertAtCursor, type QuickRepliesWorkspaceApi } from './useQuickRepliesWorkspace'
 import { DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS, type QuickRepliesWorkspaceLabels } from './labels'
 import type { ConversationVariable } from './quickReply.types'
+
+const TABLE_SKELETON_ROWS = 3
 
 export interface QuickRepliesWorkspaceProps {
   readonly api: QuickRepliesWorkspaceApi
@@ -69,7 +73,20 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
     saveError,
     submit,
     remove,
+    deletingId,
+    hasAttachmentsCapability,
+    pendingUploads,
+    addAttachmentFiles,
+    retryAttachmentUpload,
+    cancelAttachmentUpload,
+    removeAttachment,
+    moveAttachmentAt,
+    attachmentRejections,
+    dismissAttachmentRejections,
   } = useQuickRepliesWorkspace({ api, labels: text })
+
+  const attachmentFileInputRef = useRef<HTMLInputElement>(null)
+  const hasPendingUploads = pendingUploads.length > 0
 
   const insertVariableAtCursor = (marker: string) => {
     const field = bodyFieldRef.current
@@ -114,7 +131,11 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
         ) : null}
       </div>
 
-      {isLoading ? <p className="text-sm text-gray-500 dark:text-gray-400">{text.loading}</p> : null}
+      {isLoading ? (
+        <span className="sr-only" aria-live="polite">
+          {text.loading}
+        </span>
+      ) : null}
       {loadError ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {loadError || text.failure}
@@ -212,6 +233,127 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
             ) : null}
           </div>
 
+          {hasAttachmentsCapability ? (
+            <div className="space-y-2">
+              <span className="block text-sm font-medium">{text.attachmentsTitle}</span>
+
+              {editing.attachments.length === 0 && pendingUploads.length === 0 ? (
+                <p className="text-xs text-gray-500 dark:text-gray-400">{text.attachmentsEmpty}</p>
+              ) : (
+                <ul className="space-y-1">
+                  {editing.attachments.map((attachment, index) => (
+                    <li
+                      key={attachment.uploadId}
+                      className="flex items-center gap-2 rounded-md border border-gray-200 px-2 py-1.5 text-xs dark:border-gray-700"
+                    >
+                      <Paperclip aria-hidden="true" className="h-3.5 w-3.5 flex-none text-gray-400" />
+                      <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
+                      <span className="flex-none text-gray-400">{formatFileSize(attachment.sizeBytes)}</span>
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        aria-label={text.attachmentMoveUp}
+                        onClick={() => moveAttachmentAt(index, -1)}
+                        className="flex-none disabled:opacity-30"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === editing.attachments.length - 1}
+                        aria-label={text.attachmentMoveDown}
+                        onClick={() => moveAttachmentAt(index, 1)}
+                        className="flex-none disabled:opacity-30"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={text.attachmentRemove}
+                        onClick={() => removeAttachment(attachment.uploadId)}
+                        className="flex-none text-red-600 dark:text-red-400"
+                      >
+                        <X aria-hidden="true" className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                  {pendingUploads.map((pending) => (
+                    <li
+                      key={pending.localId}
+                      className="flex items-center gap-2 rounded-md border border-gray-200 px-2 py-1.5 text-xs dark:border-gray-700"
+                      aria-busy={pending.status === 'uploading'}
+                      aria-live="polite"
+                    >
+                      <Paperclip aria-hidden="true" className="h-3.5 w-3.5 flex-none text-gray-400" />
+                      <span className="min-w-0 flex-1 truncate">{pending.file.name}</span>
+                      {pending.status === 'uploading' ? (
+                        <span className="flex-none text-gray-500 dark:text-gray-400">
+                          {text.attachmentUploading(Math.round(pending.progress * 100))}
+                        </span>
+                      ) : pending.status === 'processing' ? (
+                        <span className="flex-none text-gray-500 dark:text-gray-400">{text.attachmentProcessing}</span>
+                      ) : (
+                        <>
+                          <span role="alert" className="flex-none text-red-600 dark:text-red-400">
+                            {pending.error}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => retryAttachmentUpload(pending.localId)}
+                            className="flex-none font-medium text-blue-600 hover:underline dark:text-blue-400"
+                          >
+                            {text.attachmentRetry}
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        aria-label={text.attachmentCancel}
+                        onClick={() => cancelAttachmentUpload(pending.localId)}
+                        className="flex-none text-gray-400"
+                      >
+                        <X aria-hidden="true" className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {attachmentRejections.length > 0 ? (
+                <div role="alert" className="space-y-0.5 text-xs text-red-600 dark:text-red-400">
+                  {attachmentRejections.map((rejection, index) => (
+                    <p key={index}>
+                      {rejection.reason === 'limit'
+                        ? text.attachmentLimitReached
+                        : text.attachmentTooLarge(rejection.file.name)}
+                    </p>
+                  ))}
+                  <button type="button" onClick={dismissAttachmentRejections} className="hover:underline">
+                    {text.cancel}
+                  </button>
+                </div>
+              ) : null}
+
+              <input
+                ref={attachmentFileInputRef}
+                type="file"
+                multiple
+                hidden
+                onChange={(event) => {
+                  if (event.target.files) addAttachmentFiles(event.target.files)
+                  event.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => attachmentFileInputRef.current?.click()}
+                className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {text.attachmentsAdd}
+              </button>
+            </div>
+          ) : null}
+
           {saveError ? (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
               {saveError}
@@ -221,10 +363,12 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
           <div className="flex items-center gap-2">
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || hasPendingUploads}
+              aria-busy={isSaving}
+              title={hasPendingUploads ? text.saveBlockedUploading : undefined}
               className="cv-header-action inline-flex items-center gap-1 disabled:opacity-40"
             >
-              {text.save}
+              {isSaving ? text.saving : hasPendingUploads ? text.saveBlockedUploading : text.save}
             </button>
             <button type="button" onClick={cancelEdit} className="text-sm text-gray-500 hover:underline">
               {text.cancel}
@@ -254,76 +398,94 @@ export function QuickRepliesWorkspace({ api, variables, labels, className }: Qui
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && !isLoading ? (
+            {isLoading ? (
+              Array.from({ length: TABLE_SKELETON_ROWS }).map((_, index) => (
+                <tr key={index} aria-hidden="true">
+                  <td className="px-3 py-3">
+                    <span className="cv-skeleton-line block" style={{ width: '70%', height: '0.75rem' }} />
+                  </td>
+                  <td className="px-3 py-3">
+                    <span className="cv-skeleton-line block" style={{ width: '50%', height: '0.75rem' }} />
+                  </td>
+                  <td className="hidden px-3 py-3 sm:table-cell">
+                    <span className="cv-skeleton-line block" style={{ width: '90%', height: '0.75rem' }} />
+                  </td>
+                  {!readOnly ? <td className="px-3 py-3" /> : null}
+                </tr>
+              ))
+            ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                   {search.trim() ? text.noResults : text.empty}
                 </td>
               </tr>
             ) : null}
-            {filtered.map((quickReply) => (
-              <tr key={quickReply.id}>
-                <td className="px-3 py-2 font-medium">{quickReply.title}</td>
-                <td className="px-3 py-2 font-mono text-xs text-gray-500">/{quickReply.shortcut}</td>
-                <td className="hidden max-w-sm truncate px-3 py-2 text-gray-500 sm:table-cell">{quickReply.body}</td>
-                {!readOnly ? (
-                  <td className="flex gap-2 px-3 py-2">
-                    {canEdit ? (
-                      <button
-                        type="button"
-                        onClick={() => startEdit(quickReply)}
-                        className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-                      >
-                        {text.edit}
-                      </button>
-                    ) : null}
-                    {canDelete ? (
-                      confirmingDeleteId === quickReply.id ? (
-                        // Linha de confirmação inline em vez de `window.confirm`: trava a aba
-                        // inteira e não segue os tokens visuais do pacote (`web.md` §14).
-                        <span
-                          role="group"
-                          aria-label={text.removeConfirm(quickReply.title)}
-                          onKeyDown={handleDeleteConfirmKeyDown(quickReply.id)}
-                          className="flex items-center gap-2 text-xs"
-                        >
-                          {text.removeConfirm(quickReply.title)}
-                          <button
-                            ref={confirmButtonRef}
-                            type="button"
-                            onClick={() => {
-                              setConfirmingDeleteId(null)
-                              void remove(quickReply.id)
-                            }}
-                            className="font-medium text-red-600 hover:underline dark:text-red-400"
-                          >
-                            {text.remove}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => cancelDeleteConfirm(quickReply.id)}
-                            className="text-gray-500 hover:underline dark:text-gray-400"
-                          >
-                            {text.cancel}
-                          </button>
-                        </span>
-                      ) : (
+            {!isLoading &&
+              filtered.map((quickReply) => (
+                <tr key={quickReply.id} className={cn(deletingId === quickReply.id ? 'cv-row-departing' : undefined)}>
+                  <td className="px-3 py-2 font-medium">{quickReply.title}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-gray-500">/{quickReply.shortcut}</td>
+                  <td className="hidden max-w-sm truncate px-3 py-2 text-gray-500 sm:table-cell">{quickReply.body}</td>
+                  {!readOnly ? (
+                    <td className="flex gap-2 px-3 py-2">
+                      {canEdit ? (
                         <button
-                          ref={(node) => {
-                            deleteButtonRefs.current[quickReply.id] = node
-                          }}
                           type="button"
-                          onClick={() => setConfirmingDeleteId(quickReply.id)}
-                          className="text-xs text-red-600 hover:underline dark:text-red-400"
+                          onClick={() => startEdit(quickReply)}
+                          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
                         >
-                          {text.remove}
+                          {text.edit}
                         </button>
-                      )
-                    ) : null}
-                  </td>
-                ) : null}
-              </tr>
-            ))}
+                      ) : null}
+                      {canDelete ? (
+                        confirmingDeleteId === quickReply.id ? (
+                          // Linha de confirmação inline em vez de `window.confirm`: trava a aba
+                          // inteira e não segue os tokens visuais do pacote (`web.md` §14).
+                          <span
+                            role="group"
+                            aria-label={text.removeConfirm(quickReply.title)}
+                            onKeyDown={handleDeleteConfirmKeyDown(quickReply.id)}
+                            className="flex items-center gap-2 text-xs"
+                          >
+                            {text.removeConfirm(quickReply.title)}
+                            <button
+                              ref={confirmButtonRef}
+                              type="button"
+                              onClick={() => {
+                                setConfirmingDeleteId(null)
+                                void remove(quickReply.id)
+                              }}
+                              className="font-medium text-red-600 hover:underline dark:text-red-400"
+                            >
+                              {text.remove}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelDeleteConfirm(quickReply.id)}
+                              className="text-gray-500 hover:underline dark:text-gray-400"
+                            >
+                              {text.cancel}
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            ref={(node) => {
+                              deleteButtonRefs.current[quickReply.id] = node
+                            }}
+                            type="button"
+                            disabled={deletingId === quickReply.id}
+                            aria-busy={deletingId === quickReply.id}
+                            onClick={() => setConfirmingDeleteId(quickReply.id)}
+                            className="text-xs text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
+                          >
+                            {deletingId === quickReply.id ? text.deleting : text.remove}
+                          </button>
+                        )
+                      ) : null}
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>

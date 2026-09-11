@@ -55,6 +55,22 @@ export interface QuickRepliesWorkspaceLabels {
   /** Sem `createQuickReply`/`updateQuickReply` na porta — a tela não deveria nem oferecer o botão,
    * mas o formulário ainda precisa de um texto caso chame `submit` de outro jeito. */
   readonly saveUnavailable: string
+  readonly saving: string
+  readonly deleting: string
+  /** Seção de anexos (QR-31) — só aparece com `uploadQuickReplyAttachment` na porta. */
+  readonly attachmentsTitle: string
+  readonly attachmentsAdd: string
+  readonly attachmentsEmpty: string
+  readonly attachmentUploading: (percent: number) => string
+  readonly attachmentProcessing: string
+  readonly attachmentRetry: string
+  readonly attachmentRemove: string
+  readonly attachmentCancel: string
+  readonly attachmentMoveUp: string
+  readonly attachmentMoveDown: string
+  readonly attachmentLimitReached: string
+  readonly attachmentTooLarge: (filename: string) => string
+  readonly saveBlockedUploading: string
 }
 
 export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels = {
@@ -87,4 +103,19 @@ export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels
   readOnlyNotice: 'Você só pode consultar as mensagens prontas.',
   saveError: 'Não foi possível salvar a mensagem.',
   saveUnavailable: 'Salvar mensagens prontas não está disponível.',
+  saving: 'Salvando…',
+  deleting: 'Excluindo…',
+  attachmentsTitle: 'Anexos',
+  attachmentsAdd: 'Adicionar anexo',
+  attachmentsEmpty: 'Nenhum anexo — até 10 arquivos.',
+  attachmentUploading: (percent) => `Enviando… ${percent}%`,
+  attachmentProcessing: 'Processando…',
+  attachmentRetry: 'Tentar de novo',
+  attachmentRemove: 'Remover anexo',
+  attachmentCancel: 'Cancelar envio',
+  attachmentMoveUp: 'Mover para cima',
+  attachmentMoveDown: 'Mover para baixo',
+  attachmentLimitReached: 'Limite de 10 anexos por mensagem.',
+  attachmentTooLarge: (filename) => `${filename}: excede o tamanho máximo para o tipo de arquivo.`,
+  saveBlockedUploading: 'Aguardando o envio dos anexos…',
 }
