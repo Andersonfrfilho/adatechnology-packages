@@ -32,4 +32,18 @@ describe('MessageComposer', () => {
     expect(markup).toContain('aria-label="Enviar"')
     expect(markup).not.toContain('aria-label="Gravar áudio"')
   })
+
+  it('sem savedQuickReplies, não desenha o botão de raio nem o combobox', () => {
+    const withPort = renderToStaticMarkup(
+      <MessageComposer
+        onSend={() => {}}
+        savedQuickReplies={{ listQuickReplies: async () => [], conversationId: 'c1' }}
+      />,
+    )
+    const withoutPort = renderToStaticMarkup(<MessageComposer onSend={() => {}} />)
+
+    expect(withPort).toContain('aria-label="Mensagens prontas"')
+    expect(withoutPort).not.toContain('aria-label="Mensagens prontas"')
+    expect(withoutPort).not.toContain('role="combobox"')
+  })
 })

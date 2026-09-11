@@ -5,7 +5,7 @@
  * última mensagem, outro engolia falha de anexo, outro não abria a biblioteca de arquivos.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { AudioRecorderButton } from '../AudioRecorderButton'
 import { ConversationContextPanel, type ConversationContextEntry } from '../ConversationContextPanel'
@@ -18,11 +18,7 @@ import { MessageComposer, applyQuickReplyVariables, type QuickReply } from '../M
 import { RichMessageComposer, type RichComposerVariable } from '../RichMessageComposer'
 import { WindowExpiredNotice, isWindowBlocking } from '../WindowExpiredNotice'
 import { windowOf } from '../conversationWindow'
-import {
-  buildTranscriptFilename,
-  buildTranscriptText,
-  downloadTextFile,
-} from '../conversationTranscript'
+import { buildTranscriptFilename, buildTranscriptText, downloadTextFile } from '../conversationTranscript'
 import { useConversationContext } from '../hooks/useConversationContext'
 import { useConversationMessages } from '../hooks/useConversationMessages'
 import { useConversationRealtime } from '../hooks/useConversationRealtime'
@@ -30,6 +26,15 @@ import { useScrollToLatestMessage } from '../hooks/useScrollToLatestMessage'
 import { useConversations } from '../providers/ConversationsProvider'
 import type { ConversationSummary } from '../providers/types'
 import type { ConversationsWorkspaceLabels } from './labels'
+import type {
+  ConversationVariable,
+  QueuedAttachment,
+  QuickReply as SavedQuickReply,
+} from '../quickReplies/quickReply.types'
+import { queuedAttachmentsFromQuickReply } from '../quickReplies/quickReplyAttachments'
+import { resolveConversationVariables } from '../quickReplies/resolveConversationVariables'
+import { QueuedAttachmentsList } from './QueuedAttachmentsList'
+import { useComposerQueue } from './useComposerQueue'
 
 export interface ConversationPaneProps {
   readonly conversation: ConversationSummary
@@ -49,6 +54,7 @@ export interface ConversationPaneProps {
    * Recebe o contexto junto porque o dado que interessa à variável (o nome que o bot perguntou,
    * por exemplo) vive no contexto do fluxo, não no resumo da listagem.
    */
+  /** @deprecated Use `conversationVariablesFor`, que alimenta os dois composers com uma lista só. */
   readonly quickReplyVariablesFor?: (
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
@@ -87,11 +93,22 @@ export interface ConversationPaneProps {
    * é menos coisa na tela.
    */
   readonly composer?: 'simple' | 'rich'
-  /** Valores que o operador insere sem digitar. Só o composer `rich` os oferece. */
+  /**
+   * Valores que o operador insere sem digitar. Só o composer `rich` os oferece.
+   * @deprecated Use `conversationVariablesFor`.
+   */
   readonly composerVariablesFor?: (
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
   ) => readonly RichComposerVariable[]
+  /**
+   * Dados da conversa que o texto pode citar, numa lista só. Presente, manda sobre
+   * `quickReplyVariablesFor` e `composerVariablesFor`.
+   */
+  readonly conversationVariablesFor?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => readonly ConversationVariable[]
   /**
    * Fila de anexos com legenda, como no WhatsApp: os arquivos escolhidos ficam visíveis acima da
    * barra e saem junto com o texto escrito. Ausente, o clipe manda cada arquivo na hora — o que
@@ -124,6 +141,7 @@ export function ConversationPane({
   onAttach,
   composer = 'simple',
   composerVariablesFor,
+  conversationVariablesFor,
   onSendAttachments,
   onRecordAudio,
 }: ConversationPaneProps) {
@@ -139,17 +157,51 @@ export function ConversationPane({
   const [sendFailure, setSendFailure] = useState<string | undefined>(undefined)
   const [selectedMessageIds, setSelectedMessageIds] = useState<ReadonlySet<string>>(new Set())
   const [draft, setDraft] = useState(initialComposerText ?? '')
-  const [queuedFiles, setQueuedFiles] = useState<readonly File[]>([])
-  const [isSendingDraft, setIsSendingDraft] = useState(false)
-  /** Ref, não estado: entre dois cliques seguidos o React ainda não teria repintado a trava. */
-  const sendInFlightRef = useRef(false)
 
-  // Trocar de conversa zera as duas coisas: seleção de mensagem e rascunho pertencem à thread, e
-  // levá-los adiante faria copiar o trecho errado ou responder ao cliente errado.
+  const {
+    queue,
+    enqueueAttachments,
+    attachmentStatus,
+    isSendingDraft,
+    handleRichSend,
+    removeQueuedAttachment,
+    retryQueuedAttachment,
+    retryingKeys,
+  } = useComposerQueue({
+    conversationId: conversation.id,
+    draft,
+    setDraft,
+    api,
+    labels: { sendFailure: labels.sendFailure, attachFailure: labels.attachFailure },
+    ...(onSendAttachments ? { onSendAttachments } : {}),
+    refetch,
+    setSendFailure,
+  })
+
+  /**
+   * Uma promessa por `uploadId`, nunca duas: sem o cache, cada render da lista de anexos disparava
+   * de novo a URL assinada do mesmo arquivo (M4) — a função abaixo é estável, mas o item pode
+   * remontar por causa do estado de envio.
+   */
+  const thumbnailUrlCacheRef = useRef(new Map<string, Promise<string>>())
+  const getQueuedAttachmentThumbnailUrl = useCallback(
+    (uploadId: string): Promise<string> => {
+      const cached = thumbnailUrlCacheRef.current.get(uploadId)
+      if (cached) return cached
+      const pending = api.getDocumentUrl(uploadId, 'inline')
+      thumbnailUrlCacheRef.current.set(uploadId, pending)
+      pending.catch(() => thumbnailUrlCacheRef.current.delete(uploadId))
+      return pending
+    },
+    [api],
+  )
+
+  // Trocar de conversa zera seleção de mensagem e rascunho — pertencem à thread, e levá-los adiante
+  // faria copiar o trecho errado ou responder ao cliente errado. A fila de anexos se reseta sozinha
+  // dentro de `useComposerQueue`, keyed pelo mesmo `conversation.id`.
   useEffect(() => {
     setSelectedMessageIds(new Set())
     setDraft(initialComposerText ?? '')
-    setQueuedFiles([])
   }, [conversation.id, initialComposerText])
 
   function toggleMessageSelected(messageId: string): void {
@@ -218,35 +270,6 @@ export function ConversationPane({
     await runSend(() => api.sendTemplate(conversation.id, {}), labels.sendFailure)
   }
 
-  /**
-   * O texto escrito é a legenda do anexo, não uma segunda mensagem: no WhatsApp a foto chega com a
-   * frase embaixo, e mandar as duas separadas invertia a ordem quando a mídia demorava a subir.
-   */
-  async function handleRichSend(): Promise<void> {
-    // O upload da mídia demora e não dá retorno na tela; sem esta trava o segundo clique — ou o
-    // Enter impaciente — mandava o mesmo arquivo outra vez.
-    if (sendInFlightRef.current) return
-    sendInFlightRef.current = true
-    setIsSendingDraft(true)
-    try {
-      if (onSendAttachments && queuedFiles.length > 0) {
-        const files = queuedFiles
-        const caption = draft
-        const didSend = await runSend(() => onSendAttachments(files, caption), labels.attachFailure)
-        if (didSend) {
-          setQueuedFiles([])
-          setDraft('')
-        }
-        return
-      }
-      if (!draft.trim()) return
-      if (await handleSend(draft)) setDraft('')
-    } finally {
-      sendInFlightRef.current = false
-      setIsSendingDraft(false)
-    }
-  }
-
   async function handleAttach(file: File): Promise<void> {
     if (!onAttach) return
     await runSend(() => onAttach(file), labels.attachFailure)
@@ -264,7 +287,11 @@ export function ConversationPane({
   }
 
   const contextEntries = contextEntriesOf?.(conversationContext)
-  const composerVariables = composerVariablesFor?.(conversation, conversationContext)
+  const { quickReplyVariables, composerVariables } = resolveConversationVariables({
+    conversationVariables: conversationVariablesFor?.(conversation, conversationContext),
+    quickReplyVariables: quickReplyVariablesFor?.(conversation, conversationContext),
+    composerVariables: composerVariablesFor?.(conversation, conversationContext),
+  })
   /**
    * As mesmas `quickReplies` do composer simples, com as variáveis já resolvidas — o campo rico
    * recebe texto pronto. Uma segunda lista, só de formato diferente, é como as telas divergiam.
@@ -274,9 +301,29 @@ export function ConversationPane({
     label: reply.label,
     text:
       typeof reply.text === 'string'
-        ? applyQuickReplyVariables(reply.text, quickReplyVariablesFor?.(conversation, conversationContext) ?? {})
-        : reply.text(quickReplyVariablesFor?.(conversation, conversationContext) ?? {}),
+        ? applyQuickReplyVariables(reply.text, quickReplyVariables ?? {})
+        : reply.text(quickReplyVariables ?? {}),
   }))
+  /**
+   * Botão de raio e atalho `/` dos dois composers. `listQuickReplies` é a capacidade — sem ela na
+   * porta do host, nenhum dos dois aparece, em vez de um botão que abre uma lista sempre vazia.
+   */
+  const savedQuickReplies = api.listQuickReplies
+    ? {
+        // Arrow em vez de repassar o método direto: `api.listQuickReplies` solto perde o `this` do
+        // objeto que o implementa, e um cliente HTTP real costuma depender dele internamente.
+        listQuickReplies: (params?: { search?: string }) => api.listQuickReplies!(params),
+        conversationId: conversation.id,
+        variables: quickReplyVariables,
+        hasAttachmentsCapability: Boolean(api.sendStoredAttachments),
+        // Empurra os anexos da mensagem escolhida como itens guardados (QR-32) — sem a porta, a
+        // linha do picker já avisou e o texto entra sozinho, sem silenciosamente perder o anexo.
+        onSelect: (quickReply: SavedQuickReply) => {
+          const attachments = queuedAttachmentsFromQuickReply(quickReply, Boolean(api.sendStoredAttachments))
+          enqueueAttachments(attachments)
+        },
+      }
+    : undefined
   const botOwnsConversation = Boolean(requireTakeoverToReply) && conversation.mode !== 'human'
 
   return (
@@ -337,10 +384,20 @@ export function ConversationPane({
         <div className="cv-workspace-selection">
           <span>{labels.messagesSelected(selectedMessageIds.size)}</span>
           <div className="cv-workspace-selection__actions">
-            <button data-cv-tooltip={labels.bulkClear} aria-label={labels.bulkClear} type="button" onClick={() => setSelectedMessageIds(new Set())}>
+            <button
+              data-cv-tooltip={labels.bulkClear}
+              aria-label={labels.bulkClear}
+              type="button"
+              onClick={() => setSelectedMessageIds(new Set())}
+            >
               {labels.bulkClear}
             </button>
-            <button data-cv-tooltip={labels.copySelected} aria-label={labels.copySelected} type="button" onClick={copySelectedMessages}>
+            <button
+              data-cv-tooltip={labels.copySelected}
+              aria-label={labels.copySelected}
+              type="button"
+              onClick={copySelectedMessages}
+            >
               {labels.copySelected}
             </button>
           </div>
@@ -354,10 +411,7 @@ export function ConversationPane({
       ) : null}
 
       {blocked ? (
-        <WindowExpiredNotice
-          disabled={busy}
-          onSendTemplate={() => void handleSendTemplate()}
-        />
+        <WindowExpiredNotice disabled={busy} onSendTemplate={() => void handleSendTemplate()} />
       ) : botOwnsConversation ? (
         // Responder com a conversa no bot atropelaria o fluxo automático no meio de uma pergunta.
         <p className="cv-workspace-notice">{labels.takeoverToReply}</p>
@@ -367,7 +421,14 @@ export function ConversationPane({
           onChange={setDraft}
           onSend={() => void handleRichSend()}
           {...(onSendAttachments
-            ? { onAttachFiles: (files: FileList) => setQueuedFiles((current) => [...current, ...Array.from(files)]) }
+            ? {
+                onAttachFiles: (files: FileList) =>
+                  enqueueAttachments(
+                    Array.from(files).map(
+                      (file): QueuedAttachment => ({ kind: 'local', localId: crypto.randomUUID(), file }),
+                    ),
+                  ),
+              }
             : onAttach
               ? {
                   onAttachFiles: (files: FileList) => {
@@ -377,7 +438,7 @@ export function ConversationPane({
               : {})}
           placeholder={labels.composerPlaceholder}
           isSending={busy || isSendingDraft}
-          hasQueuedAttachments={queuedFiles.length > 0}
+          hasQueuedAttachments={queue.length > 0}
           {...(onRecordAudio
             ? {
                 idleAction: (
@@ -388,31 +449,33 @@ export function ConversationPane({
                 ),
               }
             : {})}
-          {...(queuedFiles.length > 0
+          {...(queue.length > 0
             ? {
                 attachmentsPreview: (
-                  <ul className="cv-workspace-attachments">
-                    {queuedFiles.map((file, index) => (
-                      <li key={`${file.name}-${index}`}>
-                        <span>{file.name}</span>
-                        <button
-                          data-cv-tooltip={labels.attachmentRemove}
-                          type="button"
-                          aria-label={labels.attachmentRemove}
-                          onClick={() =>
-                            setQueuedFiles((current) => current.filter((_, position) => position !== index))
-                          }
-                        >
-                          ✕
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <QueuedAttachmentsList
+                    items={queue}
+                    statusOf={(key) => attachmentStatus[key] ?? 'waiting'}
+                    onRemove={removeQueuedAttachment}
+                    onRetry={retryQueuedAttachment}
+                    retryingKeys={retryingKeys}
+                    getThumbnailUrl={getQueuedAttachmentThumbnailUrl}
+                    busy={isSendingDraft}
+                    labels={{
+                      remove: labels.attachmentRemove,
+                      waiting: labels.attachmentWaiting,
+                      sending: labels.attachmentSending,
+                      sent: labels.attachmentSent,
+                      failed: labels.attachmentFailed,
+                      skipped: labels.attachmentSkipped,
+                      retry: labels.attachmentRetry,
+                    }}
+                  />
                 ),
               }
             : {})}
           {...(richQuickReplies ? { quickReplies: [...richQuickReplies] } : {})}
           {...(composerVariables ? { variables: [...composerVariables] } : {})}
+          {...(savedQuickReplies ? { savedQuickReplies } : {})}
         />
       ) : (
         <MessageComposer
@@ -424,7 +487,8 @@ export function ConversationPane({
           {...(onAttach ? { onAttach: (file: File) => void handleAttach(file) } : {})}
           placeholder={labels.composerPlaceholder}
           {...(quickReplies ? { quickReplies } : {})}
-          {...(quickReplyVariablesFor ? { quickReplyVariables: quickReplyVariablesFor(conversation, conversationContext) } : {})}
+          {...(quickReplyVariables ? { quickReplyVariables } : {})}
+          {...(savedQuickReplies ? { savedQuickReplies } : {})}
         />
       )}
     </div>

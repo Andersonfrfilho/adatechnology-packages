@@ -254,11 +254,38 @@ export { createMediaUrlResolver } from './lib/createMediaUrlResolver'
 export type { ConversationHeaderUtility } from './ConversationHeader'
 export { applyQuickReplyVariables, resolveQuickReply } from './MessageComposer'
 export type { QuickReply } from './MessageComposer'
+// `QuickReply` já nomeia o chip; a mensagem pronta cadastrada sai como `SavedQuickReply` para não quebrar hosts.
+export type {
+  QuickReply as SavedQuickReply,
+  QuickReplyInput,
+  QuickReplyAttachment,
+  QueuedAttachment,
+  StoredAttachmentSendResult,
+  ConversationVariable,
+} from './quickReplies/quickReply.types'
+
+// Só o que o host precisa para montar a fila e ler seus tetos. O resto (validação de arquivo,
+// ordenação de envio, limite de concorrência de upload) é orquestração interna do pacote — expô-lo
+// convida o host a reimplementar o pipeline por fora em vez de usar `ConversationPane` (L2).
+export { QUICK_REPLY_ATTACHMENT_LIMIT } from './quickReplies/quickReply.types'
+export {
+  DEFAULT_MAX_ATTACHMENT_SIZE_BYTES,
+  resolveMaxAttachmentSizeBytes,
+  queuedAttachmentsFromQuickReply,
+} from './quickReplies/quickReplyAttachments'
+export type { MaxAttachmentSizeBytes, OutgoingItems } from './quickReplies/quickReplyAttachments'
+export type { AttachmentFileRejection, ValidateAttachmentFilesResult } from './quickReplies/quickReplyAttachmentUpload'
+export { QuickRepliesWorkspace, QuickRepliesPicker } from './quickReplies'
+export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps } from './quickReplies'
+export { DEFAULT_QUICK_REPLIES_PICKER_LABELS, DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS } from './quickReplies/labels'
+export type { QuickRepliesPickerLabels, QuickRepliesWorkspaceLabels } from './quickReplies/labels'
+export { normalizeForSearch, filterQuickReplies, highlightMatch } from './quickReplies/quickReplySearch'
+export type { FilterQuickRepliesParams, MatchSegment } from './quickReplies/quickReplySearch'
 
 // Tela de atendimento completa. Fica no export principal — e não num subpath — porque é a
 // composição padrão do pacote: quem instala conversas quer esta tela, e as peças continuam
 // exportadas ao lado para quem precisar montar outra.
-export { ConversationsWorkspace, ConversationPane, ConversationsInboxList } from './workspace'
+export { ConversationsWorkspace, ConversationPane, ConversationsInboxList, QueuedAttachmentsList } from './workspace'
 export { useConversationsInbox, CONVERSATIONS_PER_PAGE, DEFAULT_CONVERSATIONS_WORKSPACE_LABELS } from './workspace'
 export type {
   ConversationsWorkspaceProps,

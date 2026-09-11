@@ -16,6 +16,7 @@ import type {
   ConversationsApi,
   ListConversationsParams,
 } from '../providers/types'
+import type { QuickReply, QuickReplyInput } from '../quickReplies/quickReply.types'
 import { PREVIEW_DOCUMENTS } from './previewFixtures'
 import { previewFileBase64, previewFileUrl } from './previewMediaSource'
 import type { PreviewStore } from './previewStore'
@@ -34,6 +35,38 @@ const PREVIEW_TEMPLATES: readonly ConversationTemplate[] = [
   { name: 'retomada_atendimento', language: 'pt_BR', status: 'APPROVED', category: 'UTILITY' },
   { name: 'lembrete_documentos', language: 'pt_BR', status: 'APPROVED', category: 'UTILITY' },
   { name: 'promocao_taxa', language: 'pt_BR', status: 'PENDING', category: 'MARKETING' },
+]
+
+const PREVIEW_QUICK_REPLIES: QuickReply[] = [
+  { id: '1', title: 'Boas-vindas', shortcut: 'ola', body: 'Olá {{nome}}, bem-vindo!' },
+  {
+    id: '2',
+    title: 'Lista de documentos',
+    shortcut: 'documentos',
+    body: 'Segue a lista de documentos necessários para prosseguir com sua solicitação.',
+    attachments: [
+      { uploadId: 'upload-1', filename: 'Checklist de documentos.pdf', mimeType: 'application/pdf', sizeBytes: 245000 },
+      { uploadId: 'upload-2', filename: 'Tabela de taxas.png', mimeType: 'image/png', sizeBytes: 125000 },
+    ],
+  },
+  {
+    id: '3',
+    title: 'Prazo de análise',
+    shortcut: 'prazo',
+    body: 'Sua solicitação está em análise e o resultado sairá em até 48 horas.',
+  },
+  {
+    id: '4',
+    title: 'Agendar ligação',
+    shortcut: 'ligacao',
+    body: 'Olá {{nome}}, você gostaria de agendar uma ligação comigo? Que horas funcionam melhor para você?',
+  },
+  {
+    id: '5',
+    title: 'Encerramento',
+    shortcut: 'tchau',
+    body: 'Obrigado {{nome_completo}}, foi um prazer atender você. Qualquer dúvida, é só chamar!',
+  },
 ]
 
 /**
@@ -266,6 +299,157 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
 
     listTemplates(): Promise<ConversationTemplate[]> {
       return withLatency(() => [...PREVIEW_TEMPLATES])
+    },
+
+    listQuickReplies(searchParams?: { search?: string }): Promise<QuickReply[]> {
+      return withLatency(() => {
+        let results = [...PREVIEW_QUICK_REPLIES]
+        if (searchParams?.search) {
+          const term = searchParams.search.toLowerCase()
+          results = results.filter(
+            (qr) =>
+              qr.title.toLowerCase().includes(term) ||
+              qr.shortcut.toLowerCase().includes(term) ||
+              qr.body.toLowerCase().includes(term),
+          )
+        }
+        return results
+      })
+    },
+
+    createQuickReply(input: QuickReplyInput): Promise<QuickReply> {
+      return withLatency(() => {
+        // Check for duplicate shortcut
+        if (PREVIEW_QUICK_REPLIES.some((qr) => qr.shortcut === input.shortcut)) {
+          const error = new Error('Atalho já existe') as unknown as {
+            code?: string
+            details?: unknown[]
+          }
+          error.code = 'QUICK_REPLY_SHORTCUT_TAKEN'
+          throw error
+        }
+        const newQuickReply: QuickReply = {
+          id: String(Date.now()),
+          title: input.title,
+          shortcut: input.shortcut,
+          body: input.body,
+        }
+        PREVIEW_QUICK_REPLIES.push(newQuickReply)
+        return newQuickReply
+      })
+    },
+
+    updateQuickReply(id: string, input: QuickReplyInput): Promise<QuickReply> {
+      return withLatency(() => {
+        const index = PREVIEW_QUICK_REPLIES.findIndex((qr) => qr.id === id)
+        if (index === -1) {
+          throw new Error('Mensagem pronta não encontrada')
+        }
+        // Check for duplicate shortcut (excluding current item)
+        if (PREVIEW_QUICK_REPLIES.some((qr) => qr.id !== id && qr.shortcut === input.shortcut)) {
+          const error = new Error('Atalho já existe') as unknown as {
+            code?: string
+            details?: unknown[]
+          }
+          error.code = 'QUICK_REPLY_SHORTCUT_TAKEN'
+          throw error
+        }
+        const updated: QuickReply = {
+          id,
+          title: input.title,
+          shortcut: input.shortcut,
+          body: input.body,
+        }
+        PREVIEW_QUICK_REPLIES[index] = updated
+        return updated
+      })
+    },
+
+    deleteQuickReply(id: string): Promise<void> {
+      return withLatency(() => {
+        const index = PREVIEW_QUICK_REPLIES.findIndex((qr) => qr.id === id)
+        if (index !== -1) {
+          PREVIEW_QUICK_REPLIES.splice(index, 1)
+        }
+      })
+    },
+
+    uploadQuickReplyAttachment(
+      file: File,
+      options: { readonly onProgress: (progress: number) => void; readonly signal: AbortSignal },
+    ): Promise<{ uploadId: string; filename: string; mimeType: string; sizeBytes: number }> {
+      return new Promise((resolve, reject) => {
+        if (options.signal.aborted) {
+          reject(new DOMException('Aborted', 'AbortError'))
+          return
+        }
+
+        const abortHandler = () => {
+          reject(new DOMException('Aborted', 'AbortError'))
+        }
+        options.signal.addEventListener('abort', abortHandler)
+
+        // Simulação de progresso ao longo de ~1.5s (1500ms)
+        const steps = 6
+        const stepDuration = 1500 / steps
+        let step = 0
+
+        const progressInterval = setInterval(() => {
+          if (options.signal.aborted) {
+            clearInterval(progressInterval)
+            options.signal.removeEventListener('abort', abortHandler)
+            reject(new DOMException('Aborted', 'AbortError'))
+            return
+          }
+
+          step += 1
+          const progress = step / steps
+          if (progress <= 1) {
+            options.onProgress(Math.round(progress * 100))
+          }
+
+          if (step >= steps) {
+            clearInterval(progressInterval)
+            options.signal.removeEventListener('abort', abortHandler)
+            resolve({
+              uploadId: `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+              filename: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+            })
+          }
+        }, stepDuration)
+      })
+    },
+
+    sendStoredAttachments(params: {
+      conversationId: string
+      uploadIds: readonly string[]
+      idempotencyKey: string
+    }): Promise<{ results: readonly { uploadId: string; status: 'sent' | 'failed' | 'skipped' }[] }> {
+      return withLatency(() => {
+        const results: { uploadId: string; status: 'sent' | 'failed' | 'skipped' }[] = []
+
+        for (let index = 0; index < params.uploadIds.length; index += 1) {
+          const uploadId = params.uploadIds[index] as string
+          // Simular falha para uploads cuja nome no preview contém "falha", e pular os seguintes
+          const isFailed = uploadId.includes('falha')
+          if (isFailed) {
+            results.push({ uploadId, status: 'failed' })
+            continue
+          }
+
+          // Se o anterior falhou, pular este
+          if (index > 0 && results[index - 1]?.status === 'failed') {
+            results.push({ uploadId, status: 'skipped' })
+            continue
+          }
+
+          results.push({ uploadId, status: 'sent' })
+        }
+
+        return { results }
+      })
     },
   }
 }
