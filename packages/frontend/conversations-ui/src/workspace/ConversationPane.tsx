@@ -30,6 +30,8 @@ import { useScrollToLatestMessage } from '../hooks/useScrollToLatestMessage'
 import { useConversations } from '../providers/ConversationsProvider'
 import type { ConversationSummary } from '../providers/types'
 import type { ConversationsWorkspaceLabels } from './labels'
+import type { ConversationVariable } from '../quickReplies/quickReply.types'
+import { resolveConversationVariables } from '../quickReplies/resolveConversationVariables'
 
 export interface ConversationPaneProps {
   readonly conversation: ConversationSummary
@@ -49,6 +51,7 @@ export interface ConversationPaneProps {
    * Recebe o contexto junto porque o dado que interessa à variável (o nome que o bot perguntou,
    * por exemplo) vive no contexto do fluxo, não no resumo da listagem.
    */
+  /** @deprecated Use `conversationVariablesFor`, que alimenta os dois composers com uma lista só. */
   readonly quickReplyVariablesFor?: (
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
@@ -87,11 +90,22 @@ export interface ConversationPaneProps {
    * é menos coisa na tela.
    */
   readonly composer?: 'simple' | 'rich'
-  /** Valores que o operador insere sem digitar. Só o composer `rich` os oferece. */
+  /**
+   * Valores que o operador insere sem digitar. Só o composer `rich` os oferece.
+   * @deprecated Use `conversationVariablesFor`.
+   */
   readonly composerVariablesFor?: (
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
   ) => readonly RichComposerVariable[]
+  /**
+   * Dados da conversa que o texto pode citar, numa lista só. Presente, manda sobre
+   * `quickReplyVariablesFor` e `composerVariablesFor`.
+   */
+  readonly conversationVariablesFor?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => readonly ConversationVariable[]
   /**
    * Fila de anexos com legenda, como no WhatsApp: os arquivos escolhidos ficam visíveis acima da
    * barra e saem junto com o texto escrito. Ausente, o clipe manda cada arquivo na hora — o que
@@ -124,6 +138,7 @@ export function ConversationPane({
   onAttach,
   composer = 'simple',
   composerVariablesFor,
+  conversationVariablesFor,
   onSendAttachments,
   onRecordAudio,
 }: ConversationPaneProps) {
@@ -264,7 +279,11 @@ export function ConversationPane({
   }
 
   const contextEntries = contextEntriesOf?.(conversationContext)
-  const composerVariables = composerVariablesFor?.(conversation, conversationContext)
+  const { quickReplyVariables, composerVariables } = resolveConversationVariables({
+    conversationVariables: conversationVariablesFor?.(conversation, conversationContext),
+    quickReplyVariables: quickReplyVariablesFor?.(conversation, conversationContext),
+    composerVariables: composerVariablesFor?.(conversation, conversationContext),
+  })
   /**
    * As mesmas `quickReplies` do composer simples, com as variáveis já resolvidas — o campo rico
    * recebe texto pronto. Uma segunda lista, só de formato diferente, é como as telas divergiam.
@@ -274,8 +293,8 @@ export function ConversationPane({
     label: reply.label,
     text:
       typeof reply.text === 'string'
-        ? applyQuickReplyVariables(reply.text, quickReplyVariablesFor?.(conversation, conversationContext) ?? {})
-        : reply.text(quickReplyVariablesFor?.(conversation, conversationContext) ?? {}),
+        ? applyQuickReplyVariables(reply.text, quickReplyVariables ?? {})
+        : reply.text(quickReplyVariables ?? {}),
   }))
   const botOwnsConversation = Boolean(requireTakeoverToReply) && conversation.mode !== 'human'
 
@@ -424,7 +443,7 @@ export function ConversationPane({
           {...(onAttach ? { onAttach: (file: File) => void handleAttach(file) } : {})}
           placeholder={labels.composerPlaceholder}
           {...(quickReplies ? { quickReplies } : {})}
-          {...(quickReplyVariablesFor ? { quickReplyVariables: quickReplyVariablesFor(conversation, conversationContext) } : {})}
+          {...(quickReplyVariables ? { quickReplyVariables } : {})}
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+import type { QuickReply, QuickReplyInput } from '../quickReplies/quickReply.types'
 import type { MessagePayload, MessageTranscription } from '../types'
 import type { ConversationChannel } from '../conversationChannel'
 
@@ -172,6 +173,15 @@ export interface ConversationsApi {
 
   markAllRead?(): Promise<void>
   listTemplates?(): Promise<ConversationTemplate[]>
+
+  /**
+   * Mensagens prontas do produto. Ausente, nada de mensagens prontas aparece; sem `create`,
+   * `update` e `delete` a tela de cadastro fica só leitura — a presença da função é a capacidade.
+   */
+  listQuickReplies?(params?: { search?: string }): Promise<QuickReply[]>
+  createQuickReply?(input: QuickReplyInput): Promise<QuickReply>
+  updateQuickReply?(id: string, input: QuickReplyInput): Promise<QuickReply>
+  deleteQuickReply?(id: string): Promise<void>
 
   /**
    * Transcrição completa gerada pelo servidor. Existe ao lado de `buildTranscriptText`, que monta

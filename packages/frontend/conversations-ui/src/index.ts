@@ -254,6 +254,12 @@ export { createMediaUrlResolver } from './lib/createMediaUrlResolver'
 export type { ConversationHeaderUtility } from './ConversationHeader'
 export { applyQuickReplyVariables, resolveQuickReply } from './MessageComposer'
 export type { QuickReply } from './MessageComposer'
+// `QuickReply` já nomeia o chip; a mensagem pronta cadastrada sai como `SavedQuickReply` para não quebrar hosts.
+export type {
+  QuickReply as SavedQuickReply,
+  QuickReplyInput,
+  ConversationVariable,
+} from './quickReplies/quickReply.types'
 
 // Tela de atendimento completa. Fica no export principal — e não num subpath — porque é a
 // composição padrão do pacote: quem instala conversas quer esta tela, e as peças continuam

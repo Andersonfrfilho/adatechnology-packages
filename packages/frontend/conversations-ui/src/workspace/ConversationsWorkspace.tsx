@@ -39,6 +39,7 @@ import { ConversationsInboxList } from './ConversationsInboxList'
 import { DEFAULT_CONVERSATIONS_WORKSPACE_LABELS, type ConversationsWorkspaceLabels } from './labels'
 import { useConversationsInbox, type UseConversationsInboxResult } from './useConversationsInbox'
 import { TooltipLayer } from '../Tooltip'
+import type { ConversationVariable } from '../quickReplies/quickReply.types'
 
 export type SimulatorTransportParams = {
   readonly conversationId: string
@@ -98,6 +99,7 @@ export interface ConversationsWorkspaceProps {
   readonly initialWhatsappNumber?: string | undefined
   readonly simulator?: ConversationsWorkspaceSimulator
   readonly quickReplies?: readonly QuickReply[]
+  /** @deprecated Use `conversationVariablesFor`, que alimenta os dois composers com uma lista só. */
   readonly quickReplyVariablesFor?: (
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
@@ -114,11 +116,22 @@ export interface ConversationsWorkspaceProps {
   readonly initialComposerText?: string | undefined
   /** `rich` troca o campo simples pelo texto com a formatação do WhatsApp desenhada ao escrever. */
   readonly composer?: 'simple' | 'rich'
-  /** Valores que o operador insere sem digitar. Só o composer `rich` os oferece. */
+  /**
+   * Valores que o operador insere sem digitar. Só o composer `rich` os oferece.
+   * @deprecated Use `conversationVariablesFor`.
+   */
   readonly composerVariablesFor?: (
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
   ) => readonly RichComposerVariable[]
+  /**
+   * Dados da conversa que o texto pode citar, numa lista só. Presente, manda sobre
+   * `quickReplyVariablesFor` e `composerVariablesFor`.
+   */
+  readonly conversationVariablesFor?: (
+    conversation: ConversationSummary,
+    context: Record<string, unknown> | undefined,
+  ) => readonly ConversationVariable[]
   /** Fila de anexos com legenda, como no WhatsApp. Ausente, o clipe manda cada arquivo na hora. */
   readonly onSendAttachments?: (
     conversation: ConversationSummary,
@@ -162,6 +175,7 @@ export function ConversationsWorkspace({
   initialComposerText,
   composer,
   composerVariablesFor,
+  conversationVariablesFor,
   onSendAttachments,
   onRecordAudio,
   contextEntriesOf,
@@ -360,6 +374,7 @@ export function ConversationsWorkspace({
               {...(initialComposerText ? { initialComposerText } : {})}
               {...(composer ? { composer } : {})}
               {...(composerVariablesFor ? { composerVariablesFor } : {})}
+              {...(conversationVariablesFor ? { conversationVariablesFor } : {})}
               {...(onSendAttachments
                 ? {
                     onSendAttachments: (files: readonly File[], caption: string) =>
