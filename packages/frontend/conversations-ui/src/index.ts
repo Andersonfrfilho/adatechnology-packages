@@ -261,6 +261,13 @@ export type {
   ConversationVariable,
 } from './quickReplies/quickReply.types'
 
+export { QuickRepliesWorkspace, QuickRepliesPicker } from './quickReplies'
+export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps } from './quickReplies'
+export { DEFAULT_QUICK_REPLIES_PICKER_LABELS, DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS } from './quickReplies/labels'
+export type { QuickRepliesPickerLabels, QuickRepliesWorkspaceLabels } from './quickReplies/labels'
+export { normalizeForSearch, filterQuickReplies, highlightMatch } from './quickReplies/quickReplySearch'
+export type { FilterQuickRepliesParams, MatchSegment } from './quickReplies/quickReplySearch'
+
 // Tela de atendimento completa. Fica no export principal — e não num subpath — porque é a
 // composição padrão do pacote: quem instala conversas quer esta tela, e as peças continuam
 // exportadas ao lado para quem precisar montar outra.

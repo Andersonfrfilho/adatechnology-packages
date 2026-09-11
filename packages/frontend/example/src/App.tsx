@@ -7,8 +7,9 @@ import {
   Avatar,
   ToastProvider,
   useToast,
+  QuickRepliesWorkspace,
 } from '@adatechnology/conversations-ui'
-import type { ConversationSummary, MessagePayload } from '@adatechnology/conversations-ui'
+import type { ConversationSummary, MessagePayload, ConversationVariable, SavedQuickReply, QuickReplyInput } from '@adatechnology/conversations-ui'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Search } from 'lucide-react'
@@ -34,6 +35,20 @@ const MOCK_CONVERSATIONS: ConversationSummary[] = [
   { id: '5', whatsappNumber: '5511955555555', clientName: 'Pedro Alves', lastContent: 'Qual o prazo de entrega do documento?', lastDirection: 'outbound', lastAt: new Date(NOW.getTime() - 86400000).toISOString(), lastInboundAt: new Date(NOW.getTime() - 172800000).toISOString(), mode: 'bot', assignedUserId: null, waitingHuman: true, unread: 1, currentState: 'awaiting_reply' },
 ]
 
+const CONVERSATION_VARIABLES: ConversationVariable[] = [
+  { id: 'nome', label: 'Nome do cliente', marker: '{{nome}}', value: 'João' },
+  { id: 'nome_completo', label: 'Nome completo', marker: '{{nome_completo}}', value: 'João Silva Santos' },
+  { id: 'produto', label: 'Produto', marker: '{{produto}}', value: 'Financiamento Imobiliário' },
+]
+
+let QUICK_REPLIES: SavedQuickReply[] = [
+  { id: '1', title: 'Boas-vindas', shortcut: 'ola', body: 'Olá {{nome}}, bem-vindo!' },
+  { id: '2', title: 'Lista de documentos', shortcut: 'documentos', body: 'Segue a lista de documentos necessários para prosseguir com sua solicitação.' },
+  { id: '3', title: 'Prazo de análise', shortcut: 'prazo', body: 'Sua solicitação está em análise e o resultado sairá em até 48 horas.' },
+  { id: '4', title: 'Agendar ligação', shortcut: 'ligacao', body: 'Olá {{nome}}, você gostaria de agendar uma ligação comigo? Que horas funcionam melhor para você?' },
+  { id: '5', title: 'Encerramento', shortcut: 'tchau', body: 'Obrigado {{nome_completo}}, foi um prazer atender você. Qualquer dúvida, é só chamar!' },
+]
+
 function mockApi() {
   return {
     fetchMessages: async () => MOCK_MESSAGES,
@@ -50,6 +65,36 @@ function mockApi() {
     getDocuments: async () => [],
     getDocumentUrl: async () => '',
     getMediaProxyUrl: async () => ({ mimeType: 'image/jpeg', data: '' }),
+    listQuickReplies: async (params?: { search?: string }) => {
+      if (!params?.search) return QUICK_REPLIES
+      const term = params.search.toLowerCase()
+      return QUICK_REPLIES.filter(qr => qr.title.toLowerCase().includes(term) || qr.shortcut.toLowerCase().includes(term) || qr.body.toLowerCase().includes(term))
+    },
+    createQuickReply: async (input: QuickReplyInput): Promise<SavedQuickReply> => {
+      if (QUICK_REPLIES.some(qr => qr.shortcut === input.shortcut)) {
+        const error = new Error('Atalho já existe') as any
+        error.code = 'QUICK_REPLY_SHORTCUT_TAKEN'
+        throw error
+      }
+      const newQR: SavedQuickReply = { id: String(Date.now()), ...input }
+      QUICK_REPLIES.push(newQR)
+      return newQR
+    },
+    updateQuickReply: async (id: string, input: QuickReplyInput): Promise<SavedQuickReply> => {
+      const index = QUICK_REPLIES.findIndex(qr => qr.id === id)
+      if (index === -1) throw new Error('Not found')
+      if (QUICK_REPLIES.some(qr => qr.id !== id && qr.shortcut === input.shortcut)) {
+        const error = new Error('Atalho já existe') as any
+        error.code = 'QUICK_REPLY_SHORTCUT_TAKEN'
+        throw error
+      }
+      const updated: SavedQuickReply = { id, ...input }
+      QUICK_REPLIES[index] = updated
+      return updated
+    },
+    deleteQuickReply: async (id: string) => {
+      QUICK_REPLIES = QUICK_REPLIES.filter(qr => qr.id !== id)
+    },
   }
 }
 
@@ -215,10 +260,37 @@ function WhatsAppLayout() {
 }
 
 export default function App() {
+  const [screen, setScreen] = useState<'whatsapp' | 'quickreplies'>('whatsapp')
+  const api = mockApi()
+
   return (
     <ToastProvider>
-      <ConversationsProvider api={mockApi()} sse={mockSse()}>
-        <WhatsAppLayout />
+      <ConversationsProvider api={api} sse={mockSse()}>
+        {screen === 'whatsapp' ? (
+          <div className="flex flex-col h-screen">
+            <button
+              onClick={() => setScreen('quickreplies')}
+              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 self-start m-2"
+            >
+              Ver Mensagens Prontas
+            </button>
+            <div className="flex-1 overflow-hidden">
+              <WhatsAppLayout />
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col h-screen p-6 bg-white">
+            <button
+              onClick={() => setScreen('whatsapp')}
+              className="px-4 py-2 bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 mb-4 w-fit"
+            >
+              Voltar para Chat
+            </button>
+            <div className="flex-1 overflow-auto">
+              <QuickRepliesWorkspace api={api} variables={CONVERSATION_VARIABLES} />
+            </div>
+          </div>
+        )}
       </ConversationsProvider>
     </ToastProvider>
   )
