@@ -5,7 +5,7 @@
  * última mensagem, outro engolia falha de anexo, outro não abria a biblioteca de arquivos.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { AudioRecorderButton } from '../AudioRecorderButton'
 import { ConversationContextPanel, type ConversationContextEntry } from '../ConversationContextPanel'
@@ -171,15 +171,43 @@ export function ConversationPane({
    * só zera quando a fila esvazia de vez.
    */
   const idempotencyKeyRef = useRef<string | undefined>(undefined)
+  /**
+   * Espelha `conversation.id` sem esperar o repaint: um envio em andamento lê isto depois do
+   * `await` para saber se o atendente já trocou de conversa (H2) — `conversation.id` capturado no
+   * fechamento seria sempre o da conversa em que o clique aconteceu, nunca o atual.
+   */
+  const currentConversationIdRef = useRef(conversation.id)
+  /**
+   * Uma promessa por `uploadId`, nunca duas: sem o cache, cada render da lista de anexos disparava
+   * de novo a URL assinada do mesmo arquivo (M4) — a função abaixo é estável, mas o item pode
+   * remontar por causa do estado de envio.
+   */
+  const thumbnailUrlCacheRef = useRef(new Map<string, Promise<string>>())
+  const getQueuedAttachmentThumbnailUrl = useCallback(
+    (uploadId: string): Promise<string> => {
+      const cached = thumbnailUrlCacheRef.current.get(uploadId)
+      if (cached) return cached
+      const pending = api.getDocumentUrl(uploadId, 'inline')
+      thumbnailUrlCacheRef.current.set(uploadId, pending)
+      pending.catch(() => thumbnailUrlCacheRef.current.delete(uploadId))
+      return pending
+    },
+    [api],
+  )
 
   // Trocar de conversa zera as duas coisas: seleção de mensagem e rascunho pertencem à thread, e
-  // levá-los adiante faria copiar o trecho errado ou responder ao cliente errado.
+  // levá-los adiante faria copiar o trecho errado ou responder ao cliente errado. O envio em
+  // andamento da conversa anterior também é abandonado: sem isto, a resposta chegando depois da
+  // troca reabilitaria o composer errado ou reusaria a chave de idempotência de outra thread.
   useEffect(() => {
+    currentConversationIdRef.current = conversation.id
     setSelectedMessageIds(new Set())
     setDraft(initialComposerText ?? '')
     setQueue([])
     setAttachmentStatus({})
     idempotencyKeyRef.current = undefined
+    sendInFlightRef.current = false
+    setIsSendingDraft(false)
   }, [conversation.id, initialComposerText])
 
   function toggleMessageSelected(messageId: string): void {
@@ -265,6 +293,38 @@ export function ConversationPane({
     sendInFlightRef.current = true
     setIsSendingDraft(true)
     setSendFailure(undefined)
+    // Capturado antes do primeiro `await`: se o atendente trocar de conversa no meio do envio, o
+    // retorno não pode aplicar estado (rascunho, fila, chave) na thread que ele está lendo agora.
+    const conversationIdAtSend = conversation.id
+    const isSameConversation = (): boolean => currentConversationIdRef.current === conversationIdAtSend
+
+    // QR-32/QR-33: só a fila com item `stored` — mensagem pronta empurrada pelo picker — passa pelo
+    // pipeline novo (texto -> guardados -> locais). Fila só com `local`, como antes desta feature,
+    // continua indo pelo caminho antigo: uma chamada só, com o rascunho como legenda do anexo.
+    const hasStoredItems = queue.some((item) => item.kind === 'stored')
+    if (onSendAttachments && queue.length > 0 && !hasStoredItems) {
+      const files = queue
+        .filter((item): item is Extract<QueuedAttachment, { kind: 'local' }> => item.kind === 'local')
+        .map((item) => item.file)
+      const caption = draft
+      try {
+        const didSend = await runSend(() => onSendAttachments(files, caption), labels.attachFailure)
+        if (!isSameConversation()) return
+        if (didSend) {
+          setQueue([])
+          setAttachmentStatus({})
+          idempotencyKeyRef.current = undefined
+          setDraft('')
+        }
+      } finally {
+        if (isSameConversation()) {
+          sendInFlightRef.current = false
+          setIsSendingDraft(false)
+        }
+      }
+      return
+    }
+
     if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID()
     try {
       const result = await sendQueuedMessage({
@@ -281,8 +341,11 @@ export function ConversationPane({
         ...(onSendAttachments
           ? { sendLocalAttachments: (files: readonly File[]) => onSendAttachments(files, '') }
           : {}),
-        onAttachmentStatus: (key, status) => setAttachmentStatus((current) => ({ ...current, [key]: status })),
+        onAttachmentStatus: (key, status) => {
+          if (isSameConversation()) setAttachmentStatus((current) => ({ ...current, [key]: status }))
+        },
       })
+      if (!isSameConversation()) return
       if (!result.textSent) {
         setSendFailure(labels.sendFailure)
         return
@@ -295,10 +358,12 @@ export function ConversationPane({
       if (draft.trim()) setDraft('')
       await refetch()
     } catch (error: unknown) {
-      setSendFailure(error instanceof Error ? error.message : labels.attachFailure)
+      if (isSameConversation()) setSendFailure(error instanceof Error ? error.message : labels.attachFailure)
     } finally {
-      sendInFlightRef.current = false
-      setIsSendingDraft(false)
+      if (isSameConversation()) {
+        sendInFlightRef.current = false
+        setIsSendingDraft(false)
+      }
     }
   }
 
@@ -498,7 +563,7 @@ export function ConversationPane({
                     statusOf={(key) => attachmentStatus[key] ?? 'waiting'}
                     onRemove={removeQueuedAttachment}
                     onRetry={retryQueuedAttachment}
-                    getThumbnailUrl={(uploadId) => api.getDocumentUrl(uploadId, 'inline')}
+                    getThumbnailUrl={getQueuedAttachmentThumbnailUrl}
                     busy={isSendingDraft}
                     labels={{
                       remove: labels.attachmentRemove,

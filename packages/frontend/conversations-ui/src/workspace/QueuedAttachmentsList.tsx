@@ -51,17 +51,24 @@ function AttachmentThumbnail({
 }) {
   const isImage = mimeTypeOf(item).startsWith('image/')
   const [url, setUrl] = useState<string | undefined>(item.kind === 'local' ? undefined : item.previewUrl)
+  const localFile = item.kind === 'local' ? item.file : undefined
+  const uploadId = item.kind === 'stored' ? item.uploadId : undefined
 
+  // Só o `File` decide a URL de objeto local: incluir `item` inteiro (H4) recriava e revogava a URL
+  // a cada render em que a identidade do objeto da fila mudasse por outro motivo (status, por ex.).
   useEffect(() => {
-    if (!isImage || url) return
-    if (item.kind === 'local') {
-      const objectUrl = URL.createObjectURL(item.file)
-      setUrl(objectUrl)
-      return () => URL.revokeObjectURL(objectUrl)
-    }
-    if (!getThumbnailUrl) return
+    if (!isImage || !localFile) return
+    const objectUrl = URL.createObjectURL(localFile)
+    setUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [isImage, localFile])
+
+  // `url` fica de fora do array por propósito: é este efeito que o define via `setUrl`, incluí-lo
+  // reexecutaria a busca a cada resolução. Só `uploadId` reinicia a busca da miniatura remota.
+  useEffect(() => {
+    if (!isImage || !uploadId || !getThumbnailUrl) return
     let cancelled = false
-    getThumbnailUrl(item.uploadId)
+    getThumbnailUrl(uploadId)
       .then((resolved) => {
         if (!cancelled) setUrl(resolved)
       })
@@ -69,7 +76,7 @@ function AttachmentThumbnail({
     return () => {
       cancelled = true
     }
-  }, [isImage, item, getThumbnailUrl, url])
+  }, [isImage, uploadId, getThumbnailUrl])
 
   if (!isImage) return null
   return (
