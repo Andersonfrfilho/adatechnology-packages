@@ -312,7 +312,7 @@ function mockApi() {
           step += 1
           const progress = step / steps
           if (progress <= 1 && options?.onProgress) {
-            options.onProgress(Math.round(progress * 100))
+            options.onProgress(progress)
           }
 
           if (step >= steps) {

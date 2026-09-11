@@ -264,21 +264,16 @@ export type {
   ConversationVariable,
 } from './quickReplies/quickReply.types'
 
+// Só o que o host precisa para montar a fila e ler seus tetos. O resto (validação de arquivo,
+// ordenação de envio, limite de concorrência de upload) é orquestração interna do pacote — expô-lo
+// convida o host a reimplementar o pipeline por fora em vez de usar `ConversationPane` (L2).
 export { QUICK_REPLY_ATTACHMENT_LIMIT } from './quickReplies/quickReply.types'
 export {
   DEFAULT_MAX_ATTACHMENT_SIZE_BYTES,
-  applySendResults,
-  canAddAttachments,
-  orderOutgoingItems,
   resolveMaxAttachmentSizeBytes,
   queuedAttachmentsFromQuickReply,
 } from './quickReplies/quickReplyAttachments'
 export type { MaxAttachmentSizeBytes, OutgoingItems } from './quickReplies/quickReplyAttachments'
-export {
-  validateAttachmentFiles,
-  moveAttachment,
-  mapWithConcurrencyLimit,
-} from './quickReplies/quickReplyAttachmentUpload'
 export type { AttachmentFileRejection, ValidateAttachmentFilesResult } from './quickReplies/quickReplyAttachmentUpload'
 export { QuickRepliesWorkspace, QuickRepliesPicker } from './quickReplies'
 export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps } from './quickReplies'
