@@ -36,9 +36,12 @@ export interface QuickRepliesWorkspaceLabels {
   readonly columnBody: string
   readonly columnActions: string
   readonly fieldTitle: string
+  readonly fieldTitleInvalid: string
   readonly fieldShortcut: string
   readonly fieldShortcutHint: string
+  readonly fieldShortcutInvalid: string
   readonly fieldBody: string
+  readonly fieldBodyInvalid: string
   readonly insertVariable: string
   readonly shortcutTaken: string
   readonly readOnlyNotice: string
@@ -64,9 +67,12 @@ export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels
   columnBody: 'Texto',
   columnActions: 'Ações',
   fieldTitle: 'Título',
+  fieldTitleInvalid: 'Digite um título de até 40 caracteres.',
   fieldShortcut: 'Atalho',
   fieldShortcutHint: 'Letras minúsculas, números e hífen, sem espaço nem acento.',
+  fieldShortcutInvalid: 'Atalho inválido — só letras minúsculas, números e hífen, até 20 caracteres.',
   fieldBody: 'Texto',
+  fieldBodyInvalid: 'Digite um texto de até 1000 caracteres.',
   insertVariable: 'Inserir variável',
   shortcutTaken: 'Esse atalho já está em uso — escolha outro.',
   readOnlyNotice: 'Você só pode consultar as mensagens prontas.',
