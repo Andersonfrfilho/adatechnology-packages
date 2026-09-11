@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   attachmentKey,
   excludeRetryingItems,
+  hasSentEveryStoredUpload,
   resolveIdempotencyKey,
   sendQueuedMessage,
   type AttachmentSendStatus,
@@ -162,17 +163,25 @@ export function useComposerQueue(params: UseComposerQueueParams): UseComposerQue
       // Filtra por chave sobre a fila CORRENTE, não sobrescreve com `result.remainingQueue` (que foi
       // calculado sobre a fila capturada antes do `await` e perderia item adicionado durante o envio).
       const sentKeys = new Set(result.sentAttachmentKeys)
-      // Decide "tudo saiu" sobre a fila CORRENTE dentro do updater, não sobre `result.remainingQueue`
-      // (snapshot de antes do `await` — ficaria obsoleto se algo mudou a fila durante o envio).
-      let queueEmptyAfterSend = false
-      setQueue((current) => {
-        const next = current.filter((item) => !sentKeys.has(attachmentKey(item)))
-        queueEmptyAfterSend = next.length === 0
+      setQueue((current) => current.filter((item) => !sentKeys.has(attachmentKey(item))))
+      // Decide sobre os `uploadId` desta TENTATIVA (`idempotencyState.uploadIds`), nunca sobre o
+      // `setQueue` acima: o updater de `setQueue` não roda de forma síncrona (só no próximo render),
+      // então ler uma variável escrita por ele aqui sempre pegaria o valor antigo (bug real em
+      // produção — a chave nunca era descartada e o segundo envio do mesmo anexo era recusado pelo
+      // servidor como replay).
+      setAttachmentStatus((current) => {
+        const next = { ...current }
+        for (const key of sentKeys) delete next[key]
         return next
       })
-      if (queueEmptyAfterSend) {
+      // Descarta a chave só se ninguém a trocou por identidade desde o `await` (mesmo cuidado do
+      // retry avulso em `shouldResetRetryKey`) — senão um envio concorrente que já trocou o ref
+      // teria sua chave nova apagada por esta tentativa mais antiga.
+      if (
+        idempotencyKeyRef.current === idempotencyState &&
+        hasSentEveryStoredUpload(idempotencyState.uploadIds, result.sentAttachmentKeys)
+      ) {
         idempotencyKeyRef.current = undefined
-        setAttachmentStatus({})
       }
       if (draft.trim()) setDraft('')
       await refetch()
