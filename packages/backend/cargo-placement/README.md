@@ -20,6 +20,19 @@ import { resolveCargoLayout, resolveCargoPlacement } from '@adatechnology/cargo-
 As cargas reais medidas que calibram o empacotador ficam em `@adatechnology/cargo-placement/fixtures`
 (`ACCELO_24_STOPS`, `ATEGO_85_STOPS`, `MIXED_BEDS`, `createMixedLoad`). São dados, não regra.
 
+## Orçamento de tempo (`deadline`)
+
+Pensado para rodar numa thread de worker com prazo de relógio: `resolveCargoLayout`,
+`resolveCargoPlacement` e `resolveStopArrangement` aceitam um `deadline?: number` opcional (epoch
+ms) e um `now?: () => number` opcional (relógio injetável, `Date.now` por padrão — útil para teste
+determinístico). Sem `deadline`, nada muda: é o mesmo empacotador de sempre.
+
+Com `deadline`, a varredura confere o prazo a cada caixa/unidade. Quando vence, ela para onde
+estiver — o que já foi colocado fica colocado — e devolve todo o resto em `unplaced` com
+`reason: 'time_budget'`, nunca descartando caixa silenciosamente (spec 085). A decisão de arranjo
+(`resolveStopArrangement`/`gridOrDepth`) é sempre livre de prazo, para dar sempre o mesmo resultado
+com ou sem `deadline`.
+
 ## Regras que não mudam sem spec
 
 Apoio de 80 % da base, escora só pelo lado, célula de 5 cm e `STABLE_STACK_SLENDERNESS` são decisões

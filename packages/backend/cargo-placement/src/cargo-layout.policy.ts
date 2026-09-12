@@ -375,6 +375,12 @@ export function resolveCargoLayout(input: {
    */
   readonly securesCargo?: boolean
   readonly stops: readonly CargoLayoutStop[]
+  /**
+   * Spec 145: prazo de relógio (epoch ms) para o empacotamento — ver `resolveCargoPlacement`. Não
+   * repassado à decisão de arranjo (`resolveStopArrangement`), que precisa dar sempre o mesmo resultado.
+   */
+  readonly deadline?: number
+  readonly now?: () => number
 }): ResolvedCargoLayout | null {
   const capacity = toScaled(input.capacityM3)
 
@@ -527,6 +533,8 @@ export function resolveCargoLayout(input: {
     loadingAccess: access,
     payloadRatio: input.payloadRatio ?? null,
     securesCargo: input.securesCargo === true,
+    ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+    ...(input.now === undefined ? {} : { now: input.now }),
   })
 
   return {

@@ -75,7 +75,7 @@ export function isComplementBox(box: Readonly<{ reasons: readonly PlacementReaso
 }
 
 /** Por que uma caixa ficou de fora. Nomear é obrigatório — sumir com ela, nunca. */
-export const UNPLACED_REASONS = ['notMeasured', 'largerThanBed', 'bedFull', 'tooMany'] as const
+export const UNPLACED_REASONS = ['notMeasured', 'largerThanBed', 'bedFull', 'tooMany', 'time_budget'] as const
 export type UnplacedReason = (typeof UNPLACED_REASONS)[number]
 
 export type PlacementBox = {
@@ -318,9 +318,26 @@ function placeCargo(input: {
    * qual arranjo vale.
    */
   readonly complement?: boolean
+  /**
+   * Spec 145: o instante (epoch em ms) em que o empacotamento — rodando em worker thread — deixa de
+   * tentar. Vencido, a varredura para onde estiver e devolve o resto como `unplaced` com `time_budget`;
+   * o que já tinha sido colocado fica colocado. Ausente é sem orçamento, o comportamento de sempre.
+   */
+  readonly deadline?: number
+  /** O relógio que decide se `deadline` venceu. Ausente é `Date.now` — injetável só para teste. */
+  readonly now?: () => number
 }): CargoPlacement | null {
   if (input.bed === null) return null
-  const reusable = input.arrangement === 'depth' && input.laneCount === undefined && input.openLaneSides === undefined
+  /**
+   * ⚠️ **Chamada com orçamento nunca reusa nem alimenta o pacote guardado.** O pacote não sabe quando
+   * foi cortado por tempo; devolvê-lo para uma chamada sem orçamento entregaria carga faltando sem
+   * `time_budget` nenhum, e guardá-lo apagaria o resultado completo de uma chamada anterior.
+   */
+  const reusable =
+    input.arrangement === 'depth' &&
+    input.laneCount === undefined &&
+    input.openLaneSides === undefined &&
+    input.deadline === undefined
   const previous = lastDepthPacking
   if (
     reusable &&
@@ -404,8 +421,10 @@ function placeCargoOnce(
         bed: input.bed,
         boxes: measured,
         complement: input.complement !== false,
+        ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
         grid,
         loadingAccess: input.loadingAccess,
+        ...(input.now === undefined ? {} : { now: input.now }),
         payloadRatio: input.payloadRatio,
         securesCargo: input.securesCargo,
         unplaced,
@@ -481,6 +500,8 @@ function placeCargoOnce(
       bed,
       boxes: measured,
       complement: input.complement !== false,
+      ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+      ...(input.now === undefined ? {} : { now: input.now }),
       ...(input.openLaneSides === undefined ? {} : { openSides: input.openLaneSides }),
       presumed,
       securesCargo: input.securesCargo === true,
@@ -520,6 +541,8 @@ function placeCargoOnce(
       boxes: own,
       budget: Number.POSITIVE_INFINITY,
       capM,
+      ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+      ...(input.now === undefined ? {} : { now: input.now }),
       securesCargo: input.securesCargo === true,
       /** Em faixas a fileira gasta profundidade: sobe-se antes de andar para o fundo (spec 100). */
       stackBeforeRow: lanes,
@@ -627,6 +650,9 @@ function packUntilItFits(input: {
   readonly boxes: readonly PlacementBox[]
   readonly budget: number
   readonly capM: number
+  /** Spec 145: repassado a `packSlice` — ver ali. */
+  readonly deadline?: number
+  readonly now?: () => number
 }): {
   readonly boxes: readonly PlacedBox[]
   readonly lengthM: number
@@ -662,12 +688,20 @@ function packUntilItFits(input: {
       boxes: input.boxes,
       budget: input.budget,
       sliceLengthM: lengthM,
+      ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+      ...(input.now === undefined ? {} : { now: input.now }),
       ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
       ...(input.stackBeforeRow === undefined ? {} : { stackBeforeRow: input.stackBeforeRow }),
       ...(input.openSides === undefined ? {} : { openSides: input.openSides }),
     })
     const overflowed = packed.leftovers.length > 0 || packed.unplaced.some((entry) => entry.reason === 'bedFull')
-    const exhausted = attempt + 1 >= SLICE_GROWTH_ATTEMPTS || lengthM >= input.capM - 1e-9
+    /**
+     * ⚠️ **Orçamento vencido não cresce fatia.** Crescer chamaria `packSlice` de novo, e a nova
+     * chamada — já vencida — devolveria tudo como `time_budget` desde o início, apagando o que este
+     * pacote já tinha colocado.
+     */
+    const timeBudgetExceeded = input.deadline !== undefined && (input.now ?? Date.now)() >= input.deadline
+    const exhausted = timeBudgetExceeded || attempt + 1 >= SLICE_GROWTH_ATTEMPTS || lengthM >= input.capM - 1e-9
     if (!overflowed || exhausted) return { ...packed, lengthM }
 
     lengthM = Math.min(input.capM, lengthM * SLICE_GROWTH_FACTOR)
@@ -833,6 +867,12 @@ export function resolveStopArrangement(input: {
   readonly payloadRatio: string | null
   /** Repassado à comparação da grade com a profundidade — a amarração muda quanto cada uma empilha. */
   readonly securesCargo?: boolean
+  /**
+   * Spec 145: aceito por uniformidade de assinatura entre as entradas públicas, mas **não** repassado
+   * a `gridOrDepth` — a decisão de arranjo tem de dar sempre o mesmo resultado, com ou sem prazo.
+   */
+  readonly deadline?: number
+  readonly now?: () => number
 }): StopArrangementDecision {
   if (input.bed === null) return { arrangement: 'depth', reason: 'noBed' }
   const bedInput = input.bed
@@ -1002,6 +1042,9 @@ function packSlice(input: {
   readonly boxes: readonly PlacementBox[]
   readonly budget: number
   readonly sliceLengthM: number
+  /** Spec 145: prazo de relógio (epoch ms) para a varredura desistir — ver o laço principal abaixo. */
+  readonly deadline?: number
+  readonly now?: () => number
 }): {
   readonly boxes: readonly PlacedBox[]
   /** Spec 134: quanto o bloco pode andar sem soltar a escora da testeira — ver `createSupportMap`. */
@@ -1114,7 +1157,8 @@ function packSlice(input: {
   >()
 
   let frozenStop: number | null = null
-  for (const box of ordered) {
+  let boxIndex = 0
+  outer: for (const box of ordered) {
     const stackLimit = resolveStackLimit(box)
     if (input.deliveryOrder === true && box.stopSequence !== frozenStop) {
       support.freezeLater()
@@ -1122,6 +1166,11 @@ function packSlice(input: {
     }
 
     for (let unit = 0; unit < box.count; unit += 1) {
+      /** Spec 145: vencido no meio da fatia — o resto nunca some (spec 085), vira `time_budget`. */
+      if (input.deadline !== undefined && (input.now ?? Date.now)() >= input.deadline) {
+        pushUnplaced(unplaced, { count: box.count - unit, label: box.label, reason: 'time_budget' })
+        break outer
+      }
       const slot = fitSlot({ bed: slice, box, deepAxis })
       if (slot === null) {
         /** Não cabe na fatia: só é "maior que o baú" se não couber nem no baú inteiro. */
@@ -1493,6 +1542,13 @@ function packSlice(input: {
         xM: cursor.xM + slot.depthM,
       }
     }
+    boxIndex += 1
+  }
+  /** Spec 145: o vencimento cortou `ordered` no meio — as caixas ainda não visitadas somem sem isto. */
+  for (let index = boxIndex + 1; index < ordered.length; index += 1) {
+    const remaining = ordered[index]
+    if (remaining === undefined) continue
+    pushUnplaced(unplaced, { count: remaining.count, label: remaining.label, reason: 'time_budget' })
   }
 
   return {
@@ -3167,6 +3223,8 @@ function placeDeliveryBlock(input: {
   readonly openSides?: OpenSides
   readonly securesCargo: boolean
   readonly unplaced: readonly UnplacedBox[]
+  readonly deadline?: number
+  readonly now?: () => number
 }): CargoPlacement {
   const rotated = {
     heightM: input.bed.heightM,
@@ -3181,6 +3239,8 @@ function placeDeliveryBlock(input: {
     deliveryOrder: true,
     openFace: 'lineEnd',
     ...(input.openSides === undefined ? {} : { openSides: input.openSides }),
+    ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+    ...(input.now === undefined ? {} : { now: input.now }),
     securesCargo: input.securesCargo,
     sliceLengthM: rotated.lengthM,
     stackBeforeRow: true,
@@ -3649,6 +3709,8 @@ function placeGrid(
     payloadRatio: string | null | undefined
     securesCargo: boolean | undefined
     unplaced: readonly UnplacedBox[]
+    deadline?: number
+    now?: () => number
   }>,
 ): CargoPlacement {
   const placed: PlacedBox[] = []
@@ -3675,6 +3737,8 @@ function placeGrid(
       ...(input.loadingAccess === undefined ? {} : { loadingAccess: input.loadingAccess }),
       ...(input.payloadRatio === undefined ? {} : { payloadRatio: input.payloadRatio }),
       ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
+      ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+      ...(input.now === undefined ? {} : { now: input.now }),
     })
     if (lanePlacement === null) continue
     if (lanePlacement.source === 'estimated') estimated = true
