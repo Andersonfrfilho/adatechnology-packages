@@ -3,6 +3,7 @@
  */
 export * from './cargo-edge-grid.js'
 export * from './cargo-estimate-source.types.js'
+export * from './cargo-layout-policy-version.constant.js'
 export * from './cargo-layout.policy.js'
 export * from './cargo-placement.policy.js'
 export * from './cargo-plan.policy.js'

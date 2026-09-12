@@ -33,6 +33,13 @@ estiver — o que já foi colocado fica colocado — e devolve todo o resto em `
 (`resolveStopArrangement`/`gridOrDepth`) é sempre livre de prazo, para dar sempre o mesmo resultado
 com ou sem `deadline`.
 
+## Versão do desenho (`CARGO_LAYOUT_POLICY_VERSION`)
+
+Texto curto que entra no hash de toda planta guardada por quem consome o pacote. Sobe **só** quando a
+mesma entrada passa a produzir outro desenho (apoio, escora, célula, varredura, arranjo); API nova ou
+campo opcional novo não sobem a versão. Subir a versão invalida toda planta em cache, de qualquer
+empresa — é o custo esperado de mudar a regra física.
+
 ## Regras que não mudam sem spec
 
 Apoio de 80 % da base, escora só pelo lado, célula de 5 cm e `STABLE_STACK_SLENDERNESS` são decisões
