@@ -1,0 +1,20 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+import './cargo-placement/arrangement.contract'
+import './cargo-placement/grid.contract'
+import './cargo-placement/delivery-block.contract'
+import './cargo-placement/placement.contract'
+import './cargo-placement/slices.contract'
+import './cargo-placement/real-mixed-cargo.contract'
+import './cargo-placement/side-gap-brace.contract'
+import './cargo-placement/dead-space.contract'
+import './cargo-placement/unloading.contract'
+import './cargo-placement/note-identity.contract'
+import './cargo-placement/full-drawing.contract'
+import './cargo-placement/complement.contract'
+import './cargo-placement/headboard-brace.contract'
+import './cargo-placement/exact-edges.contract'
+import './cargo-placement/brace-rule.contract'
+import './cargo-placement/brace-rises-alongside.contract'
+import './cargo-placement/layers.contract'

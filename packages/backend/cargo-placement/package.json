@@ -1,0 +1,52 @@
+{
+  "name": "@adatechnology/cargo-placement",
+  "version": "0.0.0",
+  "description": "Cargo bed packing, layout and plan policies for TransportAdA (Bun, pure, no runtime dependencies)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./fixtures": {
+      "types": "./dist/fixtures/index.d.ts",
+      "import": "./dist/fixtures/index.js",
+      "default": "./dist/fixtures/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc --noEmit",
+    "prepack": "bun run build",
+    "test": "bun test ./test/cargo-placement.contract.test.ts ./test/package.integration.ts",
+    "format": "prettier --write package.json README.md src test tsconfig.json tsup.config.ts",
+    "format:check": "prettier --check package.json README.md src test tsconfig.json tsup.config.ts"
+  },
+  "keywords": [
+    "bun",
+    "cargo",
+    "logistics",
+    "packing",
+    "tms"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}
