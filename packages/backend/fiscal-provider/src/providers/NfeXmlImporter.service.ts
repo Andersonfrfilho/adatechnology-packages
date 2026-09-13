@@ -323,6 +323,8 @@ function parseParty({ addressKey, value }: ParsePartyParams): NfeXmlParty | unde
     name: optionalString({ key: 'xNome', record: source }),
     tradeName: optionalString({ key: 'xFant', record: source }),
     stateRegistration: optionalString({ key: 'IE', record: source }),
+    /* Lido de `source`, não de `addressSource`: o e-mail é da parte, o telefone é do endereço. */
+    email: optionalString({ key: 'email', record: source }),
     address: parseAddress(addressSource),
   }
 
