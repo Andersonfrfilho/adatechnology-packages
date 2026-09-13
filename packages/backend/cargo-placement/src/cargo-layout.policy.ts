@@ -15,6 +15,7 @@ import {
   resolveStopArrangement,
   STABLE_STACK_SLENDERNESS,
   type CargoPlacement,
+  type DeliveryReachM,
   type FallbackBox,
   type MeasuredBoxShape,
   type PlacementBox,
@@ -347,6 +348,9 @@ export function resolveBedDimensions(
  * `null` quando a capacidade não é conhecida (D3): sem proporção, um retângulo genérico "só para
  * ilustrar" seria uma afirmação falsa sobre espaço.
  */
+/** A entrada de `resolveCargoLayout` — inclusive `enclosedBody` (D23) e `securesCargo`. */
+export type ResolveCargoLayoutInput = Parameters<typeof resolveCargoLayout>[0]
+
 export function resolveCargoLayout(input: {
   /** Da ficha, e só dela — quem monta este campo passa por `resolveBedDimensions`. */
   readonly bedDimensions?: CargoBedDimensions | null
@@ -374,6 +378,18 @@ export function resolveCargoLayout(input: {
    * desenharia pilha alta para quem não amarra, e a carga cairia na primeira curva.
    */
   readonly securesCargo?: boolean
+  /**
+   * D23: o baú é fechado. Pilha alta (acima da esbeltez) só vale escorada na cabeceira **e** em pelo menos
+   * uma lateral — a porta não é exigida. Ausente é **não**: exige os quatro lados. Não libera nada que
+   * `securesCargo` já libere; com os dois, quem manda é a amarração.
+   */
+  readonly enclosedBody?: boolean
+  /**
+   * D24: até onde a mão de quem descarrega alcança sobre a carga das entregas seguintes, em metro. Ausente
+   * é `DELIVERY_REACH_M` (0,6 m, o desenho de sempre); `null` é sem teto — o conferente aceita mexer na
+   * carga de outra entrega para descarregar.
+   */
+  readonly deliveryReachM?: DeliveryReachM
   readonly stops: readonly CargoLayoutStop[]
   /**
    * Spec 145: prazo de relógio (epoch ms) para o empacotamento — ver `resolveCargoPlacement`. Não
@@ -453,6 +469,8 @@ export function resolveCargoLayout(input: {
     loadingAccess: access,
     payloadRatio: input.payloadRatio ?? null,
     ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
+    ...(input.enclosedBody === undefined ? {} : { enclosedBody: input.enclosedBody }),
+    ...(input.deliveryReachM === undefined ? {} : { deliveryReachM: input.deliveryReachM }),
   })
   const lanes = decision.arrangement === 'lanes'
   /**
@@ -533,6 +551,8 @@ export function resolveCargoLayout(input: {
     loadingAccess: access,
     payloadRatio: input.payloadRatio ?? null,
     securesCargo: input.securesCargo === true,
+    enclosedBody: input.enclosedBody === true,
+    ...(input.deliveryReachM === undefined ? {} : { deliveryReachM: input.deliveryReachM }),
     ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
     ...(input.now === undefined ? {} : { now: input.now }),
   })

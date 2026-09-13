@@ -308,6 +308,13 @@ function placeCargo(input: {
    */
   readonly securesCargo?: boolean
   /**
+   * D23: o baú é fechado — a pilha alta vale escorada na cabeceira e numa lateral (`isConfined`). Ausente
+   * é **não**, e exige os quatro lados. Com `securesCargo` a amarração continua mandando.
+   */
+  readonly enclosedBody?: boolean
+  /** D24: até onde a mão alcança sobre a carga das entregas seguintes — ver `resolveDeliveryReachM`. */
+  readonly deliveryReachM?: number | null
+  /**
    * Quanto do teto de massa da ficha a carga ocupa — `cargoWeight.payloadRatio`, o mesmo número que
    * o painel imprime. `null` é teto desconhecido, e sem denominador não se afirma nada.
    */
@@ -333,11 +340,14 @@ function placeCargo(input: {
    * foi cortado por tempo; devolvê-lo para uma chamada sem orçamento entregaria carga faltando sem
    * `time_budget` nenhum, e guardá-lo apagaria o resultado completo de uma chamada anterior.
    */
-  const reusable =
-    input.arrangement === 'depth' &&
-    input.laneCount === undefined &&
-    input.openLaneSides === undefined &&
-    input.deadline === undefined
+  /**
+   * ⚠️ T18: **reusar** vale com orçamento — o pacote guardado é sempre completo, porque só a chamada sem
+   * orçamento o guarda. Sem isto a decisão de arranjo e o desenho final empacotavam o Atego duas vezes, e as
+   * tentativas de `DELIVERY_BLOCK_ORDERS` não cabiam no prazo.
+   */
+  const reachM = resolveDeliveryReachM(input.deliveryReachM)
+  const reusable = input.arrangement === 'depth' && input.laneCount === undefined && input.openLaneSides === undefined
+  const storable = reusable && input.deadline === undefined
   const previous = lastDepthPacking
   if (
     reusable &&
@@ -347,12 +357,14 @@ function placeCargo(input: {
     previous.complement === (input.complement !== false) &&
     previous.loadingAccess === (input.loadingAccess ?? 'rear') &&
     previous.payloadRatio === (input.payloadRatio ?? null) &&
-    previous.securesCargo === (input.securesCargo === true)
+    previous.securesCargo === (input.securesCargo === true) &&
+    previous.enclosedBody === (input.enclosedBody === true) &&
+    previous.reachM === reachM
   ) {
     return previous.placement
   }
   const placement = placeCargoOnce({ ...input, bed: input.bed })
-  if (reusable) {
+  if (storable) {
     lastDepthPacking = {
       bed: input.bed,
       boxes: input.boxes,
@@ -360,7 +372,9 @@ function placeCargo(input: {
       loadingAccess: input.loadingAccess ?? 'rear',
       payloadRatio: input.payloadRatio ?? null,
       placement,
+      reachM,
       securesCargo: input.securesCargo === true,
+      enclosedBody: input.enclosedBody === true,
     }
   }
 
@@ -404,8 +418,11 @@ function placeCargoOnce(
           loadingAccess: input.loadingAccess ?? 'rear',
           payloadRatio: input.payloadRatio ?? null,
           ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
+          ...(input.enclosedBody === undefined ? {} : { enclosedBody: input.enclosedBody }),
+          ...(input.deliveryReachM === undefined ? {} : { deliveryReachM: input.deliveryReachM }),
         })
       : null
+  const reachM = resolveDeliveryReachM(input.deliveryReachM)
   const arrangement = input.arrangement ?? decided?.arrangement ?? 'depth'
   const laneCount = input.laneCount ?? decided?.laneCount
   if (arrangement === 'grid') {
@@ -427,6 +444,8 @@ function placeCargoOnce(
         ...(input.now === undefined ? {} : { now: input.now }),
         payloadRatio: input.payloadRatio,
         securesCargo: input.securesCargo,
+        enclosedBody: input.enclosedBody,
+        deliveryReachM: input.deliveryReachM,
         unplaced,
       })
     }
@@ -505,6 +524,8 @@ function placeCargoOnce(
       ...(input.openLaneSides === undefined ? {} : { openSides: input.openLaneSides }),
       presumed,
       securesCargo: input.securesCargo === true,
+      enclosedBody: input.enclosedBody === true,
+      reachM,
       unplaced,
     })
   }
@@ -544,6 +565,8 @@ function placeCargoOnce(
       ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
       ...(input.now === undefined ? {} : { now: input.now }),
       securesCargo: input.securesCargo === true,
+      enclosedBody: input.enclosedBody === true,
+      reachM,
       /** Em faixas a fileira gasta profundidade: sobe-se antes de andar para o fundo (spec 100). */
       stackBeforeRow: lanes,
       /**
@@ -645,6 +668,8 @@ function packUntilItFits(input: {
   readonly bed: Readonly<{ heightM: number; lengthM: number; widthM: number }>
   /** Repassados à varredura — ver `packSlice`. */
   readonly securesCargo?: boolean
+  readonly enclosedBody?: boolean
+  readonly reachM?: number
   readonly stackBeforeRow?: boolean
   readonly openSides?: OpenSides
   readonly boxes: readonly PlacementBox[]
@@ -691,6 +716,8 @@ function packUntilItFits(input: {
       ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
       ...(input.now === undefined ? {} : { now: input.now }),
       ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
+      ...(input.enclosedBody === undefined ? {} : { enclosedBody: input.enclosedBody }),
+      ...(input.reachM === undefined ? {} : { reachM: input.reachM }),
       ...(input.stackBeforeRow === undefined ? {} : { stackBeforeRow: input.stackBeforeRow }),
       ...(input.openSides === undefined ? {} : { openSides: input.openSides }),
     })
@@ -745,6 +772,23 @@ const ROW_PACKING_EFFICIENCY = 0.7
  * entregas seguintes, fundo demais para a mão — a entrega 1 da Daily a 0,91 m da porta e 1,26 m do chão.
  */
 export const DELIVERY_REACH_M = 0.6
+
+/** D24: o alcance da mão pedido na entrada, em metro — `null` é sem teto. */
+export type DeliveryReachM = number | null
+
+/**
+ * D24: o alcance que a entrada pede. Ausente é `DELIVERY_REACH_M` — quem não passa nada recebe o desenho de
+ * antes; `null` é sem teto: o conferente aceita mexer na carga de outra entrega para descarregar.
+ */
+function resolveDeliveryReachM(deliveryReachM: number | null | undefined): number {
+  if (deliveryReachM === undefined) return DELIVERY_REACH_M
+  if (deliveryReachM === null) return Number.POSITIVE_INFINITY
+  if (!Number.isFinite(deliveryReachM) || deliveryReachM < 0) {
+    throw new RangeError('deliveryReachM must be a finite non-negative number or null')
+  }
+
+  return deliveryReachM
+}
 
 /**
  * O corredor mais estreito em que uma pessoa entra de lado para buscar a carga do fundo (spec 118).
@@ -867,6 +911,10 @@ export function resolveStopArrangement(input: {
   readonly payloadRatio: string | null
   /** Repassado à comparação da grade com a profundidade — a amarração muda quanto cada uma empilha. */
   readonly securesCargo?: boolean
+  /** D23: repassado como `securesCargo` — o baú fechado muda quanto cada arranjo empilha. */
+  readonly enclosedBody?: boolean
+  /** D24: repassado à comparação — o alcance muda o que cada arranjo coloca. */
+  readonly deliveryReachM?: number | null
   /**
    * Spec 145: aceito por uniformidade de assinatura entre as entradas públicas, mas **não** repassado
    * a `gridOrDepth` — a decisão de arranjo tem de dar sempre o mesmo resultado, com ou sem prazo.
@@ -1015,6 +1063,10 @@ function packSlice(input: {
   readonly bed: Readonly<{ heightM: number; lengthM: number; widthM: number }>
   /** Spec 100: o motorista declarou que amarra a carga — ver `stableStackHeightM`. */
   readonly securesCargo?: boolean
+  /** D23: baú fechado — ver `isConfined`. */
+  readonly enclosedBody?: boolean
+  /** D24: o alcance da mão — ver `isOutOfReach`. Ausente é `DELIVERY_REACH_M`. */
+  readonly reachM?: number
   /**
    * Empilhar antes de avançar a fileira (spec 100).
    *
@@ -1030,6 +1082,8 @@ function packSlice(input: {
   readonly stackBeforeRow?: boolean
   /** Spec 114: a última entrega primeiro — ela vai para o fundo e para baixo. */
   readonly deliveryOrder?: boolean
+  /** T18: a ordem de base dentro da entrega — ver `DELIVERY_BLOCK_ORDERS`. Ausente é `footprint`. */
+  readonly baseOrder?: BaseOrder
   /** Por onde a carga sai; ausente segue o arranjo (`lineStart` em faixas, `columnEnd` em fatia). */
   readonly openFace?: OpenFace
   /** Spec 118: as bordas laterais que são outra faixa, e não parede. */
@@ -1108,6 +1162,7 @@ function packSlice(input: {
       rankTopOnly(first) - rankTopOnly(second) ||
       rankSmallLast(first) - rankSmallLast(second) ||
       rankPresumed(first) - rankPresumed(second) ||
+      compareBaseOrder(input.baseOrder ?? 'footprint', first, second) ||
       footprintOf(second) - footprintOf(first),
   )
 
@@ -1115,6 +1170,7 @@ function packSlice(input: {
     { heightM: slice.heightM, lengthM: slice.lengthM, widthM: slice.widthM },
     input.openFace ?? (input.stackBeforeRow === true ? 'lineStart' : 'columnEnd'),
     input.openSides ?? CLOSED_SIDES,
+    input.reachM ?? DELIVERY_REACH_M,
   )
   let cursor = { layer: 0, layerBottomM: 0, layerHeightM: 0, rowWidthM: 0, xM: 0, yM: 0 }
   /**
@@ -1218,7 +1274,8 @@ function packSlice(input: {
       const reachRows: number[] = []
       const isStandingAt = (at: { slot: Slot; topM: number; xM: number; yM: number }): boolean =>
         isStandingUp({
-          isRestrainedUpTo: (restraintM) => support.isConfined({ ...at, baseM: at.topM, topM: restraintM }),
+          isRestrainedUpTo: (restraintM) =>
+            support.isConfined({ ...at, baseM: at.topM, enclosed: input.enclosedBody === true, topM: restraintM }),
           securesCargo: input.securesCargo === true,
           slot,
           topM: at.topM,
@@ -1694,6 +1751,7 @@ function createSupportMap(
   bed: Readonly<{ heightM: number; lengthM: number; widthM: number }>,
   openFace: OpenFace,
   openSides: OpenSides = CLOSED_SIDES,
+  reachM: number = DELIVERY_REACH_M,
 ): {
   /**
    * Spec 134: a menor folga entre o giro de uma pilha escorada na testeira e o vão que ela já tem — quanto
@@ -1757,6 +1815,11 @@ function createSupportMap(
   readonly isConfined: (input: {
     /** Spec 135: onde a caixa pousa — sem ela a pilha dela embaixo não é reconhecida. */
     baseM?: number
+    /**
+     * D23: baú fechado — basta a cabeceira (o lado oposto à face aberta) **e** uma lateral. A porta nunca
+     * é exigida. Ausente exige os quatro lados, como sempre.
+     */
+    enclosed?: boolean
     slot: Slot
     topM: number
     xM: number
@@ -1764,7 +1827,7 @@ function createSupportMap(
   }) => boolean
   /**
    * Se a caixa, sentada fora do piso, fica funda demais para a mão de quem descarrega (spec 118): mais
-   * de `DELIVERY_REACH_M` atrás da frente do piso das paradas já carregadas.
+   * de `reachM` (`DELIVERY_REACH_M` por omissão, D24) atrás da frente do piso das paradas já carregadas.
    */
   readonly isOutOfReach: (input: { slot: Slot; topM: number; xM: number; yM: number }) => boolean
 } {
@@ -1873,9 +1936,13 @@ function createSupportMap(
     /** Spec 142: o topo da candidata — a vizinha só escora se começa abaixo dele. */
     boxTopM: Number.POSITIVE_INFINITY,
     catchGapM: 0,
+    fromColumn: 0,
+    fromLine: 0,
     fromXM: 0,
     fromYM: 0,
     slackM: Number.POSITIVE_INFINITY,
+    toColumn: 0,
+    toLine: 0,
     toXM: 0,
     toYM: 0,
     topM: 0,
@@ -1968,6 +2035,37 @@ function createSupportMap(
       index += side.forward ? 1 : -1
     }
   }
+  /** Um lado inteiro da pegada em conferência (`brace`) segurado, célula a célula. */
+  const sideHolds = (side: BraceSide): boolean => {
+    if (side.isColumn) {
+      const faceM = side.forward ? brace.toXM : brace.fromXM
+      for (let line = brace.fromLine; line < brace.toLine; line += 1) {
+        if (!bracedToward(side, line, faceM)) return false
+      }
+      return true
+    }
+    const faceM = side.forward ? brace.toYM : brace.fromYM
+    for (let column = brace.fromColumn; column < brace.toColumn; column += 1) {
+      if (!bracedToward(side, column, faceM)) return false
+    }
+    return true
+  }
+  /**
+   * ⚠️ **D23: no baú fechado a pilha alta se escora na cabeceira e numa lateral** — decisão do usuário. A
+   * cabeceira é o lado oposto à face aberta, em qualquer arranjo; as laterais são o outro eixo. A porta
+   * nunca é exigida: a pilha pode ficar livre ou colada nela. O que conta como escora não muda — parede,
+   * ou vizinha que sobe ao lado (spec 142), atravessando só vão mais estreito que o giro (spec 116).
+   */
+  const headboardSide =
+    openFace === 'lineEnd'
+      ? braceSides.lineStart
+      : openFace === 'lineStart'
+        ? braceSides.lineEnd
+        : braceSides.columnStart
+  const [firstLateral, secondLateral] =
+    openFace === 'columnEnd'
+      ? [braceSides.lineStart, braceSides.lineEnd]
+      : [braceSides.columnEnd, braceSides.columnStart]
 
   return {
     headboardSlackM: () => headboardSlackM,
@@ -2161,7 +2259,7 @@ function createSupportMap(
       }
       const known = byDepth.get(slot.depthM)
       if (known !== undefined) {
-        return known !== Number.POSITIVE_INFINITY && known - (yM + slot.widthM) > DELIVERY_REACH_M + 1e-9
+        return known !== Number.POSITIVE_INFINITY && known - (yM + slot.widthM) > reachM + 1e-9
       }
       const corridorM = ACCESS_CORRIDOR_M
       let standingM = Number.POSITIVE_INFINITY
@@ -2189,9 +2287,9 @@ function createSupportMap(
       byDepth.set(slot.depthM, standingM)
       if (standingM === Number.POSITIVE_INFINITY) return false
 
-      return standingM - (yM + slot.widthM) > DELIVERY_REACH_M + 1e-9
+      return standingM - (yM + slot.widthM) > reachM + 1e-9
     },
-    isConfined: ({ baseM, slot, topM: top, xM, yM }) => {
+    isConfined: ({ baseM, enclosed, slot, topM: top, xM, yM }) => {
       const [fromColumn, toColumn] = spanMemo.columns(xM, slot.depthM)
       const [fromLine, toLine] = spanMemo.lines(yM, slot.widthM)
       /**
@@ -2213,25 +2311,28 @@ function createSupportMap(
       brace.fromYM = yM
       brace.toXM = xM + slot.depthM
       brace.toYM = yM + slot.widthM
-      /**
-       * Os quatro lados da pegada inteira. ⚠️ **Sai no primeiro lado solto**: um lado aberto já decide,
-       * e varrer o resto custava o orçamento de resposta da tela num baú cheio.
-       *
-       * ⚠️ **O lado que mais recusa vai primeiro** — todos precisam segurar, então a ordem não muda a
-       * resposta, só quanto se anda até ela. Medido no Atego: o lado da testeira para a porta na
-       * direção das colunas recusa 20 mil vezes, o oposto 11 mil, os dois das linhas 6 mil e mil.
-       */
-      for (let line = fromLine; line < toLine; line += 1) {
-        if (!bracedToward(braceSides.columnEnd, line, brace.toXM)) return false
-      }
-      for (let line = fromLine; line < toLine; line += 1) {
-        if (!bracedToward(braceSides.columnStart, line, xM)) return false
-      }
-      for (let column = fromColumn; column < toColumn; column += 1) {
-        if (!bracedToward(braceSides.lineEnd, column, brace.toYM)) return false
-      }
-      for (let column = fromColumn; column < toColumn; column += 1) {
-        if (!bracedToward(braceSides.lineStart, column, yM)) return false
+      brace.fromColumn = fromColumn
+      brace.toColumn = toColumn
+      brace.fromLine = fromLine
+      brace.toLine = toLine
+      if (enclosed === true) {
+        if (!sideHolds(headboardSide)) return false
+        if (!sideHolds(firstLateral) && !sideHolds(secondLateral)) return false
+      } else if (
+        /**
+         * Os quatro lados da pegada inteira. ⚠️ **Sai no primeiro lado solto**: um lado aberto já decide,
+         * e varrer o resto custava o orçamento de resposta da tela num baú cheio.
+         *
+         * ⚠️ **O lado que mais recusa vai primeiro** — todos precisam segurar, então a ordem não muda a
+         * resposta, só quanto se anda até ela. Medido no Atego: o lado da testeira para a porta na
+         * direção das colunas recusa 20 mil vezes, o oposto 11 mil, os dois das linhas 6 mil e mil.
+         */
+        !sideHolds(braceSides.columnEnd) ||
+        !sideHolds(braceSides.columnStart) ||
+        !sideHolds(braceSides.lineEnd) ||
+        !sideHolds(braceSides.lineStart)
+      ) {
+        return false
       }
       if (brace.slackM !== Number.POSITIVE_INFINITY) {
         const key = positionKey(xM, yM)
@@ -2935,6 +3036,35 @@ function footprintOf(box: PlacementBox): number {
   return ((box.lengthMm ?? 0) * (box.widthMm ?? 0)) / MILLIMETRES_PER_METRE ** 2
 }
 
+/**
+ * T18: **as ordens de base que o bloco por ordem de entrega tenta**, nesta ordem — ver `placeDeliveryBlock`.
+ *
+ * - `footprint`: a de sempre, maior pegada por baixo.
+ * - `heightClass`: caixas de mesma altura (classes de 5 cm) lado a lado — o tampo sai plano, e a entrega
+ *   seguinte acha os 80% de apoio. Medido no Atego real com baú fechado: 46 → 21 fora.
+ * - `volume`: a maior caixa primeiro. Medido na viagem de 27 paradas: 13 → 3 fora.
+ *
+ * ⚠️ Nenhuma vence sempre (a de altura põe 1 caixa fora na Sprinter que a de sempre coloca inteira), e é por
+ * isso que são tentativas e não uma troca: a de sempre vai primeiro, e quem ela já coloca inteiro não paga
+ * nenhuma tentativa a mais.
+ */
+const DELIVERY_BLOCK_ORDERS = ['footprint', 'heightClass', 'volume'] as const
+type BaseOrder = (typeof DELIVERY_BLOCK_ORDERS)[number]
+
+/** A classe de altura da ordem `heightClass`, em milímetro. */
+const HEIGHT_CLASS_MM = 50
+
+/** O critério de base antes da pegada — `footprint` não acrescenta nenhum. */
+function compareBaseOrder(order: BaseOrder, first: PlacementBox, second: PlacementBox): number {
+  if (order === 'heightClass') {
+    return Math.round((second.heightMm ?? 0) / HEIGHT_CLASS_MM) - Math.round((first.heightMm ?? 0) / HEIGHT_CLASS_MM)
+  }
+  if (order === 'volume') {
+    return footprintOf(second) * (second.heightMm ?? 0) - footprintOf(first) * (first.heightMm ?? 0)
+  }
+  return 0
+}
+
 /** Frágil e não empilhável entram por último, para caírem na camada de cima. */
 function rankTopOnly(box: PlacementBox): number {
   return box.isFragile === true || box.isStackable === false ? 1 : 0
@@ -3109,6 +3239,8 @@ function gridOrDepth(
     payloadRatio: string | null
     reason: StopArrangementReason
     securesCargo?: boolean
+    enclosedBody?: boolean
+    deliveryReachM?: number | null
   }>,
 ): StopArrangementDecision {
   const depth: StopArrangementDecision = { arrangement: 'depth', reason: input.reason }
@@ -3126,6 +3258,8 @@ function gridOrDepth(
     ...(input.loadingAccess === undefined ? {} : { loadingAccess: input.loadingAccess }),
     payloadRatio: input.payloadRatio,
     ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
+    ...(input.enclosedBody === undefined ? {} : { enclosedBody: input.enclosedBody }),
+    ...(input.deliveryReachM === undefined ? {} : { deliveryReachM: input.deliveryReachM }),
   }
   const requested = measured.reduce((total, box) => total + box.count, 0)
 
@@ -3151,6 +3285,8 @@ function gridOrDepth(
         grid,
         loadingAccess: input.loadingAccess,
         securesCargo: input.securesCargo,
+        enclosedBody: input.enclosedBody,
+        deliveryReachM: input.deliveryReachM,
         unplaced: [],
       }),
     )
@@ -3196,7 +3332,9 @@ let lastDepthPacking: {
   readonly loadingAccess: LoadingAccess
   readonly payloadRatio: string | null
   readonly placement: CargoPlacement | null
+  readonly reachM: number
   readonly securesCargo: boolean
+  readonly enclosedBody: boolean
 } | null = null
 
 /**
@@ -3222,6 +3360,8 @@ function placeDeliveryBlock(input: {
   readonly presumed: boolean
   readonly openSides?: OpenSides
   readonly securesCargo: boolean
+  readonly enclosedBody: boolean
+  readonly reachM: number
   readonly unplaced: readonly UnplacedBox[]
   readonly deadline?: number
   readonly now?: () => number
@@ -3231,34 +3371,32 @@ function placeDeliveryBlock(input: {
     lengthM: input.bed.widthM,
     widthM: input.bed.lengthM,
   }
-  const packed = packSlice({
-    bed: rotated,
-    boxes: input.boxes,
-    budget: Number.POSITIVE_INFINITY,
-    complement: input.complement,
-    deliveryOrder: true,
-    openFace: 'lineEnd',
-    ...(input.openSides === undefined ? {} : { openSides: input.openSides }),
-    ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
-    ...(input.now === undefined ? {} : { now: input.now }),
-    securesCargo: input.securesCargo,
-    sliceLengthM: rotated.lengthM,
-    stackBeforeRow: true,
-  })
   /**
-   * Spec 120: o que o mapa recomendado não colocou tenta o espaço livre, afrouxando só conveniência —
-   * ver `placeComplement`. Sem fatia não há para onde dividir: o que nem o complemento coloca não
-   * coube no baú.
+   * ⚠️ **T18: fica o arranjo que coloca mais** (`DELIVERY_BLOCK_ORDERS`). Cada tentativa é o bloco inteiro,
+   * com as mesmas regras — apoio, escora, alcance, sombra —, então nenhuma pode pôr no baú o que outra não
+   * poria; só a ordem de base dentro da entrega muda. Para na primeira que coloca tudo, e não começa outra
+   * com o prazo vencido: a que já existe fica.
    */
-  const complement = input.complement
-    ? placeComplement({
-        bed: rotated,
-        openSides: input.openSides ?? CLOSED_SIDES,
-        overflow: packed.overflow,
-        placed: packed.boxes,
-        securesCargo: input.securesCargo,
-      })
-    : { boxes: [], headboardSlackM: Number.POSITIVE_INFINITY, rejected: packed.overflow }
+  let best: ReturnType<typeof packBlockOnce> | null = null
+  /**
+   * ⚠️ Só no bloco que desenha, com complemento. Sem ele é a decisão comparando faixas da grade, e ali as
+   * tentativas melhoravam o mapa recomendado da grade, que vencia e desenhava pior: medido na Sprinter com
+   * cinta, 0 → 1 caixa fora.
+   */
+  for (const baseOrder of input.complement ? DELIVERY_BLOCK_ORDERS : DELIVERY_BLOCK_ORDERS.slice(0, 1)) {
+    if (best !== null && input.deadline !== undefined && (input.now ?? Date.now)() >= input.deadline) break
+    const attempt = packBlockOnce({ ...input, baseOrder, rotated })
+    if (
+      best === null ||
+      attempt.leftOut < best.leftOut ||
+      (attempt.leftOut === best.leftOut && attempt.complement.boxes.length < best.complement.boxes.length)
+    ) {
+      best = attempt
+    }
+    if (best.leftOut === 0) break
+  }
+  if (best === null) throw new Error('DELIVERY_BLOCK_ORDERS is empty')
+  const { complement, packed } = best
   const unplaced: UnplacedBox[] = [...input.unplaced, ...packed.unplaced.filter((entry) => entry.reason !== 'bedFull')]
   for (const box of complement.rejected) {
     pushUnplaced(unplaced, { count: 1, label: box.label, reason: 'bedFull' })
@@ -3287,6 +3425,58 @@ function placeDeliveryBlock(input: {
   }))
 
   return { layers: toLayers(rows), source: input.presumed ? 'estimated' : 'measured', unplaced }
+}
+
+/** Uma tentativa do bloco: a varredura numa ordem de base, e o complemento sobre o que ela deixou. */
+function packBlockOnce(
+  input: Parameters<typeof placeDeliveryBlock>[0] & {
+    readonly baseOrder: BaseOrder
+    readonly rotated: Readonly<{ heightM: number; lengthM: number; widthM: number }>
+  },
+): {
+  readonly complement: ReturnType<typeof placeComplement>
+  readonly leftOut: number
+  readonly packed: ReturnType<typeof packSlice>
+} {
+  const packed = packSlice({
+    baseOrder: input.baseOrder,
+    bed: input.rotated,
+    boxes: input.boxes,
+    budget: Number.POSITIVE_INFINITY,
+    complement: input.complement,
+    deliveryOrder: true,
+    openFace: 'lineEnd',
+    ...(input.openSides === undefined ? {} : { openSides: input.openSides }),
+    ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+    ...(input.now === undefined ? {} : { now: input.now }),
+    securesCargo: input.securesCargo,
+    enclosedBody: input.enclosedBody,
+    reachM: input.reachM,
+    sliceLengthM: input.rotated.lengthM,
+    stackBeforeRow: true,
+  })
+  /**
+   * Spec 120: o que o mapa recomendado não colocou tenta o espaço livre, afrouxando só conveniência —
+   * ver `placeComplement`. Sem fatia não há para onde dividir: o que nem o complemento coloca não
+   * coube no baú.
+   */
+  const complement = input.complement
+    ? placeComplement({
+        bed: input.rotated,
+        openSides: input.openSides ?? CLOSED_SIDES,
+        overflow: packed.overflow,
+        placed: packed.boxes,
+        reachM: input.reachM,
+        securesCargo: input.securesCargo,
+        enclosedBody: input.enclosedBody,
+      })
+    : { boxes: [], headboardSlackM: Number.POSITIVE_INFINITY, rejected: packed.overflow }
+  const timedOut = packed.unplaced.reduce(
+    (total, entry) => total + (entry.reason === 'time_budget' ? entry.count : 0),
+    0,
+  )
+
+  return { complement, leftOut: complement.rejected.length + timedOut, packed }
 }
 
 /**
@@ -3321,7 +3511,9 @@ function placeComplement(input: {
   readonly openSides: OpenSides
   readonly overflow: readonly PlacementBox[]
   readonly placed: readonly PlacedBox[]
+  readonly reachM: number
   readonly securesCargo: boolean
+  readonly enclosedBody: boolean
 }): {
   readonly boxes: readonly PlacedBox[]
   readonly headboardSlackM: number
@@ -3331,7 +3523,7 @@ function placeComplement(input: {
     return { boxes: [], headboardSlackM: Number.POSITIVE_INFINITY, rejected: [] }
   }
   const { bed } = input
-  const support = createSupportMap(bed, 'lineEnd', input.openSides)
+  const support = createSupportMap(bed, 'lineEnd', input.openSides, input.reachM)
   const occupancy = createOccupancyGrid({ lengthM: bed.lengthM, widthM: bed.widthM })
   const noteBoxes = new Map<string, BoxExtent[]>()
   const noteOf = (documentId: string | null | undefined): BoxExtent[] =>
@@ -3379,6 +3571,7 @@ function placeComplement(input: {
               noteKey: box.documentId ?? '',
               occupancy,
               securesCargo: input.securesCargo,
+              enclosedBody: input.enclosedBody,
               slot,
               stamps: boxes.length,
               stopSequence,
@@ -3463,6 +3656,7 @@ function findComplementSeat(input: {
   readonly noteKey: string
   readonly occupancy: OccupancyGrid
   readonly securesCargo: boolean
+  readonly enclosedBody: boolean
   readonly slot: Slot
   readonly stamps: number
   readonly stopSequence: number
@@ -3477,7 +3671,8 @@ function findComplementSeat(input: {
         return (
           input.occupancy.isRestable({ ...at, stopSequence: input.stopSequence }) &&
           isStandingUp({
-            isRestrainedUpTo: (restraintM) => support.isConfined({ ...at, baseM: at.topM, topM: restraintM }),
+            isRestrainedUpTo: (restraintM) =>
+              support.isConfined({ ...at, baseM: at.topM, enclosed: input.enclosedBody, topM: restraintM }),
             securesCargo: input.securesCargo,
             slot,
             topM,
@@ -3708,6 +3903,8 @@ function placeGrid(
     loadingAccess: LoadingAccess | undefined
     payloadRatio: string | null | undefined
     securesCargo: boolean | undefined
+    enclosedBody: boolean | undefined
+    deliveryReachM: number | null | undefined
     unplaced: readonly UnplacedBox[]
     deadline?: number
     now?: () => number
@@ -3737,6 +3934,8 @@ function placeGrid(
       ...(input.loadingAccess === undefined ? {} : { loadingAccess: input.loadingAccess }),
       ...(input.payloadRatio === undefined ? {} : { payloadRatio: input.payloadRatio }),
       ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
+      ...(input.enclosedBody === undefined ? {} : { enclosedBody: input.enclosedBody }),
+      ...(input.deliveryReachM === undefined ? {} : { deliveryReachM: input.deliveryReachM }),
       ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
       ...(input.now === undefined ? {} : { now: input.now }),
     })
