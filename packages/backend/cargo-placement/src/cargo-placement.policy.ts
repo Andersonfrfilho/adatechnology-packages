@@ -1084,6 +1084,8 @@ function packSlice(input: {
   readonly deliveryOrder?: boolean
   /** T18: a ordem de base dentro da entrega — ver `DELIVERY_BLOCK_ORDERS`. Ausente é `footprint`. */
   readonly baseOrder?: BaseOrder
+  /** Spec 148 D1: montagem em parede — ver o assento da fileira no laço principal. */
+  readonly wallBuilding?: boolean
   /** Por onde a carga sai; ausente segue o arranjo (`lineStart` em faixas, `columnEnd` em fatia). */
   readonly openFace?: OpenFace
   /** Spec 118: as bordas laterais que são outra faixa, e não parede. */
@@ -1448,7 +1450,23 @@ function packSlice(input: {
         rowFrontierM = Math.min(slice.widthM, slot.widthM)
       }
 
-      while (guard < seatAttempts) {
+      /**
+       * ⚠️ **Spec 148 D1: montagem em parede.** A fileira mais perto da cabeceira com assento aceito, e nela a
+       * primeira coluna a partir da parede lateral, na altura do topo dela: a pilha sobe até o teto (dentro da
+       * D23) antes de a fileira andar para o lado, e a fileira fecha antes de a carga andar para a porta. O
+       * assento passa pelas mesmas regras do laço por camada; só a ordem de busca muda.
+       */
+      if (input.wallBuilding === true && guard < seatAttempts) {
+        const wallSeat = firstSeatIn(
+          support.rows({ fromM: 0, toM: slice.widthM - slot.widthM, widthM: slot.widthM }),
+          (yM) => acceptSeat(yM, true),
+        )
+        if (wallSeat !== null) {
+          cursor = { ...cursor, xM: wallSeat.xM, yM: wallSeat.yM }
+          rest = wallSeat
+        }
+      }
+      while (input.wallBuilding !== true && guard < seatAttempts) {
         guard += 1
         if (cursor.yM + slot.widthM > rowFrontierM + 1e-9) {
           barrenLayers += 1
@@ -3383,9 +3401,19 @@ function placeDeliveryBlock(input: {
    * tentativas melhoravam o mapa recomendado da grade, que vencia e desenhava pior: medido na Sprinter com
    * cinta, 0 → 1 caixa fora.
    */
-  for (const baseOrder of input.complement ? DELIVERY_BLOCK_ORDERS : DELIVERY_BLOCK_ORDERS.slice(0, 1)) {
+  const orders = input.complement ? DELIVERY_BLOCK_ORDERS : DELIVERY_BLOCK_ORDERS.slice(0, 1)
+  /**
+   * ⚠️ **Spec 148 D1: a montagem em parede é mais uma tentativa, só no baú fechado com complemento.** Vem
+   * primeiro, então fica no empate; as de sempre só a vencem deixando menos caixa de fora. Fora do baú
+   * fechado o desenho não muda.
+   */
+  const attempts = [
+    ...(input.enclosedBody && input.complement ? [{ baseOrder: orders[0] ?? 'footprint', wallBuilding: true }] : []),
+    ...orders.map((baseOrder) => ({ baseOrder, wallBuilding: false })),
+  ]
+  for (const { baseOrder, wallBuilding } of attempts) {
     if (best !== null && input.deadline !== undefined && (input.now ?? Date.now)() >= input.deadline) break
-    const attempt = packBlockOnce({ ...input, baseOrder, rotated })
+    const attempt = packBlockOnce({ ...input, baseOrder, rotated, wallBuilding })
     if (
       best === null ||
       attempt.leftOut < best.leftOut ||
@@ -3432,6 +3460,7 @@ function packBlockOnce(
   input: Parameters<typeof placeDeliveryBlock>[0] & {
     readonly baseOrder: BaseOrder
     readonly rotated: Readonly<{ heightM: number; lengthM: number; widthM: number }>
+    readonly wallBuilding: boolean
   },
 ): {
   readonly complement: ReturnType<typeof placeComplement>
@@ -3454,6 +3483,7 @@ function packBlockOnce(
     reachM: input.reachM,
     sliceLengthM: input.rotated.lengthM,
     stackBeforeRow: true,
+    wallBuilding: input.wallBuilding,
   })
   /**
    * Spec 120: o que o mapa recomendado não colocou tenta o espaço livre, afrouxando só conveniência —

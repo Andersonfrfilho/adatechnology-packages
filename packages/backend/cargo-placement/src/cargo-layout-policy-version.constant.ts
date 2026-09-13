@@ -9,4 +9,4 @@
  * Sobe quando **a mesma entrada passa a produzir outro desenho** — apoio, escora, célula, ordem de
  * varredura, arranjo. Não sobe por API nova, campo novo opcional, correção de tipo ou texto.
  */
-export const CARGO_LAYOUT_POLICY_VERSION = '2'
+export const CARGO_LAYOUT_POLICY_VERSION = '3'
