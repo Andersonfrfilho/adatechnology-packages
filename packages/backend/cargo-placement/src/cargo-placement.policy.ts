@@ -1357,7 +1357,7 @@ function packSlice(input: {
            * ⚠️ **Spec 115: a entrega mais cedo não senta atrás de uma mais tardia mais alta que a base
            * dela.** Subir para uma fileira do fundo é legítimo — é o bloco se enchendo —, mas se entre
            * ela e a porta houver carga de parada posterior acima do assento, ela só sai tirando essa
-           * carga primeiro. Medido: 1 par em RTC-4H67 e 1 em RTD-5J78, 4 cm de sobreposição com caixas
+           * carga primeiro. Medido: 1 par na Daily e 1 na Accelo, 4 cm de sobreposição com caixas
            * de 20 e 21 cm de altura.
            */
           /** Onde `seat` já recusou a sombra (`rejectShadowed`), ela não é conferida de novo. */
@@ -3102,7 +3102,7 @@ function resolveDominantSlot(input: {
  * que tomba é o trecho acima disso — e é **esse** trecho que não passa de três vezes a base. A regra
  * anterior só conhecia os dois extremos (livre desde o piso, ou presa na base da caixa), e cada
  * fileira podia subir **uma caixa** acima da vizinha do lado da porta: a carga descia em escada por
- * 2,9 m de um baú de 5,32 m (RTD-5J78, 24 paradas), e 49 caixas saíam `bedFull` com o baú a 38%.
+ * 2,9 m de um baú de 5,32 m (Accelo, 24 paradas), e 49 caixas saíam `bedFull` com o baú a 38%.
  *
  * ⚠️ A porta continua não sendo parede: a face aberta nunca segura nada (`isConfined`), então a
  * fileira encostada nela segue presa aos três vezes a base contados do piso.

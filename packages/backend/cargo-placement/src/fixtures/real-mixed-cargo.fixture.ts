@@ -9,7 +9,7 @@
  */
 export type RealCargoRow = readonly [number, number, number, number, number, 0 | 1]
 
-/** RTD-5J78 (Accelo 1016), 24 paradas, baú de referência 5,32 × 2,08 × 2,20 m, teto de massa a 61%. */
+/** Accelo 1016, 24 paradas, baú de referência 5,32 × 2,08 × 2,20 m, teto de massa a 61%. */
 export const ACCELO_24_STOPS: readonly RealCargoRow[] = [
   [1, 1, 371, 261, 210, 0],
   [1, 1, 371, 261, 210, 0],
@@ -343,7 +343,7 @@ export const ACCELO_24_STOPS: readonly RealCargoRow[] = [
   [24, 5, 371, 261, 210, 0],
 ]
 
-/** RTA-2F45 (Atego 2426), 85 paradas, baú medido 7,40 × 2,47 × 2,30 m, teto de massa a 99%. */
+/** Atego 2426, 85 paradas, baú medido 7,40 × 2,47 × 2,30 m, teto de massa a 99%. */
 export const ATEGO_85_STOPS: readonly RealCargoRow[] = [
   [1, 1, 371, 261, 210, 0],
   [1, 1, 371, 261, 210, 0],
@@ -1040,7 +1040,7 @@ export const ATEGO_85_STOPS: readonly RealCargoRow[] = [
   [85, 1, 371, 261, 210, 0],
 ]
 
-/** RTC-4H67 (Daily), 19 paradas, baú medido 4,20 × 2,10 × 1,80 m, teto de massa a 90%. Spec 118. */
+/** Daily, 19 paradas, baú medido 4,20 × 2,10 × 1,80 m, teto de massa a 90%. Spec 118. */
 export const DAILY_19_STOPS: readonly RealCargoRow[] = [
   [1, 1, 371, 261, 210, 0],
   [1, 1, 371, 261, 210, 0],
@@ -1244,7 +1244,7 @@ export const DAILY_19_STOPS: readonly RealCargoRow[] = [
   [19, 1, 371, 261, 210, 0],
 ]
 
-/** RTE-6K89 (Sprinter), 24 paradas, baú medido 3,40 × 1,78 × 1,90 m, teto de massa a 98%. Spec 118. */
+/** Sprinter, 24 paradas, baú medido 3,40 × 1,78 × 1,90 m, teto de massa a 98%. Spec 118. */
 export const SPRINTER_24_STOPS: readonly RealCargoRow[] = [
   [1, 1, 371, 261, 210, 0],
   [1, 1, 371, 261, 210, 0],

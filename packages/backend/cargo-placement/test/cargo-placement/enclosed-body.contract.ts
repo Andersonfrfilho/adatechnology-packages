@@ -181,6 +181,8 @@ describe('baú fechado: a pilha alta escora na cabeceira e numa lateral (D23)', 
 
       expect(sides.filter((side) => !isEnclosedBraced(side))).toEqual([])
     },
+    // Carga real e mista: o desenho leva 3–4 s sozinho e passa de 5 s com a máquina ou o CI carregados.
+    0,
   )
 
   test('cabeceira + lateral bastam: o baú fechado sobe pilha alta que os quatro lados recusariam', () => {
