@@ -210,12 +210,13 @@ describe('cargas reais de tamanhos misturados (spec 115)', () => {
     for (const stop of missing) expect(stop).toBeLessThanOrEqual(16)
   })
 
-  test('o Atego de 1417 caixas cabe no orçamento de 50 ms', () => {
+  // Desde a spec 145 a planta roda no worker: o teto guarda contra explosão, com folga para o CI (374 ms lá).
+  test('o Atego de 1417 caixas cabe no orçamento de 2 s', () => {
     place(ATEGO)
     const startedAt = performance.now()
     place(ATEGO)
 
-    expect(performance.now() - startedAt).toBeLessThan(50)
+    expect(performance.now() - startedAt).toBeLessThan(2000)
   })
 
   /**

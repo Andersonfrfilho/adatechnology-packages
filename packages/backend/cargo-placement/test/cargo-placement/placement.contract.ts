@@ -284,12 +284,12 @@ describe('o motivo de cada posição (spec 094 P4)', () => {
 })
 
 /**
- * ⚠️ O teto de tempo é critério de aceite, não zelo: a planta é calculada **dentro** da prévia de
- * carga, que roda a cada clique na montagem. Uma viagem grande travando a tela é o tipo de coisa
- * que só aparece em produção quando não é medida antes.
+ * ⚠️ O teto de tempo é critério de aceite, não zelo. Desde a spec 145 a planta sai da requisição e
+ * roda no worker, então o teto deixou de ser os 50 ms de um clique: guarda contra explosão de tempo,
+ * com folga para o runner do CI (medido 176 ms lá, 30 ms na máquina local).
  */
 describe('desempenho do empacotador (spec 094 RF-NF)', () => {
-  test('uma viagem de 300 notas cabe em 50 ms', () => {
+  test('uma viagem de 300 notas cabe em 1 s', () => {
     /** Três caixas por nota, o que esta base tem de mediana — 900 caixas ao todo. */
     const boxes = Array.from({ length: 900 }, (_, index) => box({ count: 4, stopSequence: (index % 12) + 1 }))
 
@@ -298,7 +298,7 @@ describe('desempenho do empacotador (spec 094 RF-NF)', () => {
     const elapsed = performance.now() - startedAt
 
     expect(plan).not.toBeNull()
-    expect(elapsed).toBeLessThan(50)
+    expect(elapsed).toBeLessThan(1000)
   })
 
   /**

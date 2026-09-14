@@ -208,6 +208,8 @@ describe('baú fechado: a pilha alta escora na cabeceira e numa lateral (D23)', 
 
       expect(sides.filter((side) => !isFullyBraced(side))).toEqual([])
     },
+    // Mesma carga real e mista do caso de cima: passa de 5 s no runner do CI.
+    0,
   )
 
   test('com cinta a esbeltez segue livre: há pilha alta sem a escora do baú fechado', () => {
