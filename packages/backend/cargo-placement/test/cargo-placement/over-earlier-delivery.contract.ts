@@ -116,3 +116,21 @@ describe('passada final: por cima de entrega anterior, marcada (spec 148 D5/D6)'
     expect(result.rejected).toHaveLength(1)
   })
 })
+
+/**
+ * Spec 148 D5: a sombra (a carga de entrega posterior na frente, mais alta que a base) é ordem de descarga, e é
+ * justamente o que esta passada fura: a caixa entra, marcada `needsRehandling` — alguém mexe na entrega
+ * posterior para chegar nela. Sem cobrir entrega anterior, ela não leva `overEarlierDelivery`.
+ */
+describe('passada final: atrás de entrega posterior, marcada para retrabalho (spec 148 D5)', () => {
+  test('o único vão fica atrás da coluna da entrega 3: a caixa da entrega 2 entra lá, com retrabalho', () => {
+    const later = [0, 0.5].flatMap((xM) => [0, 0.3, 0.6].map((zM) => placedBox({ stop: 3, xM, yM: 0.6, zM })))
+    const result = runPass(later, [leftover({ heightMm: 300, keepUpright: null, lengthMm: 500, widthMm: 600 })])
+
+    expect(result.rejected).toEqual([])
+    expect(result.boxes).toHaveLength(1)
+    expect(result.boxes[0]?.reasons).toContain('needsRehandling')
+    expect(result.boxes[0]?.reasons).not.toContain('overEarlierDelivery')
+    expect(result.boxes[0]?.coversStops).toBeUndefined()
+  })
+})

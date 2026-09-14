@@ -3747,9 +3747,10 @@ function placeComplement(input: {
  * qualquer entrega anterior, e sai marcada (`overEarlierDelivery` + `needsRehandling`, e `coversStops`).
  *
  * ⚠️ A física não afrouxa: apoio de 80% (`seat`), D23/D25 (`isStandingUp`/`isConfined`), a porta nunca
- * escora, nada pousa sobre caixa frágil ou não empilhável, a carga de entrega posterior não fica na frente
- * dela acima da base (sombra), e o alcance de 2 m vale a partir de onde o conferente fica quando a primeira
- * entrega que ela cobre desce.
+ * escora, nada pousa sobre caixa frágil ou não empilhável, e o alcance de 2 m vale a partir de onde o
+ * conferente fica quando a primeira entrega que ela cobre desce. ⚠️ A sombra (carga de entrega posterior na
+ * frente, acima da base — spec 115) é ordem de descarga, e é o que esta passada fura: a caixa entra com
+ * `needsRehandling`, como no complemento.
  *
  * Exportado para o contrato (`over-earlier-delivery.contract.ts`); a raiz do pacote não o expõe.
  */
@@ -3913,9 +3914,8 @@ function findOverSeat(input: {
 }
 
 /**
- * O que a caixa neste assento cobre e o que ela não pode fazer: as entregas anteriores embaixo dela
- * (`coversStops`), ou `null` quando ela pousaria em caixa frágil ou não empilhável, ou ficaria atrás de carga
- * de entrega posterior mais alta que a base dela (sombra — essa carga sairia antes, e ela vai depois).
+ * As entregas anteriores embaixo da caixa neste assento (`coversStops`), ou `null` quando ela pousaria em
+ * caixa frágil ou não empilhável.
  */
 function overlookOf(input: {
   readonly at: Readonly<{ slot: Slot; topM: number; xM: number; yM: number }>
@@ -3935,10 +3935,7 @@ function overlookOf(input: {
       const isBearing = otherTopM >= at.topM - MIN_BRACE_CONTACT_M
       if (isBearing && (other.isFragile || other.reasons.includes('notStackable'))) return null
       if (other.stopSequence < input.stopSequence) covered.add(other.stopSequence)
-      continue
     }
-    const isInFront = other.yM >= toYM - EDGE_TOLERANCE_M
-    if (isInFront && other.stopSequence > input.stopSequence && otherTopM > at.topM + 1e-9) return null
   }
   return [...covered].sort((first, second) => first - second)
 }
