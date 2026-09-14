@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/cargo-placement",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Cargo bed packing, layout and plan policies for TransportAdA (Bun, pure, no runtime dependencies)",
   "type": "module",
   "main": "dist/index.js",
