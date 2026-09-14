@@ -72,6 +72,8 @@ export const PLACEMENT_REASONS = [
   'weightBalanced',
   'outOfReach',
   'needsRehandling',
+  /** Spec 148 D5: a caixa da passada final que ficou por cima de entrega anterior — ver `coversStops`. */
+  'overEarlierDelivery',
 ] as const
 export type PlacementReason = (typeof PLACEMENT_REASONS)[number]
 
@@ -143,10 +145,20 @@ export type PlacedBox = {
    * embaixo, num desenho que promete escala.
    */
   readonly zM: number
+  /**
+   * Spec 148 D5: as entregas anteriores que esta caixa cobre — quem descarrega tira ela do caminho na
+   * primeira delas. Só na caixa da passada final (`overEarlierDelivery`).
+   */
+  readonly coversStops?: readonly number[]
 }
 
 export type UnplacedBox = {
   readonly count: number
+  /**
+   * Spec 148 (T7): a nota da caixa que ficou de fora — uma linha por nota. Ausente em planta antiga e
+   * quando a caixa não tem nota — aí a linha é a do formato antigo.
+   */
+  readonly documentId?: string | null
   readonly label: string
   readonly reason: UnplacedReason
 }
@@ -419,7 +431,7 @@ function placeCargoOnce(
       return true
     }
     /** Caixa sem medida não entra: posição de palpite é o que a spec 085 recusou por escrito. */
-    unplaced.push({ count: box.count, label: box.label, reason: 'notMeasured' })
+    unplaced.push({ count: box.count, ...unplacedNoteOf(box), label: box.label, reason: 'notMeasured' })
     return false
   })
 
@@ -1140,7 +1152,7 @@ function packSlice(input: {
   const spill = (box: PlacementBox): void => {
     overflow.push({ ...box, count: 1 })
     if (resolveStackLimit(box) <= 1) {
-      pushUnplaced(unplaced, { count: 1, label: box.label, reason: 'bedFull' })
+      pushUnplaced(unplaced, { count: 1, ...unplacedNoteOf(box), label: box.label, reason: 'bedFull' })
       return
     }
     leftovers.push({ ...box, count: 1 })
@@ -1244,7 +1256,12 @@ function packSlice(input: {
     for (let unit = 0; unit < box.count; unit += 1) {
       /** Spec 145: vencido no meio da fatia — o resto nunca some (spec 085), vira `time_budget`. */
       if (input.deadline !== undefined && (input.now ?? Date.now)() >= input.deadline) {
-        pushUnplaced(unplaced, { count: box.count - unit, label: box.label, reason: 'time_budget' })
+        pushUnplaced(unplaced, {
+          count: box.count - unit,
+          ...unplacedNoteOf(box),
+          label: box.label,
+          reason: 'time_budget',
+        })
         break outer
       }
       const slot = fitSlot({ bed: slice, box, deepAxis })
@@ -1253,6 +1270,7 @@ function packSlice(input: {
         if (fitSlot({ bed: input.bed, box }) === null) {
           pushUnplaced(unplaced, {
             count: box.count - unit,
+            ...unplacedNoteOf(box),
             label: box.label,
             reason: 'largerThanBed',
           })
@@ -1263,7 +1281,7 @@ function packSlice(input: {
         break
       }
       if (placed.length >= input.budget) {
-        pushUnplaced(unplaced, { count: 1, label: box.label, reason: 'tooMany' })
+        pushUnplaced(unplaced, { count: 1, ...unplacedNoteOf(box), label: box.label, reason: 'tooMany' })
         continue
       }
       /**
@@ -1599,7 +1617,7 @@ function packSlice(input: {
         }
         if (cursor.layer >= stackLimit) {
           overflow.push({ ...box, count: 1 })
-          pushUnplaced(unplaced, { count: 1, label: box.label, reason: 'bedFull' })
+          pushUnplaced(unplaced, { count: 1, ...unplacedNoteOf(box), label: box.label, reason: 'bedFull' })
           continue
         }
         spill(box)
@@ -1641,7 +1659,12 @@ function packSlice(input: {
   for (let index = boxIndex + 1; index < ordered.length; index += 1) {
     const remaining = ordered[index]
     if (remaining === undefined) continue
-    pushUnplaced(unplaced, { count: remaining.count, label: remaining.label, reason: 'time_budget' })
+    pushUnplaced(unplaced, {
+      count: remaining.count,
+      ...unplacedNoteOf(remaining),
+      label: remaining.label,
+      reason: 'time_budget',
+    })
   }
 
   return {
@@ -2517,7 +2540,12 @@ function placeSplitCargo(input: {
 
   for (const { box, sliceSizeM, sliceStartM } of queue) {
     if (placed.length >= input.budget) {
-      pushUnplaced(input.unplaced, { count: 1, label: box.label, reason: 'tooMany' })
+      pushUnplaced(input.unplaced, {
+        count: 1,
+        ...unplacedNoteOf(box),
+        label: box.label,
+        reason: 'tooMany',
+      })
       continue
     }
     const slot = fitSlot({ bed: input.bed, box })
@@ -2539,7 +2567,12 @@ function placeSplitCargo(input: {
           })
     if (slot === null || spot === null) {
       failed.add(shapeKey)
-      pushUnplaced(input.unplaced, { count: 1, label: box.label, reason: 'bedFull' })
+      pushUnplaced(input.unplaced, {
+        count: 1,
+        ...unplacedNoteOf(box),
+        label: box.label,
+        reason: 'bedFull',
+      })
       continue
     }
 
@@ -3191,9 +3224,22 @@ function resolveReasons(box: PlacementBox): readonly PlacementReason[] {
   return reasons
 }
 
-/** Uma linha por motivo e por rótulo: dez caixas iguais fora não viram dez avisos. */
+/** Spec 148 (T7): a nota da caixa que ficou de fora — só quando a caixa tem nota, para o formato antigo não mudar. */
+function unplacedNoteOf(box: PlacementBox): { readonly documentId?: string } {
+  return box.documentId === null || box.documentId === undefined ? {} : { documentId: box.documentId }
+}
+
+/**
+ * Uma linha por motivo, por rótulo e por nota: dez caixas iguais fora não viram dez avisos, e duas notas da
+ * mesma parada não viram uma (spec 148, T7).
+ */
 function pushUnplaced(list: UnplacedBox[], entry: UnplacedBox): void {
-  const existing = list.find((item) => item.label === entry.label && item.reason === entry.reason)
+  const existing = list.find(
+    (item) =>
+      item.label === entry.label &&
+      item.reason === entry.reason &&
+      (item.documentId ?? null) === (entry.documentId ?? null),
+  )
   if (existing === undefined) {
     list.push(entry)
     return
@@ -3456,10 +3502,35 @@ function placeDeliveryBlock(input: {
     if (best.leftOut === 0) break
   }
   if (best === null) throw new Error('DELIVERY_BLOCK_ORDERS is empty')
-  const { complement, packed } = best
+  const { packed } = best
+  /**
+   * ⚠️ **Spec 148 D5/D6: a passada final — só no baú fechado com complemento, e só sobre a tentativa que
+   * venceu.** O que nem a varredura nem o complemento colocaram tenta os vãos que sobraram, inclusive por
+   * cima de entrega anterior, marcado. Roda uma vez, depois da escolha: não paga o tempo em cada tentativa
+   * nem muda qual delas vence.
+   */
+  const over =
+    input.enclosedBody && input.complement && best.complement.rejected.length > 0
+      ? placeOverEarlierDeliveries({
+          bed: rotated,
+          enclosedBody: true,
+          openSides: input.openSides ?? CLOSED_SIDES,
+          placed: [...packed.boxes, ...best.complement.boxes],
+          reachM: input.reachM,
+          rejected: best.complement.rejected,
+          securesCargo: input.securesCargo,
+          ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+          ...(input.now === undefined ? {} : { now: input.now }),
+        })
+      : { boxes: [], headboardSlackM: Number.POSITIVE_INFINITY, rejected: best.complement.rejected }
+  const complement = {
+    boxes: [...best.complement.boxes, ...over.boxes],
+    headboardSlackM: Math.min(best.complement.headboardSlackM, over.headboardSlackM),
+    rejected: over.rejected,
+  }
   const unplaced: UnplacedBox[] = [...input.unplaced, ...packed.unplaced.filter((entry) => entry.reason !== 'bedFull')]
   for (const box of complement.rejected) {
-    pushUnplaced(unplaced, { count: 1, label: box.label, reason: 'bedFull' })
+    pushUnplaced(unplaced, { count: 1, ...unplacedNoteOf(box), label: box.label, reason: 'bedFull' })
   }
   const drawn = [...packed.boxes, ...complement.boxes]
 
@@ -3667,6 +3738,243 @@ function placeComplement(input: {
   }
 
   return { boxes, headboardSlackM: support.headboardSlackM(), rejected }
+}
+
+/**
+ * Spec 148 D5/D6: **a passada final do baú fechado.** A caixa que nem a varredura nem o complemento
+ * colocaram tenta os vãos que sobraram, em qualquer orientação que `keepUpright` permita, e fica o assento
+ * mais alto — os vãos altos primeiro. É a única passada que fura a ordem de descarga: pode ficar por cima de
+ * qualquer entrega anterior, e sai marcada (`overEarlierDelivery` + `needsRehandling`, e `coversStops`).
+ *
+ * ⚠️ A física não afrouxa: apoio de 80% (`seat`), D23/D25 (`isStandingUp`/`isConfined`), a porta nunca
+ * escora, nada pousa sobre caixa frágil ou não empilhável, a carga de entrega posterior não fica na frente
+ * dela acima da base (sombra), e o alcance de 2 m vale a partir de onde o conferente fica quando a primeira
+ * entrega que ela cobre desce.
+ *
+ * Exportado para o contrato (`over-earlier-delivery.contract.ts`); a raiz do pacote não o expõe.
+ */
+export function placeOverEarlierDeliveries(input: {
+  readonly bed: Readonly<{ heightM: number; lengthM: number; widthM: number }>
+  readonly enclosedBody: boolean
+  readonly openSides?: OpenSides
+  readonly placed: readonly PlacedBox[]
+  readonly reachM: number
+  readonly rejected: readonly PlacementBox[]
+  readonly securesCargo: boolean
+  readonly deadline?: number
+  readonly now?: () => number
+}): {
+  readonly boxes: readonly PlacedBox[]
+  readonly headboardSlackM: number
+  readonly rejected: readonly PlacementBox[]
+} {
+  const support = createSupportMap(input.bed, 'lineEnd', input.openSides ?? CLOSED_SIDES, input.reachM)
+  /** O relevo é carimbado de baixo para cima: toda caixa pousa acima do que já está na pegada. */
+  const cargo: PlacedBox[] = [...input.placed].sort((first, second) => first.zM - second.zM)
+  for (const box of cargo) support.stamp(toSupportStamp(box))
+  const boxes: PlacedBox[] = []
+  const rejected: PlacementBox[] = []
+  const failedAt = new Map<string, number>()
+  const queue = [...input.rejected].sort((first, second) => singleBoxVolumeOf(second) - singleBoxVolumeOf(first))
+  for (const box of queue) {
+    const seat =
+      input.deadline !== undefined && (input.now ?? Date.now)() >= input.deadline
+        ? null
+        : findOverSeat({ box, cargo, failedAt, pass: input, support, version: boxes.length })
+    if (seat === null) {
+      rejected.push(box)
+      continue
+    }
+    const placedBox: PlacedBox = {
+      ...(seat.coversStops.length > 0 ? { coversStops: seat.coversStops } : {}),
+      depthM: round(seat.slot.depthM),
+      documentId: box.documentId ?? null,
+      documentNumber: box.documentNumber ?? null,
+      heightM: round(seat.slot.heightM),
+      isFragile: box.isFragile === true,
+      label: box.label,
+      layer: Math.round(seat.topM / seat.slot.heightM),
+      reasons: [
+        ...resolveReasons(box),
+        'needsRehandling',
+        ...(seat.coversStops.length > 0 ? (['overEarlierDelivery'] as const) : []),
+      ],
+      source: box.source,
+      stopSequence: box.stopSequence,
+      widthM: round(seat.slot.widthM),
+      xM: round(seat.xM),
+      yM: round(seat.yM),
+      zM: round(seat.topM),
+    }
+    boxes.push(placedBox)
+    cargo.push(placedBox)
+    support.stamp(toSupportStamp(placedBox))
+  }
+
+  return { boxes, headboardSlackM: support.headboardSlackM(), rejected }
+}
+
+function singleBoxVolumeOf(box: PlacementBox): number {
+  return (box.lengthMm ?? 0) * (box.widthMm ?? 0) * (box.heightMm ?? 0)
+}
+
+/** As orientações da caixa: as duas de pé sempre; deitada e de lado só se `keepUpright` não proíbe. */
+function orientationsOf(
+  box: PlacementBox,
+  bed: Readonly<{ heightM: number; lengthM: number; widthM: number }>,
+): Slot[] {
+  const [lengthM, widthM, heightM] = [box.lengthMm, box.widthMm, box.heightMm].map((sizeMm) =>
+    toMillimetreSize((sizeMm ?? 0) / MILLIMETRES_PER_METRE),
+  ) as [number, number, number]
+  const upright: [number, number, number][] = [
+    [lengthM, widthM, heightM],
+    [widthM, lengthM, heightM],
+  ]
+  const lying: [number, number, number][] =
+    box.keepUpright === true
+      ? []
+      : [
+          [lengthM, heightM, widthM],
+          [heightM, lengthM, widthM],
+          [widthM, heightM, lengthM],
+          [heightM, widthM, lengthM],
+        ]
+  const seen = new Set<string>()
+  const slots: Slot[] = []
+  for (const [depthM, footWidthM, slotHeightM] of [...upright, ...lying]) {
+    const key = `${String(depthM)}|${String(footWidthM)}|${String(slotHeightM)}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (depthM > bed.lengthM + 1e-9 || footWidthM > bed.widthM + 1e-9 || slotHeightM > bed.heightM + 1e-9) continue
+    slots.push({ depthM, heightM: slotHeightM, widthM: footWidthM })
+  }
+  return slots
+}
+
+type OverSeat = Readonly<{ coversStops: readonly number[]; slot: Slot; topM: number; xM: number; yM: number }>
+
+/** O assento mais alto que as regras aceitam, em qualquer orientação — ver `placeOverEarlierDeliveries`. */
+function findOverSeat(input: {
+  readonly box: PlacementBox
+  readonly cargo: readonly PlacedBox[]
+  readonly failedAt: Map<string, number>
+  readonly pass: Parameters<typeof placeOverEarlierDeliveries>[0]
+  readonly support: SupportMap
+  readonly version: number
+}): OverSeat | null {
+  const { box, cargo, pass, support } = input
+  const { bed } = pass
+  let best: OverSeat | null = null
+  for (const slot of orientationsOf(box, bed)) {
+    const shapeKey = `${String(slot.depthM)}|${String(slot.widthM)}|${String(slot.heightM)}`
+    if (input.failedAt.get(shapeKey) === input.version) continue
+    let foundAny = false
+    for (const yM of support.rows({ fromM: 0, toM: bed.widthM - slot.widthM, widthM: slot.widthM })) {
+      if (yM + slot.widthM > bed.widthM + 1e-9) continue
+      let coversStops: readonly number[] = []
+      const found = support.seat({
+        accept: ({ topM, xM }) => {
+          if (xM + slot.depthM > bed.lengthM + 1e-9) return false
+          if (best !== null && topM < best.topM - 1e-9) return false
+          const at = { slot, topM, xM, yM }
+          const standing = isStandingUp({
+            isRestrainedUpTo: (restraintM) =>
+              support.isConfined({ ...at, baseM: topM, enclosed: pass.enclosedBody, topM: restraintM }),
+            securesCargo: pass.securesCargo,
+            slot,
+            topM,
+          })
+          if (!standing) return false
+          const covered = overlookOf({ at, cargo, stopSequence: box.stopSequence })
+          if (covered === null) return false
+          const firstStop = Math.min(box.stopSequence, ...covered)
+          if (!isWithinReachAt({ at, bed, cargo, fromStop: firstStop, reachM: pass.reachM })) return false
+          coversStops = covered
+          return true
+        },
+        heightM: bed.heightM,
+        slot,
+        xM: 0,
+        yM,
+      })
+      if (found === null) continue
+      foundAny = true
+      if (
+        best === null ||
+        found.topM > best.topM + 1e-9 ||
+        (Math.abs(found.topM - best.topM) <= 1e-9 && yM > best.yM)
+      ) {
+        best = { coversStops, slot, topM: found.topM, xM: found.xM, yM }
+      }
+    }
+    if (!foundAny) input.failedAt.set(shapeKey, input.version)
+  }
+  return best
+}
+
+/**
+ * O que a caixa neste assento cobre e o que ela não pode fazer: as entregas anteriores embaixo dela
+ * (`coversStops`), ou `null` quando ela pousaria em caixa frágil ou não empilhável, ou ficaria atrás de carga
+ * de entrega posterior mais alta que a base dela (sombra — essa carga sairia antes, e ela vai depois).
+ */
+function overlookOf(input: {
+  readonly at: Readonly<{ slot: Slot; topM: number; xM: number; yM: number }>
+  readonly cargo: readonly PlacedBox[]
+  readonly stopSequence: number
+}): number[] | null {
+  const { at } = input
+  const toXM = at.xM + at.slot.depthM
+  const toYM = at.yM + at.slot.widthM
+  const covered = new Set<number>()
+  for (const other of input.cargo) {
+    const overlapsX = other.xM < toXM - EDGE_TOLERANCE_M && other.xM + other.depthM > at.xM + EDGE_TOLERANCE_M
+    if (!overlapsX) continue
+    const otherTopM = other.zM + other.heightM
+    const overlapsY = other.yM < toYM - EDGE_TOLERANCE_M && other.yM + other.widthM > at.yM + EDGE_TOLERANCE_M
+    if (overlapsY && otherTopM <= at.topM + EDGE_TOLERANCE_M) {
+      const isBearing = otherTopM >= at.topM - MIN_BRACE_CONTACT_M
+      if (isBearing && (other.isFragile || other.reasons.includes('notStackable'))) return null
+      if (other.stopSequence < input.stopSequence) covered.add(other.stopSequence)
+      continue
+    }
+    const isInFront = other.yM >= toYM - EDGE_TOLERANCE_M
+    if (isInFront && other.stopSequence > input.stopSequence && otherTopM > at.topM + 1e-9) return null
+  }
+  return [...covered].sort((first, second) => first - second)
+}
+
+/**
+ * O alcance da mão (D24) na hora em que a caixa sai do caminho: quando a entrega `fromStop` desce, quem
+ * descarrega fica de pé no piso livre, na frente da carga das entregas `≥ fromStop`, pelo corredor mais raso
+ * que encosta na caixa — a mesma leitura de `isOutOfReach`.
+ */
+function isWithinReachAt(input: {
+  readonly at: Readonly<{ slot: Slot; topM: number; xM: number; yM: number }>
+  readonly bed: Readonly<{ heightM: number; lengthM: number; widthM: number }>
+  readonly cargo: readonly PlacedBox[]
+  readonly fromStop: number
+  readonly reachM: number
+}): boolean {
+  const { at, bed } = input
+  const floor = input.cargo.filter((box) => box.zM < EDGE_TOLERANCE_M && box.stopSequence >= input.fromStop)
+  const corridorM = Math.min(ACCESS_CORRIDOR_M, bed.lengthM)
+  const lowM = Math.max(0, at.xM - corridorM + 2 * EDGE_TOLERANCE_M)
+  const highM = Math.max(lowM, Math.min(bed.lengthM - corridorM, at.xM + at.slot.depthM - 2 * EDGE_TOLERANCE_M))
+  let standingM = Number.POSITIVE_INFINITY
+  for (let startM = lowM; startM <= highM + 1e-9; startM += 0.05) {
+    const endM = startM + corridorM
+    const deepestM = floor.reduce(
+      (deepest, box) =>
+        box.xM < endM - EDGE_TOLERANCE_M && box.xM + box.depthM > startM + EDGE_TOLERANCE_M
+          ? Math.max(deepest, box.yM + box.widthM)
+          : deepest,
+      0,
+    )
+    standingM = Math.min(standingM, deepestM)
+  }
+  if (standingM === Number.POSITIVE_INFINITY) return true
+
+  return standingM - (at.yM + at.slot.widthM) <= input.reachM + 1e-9
 }
 
 /** As caixas de cada entrega, na ordem em que vieram. */

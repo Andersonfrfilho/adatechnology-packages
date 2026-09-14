@@ -249,6 +249,7 @@ describe('o motivo de cada posição (spec 094 P4)', () => {
       'weightBalanced',
       'outOfReach',
       'needsRehandling',
+      'overEarlierDelivery',
     ])
   })
 
