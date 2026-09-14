@@ -100,8 +100,15 @@ function isTall(box: PlacedBox): boolean {
   return box.zM + box.heightM > Math.min(box.depthM, box.widthM) * STABLE_STACK_SLENDERNESS + EPSILON
 }
 
+/**
+ * D25 (spec 148 D9): no baú fechado a vizinha escora cobrindo 80% da borda — menos do lado da porta e na
+ * borda de até 25 cm, que seguem exigindo a borda inteira. Fora do baú fechado, a borda inteira.
+ */
+const ENCLOSED_BRACED_EDGE_FRACTION = 0.8
+const MIN_FRACTIONAL_EDGE_M = 0.25
+
 /** Os lados que seguram a pilha alta — a porta só por caixa, nunca por parede. */
-function bracedSides(box: PlacedBox, boxes: readonly PlacedBox[], bed: Bed): ReadonlySet<Side> {
+function bracedSides(box: PlacedBox, boxes: readonly PlacedBox[], bed: Bed, enclosed: boolean): ReadonlySet<Side> {
   const lengthM = Number(bed.lengthM)
   const widthM = Number(bed.widthM)
   const baseM = Math.min(box.depthM, box.widthM)
@@ -125,6 +132,9 @@ function bracedSides(box: PlacedBox, boxes: readonly PlacedBox[], bed: Bed): Rea
     const fromM = alongX ? box.yM : box.xM
     const sizeM = alongX ? box.widthM : box.depthM
     const steps = Math.max(1, Math.round(sizeM / STEP_M))
+    const isFractional = enclosed && !(alongX && front) && sizeM >= MIN_FRACTIONAL_EDGE_M - TOLERANCE_M
+    const looseAllowed = isFractional ? Math.floor(steps * (1 - ENCLOSED_BRACED_EDGE_FRACTION) + EPSILON) : 0
+    let loose = 0
     for (let step = 0; step < steps; step += 1) {
       const pointM = fromM + (step + 0.5) * (sizeM / steps)
       const braced = near.some((other) => {
@@ -135,7 +145,8 @@ function bracedSides(box: PlacedBox, boxes: readonly PlacedBox[], bed: Bed): Rea
         const gapM = front ? otherNearM - faceM : faceM - otherFarM
         return gapM > -TOLERANCE_M && gapM < catchGapM - EPSILON
       })
-      if (!braced) return false
+      if (!braced) loose += 1
+      if (loose > looseAllowed) return false
     }
     return true
   }
@@ -156,17 +167,17 @@ function isFullyBraced(sides: ReadonlySet<Side>): boolean {
   return sides.size === 4
 }
 
-function tallSidesOf(load: Load, plan: CargoPlacement): ReadonlySet<Side>[] {
-  const boxes = drawnOf(plan)
+function tallSidesOf(load: Load, flags: Flags): ReadonlySet<Side>[] {
+  const boxes = drawnOf(place(load, flags))
 
-  return boxes.filter(isTall).map((box) => bracedSides(box, boxes, load.bed))
+  return boxes.filter(isTall).map((box) => bracedSides(box, boxes, load.bed, flags.enclosedBody === true))
 }
 
 describe('baú fechado: a pilha alta escora na cabeceira e numa lateral (D23)', () => {
   test.each(ALL_LOADS.map((load) => [load.name, load] as const))(
     '%s: nenhuma pilha alta sem cabeceira ou sem lateral — recomendado e complemento',
     (_name, load) => {
-      const sides = tallSidesOf(load, place(load, { enclosedBody: true }))
+      const sides = tallSidesOf(load, { enclosedBody: true })
 
       expect(sides.filter((side) => !isEnclosedBraced(side))).toEqual([])
     },
@@ -174,7 +185,7 @@ describe('baú fechado: a pilha alta escora na cabeceira e numa lateral (D23)', 
 
   test('cabeceira + lateral bastam: o baú fechado sobe pilha alta que os quatro lados recusariam', () => {
     const accepted = ALL_LOADS.flatMap((load) =>
-      tallSidesOf(load, place(load, { enclosedBody: true })).filter((side) => !isFullyBraced(side)),
+      tallSidesOf(load, { enclosedBody: true }).filter((side) => !isFullyBraced(side)),
     )
 
     expect(accepted.length).toBeGreaterThan(0)
@@ -182,7 +193,7 @@ describe('baú fechado: a pilha alta escora na cabeceira e numa lateral (D23)', 
 
   test('a porta não é exigida: há pilha alta aceita sem nada do lado da porta', () => {
     const doorless = ALL_LOADS.flatMap((load) =>
-      tallSidesOf(load, place(load, { enclosedBody: true })).filter((side) => !side.has('door')),
+      tallSidesOf(load, { enclosedBody: true }).filter((side) => !side.has('door')),
     )
 
     expect(doorless.length).toBeGreaterThan(0)
@@ -191,7 +202,7 @@ describe('baú fechado: a pilha alta escora na cabeceira e numa lateral (D23)', 
   test.each(ALL_LOADS.map((load) => [load.name, load] as const))(
     '%s sem baú fechado: a pilha alta continua escorada nos quatro lados',
     (_name, load) => {
-      const sides = tallSidesOf(load, place(load, {}))
+      const sides = tallSidesOf(load, {})
 
       expect(sides.filter((side) => !isFullyBraced(side))).toEqual([])
     },
@@ -199,9 +210,7 @@ describe('baú fechado: a pilha alta escora na cabeceira e numa lateral (D23)', 
 
   test('com cinta a esbeltez segue livre: há pilha alta sem a escora do baú fechado', () => {
     const free = ALL_LOADS.flatMap((load) =>
-      tallSidesOf(load, place(load, { enclosedBody: true, securesCargo: true })).filter(
-        (side) => !isEnclosedBraced(side),
-      ),
+      tallSidesOf(load, { enclosedBody: true, securesCargo: true }).filter((side) => !isEnclosedBraced(side)),
     )
 
     expect(free.length).toBeGreaterThan(0)

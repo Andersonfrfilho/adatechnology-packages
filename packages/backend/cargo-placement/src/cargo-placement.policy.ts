@@ -29,6 +29,24 @@ import {
 export const MIN_SUPPORTED_BASE_FRACTION = 0.8
 
 /**
+ * Spec 146 D1: **a vizinha escora a face quando cobre pelo menos 80% da borda** — decisão do usuário. O
+ * comprimento da borda em que há escora (parede no giro, ou vizinha que sobe ao lado até a contenção) é
+ * somado célula a célula e comparado com esta fração do comprimento da face. Antes era a borda inteira: um
+ * trecho de vizinha mais baixa bastava para o lado todo contar como solto.
+ *
+ * ⚠️ D3: a borda mais curta que `MIN_FRACTIONAL_EDGE_M` — até quatro células de 5 cm — continua exigindo a
+ * borda inteira (`ceil(4 × 0,8) = 4`). ⚠️ A face aberta (porta) não ganha fração: do lado dela só a borda
+ * inteira conta, como antes (spec 133 R5).
+ *
+ * Medido na spec 146 (fração 1,0 → 0,8): 861 → 874, 529 → 546 e 1330 → 1451 caixas colocadas em três
+ * viagens reais, com o topo máximo subindo no máximo 12 cm e nenhuma pilha a 5 cm do teto.
+ */
+export const MIN_BRACED_EDGE_FRACTION = 0.8
+
+/** D3: a borda de cinco células de 5 cm é a mais curta que aceita fração. */
+const MIN_FRACTIONAL_EDGE_M = 0.25
+
+/**
  * **A escora mais estreita que conta** (spec 132): a caixa de baixo que passa 1 mm da face da de cima
  * não escora nada. É a mesma régua do juiz da descarga (`MIN_BRACE_CONTACT_M`).
  */
@@ -1765,7 +1783,7 @@ function createSpanMemo(grid: EdgeGrid): {
  * pousar sobre a célula que a de baixo ocupava só em parte: medido, 56 caixas do Atego com até 4,9 cm
  * de balanço na medida real. Com as bordas reais, nivelado quer dizer nivelado na medida da caixa.
  */
-function createSupportMap(
+export function createSupportMap(
   bed: Readonly<{ heightM: number; lengthM: number; widthM: number }>,
   openFace: OpenFace,
   openSides: OpenSides = CLOSED_SIDES,
@@ -1954,6 +1972,8 @@ function createSupportMap(
     /** Spec 142: o topo da candidata — a vizinha só escora se começa abaixo dele. */
     boxTopM: Number.POSITIVE_INFINITY,
     catchGapM: 0,
+    /** Spec 146 D1: a fração de 80% da borda vale só no baú fechado. */
+    enclosed: false,
     fromColumn: 0,
     fromLine: 0,
     fromXM: 0,
@@ -2053,18 +2073,29 @@ function createSupportMap(
       index += side.forward ? 1 : -1
     }
   }
-  /** Um lado inteiro da pegada em conferência (`brace`) segurado, célula a célula. */
+  /** A face aberta — do lado dela a escora é a borda inteira (spec 146 D1). */
+  const openSide = braceSides[openFace]
+  /**
+   * Um lado da pegada em conferência (`brace`) segurado: pelo menos `MIN_BRACED_EDGE_FRACTION` da borda com
+   * escora, célula a célula (spec 146 D1). ⚠️ Sai assim que o trecho solto passa do que a fração tolera.
+   */
   const sideHolds = (side: BraceSide): boolean => {
-    if (side.isColumn) {
-      const faceM = side.forward ? brace.toXM : brace.fromXM
-      for (let line = brace.fromLine; line < brace.toLine; line += 1) {
-        if (!bracedToward(side, line, faceM)) return false
-      }
-      return true
-    }
-    const faceM = side.forward ? brace.toYM : brace.fromYM
-    for (let column = brace.fromColumn; column < brace.toColumn; column += 1) {
-      if (!bracedToward(side, column, faceM)) return false
+    const fromM = side.isColumn ? brace.fromYM : brace.fromXM
+    const toM = side.isColumn ? brace.toYM : brace.toXM
+    const edges = side.isColumn ? ys : xs
+    const edgeM = toM - fromM
+    const looseAllowedM =
+      !brace.enclosed || side === openSide || edgeM < MIN_FRACTIONAL_EDGE_M - EDGE_TOLERANCE_M
+        ? 0
+        : edgeM * (1 - MIN_BRACED_EDGE_FRACTION) + EDGE_TOLERANCE_M
+    const faceM = side.isColumn ? (side.forward ? brace.toXM : brace.fromXM) : side.forward ? brace.toYM : brace.fromYM
+    const [first, last] = side.isColumn ? [brace.fromLine, brace.toLine] : [brace.fromColumn, brace.toColumn]
+    let looseM = 0
+    for (let cell = first; cell < last; cell += 1) {
+      if (bracedToward(side, cell, faceM)) continue
+      if (looseAllowedM === 0) return false
+      looseM += Math.min(edges[cell + 1] ?? 0, toM) - Math.max(edges[cell] ?? 0, fromM)
+      if (looseM > looseAllowedM) return false
     }
     return true
   }
@@ -2322,6 +2353,7 @@ function createSupportMap(
       brace.baseM = baseM
       brace.boxTopM = baseM === undefined ? Number.POSITIVE_INFINITY : baseM + slot.heightM
       brace.catchGapM = braceGapOf(slot)
+      brace.enclosed = enclosed === true
       /** A folga das escoras na testeira desta posição — só vale se ela sair confinada. */
       brace.slackM = Number.POSITIVE_INFINITY
       brace.topM = top
