@@ -134,3 +134,37 @@ describe('passada final: atrás de entrega posterior, marcada para retrabalho (s
     expect(result.boxes[0]?.coversStops).toBeUndefined()
   })
 })
+
+/**
+ * Spec 148 D6: **repetir enquanto alguma entrar.** Uma caixa pode ganhar assento quando outra entra ao lado —
+ * aqui, a caixa larga só pousa depois que a menor completa o piso nivelado a 0,30 m. Uma volta só deixava a
+ * larga de fora.
+ */
+describe('passada final: repete as recusadas enquanto alguma entrar (spec 148 D6)', () => {
+  const LOW_BED = { heightM: 0.5, lengthM: 1, widthM: 1.2 }
+  const block = (
+    input: Readonly<{ stop: number; xM: number; yM: number; zM: number; heightM: number }>,
+  ): PlacedBox => ({
+    ...placedBox(input),
+    heightM: input.heightM,
+  })
+
+  test('a caixa larga entra na segunda volta, em cima da menor que entrou na primeira', () => {
+    const later = [0, 0.5].flatMap((xM) => [0, 0.25].map((zM) => block({ heightM: 0.25, stop: 2, xM, yM: 0, zM })))
+    const earlier = block({ heightM: 0.3, stop: 1, xM: 0, yM: 0.6, zM: 0 })
+    const wide = { ...leftover({ heightMm: 200, keepUpright: null, lengthMm: 1000, widthMm: 600 }) }
+    const small = { ...leftover({ heightMm: 300, keepUpright: null, lengthMm: 500, widthMm: 600 }) }
+    const result = placeOverEarlierDeliveries({
+      bed: LOW_BED,
+      enclosedBody: true,
+      placed: [...later, earlier],
+      reachM: 2,
+      rejected: [wide, small],
+      securesCargo: false,
+    })
+
+    expect(result.rejected).toEqual([])
+    expect(result.boxes).toHaveLength(2)
+    expect(result.boxes.find((box) => box.depthM === 1)?.zM).toBeCloseTo(0.3, 6)
+  })
+})

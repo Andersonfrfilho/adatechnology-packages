@@ -471,6 +471,9 @@ export function resolveCargoLayout(input: {
     ...(input.securesCargo === undefined ? {} : { securesCargo: input.securesCargo }),
     ...(input.enclosedBody === undefined ? {} : { enclosedBody: input.enclosedBody }),
     ...(input.deliveryReachM === undefined ? {} : { deliveryReachM: input.deliveryReachM }),
+    /** Spec 148: só as passadas finais o usam — a decisão do arranjo não muda com ele. */
+    ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
+    ...(input.now === undefined ? {} : { now: input.now }),
   })
   const lanes = decision.arrangement === 'lanes'
   /**
