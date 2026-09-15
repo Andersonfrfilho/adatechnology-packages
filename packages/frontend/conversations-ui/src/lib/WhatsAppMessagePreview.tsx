@@ -1,3 +1,7 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+
 import type { ReactNode } from 'react'
 
 import { cn } from './cn'

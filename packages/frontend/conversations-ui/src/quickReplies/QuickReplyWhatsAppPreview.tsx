@@ -1,3 +1,7 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+
 import { Paperclip } from 'lucide-react'
 
 import { parseWhatsAppFormatting } from '../lib/whatsapp-formatting'
@@ -15,7 +19,8 @@ export interface QuickReplyWhatsAppPreviewProps {
 /** Troca cada marcador pelo exemplo da variável (ou o rótulo, sem exemplo); sem catálogo, fica o marcador. */
 export function resolvePreviewVariables(body: string, variables: readonly ConversationVariable[] = []): string {
   return variables.reduce(
-    (resolved, variable) => resolved.split(variable.marker).join(variable.value || variable.label),
+    (resolved, variable) =>
+      variable.marker ? resolved.split(variable.marker).join(variable.value || variable.label) : resolved,
     body,
   )
 }

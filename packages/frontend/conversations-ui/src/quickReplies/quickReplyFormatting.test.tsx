@@ -7,7 +7,117 @@ import { DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS } from './labels'
 import { QuickRepliesWorkspace } from './QuickRepliesWorkspace'
 import { QuickReplyFormattingToolbar } from './QuickReplyFormattingToolbar'
 import { QuickReplyWhatsAppPreview, resolvePreviewVariables } from './QuickReplyWhatsAppPreview'
-import { wrapSelection } from './useQuickRepliesWorkspace'
+import {
+  changedRange,
+  computeFormattingEdit,
+  formattingActionForShortcut,
+  wrapSelection,
+  type FormattingShortcutEvent,
+} from './quickReplyFormatting'
+
+describe('wrapSelection — regras do WhatsApp', () => {
+  it('deixa o espaço das pontas fora do marcador', () => {
+    expect(wrapSelection({ text: 'Olá mundo ', start: 3, end: 10, marker: '*' })).toEqual({
+      text: 'Olá *mundo* ',
+      selectionStart: 5,
+      selectionEnd: 10,
+    })
+  })
+
+  it('desliga quando o marcador está dentro da seleção', () => {
+    expect(wrapSelection({ text: 'a *b* c', start: 2, end: 5, marker: '*' })).toEqual({
+      text: 'a b c',
+      selectionStart: 2,
+      selectionEnd: 3,
+    })
+  })
+
+  it('desliga quando o marcador está logo fora da seleção', () => {
+    expect(wrapSelection({ text: 'a ```b``` c', start: 5, end: 6, marker: '```' })).toEqual({
+      text: 'a b c',
+      selectionStart: 2,
+      selectionEnd: 3,
+    })
+  })
+
+  it('formata cada linha não vazia separadamente', () => {
+    expect(wrapSelection({ text: 'um\n\n dois ', start: 0, end: 10, marker: '_' })).toEqual({
+      text: '_um_\n\n _dois_ ',
+      selectionStart: 0,
+      selectionEnd: 14,
+    })
+  })
+
+  it('desliga em todas as linhas quando todas já estão formatadas', () => {
+    expect(wrapSelection({ text: '~um~\n~dois~', start: 0, end: 11, marker: '~' }).text).toBe('um\ndois')
+  })
+
+  it('só espaço selecionado cai no par vazio', () => {
+    expect(wrapSelection({ text: 'a  b', start: 1, end: 3, marker: '*' }).text).toBe('a*  *b')
+  })
+})
+
+describe('computeFormattingEdit', () => {
+  it('aplica a notação da ação e devolve a seleção nova', () => {
+    expect(
+      computeFormattingEdit({ text: 'oi', selectionStart: 0, selectionEnd: 2, action: 'bold', maximumLength: 10 }),
+    ).toEqual({ text: '*oi*', selectionStart: 1, selectionEnd: 3 })
+  })
+
+  it('não aplica quando passaria do limite', () => {
+    expect(
+      computeFormattingEdit({ text: 'oi', selectionStart: 0, selectionEnd: 2, action: 'monospace', maximumLength: 7 }),
+    ).toBeUndefined()
+  })
+
+  it('aceita chegar exatamente ao limite', () => {
+    expect(
+      computeFormattingEdit({ text: 'oi', selectionStart: 0, selectionEnd: 2, action: 'italic', maximumLength: 4 })
+        ?.text,
+    ).toBe('_oi_')
+  })
+
+  it('desligar nunca esbarra no limite', () => {
+    expect(
+      computeFormattingEdit({ text: '*oi*', selectionStart: 0, selectionEnd: 4, action: 'bold', maximumLength: 4 })
+        ?.text,
+    ).toBe('oi')
+  })
+})
+
+describe('formattingActionForShortcut', () => {
+  const base: FormattingShortcutEvent = {
+    key: 'b',
+    ctrlKey: true,
+    metaKey: false,
+    shiftKey: false,
+    altKey: false,
+    isComposing: false,
+  }
+
+  it('Ctrl/Cmd+B é negrito, Ctrl/Cmd+I é itálico', () => {
+    expect(formattingActionForShortcut(base)).toBe('bold')
+    expect(formattingActionForShortcut({ ...base, ctrlKey: false, metaKey: true, key: 'I' })).toBe('italic')
+  })
+
+  it('ignora sem modificador, com shift, alt, composição ou outra tecla', () => {
+    expect(formattingActionForShortcut({ ...base, ctrlKey: false })).toBeUndefined()
+    expect(formattingActionForShortcut({ ...base, shiftKey: true })).toBeUndefined()
+    expect(formattingActionForShortcut({ ...base, altKey: true })).toBeUndefined()
+    expect(formattingActionForShortcut({ ...base, isComposing: true })).toBeUndefined()
+    expect(formattingActionForShortcut({ ...base, key: 'u' })).toBeUndefined()
+  })
+})
+
+describe('changedRange', () => {
+  it('isola a inserção', () => {
+    expect(changedRange('a b', 'a *b*')).toEqual({ start: 2, end: 3, insertedText: '*b*' })
+  })
+
+  it('isola a remoção', () => {
+    expect(changedRange('*b*', '*b')).toEqual({ start: 2, end: 3, insertedText: '' })
+  })
+})
 
 const LABELS = DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS
 
@@ -75,6 +185,10 @@ describe('resolvePreviewVariables', () => {
 
   it('usa o exemplo, cai no rótulo e deixa marcador desconhecido como está', () => {
     expect(resolvePreviewVariables('Oi {{nome}} de {{cidade}} {{cpf}}', variables)).toBe('Oi Maria de Cidade {{cpf}}')
+  })
+
+  it('ignora variável sem marcador', () => {
+    expect(resolvePreviewVariables('Oi', [{ id: 'x', label: 'X', marker: '', value: 'Y' }])).toBe('Oi')
   })
 })
 

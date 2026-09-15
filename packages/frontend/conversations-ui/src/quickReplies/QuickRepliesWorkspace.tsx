@@ -3,10 +3,11 @@ import { cn } from '../lib/cn'
 import {
   useQuickRepliesWorkspace,
   insertAtCursor,
-  wrapSelection,
+  BODY_MAX_LENGTH,
   type QuickRepliesWorkspaceApi,
 } from './useQuickRepliesWorkspace'
-import { FORMATTING_ACTION, WHATSAPP_MARKER_BY_ACTION, type FormattingAction } from '../lib/composer-formatting'
+import { canExecuteFormattingCommand, type FormattingAction } from '../lib/composer-formatting'
+import { changedRange, computeFormattingEdit, formattingActionForShortcut } from './quickReplyFormatting'
 import { QuickReplyFormattingToolbar } from './QuickReplyFormattingToolbar'
 import { QuickReplyWhatsAppPreview } from './QuickReplyWhatsAppPreview'
 import { AttachmentsFormSection } from './AttachmentsFormSection'
@@ -16,9 +17,19 @@ import type { ConversationVariable } from './quickReply.types'
 
 const TABLE_SKELETON_ROWS = 3
 
-const BODY_SHORTCUT_ACTIONS: Readonly<Record<string, FormattingAction>> = {
-  b: FORMATTING_ACTION.BOLD,
-  i: FORMATTING_ACTION.ITALIC,
+/** Troca o trecho pelo navegador para o Ctrl+Z desfazer a formatação; `false` quando não dá. */
+function replaceWithNativeUndo(field: HTMLTextAreaElement, previous: string, next: string): boolean {
+  if (!canExecuteFormattingCommand()) return false
+  const range = changedRange(previous, next)
+  field.focus()
+  field.setSelectionRange(range.start, range.end)
+  try {
+    return range.insertedText
+      ? document.execCommand('insertText', false, range.insertedText)
+      : document.execCommand('delete')
+  } catch {
+    return false
+  }
 }
 
 export interface QuickRepliesWorkspaceProps {
@@ -122,13 +133,16 @@ export function QuickRepliesWorkspace({
   const applyFormatting = (action: FormattingAction) => {
     const field = bodyFieldRef.current
     if (!field || !editing) return
-    const next = wrapSelection({
+    const next = computeFormattingEdit({
       text: editing.body,
-      start: field.selectionStart,
-      end: field.selectionEnd,
-      marker: WHATSAPP_MARKER_BY_ACTION[action],
+      selectionStart: field.selectionStart,
+      selectionEnd: field.selectionEnd,
+      action,
+      maximumLength: BODY_MAX_LENGTH,
     })
-    updateField('body', next.text)
+    if (!next) return
+    // O execCommand dispara o `input` nativo, e o onChange mantém o estado do React em dia.
+    if (!replaceWithNativeUndo(field, editing.body, next.text)) updateField('body', next.text)
     requestAnimationFrame(() => {
       field.focus()
       field.setSelectionRange(next.selectionStart, next.selectionEnd)
@@ -136,8 +150,14 @@ export function QuickRepliesWorkspace({
   }
 
   const handleBodyKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (!(event.ctrlKey || event.metaKey)) return
-    const action = BODY_SHORTCUT_ACTIONS[event.key.toLowerCase()]
+    const action = formattingActionForShortcut({
+      key: event.key,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      shiftKey: event.shiftKey,
+      altKey: event.altKey,
+      isComposing: event.nativeEvent.isComposing,
+    })
     if (!action) return
     event.preventDefault()
     applyFormatting(action)
@@ -249,7 +269,7 @@ export function QuickRepliesWorkspace({
               <textarea
                 id={bodyFieldId}
                 ref={bodyFieldRef}
-                maxLength={1000}
+                maxLength={BODY_MAX_LENGTH}
                 rows={4}
                 value={editing.body}
                 onChange={(event) => updateField('body', event.target.value)}

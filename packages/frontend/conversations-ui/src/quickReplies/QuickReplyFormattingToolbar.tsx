@@ -1,9 +1,14 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+
 import { Bold, Code, Italic, Strikethrough } from 'lucide-react'
 
 import { COMPOSER_TOOL_BUTTON_CLASS, COMPOSER_TOOL_BUTTON_IDLE_CLASS } from '../composer.constant'
 import { cn } from '../lib/cn'
 import { FORMATTING_ACTION, type FormattingAction } from '../lib/composer-formatting'
 import type { QuickRepliesWorkspaceLabels } from './labels'
+import { FORMATTING_SHORTCUT_HINT } from './quickReplyFormatting'
 
 export interface QuickReplyFormattingToolbarProps {
   readonly labels: Pick<
@@ -28,7 +33,7 @@ export function QuickReplyFormattingToolbar({ labels, onFormat }: QuickReplyForm
           key={action}
           type="button"
           aria-label={label}
-          title={label}
+          title={FORMATTING_SHORTCUT_HINT[action] ? `${label} (${FORMATTING_SHORTCUT_HINT[action]})` : label}
           // Clicar tiraria o foco do campo e perderia a seleção antes do wrap.
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onFormat(action)}
