@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/media-processor",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Video dubbing and subtitle generation service",
   "type": "module",
   "exports": {
