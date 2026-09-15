@@ -30,8 +30,57 @@ describe('parseWhatsAppFormatting com marcador fechado', () => {
   })
 
   it('mantém negrito, itálico e tachado', () => {
-    expect(render('*a* _b_ ~c~')).toBe(
-      '<strong>a</strong><span> </span><em>b</em><span> </span><del>c</del>',
+    expect(render('*a* _b_ ~c~')).toBe('<strong>a</strong><span> </span><em>b</em><span> </span><del>c</del>')
+  })
+})
+
+describe('parseWhatsAppFormatting com quebras de linha', () => {
+  it('preserva quebra simples e linha em branco no texto sem bloco', () => {
+    expect(render('a\nb')).toBe('<span>a\nb</span>')
+    expect(render('a\n\nb')).toBe('<span>a\n\nb</span>')
+  })
+
+  it('não deixa o marcador atravessar a quebra de linha', () => {
+    expect(render('*a\nb*')).not.toContain('<strong>')
+    expect(render('_a\nb_')).not.toContain('<em>')
+    expect(render('~a\nb~')).not.toContain('<del>')
+    expect(render('`a\nb`')).not.toContain('<code')
+  })
+
+  it('continua formatando em cada linha', () => {
+    expect(render('*a*\n_b_')).toBe('<strong>a</strong><span>\n</span><em>b</em>')
+  })
+})
+
+describe('parseWhatsAppFormatting com blocos por linha', () => {
+  it('lista com * e - vira ul, com inline dentro', () => {
+    const markup = render('* *um*\n- dois')
+    expect(markup).toMatch(/^<ul[^>]*><li><strong>um<\/strong><\/li><li><span>dois<\/span><\/li><\/ul>$/)
+  })
+
+  it('lista numerada mantém o número digitado', () => {
+    const markup = render('1. a\n3. b')
+    expect(markup).toMatch(/^<ol[^>]*><li value="1"><span>a<\/span><\/li><li value="3"><span>b<\/span><\/li><\/ol>$/)
+  })
+
+  it('citação vira blockquote, uma linha por div', () => {
+    expect(render('> oi\n> _tchau_')).toMatch(
+      /^<blockquote[^>]*><div><span>oi<\/span><\/div><div><em>tchau<\/em><\/div><\/blockquote>$/,
     )
+  })
+
+  it('preserva texto e linhas em branco em volta dos blocos', () => {
+    const markup = render('Olá\n\n- a\n\nTchau')
+    expect(markup).toBe(
+      '<div><span>Olá\n</span>\n</div><ul class="list-disc pl-5"><li><span>a</span></li></ul><div><span>\nTchau</span></div>',
+    )
+  })
+
+  it('asterisco sem espaço no início é negrito, não lista', () => {
+    expect(render('*oi*')).toBe('<strong>oi</strong>')
+  })
+
+  it('com bloco de código de várias linhas, fica só no inline', () => {
+    expect(render('- a\n```x\ny```')).not.toContain('<ul')
   })
 })

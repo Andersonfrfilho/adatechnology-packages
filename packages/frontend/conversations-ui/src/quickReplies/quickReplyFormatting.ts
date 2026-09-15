@@ -89,11 +89,87 @@ export function wrapSelection({ text, start, end, marker }: WrapSelectionParams)
   }
 }
 
+/** As ações do campo rico mais as que só o texto puro da mensagem pronta oferece. */
+export const QUICK_REPLY_FORMATTING_ACTION = {
+  ...FORMATTING_ACTION,
+  INLINE_CODE: 'inlineCode',
+  BULLETED_LIST: 'bulletedList',
+  NUMBERED_LIST: 'numberedList',
+  QUOTE: 'quote',
+} as const
+export type QuickReplyFormattingAction =
+  (typeof QUICK_REPLY_FORMATTING_ACTION)[keyof typeof QUICK_REPLY_FORMATTING_ACTION]
+
+type LinePrefixAction =
+  | typeof QUICK_REPLY_FORMATTING_ACTION.BULLETED_LIST
+  | typeof QUICK_REPLY_FORMATTING_ACTION.NUMBERED_LIST
+  | typeof QUICK_REPLY_FORMATTING_ACTION.QUOTE
+
+const LINE_PREFIX_PATTERN: Readonly<Record<LinePrefixAction, RegExp>> = {
+  [QUICK_REPLY_FORMATTING_ACTION.BULLETED_LIST]: /^[-*] /,
+  [QUICK_REPLY_FORMATTING_ACTION.NUMBERED_LIST]: /^\d+\. /,
+  [QUICK_REPLY_FORMATTING_ACTION.QUOTE]: /^> /,
+}
+
+const INLINE_MARKER_BY_ACTION: Readonly<Partial<Record<QuickReplyFormattingAction, string>>> = {
+  ...WHATSAPP_MARKER_BY_ACTION,
+  [QUICK_REPLY_FORMATTING_ACTION.INLINE_CODE]: '`',
+}
+
+function isLinePrefixAction(action: QuickReplyFormattingAction): action is LinePrefixAction {
+  return action in LINE_PREFIX_PATTERN
+}
+
+function prefixFor(action: LinePrefixAction, position: number): string {
+  if (action === QUICK_REPLY_FORMATTING_ACTION.NUMBERED_LIST) return `${position}. `
+  return action === QUICK_REPLY_FORMATTING_ACTION.QUOTE ? '> ' : '- '
+}
+
+export type ToggleLinePrefixParams = {
+  readonly text: string
+  readonly start: number
+  readonly end: number
+  readonly action: LinePrefixAction
+}
+
+/**
+ * Lista, lista numerada e citação valem por linha: o prefixo vai em cada linha tocada pela seleção
+ * (numerando em sequência) e sai de todas quando todas já o têm. Linha em branco no meio fica como está.
+ */
+export function toggleLinePrefix({ text, start, end, action }: ToggleLinePrefixParams): TextSelectionEdit {
+  const lineStart = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1
+  const searchFrom = end > start && text[end - 1] === '\n' ? end - 1 : end
+  const nextBreak = text.indexOf('\n', searchFrom)
+  const lineEnd = nextBreak === -1 ? text.length : nextBreak
+  const original = text.slice(lineStart, lineEnd)
+  const lines = original.split('\n')
+  const pattern = LINE_PREFIX_PATTERN[action]
+  const filledLines = lines.filter((line) => line.trim())
+  const shouldRemove = filledLines.length > 0 && filledLines.every((line) => pattern.test(line))
+
+  let position = 0
+  const replaced = lines
+    .map((line) => {
+      if (shouldRemove) return line.replace(pattern, '')
+      if (!line.trim() && lines.length > 1) return line
+      position += 1
+      return prefixFor(action, position) + line.replace(pattern, '')
+    })
+    .join('\n')
+
+  const nextText = text.slice(0, lineStart) + replaced + text.slice(lineEnd)
+  if (start === end) {
+    const caret = Math.max(lineStart, start + replaced.length - original.length)
+    return { text: nextText, selectionStart: caret, selectionEnd: caret }
+  }
+  return { text: nextText, selectionStart: lineStart, selectionEnd: lineStart + replaced.length }
+}
+
 export type ComputeFormattingEditParams = {
   readonly text: string
   readonly selectionStart: number
   readonly selectionEnd: number
-  readonly action: FormattingAction
+  readonly action: QuickReplyFormattingAction
   readonly maximumLength: number
 }
 
@@ -105,12 +181,9 @@ export function computeFormattingEdit({
   action,
   maximumLength,
 }: ComputeFormattingEditParams): TextSelectionEdit | undefined {
-  const edit = wrapSelection({
-    text,
-    start: selectionStart,
-    end: selectionEnd,
-    marker: WHATSAPP_MARKER_BY_ACTION[action],
-  })
+  const edit = isLinePrefixAction(action)
+    ? toggleLinePrefix({ text, start: selectionStart, end: selectionEnd, action })
+    : wrapSelection({ text, start: selectionStart, end: selectionEnd, marker: INLINE_MARKER_BY_ACTION[action] ?? '' })
   return edit.text.length > maximumLength ? undefined : edit
 }
 
@@ -128,7 +201,7 @@ const SHORTCUT_ACTION_BY_KEY: Readonly<Record<string, FormattingAction>> = {
   i: FORMATTING_ACTION.ITALIC,
 }
 
-export const FORMATTING_SHORTCUT_HINT: Readonly<Partial<Record<FormattingAction, string>>> = {
+export const FORMATTING_SHORTCUT_HINT: Readonly<Partial<Record<QuickReplyFormattingAction, string>>> = {
   [FORMATTING_ACTION.BOLD]: 'Ctrl/⌘+B',
   [FORMATTING_ACTION.ITALIC]: 'Ctrl/⌘+I',
 }

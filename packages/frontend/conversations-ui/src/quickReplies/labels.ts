@@ -79,6 +79,10 @@ export interface QuickRepliesWorkspaceLabels {
   readonly formatItalic: string
   readonly formatStrikethrough: string
   readonly formatMonospace: string
+  readonly formatInlineCode: string
+  readonly formatBulletedList: string
+  readonly formatNumberedList: string
+  readonly formatQuote: string
   readonly formattingToolbar: string
   readonly previewTitle: string
   readonly previewEmptyBody: string
@@ -133,6 +137,10 @@ export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels
   formatItalic: 'Itálico',
   formatStrikethrough: 'Tachado',
   formatMonospace: 'Monoespaçado',
+  formatInlineCode: 'Código',
+  formatBulletedList: 'Lista',
+  formatNumberedList: 'Lista numerada',
+  formatQuote: 'Citação',
   formattingToolbar: 'Formatação do texto',
   previewTitle: 'Pré-visualização no WhatsApp',
   previewEmptyBody: 'Digite o texto para ver como a mensagem chega ao cliente.',

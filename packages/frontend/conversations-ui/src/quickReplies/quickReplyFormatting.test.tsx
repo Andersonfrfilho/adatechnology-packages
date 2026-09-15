@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { FORMATTING_ACTION, WHATSAPP_MARKER_BY_ACTION } from '../lib/composer-formatting'
@@ -10,6 +11,7 @@ import { QuickReplyWhatsAppPreview, resolvePreviewVariables } from './QuickReply
 import {
   changedRange,
   computeFormattingEdit,
+  toggleLinePrefix,
   formattingActionForShortcut,
   wrapSelection,
   type FormattingShortcutEvent,
@@ -206,7 +208,16 @@ describe('QuickReplyFormattingToolbar', () => {
     const element = QuickReplyFormattingToolbar({ labels: LABELS, onFormat: (action) => received.push(action) })
     const buttons = element.props.children as { props: { onClick: () => void } }[]
     for (const button of buttons) button.props.onClick()
-    expect(received).toEqual(['bold', 'italic', 'strikethrough', 'monospace'])
+    expect(received).toEqual([
+      'bold',
+      'italic',
+      'strikethrough',
+      'monospace',
+      'inlineCode',
+      'bulletedList',
+      'numberedList',
+      'quote',
+    ])
   })
 })
 
@@ -235,5 +246,91 @@ describe('FlowWhatsAppPreview sobre o balão compartilhado', () => {
 
   it('sem corpo nem opções, mostra só o placeholder, fora do balão', () => {
     expect(renderToStaticMarkup(<FlowWhatsAppPreview body="" />)).not.toContain('bg-[#e5ddd5]')
+  })
+})
+
+describe('toggleLinePrefix', () => {
+  it('põe o prefixo na linha do cursor e move o cursor junto', () => {
+    expect(toggleLinePrefix({ text: 'a\nbc', start: 3, end: 3, action: 'bulletedList' })).toEqual({
+      text: 'a\n- bc',
+      selectionStart: 5,
+      selectionEnd: 5,
+    })
+  })
+
+  it('numera cada linha selecionada em sequência, pulando a linha em branco', () => {
+    expect(toggleLinePrefix({ text: 'um\n\ndois\ntrês', start: 1, end: 10, action: 'numberedList' })).toEqual({
+      text: '1. um\n\n2. dois\n3. três',
+      selectionStart: 0,
+      selectionEnd: 22,
+    })
+  })
+
+  it('tira o prefixo de todas quando todas já têm', () => {
+    expect(toggleLinePrefix({ text: '> a\n> b', start: 0, end: 7, action: 'quote' }).text).toBe('a\nb')
+  })
+
+  it('completa as que faltam quando só algumas têm', () => {
+    expect(toggleLinePrefix({ text: '- a\nb', start: 0, end: 5, action: 'bulletedList' }).text).toBe('- a\n- b')
+  })
+
+  it('linha vazia com cursor ganha o prefixo', () => {
+    expect(toggleLinePrefix({ text: '', start: 0, end: 0, action: 'quote' })).toEqual({
+      text: '> ',
+      selectionStart: 2,
+      selectionEnd: 2,
+    })
+  })
+
+  it('seleção terminando na quebra não puxa a linha de baixo', () => {
+    expect(toggleLinePrefix({ text: 'a\nb', start: 0, end: 2, action: 'bulletedList' }).text).toBe('- a\nb')
+  })
+})
+
+describe('computeFormattingEdit com as ações de linha e código', () => {
+  it('código inline usa crase simples', () => {
+    expect(
+      computeFormattingEdit({ text: 'x', selectionStart: 0, selectionEnd: 1, action: 'inlineCode', maximumLength: 10 })
+        ?.text,
+    ).toBe('`x`')
+  })
+
+  it('prefixo de linha respeita o limite', () => {
+    expect(
+      computeFormattingEdit({
+        text: 'a\nb',
+        selectionStart: 0,
+        selectionEnd: 3,
+        action: 'bulletedList',
+        maximumLength: 6,
+      }),
+    ).toBeUndefined()
+    expect(
+      computeFormattingEdit({
+        text: 'a\nb',
+        selectionStart: 0,
+        selectionEnd: 3,
+        action: 'bulletedList',
+        maximumLength: 7,
+      })?.text,
+    ).toBe('- a\n- b')
+  })
+})
+
+describe('QuickRepliesWorkspace — ações da tabela no padrão do pacote', () => {
+  // As linhas só chegam depois do carregamento assíncrono; o render estático não as mostra, então o
+  // contrato é conferido no fonte, como em flows/workspaceContract.test.ts.
+  const source = readFileSync(new URL('./QuickRepliesWorkspace.tsx', import.meta.url), 'utf8')
+
+  it('editar e excluir são cv-header-icon com Pencil e Trash2, nome acessível com o título', () => {
+    expect(source).toContain('className="cv-header-icon"')
+    expect(source).toContain('<Pencil size={14}')
+    expect(source).toContain('<Trash2 size={14}')
+    expect(source).toContain('aria-label={`${text.edit}: ${quickReply.title}`}')
+  })
+
+  it('confirmação usa cv-header-action--danger e o criar usa --primary', () => {
+    expect(source).toContain('cv-header-action cv-header-action--danger')
+    expect(source).toContain('cv-header-action cv-header-action--primary')
   })
 })

@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { cn } from '../lib/cn'
 import {
   useQuickRepliesWorkspace,
@@ -6,8 +7,13 @@ import {
   BODY_MAX_LENGTH,
   type QuickRepliesWorkspaceApi,
 } from './useQuickRepliesWorkspace'
-import { canExecuteFormattingCommand, type FormattingAction } from '../lib/composer-formatting'
-import { changedRange, computeFormattingEdit, formattingActionForShortcut } from './quickReplyFormatting'
+import { canExecuteFormattingCommand } from '../lib/composer-formatting'
+import {
+  changedRange,
+  computeFormattingEdit,
+  formattingActionForShortcut,
+  type QuickReplyFormattingAction,
+} from './quickReplyFormatting'
 import { QuickReplyFormattingToolbar } from './QuickReplyFormattingToolbar'
 import { QuickReplyWhatsAppPreview } from './QuickReplyWhatsAppPreview'
 import { AttachmentsFormSection } from './AttachmentsFormSection'
@@ -130,7 +136,7 @@ export function QuickRepliesWorkspace({
     })
   }
 
-  const applyFormatting = (action: FormattingAction) => {
+  const applyFormatting = (action: QuickReplyFormattingAction) => {
     const field = bodyFieldRef.current
     if (!field || !editing) return
     const next = computeFormattingEdit({
@@ -188,8 +194,9 @@ export function QuickRepliesWorkspace({
           <button
             type="button"
             onClick={startCreate}
-            className="cv-header-action ml-auto inline-flex items-center gap-1"
+            className="cv-header-action cv-header-action--primary ml-auto inline-flex items-center gap-1"
           >
+            <Plus size={14} aria-hidden="true" />
             {text.create}
           </button>
         ) : null}
@@ -396,61 +403,68 @@ export function QuickRepliesWorkspace({
                   <td className="px-3 py-2 font-mono text-xs text-gray-500">/{quickReply.shortcut}</td>
                   <td className="hidden max-w-sm truncate px-3 py-2 text-gray-500 sm:table-cell">{quickReply.body}</td>
                   {!readOnly ? (
-                    <td className="flex gap-2 px-3 py-2">
-                      {canEdit ? (
-                        <button
-                          type="button"
-                          onClick={() => startEdit(quickReply)}
-                          className="text-xs text-blue-600 hover:underline dark:text-blue-400"
-                        >
-                          {text.edit}
-                        </button>
-                      ) : null}
-                      {canDelete ? (
-                        confirmingDeleteId === quickReply.id ? (
-                          // Linha de confirmação inline em vez de `window.confirm`: trava a aba
-                          // inteira e não segue os tokens visuais do pacote (`web.md` §14).
-                          <span
-                            role="group"
-                            aria-label={text.removeConfirm(quickReply.title)}
-                            onKeyDown={handleDeleteConfirmKeyDown(quickReply.id)}
-                            className="flex items-center gap-2 text-xs"
-                          >
-                            {text.removeConfirm(quickReply.title)}
-                            <button
-                              ref={confirmButtonRef}
-                              type="button"
-                              onClick={() => {
-                                setConfirmingDeleteId(null)
-                                void remove(quickReply.id)
-                              }}
-                              className="font-medium text-red-600 hover:underline dark:text-red-400"
-                            >
-                              {text.remove}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => cancelDeleteConfirm(quickReply.id)}
-                              className="text-gray-500 hover:underline dark:text-gray-400"
-                            >
-                              {text.cancel}
-                            </button>
-                          </span>
-                        ) : (
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1">
+                        {canEdit ? (
                           <button
-                            ref={(node) => {
-                              deleteButtonRefs.current[quickReply.id] = node
-                            }}
                             type="button"
-                            disabled={deletingId === quickReply.id}
-                            aria-busy={deletingId === quickReply.id}
-                            onClick={() => setConfirmingDeleteId(quickReply.id)}
-                            className="text-xs text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
+                            onClick={() => startEdit(quickReply)}
+                            data-cv-tooltip={text.edit}
+                            aria-label={`${text.edit}: ${quickReply.title}`}
+                            className="cv-header-icon"
                           >
-                            {deletingId === quickReply.id ? text.deleting : text.remove}
+                            <Pencil size={14} aria-hidden="true" />
                           </button>
-                        )
-                      ) : null}
+                        ) : null}
+                        {canDelete ? (
+                          confirmingDeleteId === quickReply.id ? (
+                            // Linha de confirmação inline em vez de `window.confirm`: trava a aba
+                            // inteira e não segue os tokens visuais do pacote (`web.md` §14).
+                            <span
+                              role="group"
+                              aria-label={text.removeConfirm(quickReply.title)}
+                              onKeyDown={handleDeleteConfirmKeyDown(quickReply.id)}
+                              className="flex items-center gap-2 text-xs"
+                            >
+                              {text.removeConfirm(quickReply.title)}
+                              <button
+                                ref={confirmButtonRef}
+                                type="button"
+                                onClick={() => {
+                                  setConfirmingDeleteId(null)
+                                  void remove(quickReply.id)
+                                }}
+                                className="cv-header-action cv-header-action--danger inline-flex items-center gap-1"
+                              >
+                                <Trash2 size={12} aria-hidden="true" />
+                                {text.remove}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => cancelDeleteConfirm(quickReply.id)}
+                                className="cv-header-action"
+                              >
+                                {text.cancel}
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              ref={(node) => {
+                                deleteButtonRefs.current[quickReply.id] = node
+                              }}
+                              type="button"
+                              disabled={deletingId === quickReply.id}
+                              aria-busy={deletingId === quickReply.id}
+                              onClick={() => setConfirmingDeleteId(quickReply.id)}
+                              data-cv-tooltip={deletingId === quickReply.id ? text.deleting : text.remove}
+                              aria-label={`${deletingId === quickReply.id ? text.deleting : text.remove}: ${quickReply.title}`}
+                              className="cv-header-icon disabled:opacity-40"
+                            >
+                              <Trash2 size={14} aria-hidden="true" className="text-red-500" />
+                            </button>
+                          )
+                        ) : null}
+                      </div>
                     </td>
                   ) : null}
                 </tr>
