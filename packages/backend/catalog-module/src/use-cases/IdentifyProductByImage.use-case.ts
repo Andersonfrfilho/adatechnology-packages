@@ -62,6 +62,17 @@ export class IdentifyProductByImageUseCase {
 
     if (!vision.rank) return { outcome: 'candidates', candidates }
 
+    // Vencedor folgado dispensa o desempate: ele custa segundos de inferencia, e o cliente esta
+    // olhando o "digitando". A margem importa tanto quanto o score — dois itens irmaos pontuam
+    // alto e parecido, e e ai que a segunda opiniao vale o tempo dela.
+    const [primeiro, segundo] = candidates
+    if (primeiro && primeiro.score >= VISION.RANK_SKIP_SCORE) {
+      const margem = primeiro.score - (segundo?.score ?? 0)
+      if (margem >= VISION.RANK_SKIP_MARGIN) {
+        return { outcome: 'matched', productId: primeiro.productId, score: primeiro.score }
+      }
+    }
+
     const ranking = await vision.rank({ image, candidates })
     if (!ranking.productId) {
       // "Nenhum destes" é resposta do desempate, e é definitiva: devolver os candidatos que ele
