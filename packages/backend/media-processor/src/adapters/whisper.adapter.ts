@@ -1,26 +1,9 @@
 // Whisper Adapter - Free speech-to-text (uses existing audio-transcription-provider)
 
-import { AudioTranscriptionService } from '@adatechnology/audio-transcription-provider';
-import { Logger } from '@adatechnology/logger';
-import { TranscriptionError, LanguageDetectionError } from '../errors/index.js';
-
-interface WhisperResult {
-  text: string;
-  language: string;
-  confidence: number;
-  segments: {
-    id: number;
-    seek: number;
-    start: number;
-    end: number;
-    text: string;
-    tokens: number[];
-    temperature: number;
-    avg_logprob: number;
-    compression_ratio: number;
-    no_speech_prob: number;
-  }[];
-}
+import { readFile } from 'fs/promises'
+import { AudioTranscriber, TranscriptionResult } from '@adatechnology/audio-transcription-provider'
+import { Logger } from '@adatechnology/logger'
+import { TranscriptionError, LanguageDetectionError } from '../errors/index.js'
 
 /**
  * Whisper Adapter - Uses OpenAI's Whisper (free via audio-transcription-provider)
@@ -32,68 +15,44 @@ interface WhisperResult {
  * Both are handled by audio-transcription-provider which we already have
  */
 export class WhisperAdapter {
-  private transcriptionService: AudioTranscriptionService;
-  private logger: Logger;
+  private transcriptionService: AudioTranscriber
+  private logger: Logger
 
-  constructor(
-    transcriptionService: AudioTranscriptionService,
-    logger: Logger,
-  ) {
-    this.transcriptionService = transcriptionService;
-    this.logger = logger;
+  constructor(transcriptionService: AudioTranscriber, logger: Logger) {
+    this.transcriptionService = transcriptionService
+    this.logger = logger
   }
 
   /**
    * Transcribe audio file to text with language detection
    */
-  async transcribe(audioPath: string): Promise<{
-    text: string;
-    language: string;
-    languageConfidence: number;
-    segments: Array<{
-      start: number;
-      end: number;
-      text: string;
-    }>;
-  }> {
+  async transcribe(audioPath: string, mimeType = 'audio/wav'): Promise<TranscriptionResult> {
     try {
-      this.logger.info('[Whisper] Starting transcription', { audioPath });
+      this.logger.info('[Whisper] Starting transcription', { audioPath })
+
+      const buffer = await readFile(audioPath)
 
       // Call the existing audio-transcription-provider
-      const result = await this.transcriptionService.transcribe(audioPath) as WhisperResult;
+      const result = await this.transcriptionService.transcribe({ buffer, mimeType })
 
       if (!result.text) {
-        throw new Error('Transcription returned empty text');
+        throw new Error('Transcription returned empty text')
       }
-
-      // Convert segments to our format
-      const segments = result.segments.map(seg => ({
-        start: seg.start,
-        end: seg.end,
-        text: seg.text.trim(),
-      }));
 
       this.logger.info('[Whisper] Transcription completed', {
         language: result.language,
-        confidence: result.confidence,
-        segmentCount: segments.length,
+        engine: result.engine,
         textLength: result.text.length,
-      });
+      })
 
-      return {
-        text: result.text,
-        language: result.language,
-        languageConfidence: result.confidence,
-        segments,
-      };
-
+      return result
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
+      const err = error instanceof Error ? error : new Error(String(error))
       this.logger.error('[Whisper] Transcription failed', {
         error: err.message,
         audioPath,
-      });
-      throw new TranscriptionError(`Whisper transcription failed: ${err.message}`);
+      })
+      throw new TranscriptionError(`Whisper transcription failed: ${err.message}`)
     }
   }
 
@@ -101,12 +60,12 @@ export class WhisperAdapter {
    * Detect language from audio
    */
   async detectLanguage(audioPath: string): Promise<{
-    language: string;
-    confidence: number;
-    languageName?: string;
+    language: string
+    languageName?: string
   }> {
     try {
-      const result = await this.transcribe(audioPath);
+      const result = await this.transcribe(audioPath)
+      const language = result.language ?? ''
 
       // Map language codes to names
       const languageNames: Record<string, string> = {
@@ -120,18 +79,16 @@ export class WhisperAdapter {
         ja: '日本語',
         zh: '中文',
         ko: '한국어',
-      };
+      }
 
       return {
-        language: result.language,
-        confidence: result.languageConfidence,
-        languageName: languageNames[result.language] || result.language,
-      };
-
+        language,
+        languageName: languageNames[language] || language,
+      }
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.error('[Whisper] Language detection failed', { error: err.message });
-      throw new LanguageDetectionError(`Language detection failed: ${err.message}`);
+      const err = error instanceof Error ? error : new Error(String(error))
+      this.logger.error('[Whisper] Language detection failed', { error: err.message })
+      throw new LanguageDetectionError(`Language detection failed: ${err.message}`)
     }
   }
 
@@ -150,7 +107,7 @@ export class WhisperAdapter {
       { code: 'ja', name: '日本語' },
       { code: 'zh', name: '中文 (Mandarin)' },
       { code: 'ko', name: '한국어' },
-    ];
+    ]
   }
 }
 
