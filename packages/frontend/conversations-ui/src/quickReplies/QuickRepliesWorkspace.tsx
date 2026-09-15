@@ -1,12 +1,25 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { cn } from '../lib/cn'
-import { useQuickRepliesWorkspace, insertAtCursor, type QuickRepliesWorkspaceApi } from './useQuickRepliesWorkspace'
+import {
+  useQuickRepliesWorkspace,
+  insertAtCursor,
+  wrapSelection,
+  type QuickRepliesWorkspaceApi,
+} from './useQuickRepliesWorkspace'
+import { FORMATTING_ACTION, WHATSAPP_MARKER_BY_ACTION, type FormattingAction } from '../lib/composer-formatting'
+import { QuickReplyFormattingToolbar } from './QuickReplyFormattingToolbar'
+import { QuickReplyWhatsAppPreview } from './QuickReplyWhatsAppPreview'
 import { AttachmentsFormSection } from './AttachmentsFormSection'
 import { DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS, type QuickRepliesWorkspaceLabels } from './labels'
 import type { MaxAttachmentSizeBytes } from './quickReplyAttachments'
 import type { ConversationVariable } from './quickReply.types'
 
 const TABLE_SKELETON_ROWS = 3
+
+const BODY_SHORTCUT_ACTIONS: Readonly<Record<string, FormattingAction>> = {
+  b: FORMATTING_ACTION.BOLD,
+  i: FORMATTING_ACTION.ITALIC,
+}
 
 export interface QuickRepliesWorkspaceProps {
   readonly api: QuickRepliesWorkspaceApi
@@ -106,6 +119,30 @@ export function QuickRepliesWorkspace({
     })
   }
 
+  const applyFormatting = (action: FormattingAction) => {
+    const field = bodyFieldRef.current
+    if (!field || !editing) return
+    const next = wrapSelection({
+      text: editing.body,
+      start: field.selectionStart,
+      end: field.selectionEnd,
+      marker: WHATSAPP_MARKER_BY_ACTION[action],
+    })
+    updateField('body', next.text)
+    requestAnimationFrame(() => {
+      field.focus()
+      field.setSelectionRange(next.selectionStart, next.selectionEnd)
+    })
+  }
+
+  const handleBodyKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!(event.ctrlKey || event.metaKey)) return
+    const action = BODY_SHORTCUT_ACTIONS[event.key.toLowerCase()]
+    if (!action) return
+    event.preventDefault()
+    applyFormatting(action)
+  }
+
   return (
     <div className={cn('space-y-4', className)}>
       <header className="space-y-0.5">
@@ -151,130 +188,141 @@ export function QuickRepliesWorkspace({
 
       {editing ? (
         <form
-          className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+          className="grid gap-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]"
           onSubmit={(event) => {
             event.preventDefault()
             void submit()
           }}
         >
-          <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor={titleFieldId}>
-              {text.fieldTitle}
-            </label>
-            <input
-              id={titleFieldId}
-              type="text"
-              maxLength={40}
-              value={editing.title}
-              onChange={(event) => updateField('title', event.target.value)}
-              aria-invalid={Boolean(fieldErrors.title)}
-              aria-describedby={fieldErrors.title ? `${titleFieldId}-error` : undefined}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            />
-            {fieldErrors.title ? (
-              <p id={`${titleFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
-                {fieldErrors.title}
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium" htmlFor={titleFieldId}>
+                {text.fieldTitle}
+              </label>
+              <input
+                id={titleFieldId}
+                type="text"
+                maxLength={40}
+                value={editing.title}
+                onChange={(event) => updateField('title', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.title)}
+                aria-describedby={fieldErrors.title ? `${titleFieldId}-error` : undefined}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+              />
+              {fieldErrors.title ? (
+                <p id={`${titleFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.title}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium" htmlFor={shortcutFieldId}>
+                {text.fieldShortcut}
+              </label>
+              <input
+                id={shortcutFieldId}
+                type="text"
+                maxLength={20}
+                value={editing.shortcut}
+                onChange={(event) => updateField('shortcut', event.target.value)}
+                aria-invalid={Boolean(fieldErrors.shortcut)}
+                aria-describedby={fieldErrors.shortcut ? `${shortcutFieldId}-error` : `${shortcutFieldId}-hint`}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono dark:border-gray-700 dark:bg-gray-900"
+              />
+              {fieldErrors.shortcut ? (
+                <p id={`${shortcutFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.shortcut}
+                </p>
+              ) : (
+                <p id={`${shortcutFieldId}-hint`} className="text-xs text-gray-400">
+                  {text.fieldShortcutHint}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-sm font-medium" htmlFor={bodyFieldId}>
+                {text.fieldBody}
+              </label>
+              <QuickReplyFormattingToolbar labels={text} onFormat={applyFormatting} />
+              <textarea
+                id={bodyFieldId}
+                ref={bodyFieldRef}
+                maxLength={1000}
+                rows={4}
+                value={editing.body}
+                onChange={(event) => updateField('body', event.target.value)}
+                onKeyDown={handleBodyKeyDown}
+                aria-invalid={Boolean(fieldErrors.body)}
+                aria-describedby={fieldErrors.body ? `${bodyFieldId}-error` : undefined}
+                className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+              />
+              {fieldErrors.body ? (
+                <p id={`${bodyFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
+                  {fieldErrors.body}
+                </p>
+              ) : null}
+              {variables && variables.length > 0 ? (
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {variables.map((variable) => (
+                    <button
+                      key={variable.id}
+                      type="button"
+                      onClick={() => insertVariableAtCursor(variable.marker)}
+                      aria-label={`${text.insertVariable}: ${variable.label}`}
+                      className="rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                    >
+                      {variable.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {hasAttachmentsCapability ? (
+              <AttachmentsFormSection
+                labels={text}
+                attachments={editing.attachments}
+                pendingUploads={pendingUploads}
+                attachmentRejections={attachmentRejections}
+                onAddFiles={addAttachmentFiles}
+                onRetryUpload={retryAttachmentUpload}
+                onCancelUpload={cancelAttachmentUpload}
+                onRemoveAttachment={removeAttachment}
+                onMoveAttachment={moveAttachmentAt}
+                onDismissRejections={dismissAttachmentRejections}
+              />
+            ) : null}
+
+            {saveError ? (
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {saveError}
               </p>
             ) : null}
+
+            <div className="flex items-center gap-2">
+              <button
+                type="submit"
+                disabled={isSaving || hasPendingUploads}
+                aria-busy={isSaving}
+                title={hasPendingUploads ? text.saveBlockedUploading : undefined}
+                className="cv-header-action inline-flex items-center gap-1 disabled:opacity-40"
+              >
+                {isSaving ? text.saving : hasPendingUploads ? text.saveBlockedUploading : text.save}
+              </button>
+              <button type="button" onClick={cancelEdit} className="text-sm text-gray-500 hover:underline">
+                {text.cancel}
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor={shortcutFieldId}>
-              {text.fieldShortcut}
-            </label>
-            <input
-              id={shortcutFieldId}
-              type="text"
-              maxLength={20}
-              value={editing.shortcut}
-              onChange={(event) => updateField('shortcut', event.target.value)}
-              aria-invalid={Boolean(fieldErrors.shortcut)}
-              aria-describedby={fieldErrors.shortcut ? `${shortcutFieldId}-error` : `${shortcutFieldId}-hint`}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono dark:border-gray-700 dark:bg-gray-900"
-            />
-            {fieldErrors.shortcut ? (
-              <p id={`${shortcutFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
-                {fieldErrors.shortcut}
-              </p>
-            ) : (
-              <p id={`${shortcutFieldId}-hint`} className="text-xs text-gray-400">
-                {text.fieldShortcutHint}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <label className="block text-sm font-medium" htmlFor={bodyFieldId}>
-              {text.fieldBody}
-            </label>
-            <textarea
-              id={bodyFieldId}
-              ref={bodyFieldRef}
-              maxLength={1000}
-              rows={4}
-              value={editing.body}
-              onChange={(event) => updateField('body', event.target.value)}
-              aria-invalid={Boolean(fieldErrors.body)}
-              aria-describedby={fieldErrors.body ? `${bodyFieldId}-error` : undefined}
-              className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            />
-            {fieldErrors.body ? (
-              <p id={`${bodyFieldId}-error`} role="alert" className="text-xs text-red-600 dark:text-red-400">
-                {fieldErrors.body}
-              </p>
-            ) : null}
-            {variables && variables.length > 0 ? (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {variables.map((variable) => (
-                  <button
-                    key={variable.id}
-                    type="button"
-                    onClick={() => insertVariableAtCursor(variable.marker)}
-                    aria-label={`${text.insertVariable}: ${variable.label}`}
-                    className="rounded-full border border-gray-200 px-2 py-0.5 text-xs text-gray-600 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-                  >
-                    {variable.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {hasAttachmentsCapability ? (
-            <AttachmentsFormSection
-              labels={text}
-              attachments={editing.attachments}
-              pendingUploads={pendingUploads}
-              attachmentRejections={attachmentRejections}
-              onAddFiles={addAttachmentFiles}
-              onRetryUpload={retryAttachmentUpload}
-              onCancelUpload={cancelAttachmentUpload}
-              onRemoveAttachment={removeAttachment}
-              onMoveAttachment={moveAttachmentAt}
-              onDismissRejections={dismissAttachmentRejections}
-            />
-          ) : null}
-
-          {saveError ? (
-            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {saveError}
-            </p>
-          ) : null}
-
-          <div className="flex items-center gap-2">
-            <button
-              type="submit"
-              disabled={isSaving || hasPendingUploads}
-              aria-busy={isSaving}
-              title={hasPendingUploads ? text.saveBlockedUploading : undefined}
-              className="cv-header-action inline-flex items-center gap-1 disabled:opacity-40"
-            >
-              {isSaving ? text.saving : hasPendingUploads ? text.saveBlockedUploading : text.save}
-            </button>
-            <button type="button" onClick={cancelEdit} className="text-sm text-gray-500 hover:underline">
-              {text.cancel}
-            </button>
-          </div>
+          <QuickReplyWhatsAppPreview
+            body={editing.body}
+            {...(variables ? { variables } : {})}
+            attachments={editing.attachments}
+            labels={text}
+          />
         </form>
       ) : null}
 

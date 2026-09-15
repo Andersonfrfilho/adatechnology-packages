@@ -197,6 +197,32 @@ export function insertAtCursor(text: string, start: number, end: number, marker:
   return { text: text.slice(0, start) + marker + text.slice(end), caret: start + marker.length }
 }
 
+export type WrapSelectionParams = {
+  readonly text: string
+  readonly start: number
+  readonly end: number
+  readonly marker: string
+}
+
+export type WrapSelectionResult = {
+  readonly text: string
+  readonly selectionStart: number
+  readonly selectionEnd: number
+}
+
+/**
+ * Envolve a seleção com o marcador do WhatsApp (`*`, `_`, `~`, ```` ``` ````). Sem seleção, abre o
+ * par e deixa o cursor no meio — é o que permite clicar em "Negrito" antes de digitar.
+ */
+export function wrapSelection({ text, start, end, marker }: WrapSelectionParams): WrapSelectionResult {
+  const selected = text.slice(start, end)
+  return {
+    text: text.slice(0, start) + marker + selected + marker + text.slice(end),
+    selectionStart: start + marker.length,
+    selectionEnd: end + marker.length,
+  }
+}
+
 export type UseQuickRepliesWorkspaceParams = {
   readonly api: QuickRepliesWorkspaceApi
   readonly labels: QuickRepliesWorkspaceLabels

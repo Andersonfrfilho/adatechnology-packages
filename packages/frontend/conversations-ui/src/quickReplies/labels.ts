@@ -74,6 +74,14 @@ export interface QuickRepliesWorkspaceLabels {
   readonly attachmentLimitReached: string
   readonly attachmentTooLarge: (filename: string) => string
   readonly saveBlockedUploading: string
+  /** Barra de formatação acima do campo de texto — notação do WhatsApp. */
+  readonly formatBold: string
+  readonly formatItalic: string
+  readonly formatStrikethrough: string
+  readonly formatMonospace: string
+  readonly formattingToolbar: string
+  readonly previewTitle: string
+  readonly previewEmptyBody: string
 }
 
 export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels = {
@@ -121,4 +129,11 @@ export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels
   attachmentLimitReached: 'Limite de 10 anexos por mensagem.',
   attachmentTooLarge: (filename) => `${filename}: excede o tamanho máximo para o tipo de arquivo.`,
   saveBlockedUploading: 'Aguardando o envio dos anexos…',
+  formatBold: 'Negrito',
+  formatItalic: 'Itálico',
+  formatStrikethrough: 'Tachado',
+  formatMonospace: 'Monoespaçado',
+  formattingToolbar: 'Formatação do texto',
+  previewTitle: 'Pré-visualização no WhatsApp',
+  previewEmptyBody: 'Digite o texto para ver como a mensagem chega ao cliente.',
 }
