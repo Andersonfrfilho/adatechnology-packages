@@ -871,6 +871,15 @@ export type NfeXmlProduct = {
   readonly commercialQuantity: string
   readonly unitValue: string
   readonly totalValue: string
+  /**
+   * GTIN do produto (det/prod/cEAN) — só dígitos, 8/12/13/14 caracteres. `undefined` quando
+   * ausente, vazio, "SEM GTIN" ou fora desse formato. Dígito verificador não é validado aqui.
+   */
+  readonly gtin?: string
+  /**
+   * GTIN da unidade tributável (det/prod/cEANTrib) — mesmas regras de `gtin`.
+   */
+  readonly taxableUnitGtin?: string
 }
 
 export type NfeXmlVolume = {

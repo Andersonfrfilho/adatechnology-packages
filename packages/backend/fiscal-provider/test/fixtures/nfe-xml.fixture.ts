@@ -14,6 +14,10 @@ type BuildNfeXmlParams = {
   readonly issuerCnpj?: string
   readonly recipientCnpj?: string
   readonly carrierCnpj?: string
+  /** Valor literal de det/prod/cEAN. `null` omite a tag. Default: "SEM GTIN". */
+  readonly productGtin?: string | null
+  /** Valor literal de det/prod/cEANTrib. `null` omite a tag. Default: "SEM GTIN". */
+  readonly productTaxableUnitGtin?: string | null
 }
 
 type BuildAuthorizedNfeXmlParams = BuildNfeXmlParams & {
@@ -123,6 +127,9 @@ function buildNfeNode(params: BuildNfeXmlParams): string {
   const issuerCnpj = params.issuerCnpj ?? ISSUER_CNPJ
   const recipientCnpj = params.recipientCnpj ?? RECIPIENT_CNPJ
   const carrierCnpj = params.carrierCnpj ?? CARRIER_CNPJ
+  const productGtin = params.productGtin === undefined ? 'SEM GTIN' : params.productGtin
+  const productTaxableUnitGtin =
+    params.productTaxableUnitGtin === undefined ? 'SEM GTIN' : params.productTaxableUnitGtin
 
   return [
     '<NFe xmlns="http://www.portalfiscal.inf.br/nfe">',
@@ -156,11 +163,13 @@ function buildNfeNode(params: BuildNfeXmlParams): string {
     '<indIEDest>1</indIEDest><IE>222222222222</IE>',
     '</dest>',
     '<det nItem="1"><prod>',
-    '<cProd>SKU-001</cProd><cEAN>SEM GTIN</cEAN>',
+    '<cProd>SKU-001</cProd>',
+    productGtin === null ? '' : `<cEAN>${productGtin}</cEAN>`,
     '<xProd>PRODUTO SINTETICO PARA TESTE</xProd>',
     '<NCM>84713012</NCM><CFOP>6101</CFOP><uCom>UN</uCom>',
     '<qCom>2.5000</qCom><vUnCom>100.1234</vUnCom><vProd>250.3085</vProd>',
-    '<cEANTrib>SEM GTIN</cEANTrib><uTrib>UN</uTrib>',
+    productTaxableUnitGtin === null ? '' : `<cEANTrib>${productTaxableUnitGtin}</cEANTrib>`,
+    '<uTrib>UN</uTrib>',
     '<qTrib>2.5000</qTrib><vUnTrib>100.1234</vUnTrib>',
     '<indTot>1</indTot>',
     '</prod><imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST>',

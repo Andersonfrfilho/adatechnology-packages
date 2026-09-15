@@ -147,6 +147,57 @@ describe('@adatechnology/fiscal-provider public NF-e XML import contract', () =>
     expect(typeof volume['grossWeight']).toBe('string')
   })
 
+  test('captures the product GTIN and taxable-unit GTIN when the XML carries valid codes', () => {
+    const result = asRecord(
+      importarNfeXml(buildAuthorizedNfeXml({ productGtin: '7891234567895', productTaxableUnitGtin: '7891234567895' })),
+    )
+    const product = asRecord(asArray(asRecord(result['document'])['products'])[0])
+
+    expect(product['gtin']).toBe('7891234567895')
+    expect(product['taxableUnitGtin']).toBe('7891234567895')
+  })
+
+  test('accepts a 14-digit DUN-14 as a valid GTIN', () => {
+    const result = asRecord(
+      importarNfeXml(buildAuthorizedNfeXml({ productGtin: '17891234567898', productTaxableUnitGtin: '17891234567898' })),
+    )
+    const product = asRecord(asArray(asRecord(result['document'])['products'])[0])
+
+    expect(product['gtin']).toBe('17891234567898')
+    expect(product['taxableUnitGtin']).toBe('17891234567898')
+  })
+
+  test.each(['SEM GTIN', 'sem gtin', '  Sem Gtin  ', 'SEM  GTIN'])(
+    'treats the literal "SEM GTIN" (%s) as no GTIN',
+    (literal) => {
+      const result = asRecord(importarNfeXml(buildAuthorizedNfeXml({ productGtin: literal, productTaxableUnitGtin: literal })))
+      const product = asRecord(asArray(asRecord(result['document'])['products'])[0])
+
+      expect(product['gtin']).toBeUndefined()
+      expect(product['taxableUnitGtin']).toBeUndefined()
+    },
+  )
+
+  test('leaves gtin and taxableUnitGtin undefined when cEAN/cEANTrib are absent', () => {
+    const result = asRecord(
+      importarNfeXml(buildAuthorizedNfeXml({ productGtin: null, productTaxableUnitGtin: null })),
+    )
+    const product = asRecord(asArray(asRecord(result['document'])['products'])[0])
+
+    expect(product['gtin']).toBeUndefined()
+    expect(product['taxableUnitGtin']).toBeUndefined()
+  })
+
+  test('discards non-numeric or malformed GTIN codes instead of surfacing garbage', () => {
+    const result = asRecord(
+      importarNfeXml(buildAuthorizedNfeXml({ productGtin: 'ABC123', productTaxableUnitGtin: '123456789' })),
+    )
+    const product = asRecord(asArray(asRecord(result['document'])['products'])[0])
+
+    expect(product['gtin']).toBeUndefined()
+    expect(product['taxableUnitGtin']).toBeUndefined()
+  })
+
   test('distinguishes a bare unsigned NFe from an authorized document', () => {
     const result = asRecord(importarNfeXml(buildBareNfeXml()))
 
