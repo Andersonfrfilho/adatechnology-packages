@@ -75,20 +75,23 @@ export interface QuickRepliesWorkspaceLabels {
   readonly attachmentTooLarge: (filename: string) => string
   readonly saveBlockedUploading: string
   /** Barra de formatação acima do campo de texto — notação do WhatsApp. */
-  readonly formatBold: string
-  readonly formatItalic: string
-  readonly formatStrikethrough: string
-  readonly formatMonospace: string
-  readonly formatInlineCode: string
-  readonly formatBulletedList: string
-  readonly formatNumberedList: string
-  readonly formatQuote: string
-  readonly formattingToolbar: string
-  readonly previewTitle: string
-  readonly previewEmptyBody: string
+  readonly formatBold?: string
+  readonly formatItalic?: string
+  readonly formatStrikethrough?: string
+  readonly formatMonospace?: string
+  readonly formatInlineCode?: string
+  readonly formatBulletedList?: string
+  readonly formatNumberedList?: string
+  readonly formatQuote?: string
+  readonly formattingToolbar?: string
+  readonly previewTitle?: string
+  readonly previewEmptyBody?: string
 }
 
-export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels = {
+/** Os rótulos já completados pelos padrões — as chaves novas são opcionais no tipo público. */
+export type ResolvedQuickRepliesWorkspaceLabels = Required<QuickRepliesWorkspaceLabels>
+
+export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: ResolvedQuickRepliesWorkspaceLabels = {
   title: 'Mensagens prontas',
   subtitle: (total) => `${total} ${total === 1 ? 'mensagem cadastrada' : 'mensagens cadastradas'}`,
   searchPlaceholder: 'Buscar por título, atalho ou texto',

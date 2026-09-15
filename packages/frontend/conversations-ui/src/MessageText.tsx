@@ -30,9 +30,7 @@ export function MessageText({ message }: MessageTextProps) {
       onClick={handleCopy}
       className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words select-all [&_strong]:font-bold [&_em]:italic [&_del]:line-through"
     >
-      <span>
-        {parseWhatsAppFormatting(message.content ?? '')}
-      </span>
+      <div>{parseWhatsAppFormatting(message.content ?? '')}</div>
       {copied && (
         <span className="absolute top-0 right-0 -translate-y-full bg-[#3b4a54] text-white text-[11px] px-1.5 py-0.5 rounded shadow-lg">
           Copiado!

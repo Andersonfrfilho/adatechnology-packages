@@ -6,7 +6,7 @@ import { Bold, Code, Italic, List, ListOrdered, Quote, SquareCode, Strikethrough
 
 import { COMPOSER_TOOL_BUTTON_CLASS, COMPOSER_TOOL_BUTTON_IDLE_CLASS } from '../composer.constant'
 import { cn } from '../lib/cn'
-import type { QuickRepliesWorkspaceLabels } from './labels'
+import type { ResolvedQuickRepliesWorkspaceLabels } from './labels'
 import {
   FORMATTING_SHORTCUT_HINT,
   QUICK_REPLY_FORMATTING_ACTION as ACTION,
@@ -15,7 +15,7 @@ import {
 
 export interface QuickReplyFormattingToolbarProps {
   readonly labels: Pick<
-    QuickRepliesWorkspaceLabels,
+    ResolvedQuickRepliesWorkspaceLabels,
     | 'formatBold'
     | 'formatItalic'
     | 'formatStrikethrough'

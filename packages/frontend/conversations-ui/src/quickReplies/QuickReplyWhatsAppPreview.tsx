@@ -6,14 +6,14 @@ import { Paperclip } from 'lucide-react'
 
 import { parseWhatsAppFormatting } from '../lib/whatsapp-formatting'
 import { WhatsAppMessagePreview } from '../lib/WhatsAppMessagePreview'
-import type { QuickRepliesWorkspaceLabels } from './labels'
+import type { ResolvedQuickRepliesWorkspaceLabels } from './labels'
 import type { ConversationVariable, QuickReplyAttachment } from './quickReply.types'
 
 export interface QuickReplyWhatsAppPreviewProps {
   readonly body: string
   readonly variables?: readonly ConversationVariable[]
   readonly attachments?: readonly QuickReplyAttachment[]
-  readonly labels: Pick<QuickRepliesWorkspaceLabels, 'previewTitle' | 'previewEmptyBody'>
+  readonly labels: Pick<ResolvedQuickRepliesWorkspaceLabels, 'previewTitle' | 'previewEmptyBody'>
 }
 
 /** Troca cada marcador pelo exemplo da variável (ou o rótulo, sem exemplo); sem catálogo, fica o marcador. */

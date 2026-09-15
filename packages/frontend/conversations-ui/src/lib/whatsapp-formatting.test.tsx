@@ -84,3 +84,17 @@ describe('parseWhatsAppFormatting com blocos por linha', () => {
     expect(render('- a\n```x\ny```')).not.toContain('<ul')
   })
 })
+
+describe('parseWhatsAppFormatting — paridade com o WhatsApp em prosa', () => {
+  it('linha "- Oi" vira lista e "> x" vira citação, como no aparelho', () => {
+    expect(render('- Oi')).toContain('<ul')
+    expect(render('> x')).toContain('<blockquote')
+  })
+
+  it('texto, linha em branco, lista, linha em branco, texto mantém as duas linhas em branco', () => {
+    const markup = render('a\n\n- b\n\nc')
+    expect(markup).toBe(
+      '<div><span>a\n</span>\n</div><ul class="list-disc pl-5"><li><span>b</span></li></ul><div><span>\nc</span></div>',
+    )
+  })
+})

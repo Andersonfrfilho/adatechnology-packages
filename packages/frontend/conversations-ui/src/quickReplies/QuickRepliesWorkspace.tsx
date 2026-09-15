@@ -148,7 +148,10 @@ export function QuickRepliesWorkspace({
     })
     if (!next) return
     // O execCommand dispara o `input` nativo, e o onChange mantém o estado do React em dia.
-    if (!replaceWithNativeUndo(field, editing.body, next.text)) updateField('body', next.text)
+    // Se o navegador aplicou só parte (ou nada), o estado vence o DOM.
+    if (!replaceWithNativeUndo(field, editing.body, next.text) || field.value !== next.text) {
+      updateField('body', next.text)
+    }
     requestAnimationFrame(() => {
       field.focus()
       field.setSelectionRange(next.selectionStart, next.selectionEnd)
