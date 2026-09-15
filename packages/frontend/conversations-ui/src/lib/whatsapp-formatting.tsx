@@ -39,7 +39,7 @@ function tokenize(text: string): FormatToken[] {
       continue
     }
     // Check for inline code
-    const inlineMatch = remaining.slice(i).match(/^`([^`]+)`/)
+    const inlineMatch = remaining.slice(i).match(/^`([^`\n]+)`/)
     if (inlineMatch && inlineMatch.index === 0) {
       if (buffer) {
         tokens.push(...parseInlineTokens(buffer))
@@ -66,19 +66,20 @@ function parseInlineTokens(text: string): FormatToken[] {
   let remaining = text
 
   while (remaining.length > 0) {
-    const boldMatch = remaining.match(/^\*([^*]+)\*/)
+    // Os marcadores não atravessam quebra de linha — o WhatsApp deixa `*a\nb*` literal.
+    const boldMatch = remaining.match(/^\*([^*\n]+)\*/)
     if (boldMatch) {
       result.push({ type: 'bold', content: boldMatch[1] })
       remaining = remaining.slice(boldMatch[0].length)
       continue
     }
-    const italicMatch = remaining.match(/^_([^_]+)_/)
+    const italicMatch = remaining.match(/^_([^_\n]+)_/)
     if (italicMatch) {
       result.push({ type: 'italic', content: italicMatch[1] })
       remaining = remaining.slice(italicMatch[0].length)
       continue
     }
-    const strikeMatch = remaining.match(/^~([^~]+)~/)
+    const strikeMatch = remaining.match(/^~([^~\n]+)~/)
     if (strikeMatch) {
       result.push({ type: 'strikethrough', content: strikeMatch[1] })
       remaining = remaining.slice(strikeMatch[0].length)
@@ -105,9 +106,95 @@ function parseInlineTokens(text: string): FormatToken[] {
   return result
 }
 
-export function parseWhatsAppFormatting(text: string): ReactNode[] {
-  const tokens = tokenize(text)
+const BULLETED_LINE = /^[*-] (.*)$/
+const NUMBERED_LINE = /^(\d+)\. (.*)$/
+const QUOTE_LINE = /^> (.*)$/
 
+type BlockKind = 'plain' | 'bulleted' | 'numbered' | 'quote'
+
+interface BlockGroup {
+  kind: BlockKind
+  lines: string[]
+}
+
+function blockKindOf(line: string): BlockKind {
+  if (BULLETED_LINE.test(line)) return 'bulleted'
+  if (NUMBERED_LINE.test(line)) return 'numbered'
+  if (QUOTE_LINE.test(line)) return 'quote'
+  return 'plain'
+}
+
+function groupLines(lines: string[]): BlockGroup[] {
+  const groups: BlockGroup[] = []
+  for (const line of lines) {
+    const kind = blockKindOf(line)
+    const last = groups[groups.length - 1]
+    if (last && last.kind === kind) last.lines.push(line)
+    else groups.push({ kind, lines: [line] })
+  }
+  return groups
+}
+
+function renderBlockGroup(group: BlockGroup, key: number): ReactNode {
+  if (group.kind === 'bulleted') {
+    return (
+      <ul key={key} className="list-disc pl-5">
+        {group.lines.map((line, index) => (
+          <li key={index}>{renderTokens(tokenize(line.replace(BULLETED_LINE, '$1')))}</li>
+        ))}
+      </ul>
+    )
+  }
+  if (group.kind === 'numbered') {
+    return (
+      <ol key={key} className="list-decimal pl-6">
+        {group.lines.map((line, index) => {
+          const [, number, content] = NUMBERED_LINE.exec(line) ?? []
+          return (
+            <li key={index} value={Number(number)}>
+              {renderTokens(tokenize(content ?? ''))}
+            </li>
+          )
+        })}
+      </ol>
+    )
+  }
+  if (group.kind === 'quote') {
+    return (
+      <blockquote
+        key={key}
+        className="border-l-4 border-gray-300 pl-2 text-gray-600 dark:border-gray-500 dark:text-gray-300"
+      >
+        {group.lines.map((line, index) => (
+          <div key={index}>{renderTokens(tokenize(line.replace(QUOTE_LINE, '$1')))}</div>
+        ))}
+      </blockquote>
+    )
+  }
+  const joined = group.lines.join('\n')
+  // Em `pre-wrap`, a última quebra de um bloco não desenha linha — a extra mantém a linha em branco.
+  const trailingBreak = group.lines[group.lines.length - 1] === '' ? '\n' : null
+  return (
+    <div key={key}>
+      {renderTokens(tokenize(joined))}
+      {trailingBreak}
+    </div>
+  )
+}
+
+/**
+ * Formatação do WhatsApp: inline (`*`, `_`, `~`, `` ` ``, ```` ``` ````) e, por linha, lista (`* `,
+ * `- `), lista numerada (`1. `) e citação (`> `). Sem linha de bloco, a saída é só inline, igual à de
+ * sempre. Com bloco de código de várias linhas, também — dividir por linha partiria o bloco.
+ */
+export function parseWhatsAppFormatting(text: string): ReactNode[] {
+  const lines = text.split('\n')
+  const hasBlockLine = lines.some((line) => blockKindOf(line) !== 'plain')
+  if (!hasBlockLine || text.includes('```')) return renderTokens(tokenize(text))
+  return groupLines(lines).map(renderBlockGroup)
+}
+
+function renderTokens(tokens: FormatToken[]): ReactNode[] {
   return tokens.map((token, index) => {
     switch (token.type) {
       case 'bold':
@@ -117,7 +204,11 @@ export function parseWhatsAppFormatting(text: string): ReactNode[] {
       case 'strikethrough':
         return <del key={index}>{token.content}</del>
       case 'monospace':
-        return <code key={index} className="bg-gray-100 px-1 py-0.5 rounded text-sm">{token.content}</code>
+        return (
+          <code key={index} className="bg-gray-100 px-1 py-0.5 rounded text-sm">
+            {token.content}
+          </code>
+        )
       case 'codeblock':
         return (
           <pre key={index} className="bg-gray-100 p-2 rounded text-sm overflow-x-auto my-1">
@@ -135,7 +226,11 @@ function escapeHtml(text: string): string {
 }
 
 function unescapeHtml(text: string): string {
-  return text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
 }
 
 // Marcador da Private Use Area do Unicode — praticamente impossível de colidir com
@@ -196,12 +291,14 @@ export function htmlToWA(html: string): string {
   // O `<code>` que o cursor abre nasce só com a âncora de largura zero. Sem nada digitado dentro,
   // ele viraria um par de crases vazias no texto enviado.
   text = text.replace(EMPTY_CODE_REGEX, '')
-  text = text.replace(/<code data-wa="block"[^>]*>([\s\S]*?)<\/code>/gi, (_match, inner: string) => (
-    `\`\`\`${unescapeHtml(inner.replace(/<br\s*\/?>/gi, '\n'))}\`\`\``
-  ))
-  text = text.replace(/<code data-wa="inline"[^>]*>([\s\S]*?)<\/code>/gi, (_match, inner: string) => (
-    `\`${unescapeHtml(inner)}\``
-  ))
+  text = text.replace(
+    /<code data-wa="block"[^>]*>([\s\S]*?)<\/code>/gi,
+    (_match, inner: string) => `\`\`\`${unescapeHtml(inner.replace(/<br\s*\/?>/gi, '\n'))}\`\`\``,
+  )
+  text = text.replace(
+    /<code data-wa="inline"[^>]*>([\s\S]*?)<\/code>/gi,
+    (_match, inner: string) => `\`${unescapeHtml(inner)}\``,
+  )
 
   text = text
     .replace(/<br\s*\/?>/gi, '\n')

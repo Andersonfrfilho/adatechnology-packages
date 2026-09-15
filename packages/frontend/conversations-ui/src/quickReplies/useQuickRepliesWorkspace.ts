@@ -40,7 +40,7 @@ export type QuickRepliesWorkspaceEditing = {
 }
 
 const TITLE_MAX_LENGTH = 40
-const BODY_MAX_LENGTH = 1000
+export const BODY_MAX_LENGTH = 1000
 const SHORTCUT_PATTERN = /^[a-z0-9-]{1,20}$/
 
 /** Casca genérica de erro de API com `code` e `details[]` (`apis.md`) — sem acoplar a um cliente HTTP específico. */

@@ -74,9 +74,24 @@ export interface QuickRepliesWorkspaceLabels {
   readonly attachmentLimitReached: string
   readonly attachmentTooLarge: (filename: string) => string
   readonly saveBlockedUploading: string
+  /** Barra de formatação acima do campo de texto — notação do WhatsApp. */
+  readonly formatBold?: string
+  readonly formatItalic?: string
+  readonly formatStrikethrough?: string
+  readonly formatMonospace?: string
+  readonly formatInlineCode?: string
+  readonly formatBulletedList?: string
+  readonly formatNumberedList?: string
+  readonly formatQuote?: string
+  readonly formattingToolbar?: string
+  readonly previewTitle?: string
+  readonly previewEmptyBody?: string
 }
 
-export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels = {
+/** Os rótulos já completados pelos padrões — as chaves novas são opcionais no tipo público. */
+export type ResolvedQuickRepliesWorkspaceLabels = Required<QuickRepliesWorkspaceLabels>
+
+export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: ResolvedQuickRepliesWorkspaceLabels = {
   title: 'Mensagens prontas',
   subtitle: (total) => `${total} ${total === 1 ? 'mensagem cadastrada' : 'mensagens cadastradas'}`,
   searchPlaceholder: 'Buscar por título, atalho ou texto',
@@ -121,4 +136,15 @@ export const DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS: QuickRepliesWorkspaceLabels
   attachmentLimitReached: 'Limite de 10 anexos por mensagem.',
   attachmentTooLarge: (filename) => `${filename}: excede o tamanho máximo para o tipo de arquivo.`,
   saveBlockedUploading: 'Aguardando o envio dos anexos…',
+  formatBold: 'Negrito',
+  formatItalic: 'Itálico',
+  formatStrikethrough: 'Tachado',
+  formatMonospace: 'Monoespaçado',
+  formatInlineCode: 'Código',
+  formatBulletedList: 'Lista',
+  formatNumberedList: 'Lista numerada',
+  formatQuote: 'Citação',
+  formattingToolbar: 'Formatação do texto',
+  previewTitle: 'Pré-visualização no WhatsApp',
+  previewEmptyBody: 'Digite o texto para ver como a mensagem chega ao cliente.',
 }

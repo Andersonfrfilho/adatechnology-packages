@@ -174,6 +174,9 @@ export { useConversationRealtime, useGlobalRealtime } from './hooks/useConversat
 export { useConversationActions, useInboxActions } from './hooks/useConversationActions'
 
 export { parseWhatsAppFormatting, waToHTML, htmlToWA, waToHTMLInline } from './lib/whatsapp-formatting'
+export { WhatsAppMessagePreview } from './lib/WhatsAppMessagePreview'
+export type { WhatsAppMessagePreviewProps } from './lib/WhatsAppMessagePreview'
+export { WHATSAPP_MARKER_BY_ACTION } from './lib/composer-formatting'
 export { formatPhone, phoneInitials } from './lib/phone'
 // `formatDateTime` e `isSameDay` já eram usados pelas bolhas e pelo divisor de data; exportá-los
 // evita que cada host mantenha a própria cópia e acabe com timeline e transcript divergindo.
