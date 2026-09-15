@@ -9,6 +9,7 @@ import { importarNfeXml } from '../../src/index'
 import {
   buildAuthorizedNfeXml,
   buildBareNfeXml,
+  buildNfeCorrectionEventXml,
   buildNfeEventXml,
   CARRIER_CNPJ,
   ISSUER_CNPJ,
@@ -179,6 +180,29 @@ describe('@adatechnology/fiscal-provider public NF-e XML import contract', () =>
       reason: 'Evento registrado e vinculado a NF-e',
     })
     expect(result['document']).toBeUndefined()
+  })
+
+  test('captures the CC-e correction text, trimmed, from detEvento/xCorrecao', () => {
+    const result = asRecord(
+      importarNfeXml(buildNfeCorrectionEventXml({ correctionText: '  Correção de endereço do destinatário  ' })),
+    )
+
+    expect(result['event']).toMatchObject({
+      type: '110110',
+      correctionText: 'Correção de endereço do destinatário',
+    })
+  })
+
+  test('leaves correctionText undefined when a CC-e event carries no xCorrecao', () => {
+    const result = asRecord(importarNfeXml(buildNfeCorrectionEventXml()))
+
+    expect(asRecord(result['event'])['correctionText']).toBeUndefined()
+  })
+
+  test('never populates correctionText for events other than CC-e (110110)', () => {
+    const result = asRecord(importarNfeXml(buildNfeEventXml()))
+
+    expect(asRecord(result['event'])['correctionText']).toBeUndefined()
   })
 
   test('never performs network I/O while importing local XML', () => {

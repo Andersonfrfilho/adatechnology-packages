@@ -430,6 +430,7 @@ function parseEvent(processed: XmlRecord): NfeXmlEvent {
     protocol: optionalString({ key: 'nProt', record: returnInfo }) ?? optionalString({ key: 'nProt', record: detail }),
     statusCode: optionalString({ key: 'cStat', record: returnInfo }),
     reason: optionalString({ key: 'xMotivo', record: returnInfo }),
+    correctionText: type === '110110' ? optionalTrimmedString({ key: 'xCorrecao', record: detail }) : undefined,
   }
 }
 
@@ -527,6 +528,13 @@ function optionalString({ key, record }: RecordKeyParams): string | undefined {
   if (!record) return undefined
   const value = record[key]
   return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function optionalTrimmedString(params: RecordKeyParams): string | undefined {
+  const value = optionalString(params)
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
 }
 
 function requireRecord(value: unknown): XmlRecord {

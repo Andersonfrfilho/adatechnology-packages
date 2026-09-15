@@ -929,6 +929,8 @@ export type NfeXmlEvent = {
   readonly protocol?: string
   readonly statusCode?: string
   readonly reason?: string
+  /** Texto da Carta de Correção (detEvento/xCorrecao) — presente só quando type é '110110' */
+  readonly correctionText?: string
 }
 
 export type ImportedAuthorizedNfeXml = DfeItem & {

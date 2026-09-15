@@ -26,6 +26,10 @@ type BuildNfeEventXmlParams = {
   readonly returnType?: string
 }
 
+type BuildNfeCorrectionEventXmlParams = {
+  readonly correctionText?: string
+}
+
 export function buildAuthorizedNfeXml(params: BuildAuthorizedNfeXmlParams = {}): string {
   const accessKey = params.accessKey ?? NFE_ACCESS_KEY
   const protocolAccessKey = params.protocolAccessKey ?? accessKey
@@ -76,6 +80,39 @@ export function buildNfeEventXml(params: BuildNfeEventXmlParams = {}): string {
     `<xEvento>Cancelamento registrado</xEvento><nSeqEvento>${returnSequence}</nSeqEvento>`,
     '<dhRegEvento>2026-07-20T13:00:01-03:00</dhRegEvento>',
     '<nProt>135260000000002</nProt>',
+    '</infEvento></retEvento>',
+    '</procEventoNFe>',
+  ].join('')
+}
+
+export function buildNfeCorrectionEventXml(params: BuildNfeCorrectionEventXmlParams = {}): string {
+  const detEvento = [
+    '<detEvento versao="1.00"><descEvento>Carta de Correcao</descEvento>',
+    params.correctionText === undefined ? '' : `<xCorrecao>${params.correctionText}</xCorrecao>`,
+    '<xCondUso>A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.</xCondUso>',
+    '</detEvento>',
+  ].join('')
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">',
+    '<evento versao="1.00"><infEvento Id="ID110110',
+    NFE_ACCESS_KEY,
+    '01">',
+    '<cOrgao>35</cOrgao><tpAmb>2</tpAmb>',
+    `<CNPJ>${ISSUER_CNPJ}</CNPJ><chNFe>${NFE_ACCESS_KEY}</chNFe>`,
+    '<dhEvento>2026-07-20T13:00:00-03:00</dhEvento>',
+    '<tpEvento>110110</tpEvento><nSeqEvento>1</nSeqEvento>',
+    '<verEvento>1.00</verEvento>',
+    detEvento,
+    '</infEvento></evento>',
+    '<retEvento versao="1.00"><infEvento>',
+    '<tpAmb>2</tpAmb><verAplic>TEST-1.0</verAplic><cOrgao>35</cOrgao>',
+    '<cStat>135</cStat><xMotivo>Evento registrado e vinculado a NF-e</xMotivo>',
+    `<chNFe>${NFE_ACCESS_KEY}</chNFe><tpEvento>110110</tpEvento>`,
+    '<xEvento>Carta de Correcao registrada</xEvento><nSeqEvento>1</nSeqEvento>',
+    '<dhRegEvento>2026-07-20T13:00:01-03:00</dhRegEvento>',
+    '<nProt>135260000000003</nProt>',
     '</infEvento></retEvento>',
     '</procEventoNFe>',
   ].join('')
