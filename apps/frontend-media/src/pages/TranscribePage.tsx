@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Upload, Download, Copy, CheckCircle } from 'lucide-react';
-import { useMediaJob } from '../hooks/useMediaJob.js';
-import { useWebSocket } from '../hooks/useWebSocket.js';
-import { ProgressCard } from '../components/ProgressCard.js';
+import { Upload, Copy, CheckCircle } from 'lucide-react';
+import { useMediaJob } from '../hooks/useMediaJob';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { ProgressCard } from '../components/ProgressCard';
 
 const transcribeSchema = z.object({
   file: z.instanceof(File).refine(
@@ -87,7 +87,7 @@ export function TranscribePage() {
                   </label>
                   <button
                     onClick={() =>
-                      copyToClipboard(progress.details.transcript.text)
+                      copyToClipboard(progress.details?.transcript?.text || '')
                     }
                     className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
                   >
