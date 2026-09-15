@@ -1,8 +1,9 @@
+/// <reference types="vite/client" />
 // Hook para gerenciar jobs de mídia
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import axios from 'axios';
-import type { AnyJob, ApiError } from '../types/index.js';
+import type { AnyJob, ApiError } from '../types/index';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 

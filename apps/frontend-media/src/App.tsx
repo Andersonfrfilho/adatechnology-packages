@@ -2,8 +2,8 @@
 
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Film, Mic } from 'lucide-react';
-import { TranscribePage } from './pages/TranscribePage.js';
-import { DubbingPage } from './pages/DubbingPage.js';
+import { TranscribePage } from './pages/TranscribePage';
+import { DubbingPage } from './pages/DubbingPage';
 
 export function App() {
   return (

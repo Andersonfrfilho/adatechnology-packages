@@ -1,13 +1,13 @@
 // Video Dubbing & Subtitles Page
 
 import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Upload, Download } from 'lucide-react';
-import { useMediaJob } from '../hooks/useMediaJob.js';
-import { useWebSocket } from '../hooks/useWebSocket.js';
-import { ProgressCard } from '../components/ProgressCard.js';
+import { useMediaJob } from '../hooks/useMediaJob';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { ProgressCard } from '../components/ProgressCard';
 
 const dubbingSchema = z.object({
   videoUrl: z.string().url('URL inválida').optional(),
@@ -36,7 +36,6 @@ export function DubbingPage() {
   const {
     register,
     handleSubmit,
-    control,
     watch,
     formState: { errors },
     reset,

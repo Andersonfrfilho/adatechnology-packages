@@ -1,7 +1,7 @@
 // Progress Card - Real-time job progress display
 
-import { FileAudio, Film, MoreVertical } from 'lucide-react';
-import type { ProgressEvent, ProcessingStage } from '../types/index.js';
+import { MoreVertical } from 'lucide-react';
+import type { ProgressEvent, ProcessingStage } from '../types/index';
 
 const STAGE_ICONS: Record<ProcessingStage, React.ReactNode> = {
   extracting: '🎬',

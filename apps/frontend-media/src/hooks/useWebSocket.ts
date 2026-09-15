@@ -1,8 +1,9 @@
+/// <reference types="vite/client" />
 // Hook para WebSocket real-time updates (only when processing)
 
 import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import type { ProgressEvent } from '../types/index.js';
+import type { ProgressEvent } from '../types/index';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
 
