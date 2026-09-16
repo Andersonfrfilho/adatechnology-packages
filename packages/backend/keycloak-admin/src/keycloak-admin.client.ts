@@ -37,6 +37,11 @@ import type {
   UpdateUserParams,
 } from './keycloak-admin.types.js'
 
+type RewriteUserParams = {
+  readonly buildAttributes: (current: KeycloakUserAttributes) => KeycloakUserAttributes
+  readonly userId: string
+}
+
 const HTTP_CONFLICT = 409
 const HTTP_NOT_FOUND = 404
 
@@ -124,6 +129,22 @@ export function createKeycloakAdminClient({
       method: 'PUT',
       secrets: [password],
       url: endpoints.userPassword(userId),
+    })
+  }
+
+  /**
+   * O Keycloak 26 com perfil declarativo lê `PUT /users/:id` com `attributes` como a ficha inteira:
+   * sem `username` responde 400 "User name is missing", e sem e-mail e nome apaga os dois (26.5.2,
+   * 16/09/2026). Regravar atributos exige ler a conta e devolver a representação completa.
+   */
+  async function rewriteUser({ buildAttributes, userId }: RewriteUserParams): Promise<void> {
+    const response = await adminRequest({ method: 'GET', url: endpoints.user(userId) })
+    const current = (await response.json()) as KeycloakUser
+
+    await adminRequest({
+      body: { ...current, attributes: normalizeAttributes(buildAttributes(current.attributes ?? {})) },
+      method: 'PUT',
+      url: endpoints.user(userId),
     })
   }
 
@@ -230,24 +251,21 @@ export function createKeycloakAdminClient({
     },
 
     /**
-     * A foto é atributo, e o Admin API **substitui o conjunto** quando recebe `attributes`. Por isso
-     * esta operação lê o usuário antes: mandar só a foto apagaria `company_id`, `tax_id` e qualquer
-     * outro atributo do produto — e o sintoma seria login entrando sem empresa, longe daqui.
+     * A foto é atributo, e o Admin API **substitui o conjunto** quando recebe `attributes`: mandar só
+     * a foto apagaria `company_id`, `tax_id` e qualquer outro atributo do produto.
      */
     async setProfilePicture({ pictureUrl, userId }: SetProfilePictureParams): Promise<void> {
-      const response = await adminRequest({ method: 'GET', url: endpoints.user(userId) })
-      const current = (await response.json()) as KeycloakUser
-      const attributes = { ...(current.attributes ?? {}) }
-      if (pictureUrl === undefined || pictureUrl === '') {
-        delete attributes[PROFILE_PICTURE_ATTRIBUTE]
-      } else {
-        attributes[PROFILE_PICTURE_ATTRIBUTE] = pictureUrl
-      }
-
-      await adminRequest({
-        body: { attributes: normalizeAttributes(attributes) },
-        method: 'PUT',
-        url: endpoints.user(userId),
+      await rewriteUser({
+        buildAttributes: (current) => {
+          const attributes = { ...current }
+          if (pictureUrl === undefined || pictureUrl === '') {
+            delete attributes[PROFILE_PICTURE_ATTRIBUTE]
+          } else {
+            attributes[PROFILE_PICTURE_ATTRIBUTE] = pictureUrl
+          }
+          return attributes
+        },
+        userId,
       })
     },
 
@@ -262,11 +280,7 @@ export function createKeycloakAdminClient({
     },
 
     async updateAttributes({ attributes, userId }: UpdateAttributesParams): Promise<void> {
-      await adminRequest({
-        body: { attributes: normalizeAttributes(attributes) },
-        method: 'PUT',
-        url: endpoints.user(userId),
-      })
+      await rewriteUser({ buildAttributes: () => attributes, userId })
     },
 
     async updateUser({ user, userId }: UpdateUserParams): Promise<void> {
