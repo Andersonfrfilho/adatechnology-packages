@@ -35,6 +35,12 @@ const { id } = await keycloak.createUser({
 Operações de usuário: `createUser`, `findUserByEmail`, `listUsers`, `updateUser`, `setEnabled`,
 `updateAttributes`, `deleteUser`, `setPassword`, `setTemporaryPassword`.
 
+⚠️ `updateAttributes` e `setProfilePicture` **leem a conta antes de gravar** (`GET` + `PUT` da
+representação completa). O Keycloak 26 com perfil de usuário declarativo trata o `PUT` com
+`attributes` como a ficha inteira: só `{ attributes }` responde 400 "User name is missing", e
+`{ username, attributes }` apaga e-mail e nome. `updateAttributes` substitui o conjunto de atributos;
+`setProfilePicture` troca só o `picture`. `updateUser` e `setEnabled` seguem parciais, sem leitura.
+
 Foto de perfil: `setProfilePicture({ userId, pictureUrl })`. O atributo é `picture`, o nome que o
 OIDC reserva — com um mapeador no realm ele chega ao token, e a tela desenha o avatar sem uma
 consulta por pessoa.
