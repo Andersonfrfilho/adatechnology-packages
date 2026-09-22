@@ -33,6 +33,15 @@ export const whatsAppOrderSchema = z.object({
 })
 export type WhatsAppOrder = z.infer<typeof whatsAppOrderSchema>
 
+export const whatsAppLocationSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  name: z.string().optional(),
+  address: z.string().optional(),
+  url: z.string().optional(),
+})
+export type WhatsAppLocation = z.infer<typeof whatsAppLocationSchema>
+
 export const whatsAppMessageSchema = z.object({
   id: z.string(),
   from: z.string(),
@@ -46,6 +55,8 @@ export const whatsAppMessageSchema = z.object({
   interactive: whatsAppInteractiveSchema.optional(),
   // Pedido enviado pelo carrinho do catálogo (WhatsApp Commerce)
   order: whatsAppOrderSchema.optional(),
+  // Coordenada enviada pelo botão "Localização" do app do cliente
+  location: whatsAppLocationSchema.optional(),
   // Presente quando o cliente abre um item do catálogo e manda mensagem pela página do produto
   context: z
     .object({
