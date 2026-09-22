@@ -69,6 +69,10 @@ function extractContent(message: WhatsAppMessage): string | null {
     const items = message.order.product_items.reduce((sum, item) => sum + item.quantity, 0)
     return `Pedido: ${items} item(ns)`
   }
+  if (message.location) {
+    const label = message.location.name ?? message.location.address
+    return label ? `📍 Localização: ${label}` : '📍 Localização'
+  }
   return message.image?.caption ?? message.document?.caption ?? null
 }
 
@@ -81,6 +85,7 @@ function extractPayload(message: WhatsAppMessage): Record<string, unknown> | nul
   if (message.video) payload['video'] = message.video
   if (message.document) payload['document'] = message.document
   if (message.sticker) payload['sticker'] = message.sticker
+  if (message.location) payload['location'] = message.location
   if (message.context?.referred_product) payload['referredProduct'] = message.context.referred_product
   return Object.keys(payload).length > 0 ? payload : null
 }

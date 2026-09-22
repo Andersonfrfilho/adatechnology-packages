@@ -189,6 +189,33 @@ export function buildInboundMediaPayload(params: BuildInboundMediaPayloadParams)
   })
 }
 
+export type BuildInboundLocationPayloadParams = InboundEnvelopeParams & {
+  readonly latitude: number
+  readonly longitude: number
+  readonly name?: string
+  readonly address?: string
+}
+
+export function buildInboundLocationPayload(params: BuildInboundLocationPayloadParams): WhatsAppWebhookPayload {
+  const { latitude, longitude, name, address, ...envelope } = params
+
+  return buildEnvelope({
+    ...envelope,
+    message: {
+      id: generateWamid(),
+      from: params.from,
+      type: 'location',
+      location: {
+        latitude,
+        longitude,
+        ...(name ? { name } : {}),
+        ...(address ? { address } : {}),
+      },
+      timestamp: currentTimestamp(),
+    },
+  })
+}
+
 /**
  * Serializa o payload uma única vez. A validação assina os bytes exatos recebidos: quem reserializa
  * antes de enviar (ou deixa o cliente HTTP serializar o objeto) muda espaçamento/ordem e derruba a
