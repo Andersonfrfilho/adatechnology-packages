@@ -80,6 +80,23 @@ export type SendInteractiveListParams = {
   readonly sections: readonly InteractiveListSection[]
 }
 
+/**
+ * O ponto no mapa, como o WhatsApp o desenha.
+ *
+ * É a única forma de mostrar um mapa na conversa: link de Google Maps rende, na melhor hipótese, um
+ * card de link com o logo do Google — o quadradinho com o pino só existe neste tipo de mensagem.
+ *
+ * `name` e `address` são opcionais porque a Meta os trata como rótulo do pino, não como endereço de
+ * verdade: quem os manda decide o que o cliente lê sob o mapa, e mandar só a coordenada é válido.
+ */
+export type SendLocationParams = {
+  readonly to: string
+  readonly latitude: number
+  readonly longitude: number
+  readonly name?: string
+  readonly address?: string
+}
+
 export type SendCatalogMessageParams = {
   readonly to: string
   readonly bodyText: string
