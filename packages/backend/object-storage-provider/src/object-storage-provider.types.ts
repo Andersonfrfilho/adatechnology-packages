@@ -55,6 +55,12 @@ export type SignedDownloadInput = ObjectLocation & {
   readonly filename?: string
 }
 
+export type SignedUploadInput = ObjectLocation & {
+  readonly expiresInSeconds: number
+  readonly contentLength: number
+  readonly contentType: string
+}
+
 export type ObjectStorageProviderHealth = {
   readonly status: 'up' | 'down'
 }
@@ -65,6 +71,7 @@ export type ObjectStorageProvider = {
   head(input: HeadObjectInput): Promise<StoredObject | undefined>
   delete(input: DeleteObjectInput): Promise<void>
   createSignedDownload(input: SignedDownloadInput): Promise<URL>
+  createSignedUpload(input: SignedUploadInput): Promise<URL>
   health(): Promise<ObjectStorageProviderHealth>
   close(): Promise<void>
 }

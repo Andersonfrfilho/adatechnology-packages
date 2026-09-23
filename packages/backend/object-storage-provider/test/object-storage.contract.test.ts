@@ -285,4 +285,70 @@ describe('ObjectStorageProvider public contract', () => {
       withoutDisposition.searchParams.get(SIGNATURE_PARAMETER),
     )
   })
+
+  test('creates a signed private upload URL binding content length into the signature', async () => {
+    const provider = createProvider()
+    const signedUpload = await provider.createSignedUpload({
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+    })
+    const differentContentLength = await provider.createSignedUpload({
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength + 1,
+      contentType: CONTENT_TYPE,
+    })
+
+    expect(signedUpload).toBeInstanceOf(URL)
+    expect(signedUpload.protocol).toBe('http:')
+    // `content-length` é cabeçalho assinável do S3: diverge o tamanho, diverge a assinatura, e o
+    // upload real é recusado se não bater com o que foi assinado aqui.
+    expect(signedUpload.searchParams.get('X-Amz-SignedHeaders')).toContain('content-length')
+    expect(signedUpload.searchParams.get(SIGNATURE_PARAMETER)).not.toBe(
+      differentContentLength.searchParams.get(SIGNATURE_PARAMETER),
+    )
+  })
+
+  test('rejects invalid expiration, oversized content, and invalid content type for signed uploads', async () => {
+    const provider = createProvider()
+    const validUpload = {
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+    }
+
+    await expect(provider.createSignedUpload({ ...validUpload, expiresInSeconds: 0 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid,
+    })
+    await expect(provider.createSignedUpload({ ...validUpload, expiresInSeconds: 901 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid,
+    })
+    await expect(provider.createSignedUpload({ ...validUpload, contentLength: 1025 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.objectTooLarge,
+    })
+    await expect(
+      provider.createSignedUpload({ ...validUpload, contentType: 'application/xml\r\nx-unsafe: value' }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.invalidContentType })
+  })
+
+  test('rejects signed uploads after the provider is closed', async () => {
+    const provider = createProvider()
+    await provider.close()
+
+    await expect(
+      provider.createSignedUpload({
+        bucket: BUCKET,
+        key: KEY,
+        expiresInSeconds: 60,
+        contentLength: ORIGINAL_BYTES.byteLength,
+        contentType: CONTENT_TYPE,
+      }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.providerClosed })
+  })
 })
