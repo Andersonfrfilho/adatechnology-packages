@@ -34,8 +34,25 @@ export type SendChannelMediaParams =
   | (SendChannelMediaCommon & { buffer: Buffer; mediaId?: string | undefined })
   | (SendChannelMediaCommon & { buffer?: undefined; mediaId: string })
 
+/**
+ * O que muda num texto além do corpo. Hoje só o cartão de link.
+ *
+ * Objeto e não um booleano solto porque a próxima opção de texto entra aqui sem mexer na assinatura
+ * de novo — e um terceiro posicional `true` no meio de uma chamada não diz o que liga.
+ */
+export type SendTextOptions = {
+  /**
+   * Pede à Meta o cartão de pré-visualização do primeiro link do corpo.
+   *
+   * Desligado por omissão, que é o comportamento da Graph API: o cartão puxa título, descrição e
+   * imagem do destino, e isso não pode virar padrão para todo texto que por acaso contenha uma URL.
+   * Só funciona em mensagem de texto — `interactive` nunca renderiza cartão, com ou sem este campo.
+   */
+  readonly previewUrl?: boolean
+}
+
 export interface ChannelAdapterInterface {
-  sendText(to: string, body: string): Promise<{ externalMessageId: string | null }>
+  sendText(to: string, body: string, options?: SendTextOptions): Promise<{ externalMessageId: string | null }>
   /**
    * Envia arquivo. Com `mediaId` conhecido, o binário não sobe de novo — a Meta aceita reusar o id
    * por 30 dias, e o `mediaId` devolvido é o que permite guardá-lo para os próximos destinatários.

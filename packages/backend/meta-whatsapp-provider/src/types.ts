@@ -170,3 +170,20 @@ export type DeleteTemplateParams = {
   readonly id: string
   readonly name: string
 }
+
+/**
+ * O que muda num texto além do corpo. Hoje só o cartão de link.
+ *
+ * Objeto e não um booleano solto porque a próxima opção de texto entra aqui sem mexer na assinatura
+ * de novo — e um terceiro posicional `true` no meio de uma chamada não diz o que liga.
+ */
+export type SendTextOptions = {
+  /**
+   * Pede à Meta o cartão de pré-visualização do primeiro link do corpo.
+   *
+   * Desligado por omissão, que é o comportamento da Graph API: o cartão puxa título, descrição e
+   * imagem do destino, e isso não pode virar padrão para todo texto que por acaso contenha uma URL.
+   * Só funciona em mensagem de texto — `interactive` nunca renderiza cartão, com ou sem este campo.
+   */
+  readonly previewUrl?: boolean
+}
