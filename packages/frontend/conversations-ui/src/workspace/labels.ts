@@ -32,6 +32,8 @@ export interface ConversationsWorkspaceLabels {
   readonly templateModalSend: (count: number) => string
   readonly messagesSelected: (count: number) => string
   readonly copySelected: string
+  readonly loadOlderMessages: string
+  readonly loadingOlderMessages: string
   readonly composerPlaceholder: string
   readonly attachFailure: string
   /** Tira um arquivo da fila antes de enviar. */
@@ -81,6 +83,8 @@ export const DEFAULT_CONVERSATIONS_WORKSPACE_LABELS: ConversationsWorkspaceLabel
   templateModalSend: (count) => `Enviar para ${count}`,
   messagesSelected: (count) => `${count} mensagem${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}`,
   copySelected: 'Copiar',
+  loadOlderMessages: 'Carregar mensagens anteriores',
+  loadingOlderMessages: 'Carregando…',
   composerPlaceholder: 'Responder como atendente…',
   attachFailure: 'Falha ao enviar o arquivo.',
   attachmentRemove: 'Remover anexo',
