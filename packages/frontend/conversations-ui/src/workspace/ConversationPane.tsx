@@ -22,6 +22,7 @@ import { buildTranscriptFilename, buildTranscriptText, downloadTextFile } from '
 import { useConversationContext } from '../hooks/useConversationContext'
 import { useConversationMessages } from '../hooks/useConversationMessages'
 import { useConversationRealtime } from '../hooks/useConversationRealtime'
+import { useLoadOlderMessagesScroll } from '../hooks/useLoadOlderMessagesScroll'
 import { useScrollToLatestMessage } from '../hooks/useScrollToLatestMessage'
 import { useConversations } from '../providers/ConversationsProvider'
 import type { ConversationSummary } from '../providers/types'
@@ -151,7 +152,9 @@ export function ConversationPane({
   }
   const { api } = context
 
-  const { messages, refetch } = useConversationMessages(conversation.id)
+  const { messages, refetch, loadOlderMessages, loadingOlderMessages, hasMoreOlderMessages } = useConversationMessages(
+    conversation.id,
+  )
   const { context: conversationContext } = useConversationContext(conversation.id)
   const [documentsOpen, setDocumentsOpen] = useState(false)
   const [sendFailure, setSendFailure] = useState<string | undefined>(undefined)
@@ -229,6 +232,16 @@ export function ConversationPane({
   // Abrir no topo do histórico obrigava a rolar semanas até a última mensagem — que é sempre o que
   // interessa. O hook salta ao trocar de conversa sem arrastar quem estiver lendo o histórico.
   const scroll = useScrollToLatestMessage({ conversationId: conversation.id, messageCount: messages.length })
+
+  // Chegar perto do topo busca a página anterior e devolve a rolagem ao mesmo ponto visual — sem
+  // isso, prepender mensagens antigas empurraria o operador para o meio do histórico.
+  const loadOlder = useLoadOlderMessagesScroll({
+    containerRef: scroll.containerRef,
+    oldestMessageId: messages[0]?.id,
+    hasMore: hasMoreOlderMessages,
+    loading: loadingOlderMessages,
+    onLoadOlder: () => void loadOlderMessages(),
+  })
 
   // O evento traz só `{ direction, sender }` — quem tem o conteúdo é a query.
   useConversationRealtime(conversation.id, () => {
@@ -352,9 +365,19 @@ export function ConversationPane({
           mesma aparência, senão o preview deixa de ser referência confiável. */}
       <ConversationWallpaper
         ref={scroll.containerRef}
-        onScroll={scroll.handleScroll}
+        onScroll={(event) => {
+          scroll.handleScroll(event)
+          loadOlder.handleScroll(event)
+        }}
         className="cv-workspace-transcript"
       >
+        {hasMoreOlderMessages ? (
+          <div className="cv-workspace-load-older">
+            <button type="button" onClick={loadOlder.triggerLoadOlder} disabled={loadingOlderMessages}>
+              {loadingOlderMessages ? labels.loadingOlderMessages : labels.loadOlderMessages}
+            </button>
+          </div>
+        ) : null}
         {messages.map((message, index) => {
           const previous = index > 0 ? messages[index - 1] : undefined
           const startsNewDay =
@@ -424,9 +447,11 @@ export function ConversationPane({
             ? {
                 onAttachFiles: (files: FileList) =>
                   enqueueAttachments(
-                    Array.from(files).map(
-                      (file): QueuedAttachment => ({ kind: 'local', localId: crypto.randomUUID(), file }),
-                    ),
+                    Array.from(files).map((file): QueuedAttachment => ({
+                      kind: 'local',
+                      localId: crypto.randomUUID(),
+                      file,
+                    })),
                   ),
               }
             : onAttach
