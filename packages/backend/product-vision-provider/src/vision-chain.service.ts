@@ -14,7 +14,20 @@
 import { VisionError } from './product-vision.error'
 import type { ProductVisionEngine, VisionInput, VisionReading } from './product-vision.types'
 
+/** Assinatura estrutural do desempatador — igual as outras portas, para nao acoplar ao engine. */
+export type VisionRanker = Readonly<{
+  rank: (params: {
+    readonly image: VisionInput
+    readonly candidates: readonly { productId: string; name: string }[]
+  }) => Promise<{ readonly productId?: string; readonly engine: string }>
+}>
+
 export type VisionChainConfig = Readonly<{
+  /**
+   * Desempate opcional. Sem ele a cadeia nao expoe `rank`, e o consumidor devolve os candidatos
+   * para a pessoa escolher — que e o comportamento correto e o mais barato.
+   */
+  ranker?: VisionRanker
   /**
    * Observabilidade da degradacao. Sem isto, o engine de vetor cair e invisivel: a leitura continua
    * voltando com o codigo de barras, tudo parece funcionar, e ninguem descobre que a busca visual
@@ -34,7 +47,9 @@ export function createVisionChain(
   const [only] = engines
   // Um engine so: devolve ele mesmo. Envolver custaria um try/catch e um nome de cadeia no
   // resultado, escondendo qual engine realmente respondeu.
-  if (engines.length === 1 && only) return only
+  //
+  // Com desempatador nao: ele precisa ser anexado, e o engine sozinho nao o carrega.
+  if (engines.length === 1 && only && !config.ranker) return only
 
   const name = `chain(${engines.map((engine) => engine.name).join('+')})`
 
@@ -70,7 +85,14 @@ export function createVisionChain(
     return { ...merged, engine: responded.join('+') }
   }
 
-  return Object.freeze({ name, ...(embeddingModel ? { embeddingModel } : {}), read })
+  return Object.freeze({
+    name,
+    ...(embeddingModel ? { embeddingModel } : {}),
+    read,
+    // A ausencia de `rank` e o que faz o consumidor cair na escolha manual: capacidade por
+    // ausencia, igual ao resto do ecossistema.
+    ...(config.ranker ? { rank: config.ranker.rank } : {}),
+  })
 }
 
 /** Erro retriavel tem prioridade: e o que faz o consumidor tentar de novo em vez de desistir. */
