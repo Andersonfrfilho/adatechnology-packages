@@ -21,3 +21,6 @@ export type {
   DkimResult,
   AttachmentKind,
 } from './vocabulary'
+
+export { CHANNEL_CAPABILITIES, getChannelCapabilities } from './channelCapabilities'
+export type { AttachmentCapability, AudioCapability, ChannelCapability } from './channelCapabilities'
