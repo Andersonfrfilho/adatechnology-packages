@@ -164,6 +164,16 @@ export type UnassignedRepositoryPort = {
   assign(params: AssignUnassignedParams): Promise<ConversationUnassignedRow | undefined>
 }
 
+/**
+ * A transação de uma reordenação (RF9): `rows` já chega travado (`for update`) e com as
+ * inativas — a reordenação é do conjunto inteiro do público, não só das ativas do compositor.
+ * `setPositions` grava em lote, na mesma transação que travou `rows`.
+ */
+export type QuickReplyReorderTransaction = {
+  readonly rows: readonly ConversationQuickReplyRow[]
+  setPositions(positions: readonly { readonly id: string; readonly position: number }[]): Promise<void>
+}
+
 /** Respostas rápidas por público (RF9) — CRUD simples, sem regra própria neste pacote. */
 export type QuickReplyRepositoryPort = {
   create(values: NewConversationQuickReplyRow): Promise<ConversationQuickReplyRow>
@@ -177,4 +187,13 @@ export type QuickReplyRepositoryPort = {
     position?: number
     active?: boolean
   }): Promise<ConversationQuickReplyRow | undefined>
+  /**
+   * Trava as linhas do público antes de entregar `rows` ao `work` — duas reordenações
+   * concorrentes do mesmo público nunca gravam uma mistura das duas (RF9). A regra de "mesmo
+   * conjunto" e a decisão de reordenar ou recusar são do caso de uso, não desta porta.
+   */
+  reorder<TResult>(
+    params: { readonly companyId: string; readonly audience: string },
+    work: (transaction: QuickReplyReorderTransaction) => Promise<TResult>,
+  ): Promise<TResult>
 }

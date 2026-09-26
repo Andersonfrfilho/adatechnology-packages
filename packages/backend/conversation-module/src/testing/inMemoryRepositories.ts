@@ -398,6 +398,26 @@ export function createInMemoryQuickReplies(): InMemoryQuickReplyRepository {
       row.updatedAt = EPOCH
       return row
     },
+    async reorder(params, work) {
+      // Sem Postgres não há "for update" de verdade — um só processo síncrono já serializa as
+      // chamadas. A cópia impede o `work` de mutar `rows` por fora de `setPositions`.
+      const scoped = rows
+        .filter((row) => row.companyId === params.companyId && row.audience === params.audience)
+        .sort((a, b) => a.position - b.position)
+        .map((row) => ({ ...row }))
+
+      return work({
+        rows: scoped,
+        async setPositions(positions) {
+          for (const { id, position } of positions) {
+            const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === id)
+            if (!row) continue
+            row.position = position
+            row.updatedAt = EPOCH
+          }
+        },
+      })
+    },
   }
 }
 
