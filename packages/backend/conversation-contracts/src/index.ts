@@ -24,3 +24,6 @@ export type {
 
 export { CHANNEL_CAPABILITIES, getChannelCapabilities } from './channelCapabilities'
 export type { AttachmentCapability, AudioCapability, ChannelCapability } from './channelCapabilities'
+
+export { advanceDeliveryStatus } from './deliveryStatus'
+export type { DeliveryStatusState, DeliveryStatusEvent, DeliveryStatusResult } from './deliveryStatus'
