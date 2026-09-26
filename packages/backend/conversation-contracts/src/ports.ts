@@ -81,10 +81,17 @@ export type VerifyEmailDkimInput = {
 }
 
 /**
- * D5: o transporte que a spec 143 provou necessário. `replyAddressPrefix` é parâmetro do host
- * (era fixo `transportada` na origem) — trocá-lo troca todo endereço de resposta em uso.
+ * D5: o transporte que a spec 143 provou necessário, em três capacidades separadas — **porque num
+ * produto real elas não moram no mesmo processo**. No consumidor de origem, quem deriva o endereço
+ * de resposta é a API, quem entrega o e-mail é o relay da fila, e quem baixa o MIME e verifica o
+ * DKIM é o worker que consome o webhook. Um transporte único obrigaria cada processo a implementar
+ * métodos que ele não tem como implementar, e o que se implementa nesse caso é um `throw` — foi
+ * assim que a falta de `contentType` na URL assinada apareceu.
+ *
+ * O endereço de resposta é a capacidade que **todo** processo que liga o canal precisa ter: é ela
+ * que faz a resposta voltar para a conversa certa, e é o que a D5 protege.
  */
-export type ConversationEmailTransportPort = {
+export type ConversationEmailReplyAddressPort = {
   /**
    * `token = base32lower(HMAC-SHA256(replyTokenSecret,
    * "<replyAddressPrefix>:v1:" + companyId + ":" + conversationId))[:128 bits]`, embutido no
@@ -98,11 +105,32 @@ export type ConversationEmailTransportPort = {
    * porta só confirma a candidata.
    */
   verifyReplyToken(input: VerifyEmailReplyTokenInput): boolean
+}
+
+/** Quem entrega o e-mail — no consumidor de origem, o relay que drena a fila de saída. */
+export type ConversationEmailSenderPort = {
   sendEmail(input: SendConversationEmailInput): Promise<SendConversationEmailResult>
+}
+
+/** Quem recebe: baixa o MIME e lê o veredito de DKIM. Vive onde o webhook é consumido. */
+export type ConversationEmailInboundPort = {
   /** Grava o MIME bruto e devolve o `sha256` **antes** de qualquer interpretação do conteúdo. */
   recordRawInboundEmail(input: RecordRawInboundEmailInput): Promise<RecordRawInboundEmailResult>
   verifyDkim(input: VerifyEmailDkimInput): Promise<DkimResult>
 }
+
+/** As três juntas, para o host que faz tudo num processo só. */
+export type ConversationEmailTransportPort = ConversationEmailReplyAddressPort &
+  ConversationEmailSenderPort &
+  ConversationEmailInboundPort
+
+/**
+ * O que um processo fornece ao ligar o canal `email`: sempre o endereço de resposta, e as outras
+ * capacidades conforme o que aquele processo faz. Pedir uma capacidade ausente é erro tipado do
+ * módulo na hora do uso, nunca um `throw` escondido dentro de um adaptador do host.
+ */
+export type ConversationEmailTransport = ConversationEmailReplyAddressPort &
+  Partial<ConversationEmailSenderPort & ConversationEmailInboundPort>
 
 export type ClockPort = {
   now(): Date
