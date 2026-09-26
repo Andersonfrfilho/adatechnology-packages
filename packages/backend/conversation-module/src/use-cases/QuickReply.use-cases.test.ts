@@ -12,9 +12,11 @@ import {
   CreateQuickReplyUseCase,
   ListQuickRepliesForComposerUseCase,
   ListAllQuickRepliesUseCase,
+  ReorderQuickRepliesUseCase,
   UpdateQuickReplyUseCase,
   QuickReplyInvalidError,
   QuickReplyNotFoundError,
+  QuickReplyOrderInvalidError,
 } from './QuickReply.use-cases'
 
 const COMPANY_ID = '11111111-1111-1111-1111-111111111111'
@@ -395,5 +397,175 @@ describe('UpdateQuickReplyUseCase (RF9)', () => {
       expect(e).toBeInstanceOf(QuickReplyNotFoundError)
     }
     expect(threw).toBe(true)
+  })
+})
+
+describe('ReorderQuickRepliesUseCase (RF9, quarta falta do primeiro consumidor)', () => {
+  it('grava as posições novas pela ordem da lista recebida', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const createUseCase = new CreateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+    const listUseCase = new ListAllQuickRepliesUseCase({ quickReplies })
+
+    const r1 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R1' })
+    const r2 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R2' })
+    const r3 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R3' })
+
+    await reorderUseCase.execute({
+      companyId: COMPANY_ID,
+      audience: 'customer',
+      ids: [r3.id, r1.id, r2.id],
+    })
+
+    const results = await listUseCase.execute({ companyId: COMPANY_ID })
+    const byId = new Map(results.map((r) => [r.id, r]))
+    expect(byId.get(r3.id)?.position).toBe(0)
+    expect(byId.get(r1.id)?.position).toBe(1)
+    expect(byId.get(r2.id)?.position).toBe(2)
+  })
+
+  it('mantém o lugar da inativa — ela participa da reordenação', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const createUseCase = new CreateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const updateUseCase = new UpdateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+    const listUseCase = new ListAllQuickRepliesUseCase({ quickReplies })
+
+    const r1 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'Ativa' })
+    const r2 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'Inativa' })
+    await updateUseCase.execute({ companyId: COMPANY_ID, id: r2.id, active: false })
+
+    await reorderUseCase.execute({
+      companyId: COMPANY_ID,
+      audience: 'customer',
+      ids: [r2.id, r1.id],
+    })
+
+    const results = await listUseCase.execute({ companyId: COMPANY_ID })
+    const byId = new Map(results.map((r) => [r.id, r]))
+    expect(byId.get(r2.id)?.position).toBe(0)
+    expect(byId.get(r2.id)?.active).toBe(false)
+    expect(byId.get(r1.id)?.position).toBe(1)
+  })
+
+  it('lista vazia num público vazio é no-op', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+
+    await reorderUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', ids: [] })
+  })
+
+  it('lista vazia num público com linhas é erro, e não grava nada', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const createUseCase = new CreateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+
+    await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R1' })
+
+    let threw = false
+    try {
+      await reorderUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', ids: [] })
+    } catch (e) {
+      threw = true
+      expect(e).toBeInstanceOf(QuickReplyOrderInvalidError)
+    }
+    expect(threw).toBe(true)
+    expect(quickReplies.rows[0]?.position).toBe(0)
+  })
+
+  it('rejeita id repetido — e não grava nada', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const createUseCase = new CreateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+
+    const r1 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R1' })
+    const r2 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R2' })
+
+    let threw = false
+    try {
+      await reorderUseCase.execute({
+        companyId: COMPANY_ID,
+        audience: 'customer',
+        ids: [r1.id, r1.id],
+      })
+    } catch (e) {
+      threw = true
+      expect(e).toBeInstanceOf(QuickReplyOrderInvalidError)
+    }
+    expect(threw).toBe(true)
+    expect(quickReplies.rows.find((r) => r.id === r1.id)?.position).toBe(0)
+    expect(quickReplies.rows.find((r) => r.id === r2.id)?.position).toBe(1)
+  })
+
+  it('rejeita id faltando — e não grava nada', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const createUseCase = new CreateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+
+    const r1 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R1' })
+    await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R2' })
+
+    let threw = false
+    try {
+      await reorderUseCase.execute({
+        companyId: COMPANY_ID,
+        audience: 'customer',
+        ids: [r1.id],
+      })
+    } catch (e) {
+      threw = true
+      expect(e).toBeInstanceOf(QuickReplyOrderInvalidError)
+    }
+    expect(threw).toBe(true)
+  })
+
+  it('rejeita id sobrando (de outro público) — e não grava nada', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const createUseCase = new CreateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+
+    const r1 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R1' })
+    const other = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'support', bodyText: 'R-support' })
+
+    let threw = false
+    try {
+      await reorderUseCase.execute({
+        companyId: COMPANY_ID,
+        audience: 'customer',
+        ids: [r1.id, other.id],
+      })
+    } catch (e) {
+      threw = true
+      expect(e).toBeInstanceOf(QuickReplyOrderInvalidError)
+    }
+    expect(threw).toBe(true)
+  })
+
+  it('a de outra empresa nunca entra no conjunto — id de outra empresa é sobra e recusa', async () => {
+    const quickReplies = createInMemoryQuickReplies()
+    const createUseCase = new CreateQuickReplyUseCase({ quickReplies, clock: createFixedClock(NOW) })
+    const reorderUseCase = new ReorderQuickRepliesUseCase({ quickReplies })
+
+    const r1 = await createUseCase.execute({ companyId: COMPANY_ID, audience: 'customer', bodyText: 'R1' })
+    const foreign = await createUseCase.execute({
+      companyId: OTHER_COMPANY_ID,
+      audience: 'customer',
+      bodyText: 'De outra empresa',
+    })
+
+    let threw = false
+    try {
+      await reorderUseCase.execute({
+        companyId: COMPANY_ID,
+        audience: 'customer',
+        ids: [r1.id, foreign.id],
+      })
+    } catch (e) {
+      threw = true
+      expect(e).toBeInstanceOf(QuickReplyOrderInvalidError)
+    }
+    expect(threw).toBe(true)
+    // A resposta da outra empresa continua intocada.
+    expect(quickReplies.rows.find((r) => r.id === foreign.id)?.companyId).toBe(OTHER_COMPANY_ID)
   })
 })
