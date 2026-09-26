@@ -1,0 +1,1169 @@
+{
+  "id": "7b0acafd-d2fb-4dbd-83aa-67de5432cf3e",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "conversation.attachments": {
+      "name": "attachments",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bucket": {
+          "name": "bucket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transcript_text": {
+          "name": "transcript_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "attachments_message_idx": {
+          "name": "attachments_message_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "message_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "attachments_message_fk": {
+          "name": "attachments_message_fk",
+          "tableFrom": "attachments",
+          "tableTo": "messages",
+          "schemaTo": "conversation",
+          "columnsFrom": [
+            "company_id",
+            "message_id"
+          ],
+          "columnsTo": [
+            "company_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "attachments_company_id_id_unique": {
+          "name": "attachments_company_id_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "attachments_sha256_check": {
+          "name": "attachments_sha256_check",
+          "value": "\"conversation\".\"attachments\".\"sha256\" ~ '^[0-9a-f]{64}$'"
+        },
+        "attachments_size_check": {
+          "name": "attachments_size_check",
+          "value": "\"conversation\".\"attachments\".\"size_bytes\" > 0"
+        },
+        "attachments_kind_check": {
+          "name": "attachments_kind_check",
+          "value": "\"conversation\".\"attachments\".\"kind\" in ('audio', 'document', 'image')"
+        },
+        "attachments_duration_check": {
+          "name": "attachments_duration_check",
+          "value": "\"conversation\".\"attachments\".\"duration_ms\" is null or \"conversation\".\"attachments\".\"duration_ms\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "conversation.messages": {
+      "name": "messages",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direction": {
+          "name": "direction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_user_id": {
+          "name": "author_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "automatic": {
+          "name": "automatic",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "sender_address": {
+          "name": "sender_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "body_text": {
+          "name": "body_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status_times": {
+          "name": "status_times",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "provider_message_id": {
+          "name": "provider_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transport_ref": {
+          "name": "transport_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dkim_result": {
+          "name": "dkim_result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "messages_conversation_created_idx": {
+          "name": "messages_conversation_created_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "conversation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "messages_conversation_fk": {
+          "name": "messages_conversation_fk",
+          "tableFrom": "messages",
+          "tableTo": "conversations",
+          "schemaTo": "conversation",
+          "columnsFrom": [
+            "company_id",
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "company_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "messages_company_id_id_unique": {
+          "name": "messages_company_id_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "id"
+          ]
+        },
+        "messages_company_id_channel_provider_message_id_unique": {
+          "name": "messages_company_id_channel_provider_message_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "channel",
+            "provider_message_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "messages_channel_check": {
+          "name": "messages_channel_check",
+          "value": "\"conversation\".\"messages\".\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')"
+        },
+        "messages_direction_check": {
+          "name": "messages_direction_check",
+          "value": "\"conversation\".\"messages\".\"direction\" in ('inbound', 'outbound')"
+        },
+        "messages_author_check": {
+          "name": "messages_author_check",
+          "value": "(\"conversation\".\"messages\".\"direction\" = 'outbound' and (\"conversation\".\"messages\".\"author_user_id\" is not null) <> \"conversation\".\"messages\".\"automatic\" and \"conversation\".\"messages\".\"sender_address\" is null)\n        or (\"conversation\".\"messages\".\"direction\" = 'inbound' and not \"conversation\".\"messages\".\"automatic\" and num_nonnulls(\"conversation\".\"messages\".\"author_user_id\", \"conversation\".\"messages\".\"sender_address\") = 1\n          and (\"conversation\".\"messages\".\"author_user_id\" is null or \"conversation\".\"messages\".\"channel\" in ('app', 'portal', 'webchat'))\n          and (\"conversation\".\"messages\".\"sender_address\" is null or \"conversation\".\"messages\".\"channel\" in ('email', 'whatsapp', 'webchat')))"
+        },
+        "messages_status_check": {
+          "name": "messages_status_check",
+          "value": "\"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'sent', 'delivered', 'read', 'failed', 'bounced')"
+        },
+        "messages_status_direction_check": {
+          "name": "messages_status_direction_check",
+          "value": "(\"conversation\".\"messages\".\"direction\" = 'outbound') = (\"conversation\".\"messages\".\"status\" is not null)"
+        },
+        "messages_dkim_result_check": {
+          "name": "messages_dkim_result_check",
+          "value": "\"conversation\".\"messages\".\"dkim_result\" is null or (\"conversation\".\"messages\".\"dkim_result\" in ('aligned', 'not_aligned', 'unverifiable', 'absent') and \"conversation\".\"messages\".\"channel\" = 'email' and \"conversation\".\"messages\".\"direction\" = 'inbound')"
+        },
+        "messages_body_length_check": {
+          "name": "messages_body_length_check",
+          "value": "length(\"conversation\".\"messages\".\"body_text\") <= 8000"
+        },
+        "messages_email_reachable_status_check": {
+          "name": "messages_email_reachable_status_check",
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'email' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'sent', 'delivered', 'failed', 'bounced')"
+        },
+        "messages_whatsapp_reachable_status_check": {
+          "name": "messages_whatsapp_reachable_status_check",
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'whatsapp' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'sent', 'delivered', 'read', 'failed')"
+        },
+        "messages_app_reachable_status_check": {
+          "name": "messages_app_reachable_status_check",
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'app' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'delivered', 'read')"
+        },
+        "messages_portal_reachable_status_check": {
+          "name": "messages_portal_reachable_status_check",
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'portal' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('delivered', 'read')"
+        },
+        "messages_webchat_reachable_status_check": {
+          "name": "messages_webchat_reachable_status_check",
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'webchat' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'delivered', 'failed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "conversation.participants": {
+      "name": "participants",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "participants_conversation_fk": {
+          "name": "participants_conversation_fk",
+          "tableFrom": "participants",
+          "tableTo": "conversations",
+          "schemaTo": "conversation",
+          "columnsFrom": [
+            "company_id",
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "company_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "participants_company_id_conversation_id_channel_identifier_unique": {
+          "name": "participants_company_id_conversation_id_channel_identifier_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "conversation_id",
+            "channel",
+            "identifier"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "participants_channel_check": {
+          "name": "participants_channel_check",
+          "value": "\"conversation\".\"participants\".\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "conversation.quick_replies": {
+      "name": "quick_replies",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "audience": {
+          "name": "audience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body_text": {
+          "name": "body_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "quick_replies_audience_position_idx": {
+          "name": "quick_replies_audience_position_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "audience",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "quick_replies_body_text_check": {
+          "name": "quick_replies_body_text_check",
+          "value": "char_length(btrim(\"conversation\".\"quick_replies\".\"body_text\")) between 1 and 500"
+        },
+        "quick_replies_position_check": {
+          "name": "quick_replies_position_check",
+          "value": "\"conversation\".\"quick_replies\".\"position\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "conversation.reads": {
+      "name": "reads",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_read_message_id": {
+          "name": "last_read_message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "reads_conversation_fk": {
+          "name": "reads_conversation_fk",
+          "tableFrom": "reads",
+          "tableTo": "conversations",
+          "schemaTo": "conversation",
+          "columnsFrom": [
+            "company_id",
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "company_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "reads_message_fk": {
+          "name": "reads_message_fk",
+          "tableFrom": "reads",
+          "tableTo": "messages",
+          "schemaTo": "conversation",
+          "columnsFrom": [
+            "company_id",
+            "last_read_message_id"
+          ],
+          "columnsTo": [
+            "company_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "reads_company_id_conversation_id_user_id_unique": {
+          "name": "reads_company_id_conversation_id_user_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "conversation_id",
+            "user_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "conversation.unassigned": {
+      "name": "unassigned",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sender_address": {
+          "name": "sender_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body_text": {
+          "name": "body_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "provider_message_id": {
+          "name": "provider_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transport_ref": {
+          "name": "transport_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dkim_result": {
+          "name": "dkim_result",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assigned_message_id": {
+          "name": "assigned_message_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_at": {
+          "name": "assigned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "assigned_by_user_id": {
+          "name": "assigned_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "unassigned_open_idx": {
+          "name": "unassigned_open_idx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "received_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"conversation\".\"unassigned\".\"assigned_message_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "unassigned_assigned_message_fk": {
+          "name": "unassigned_assigned_message_fk",
+          "tableFrom": "unassigned",
+          "tableTo": "messages",
+          "schemaTo": "conversation",
+          "columnsFrom": [
+            "company_id",
+            "assigned_message_id"
+          ],
+          "columnsTo": [
+            "company_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "unassigned_company_id_id_unique": {
+          "name": "unassigned_company_id_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "id"
+          ]
+        },
+        "unassigned_company_id_channel_provider_message_id_unique": {
+          "name": "unassigned_company_id_channel_provider_message_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "channel",
+            "provider_message_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "unassigned_channel_check": {
+          "name": "unassigned_channel_check",
+          "value": "\"conversation\".\"unassigned\".\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')"
+        },
+        "unassigned_assignment_check": {
+          "name": "unassigned_assignment_check",
+          "value": "num_nonnulls(\"conversation\".\"unassigned\".\"assigned_message_id\", \"conversation\".\"unassigned\".\"assigned_at\", \"conversation\".\"unassigned\".\"assigned_by_user_id\") in (0, 3)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "conversation.uploads": {
+      "name": "uploads",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "conversation_id": {
+          "name": "conversation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_by_user_id": {
+          "name": "requested_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bucket": {
+          "name": "bucket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "declared_content_type": {
+          "name": "declared_content_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "declared_size_bytes": {
+          "name": "declared_size_bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attached_at": {
+          "name": "attached_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "uploads_status_expires_idx": {
+          "name": "uploads_status_expires_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "uploads_conversation_fk": {
+          "name": "uploads_conversation_fk",
+          "tableFrom": "uploads",
+          "tableTo": "conversations",
+          "schemaTo": "conversation",
+          "columnsFrom": [
+            "company_id",
+            "conversation_id"
+          ],
+          "columnsTo": [
+            "company_id",
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "uploads_company_id_object_key_unique": {
+          "name": "uploads_company_id_object_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "object_key"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "uploads_status_check": {
+          "name": "uploads_status_check",
+          "value": "\"conversation\".\"uploads\".\"status\" in ('pending', 'attached', 'expired')"
+        },
+        "uploads_channel_check": {
+          "name": "uploads_channel_check",
+          "value": "\"conversation\".\"uploads\".\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')"
+        },
+        "uploads_size_check": {
+          "name": "uploads_size_check",
+          "value": "\"conversation\".\"uploads\".\"declared_size_bytes\" > 0"
+        },
+        "uploads_file_name_check": {
+          "name": "uploads_file_name_check",
+          "value": "char_length(\"conversation\".\"uploads\".\"file_name\") <= 200"
+        },
+        "uploads_attached_check": {
+          "name": "uploads_attached_check",
+          "value": "(\"conversation\".\"uploads\".\"status\" = 'attached') = (\"conversation\".\"uploads\".\"attached_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "conversation.conversations": {
+      "name": "conversations",
+      "schema": "conversation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_type": {
+          "name": "subject_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject_id": {
+          "name": "subject_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "audience": {
+          "name": "audience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "public_ref": {
+          "name": "public_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "default_channel": {
+          "name": "default_channel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "window_notice_sent_for": {
+          "name": "window_notice_sent_for",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "conversations_subject_audience_unique": {
+          "name": "conversations_subject_audience_unique",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "subject_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "coalesce(\"audience\", '')",
+              "asc": true,
+              "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"conversation\".\"conversations\".\"subject_type\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "conversations_company_id_id_unique": {
+          "name": "conversations_company_id_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "id"
+          ]
+        },
+        "conversations_company_id_public_ref_unique": {
+          "name": "conversations_company_id_public_ref_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "company_id",
+            "public_ref"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "conversations_status_check": {
+          "name": "conversations_status_check",
+          "value": "\"conversation\".\"conversations\".\"status\" in ('open', 'closed')"
+        },
+        "conversations_default_channel_check": {
+          "name": "conversations_default_channel_check",
+          "value": "\"conversation\".\"conversations\".\"default_channel\" is null or \"conversation\".\"conversations\".\"default_channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')"
+        },
+        "conversations_subject_pair_check": {
+          "name": "conversations_subject_pair_check",
+          "value": "(\"conversation\".\"conversations\".\"subject_type\" is null) = (\"conversation\".\"conversations\".\"subject_id\" is null)"
+        },
+        "conversations_public_ref_check": {
+          "name": "conversations_public_ref_check",
+          "value": "\"conversation\".\"conversations\".\"public_ref\" is null or \"conversation\".\"conversations\".\"public_ref\" ~ '^[A-Za-z0-9_-]{22,64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "conversation": "conversation"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
