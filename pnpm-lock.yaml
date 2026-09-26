@@ -1223,6 +1223,9 @@ importers:
 
   packages/frontend/conversations-ui:
     dependencies:
+      '@adatechnology/conversation-contracts':
+        specifier: workspace:*
+        version: link:../../backend/conversation-contracts
       '@adatechnology/meta-whatsapp-contracts':
         specifier: workspace:*
         version: link:../../backend/meta-whatsapp-contracts
