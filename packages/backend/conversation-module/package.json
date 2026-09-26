@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@adatechnology/conversation-contracts": "workspace:*",
+    "mailauth": "5.0.3",
     "postal-mime": "^2.7.6",
     "zod": "^3.24.1"
   },
