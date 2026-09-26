@@ -25,6 +25,7 @@ import type { ConversationDatabase } from './database.types'
 import { ConversationRepository } from './repositories/ConversationRepository'
 import { MessageRepository } from './repositories/MessageRepository'
 import { ReadRepository } from './repositories/ReadRepository'
+import { UnassignedRepository } from './repositories/UnassignedRepository'
 import { OpenConversationUseCase } from './use-cases/Conversation.use-cases'
 import {
   ListConversationMessagesUseCase,
@@ -33,6 +34,11 @@ import {
   UpdateMessageStatusUseCase,
 } from './use-cases/Message.use-cases'
 import { MarkConversationReadUseCase } from './use-cases/Read.use-cases'
+import {
+  AssignUnassignedToConversationUseCase,
+  AttributeInboundMessageUseCase,
+} from './use-cases/Attribution.use-cases'
+import type { FilterConversationCandidatesPort } from './use-cases/Attribution.types'
 
 /** Canal comum, enviado por `ConversationChannelPort` — `email` fica de fora (D5). */
 type NonEmailChannel = Exclude<ConversationChannel, 'email'>
@@ -53,6 +59,8 @@ export type ConversationModuleProviders = {
   readonly emailTransport?: ConversationEmailTransportPort
   readonly objectStorage?: ObjectStoragePort
   readonly transcriber?: TranscriberPort
+  /** RF7: regra do produto para "atribuível" entre candidatas — ausente, todas contam. */
+  readonly filterCandidates?: FilterConversationCandidatesPort
 }
 
 export type CreateConversationModuleParams = {
@@ -71,6 +79,8 @@ export type ConversationModule = {
     readonly updateMessageStatus: UpdateMessageStatusUseCase
     readonly listConversationMessages: ListConversationMessagesUseCase
     readonly markConversationRead: MarkConversationReadUseCase
+    readonly attributeInboundMessage: AttributeInboundMessageUseCase
+    readonly assignUnassignedToConversation: AssignUnassignedToConversationUseCase
   }
 }
 
@@ -80,6 +90,7 @@ export function createConversationModule(params: CreateConversationModuleParams)
   const conversations = new ConversationRepository(providers.db)
   const messages = new MessageRepository(providers.db)
   const reads = new ReadRepository(providers.db)
+  const unassigned = new UnassignedRepository(providers.db)
 
   const enabledChannels: ConversationChannel[] = [
     ...(Object.keys(providers.channels) as NonEmailChannel[]),
@@ -95,6 +106,19 @@ export function createConversationModule(params: CreateConversationModuleParams)
       updateMessageStatus: new UpdateMessageStatusUseCase({ messages }),
       listConversationMessages: new ListConversationMessagesUseCase({ messages }),
       markConversationRead: new MarkConversationReadUseCase({ reads, messages, clock: providers.clock }),
+      attributeInboundMessage: new AttributeInboundMessageUseCase({
+        conversations,
+        messages,
+        unassigned,
+        clock: providers.clock,
+        filterCandidates: providers.filterCandidates,
+      }),
+      assignUnassignedToConversation: new AssignUnassignedToConversationUseCase({
+        conversations,
+        messages,
+        unassigned,
+        clock: providers.clock,
+      }),
     },
   }
 }

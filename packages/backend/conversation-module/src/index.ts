@@ -96,6 +96,18 @@ export { MarkConversationReadUseCase } from './use-cases/Read.use-cases'
 export type { MarkConversationReadInput } from './use-cases/Read.use-cases'
 
 export {
+  AttributeInboundMessageUseCase,
+  AssignUnassignedToConversationUseCase,
+} from './use-cases/Attribution.use-cases'
+export type {
+  AttributeInboundMessageInput,
+  AttributeInboundMessageResult,
+  AssignUnassignedToConversationInput,
+  AssignUnassignedToConversationResult,
+} from './use-cases/Attribution.use-cases'
+export type { FilterConversationCandidatesInput, FilterConversationCandidatesPort } from './use-cases/Attribution.types'
+
+export {
   ConversationModuleError,
   CONVERSATION_ERROR_CODES,
   ChannelPortNotConfiguredError,
@@ -107,4 +119,5 @@ export {
   AttachmentTooLargeError,
   UploadNotFoundError,
   UploadExpiredError,
+  UnassignedNotFoundError,
 } from './errors'

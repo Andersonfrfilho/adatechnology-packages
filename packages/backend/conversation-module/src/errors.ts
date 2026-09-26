@@ -28,6 +28,7 @@ export const CONVERSATION_ERROR_CODES = {
   ATTACHMENT_TOO_LARGE: 'CONVERSATION_ATTACHMENT_TOO_LARGE',
   UPLOAD_NOT_FOUND: 'CONVERSATION_UPLOAD_NOT_FOUND',
   UPLOAD_EXPIRED: 'CONVERSATION_UPLOAD_EXPIRED',
+  UNASSIGNED_NOT_FOUND: 'CONVERSATION_UNASSIGNED_NOT_FOUND',
 } as const
 
 /**
@@ -111,5 +112,13 @@ export class UploadNotFoundError extends ConversationModuleError {
 export class UploadExpiredError extends ConversationModuleError {
   constructor(public readonly objectKey: string) {
     super(`Pedido de upload expirado.`, 410, CONVERSATION_ERROR_CODES.UPLOAD_EXPIRED, { objectKey })
+  }
+}
+
+export class UnassignedNotFoundError extends ConversationModuleError {
+  constructor(public readonly unassignedId: string) {
+    super(`Item da fila de não atribuídas não encontrado.`, 404, CONVERSATION_ERROR_CODES.UNASSIGNED_NOT_FOUND, {
+      unassignedId,
+    })
   }
 }
