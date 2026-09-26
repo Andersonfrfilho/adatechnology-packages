@@ -7,7 +7,11 @@
  */
 import { randomUUID } from 'node:crypto'
 
-import type { ObjectStoragePort } from '@adatechnology/conversation-contracts'
+import type {
+  CreateSignedConversationDownloadUrlInput,
+  CreateSignedConversationUploadUrlInput,
+  ObjectStoragePort,
+} from '@adatechnology/conversation-contracts'
 
 import type {
   ConversationAttachmentRow,
@@ -403,11 +407,16 @@ export function createFixedClock(now: Date): { now(): Date } {
 
 export type InMemoryObjectStorage = ObjectStoragePort & {
   readonly objects: Map<string, { bytes: Uint8Array; contentType: string }>
+  /** O que cada assinatura recebeu — é o que prova que a URL amarra tipo e tamanho declarados. */
+  readonly signedUploads: CreateSignedConversationUploadUrlInput[]
+  readonly signedDownloads: CreateSignedConversationDownloadUrlInput[]
 }
 
 /** Dublê do `ObjectStoragePort` (T209/T210): guarda os bytes em memória, chaveados por `bucket/key`. */
 export function createInMemoryObjectStorage(): InMemoryObjectStorage {
   const objects = new Map<string, { bytes: Uint8Array; contentType: string }>()
+  const signedUploads: CreateSignedConversationUploadUrlInput[] = []
+  const signedDownloads: CreateSignedConversationDownloadUrlInput[] = []
   const keyOf = (location: { bucket: string; key: string }): string => `${location.bucket}/${location.key}`
 
   return {
@@ -429,10 +438,14 @@ export function createInMemoryObjectStorage(): InMemoryObjectStorage {
       objects.delete(keyOf(input))
     },
     async createSignedDownload(input) {
+      signedDownloads.push(input)
       return new URL(`https://storage.test/${keyOf(input)}?mode=download`)
     },
     async createSignedUpload(input) {
+      signedUploads.push(input)
       return new URL(`https://storage.test/${keyOf(input)}?mode=upload`)
     },
+    signedUploads,
+    signedDownloads,
   }
 }
