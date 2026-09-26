@@ -21,7 +21,7 @@ import {
   type ClockPort,
   type ConversationChannel,
   type ConversationChannelPort,
-  type ConversationEmailTransportPort,
+  type ConversationEmailTransport,
   type ObjectStoragePort,
   type TranscriberPort,
 } from '@adatechnology/conversation-contracts'
@@ -86,8 +86,15 @@ const CHANNEL_TRANSPORT_REQUIREMENTS: Partial<
   >
 > = {
   email: {
-    portName: 'ConversationEmailTransportPort',
-    present: (providers) => Boolean(providers.emailTransport),
+    portName: 'ConversationEmailReplyAddressPort (em providers.emailTransport)',
+    /**
+     * A capacidade exigida é a do **endereço de resposta**: é ela que faz a resposta voltar para a
+     * conversa certa (D5). Entregar e receber são capacidades de processos diferentes, e cada um
+     * fornece a sua — ver `ConversationEmailTransport`.
+     */
+    present: (providers) =>
+      typeof providers.emailTransport?.deriveReplyAddress === 'function' &&
+      typeof providers.emailTransport.verifyReplyToken === 'function',
   },
 }
 
@@ -120,7 +127,7 @@ export type ConversationModuleProviders = {
   readonly db: ConversationDatabase
   readonly clock: ClockPort
   readonly channels: Partial<Record<NonEmailChannel, ConversationChannelPort>>
-  readonly emailTransport?: ConversationEmailTransportPort
+  readonly emailTransport?: ConversationEmailTransport
   readonly objectStorage?: ObjectStoragePort
   readonly transcriber?: TranscriberPort
   /** RF7: regra do produto para "atribuível" entre candidatas — ausente, todas contam. */

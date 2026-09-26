@@ -109,6 +109,8 @@ export class RequestAttachmentUploadUseCase {
       bucket: this.deps.bucket,
       key: objectKey,
       expiresInSeconds: ATTACHMENT_UPLOAD_EXPIRES_IN_SECONDS,
+      contentType: input.contentType,
+      contentLength: input.sizeBytes,
     })
 
     return { uploadId: upload.id, objectKey, uploadUrl, expiresAt }
@@ -226,6 +228,8 @@ export class CreateAttachmentDownloadUrlUseCase {
       bucket: attachment.bucket,
       key: attachment.objectKey,
       expiresInSeconds: ATTACHMENT_DOWNLOAD_EXPIRES_IN_SECONDS,
+      disposition: 'attachment',
+      fileName: attachment.fileName,
     })
     return { url }
   }
