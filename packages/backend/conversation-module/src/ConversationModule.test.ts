@@ -75,7 +75,7 @@ describe('D5/CA03 — canal email exige transporte na subida', () => {
       expect(transportError.code).toBe('CONVERSATION_CHANNEL_TRANSPORT_MISSING')
       expect(transportError.channel).toBe('email')
       expect(transportError.message).toContain('email')
-      expect(transportError.message).toContain('ConversationEmailTransportPort')
+      expect(transportError.message).toContain('ConversationEmailReplyAddressPort')
       expect(transportError.message).not.toMatch(/@|https?:\/\/|secret|token|senha/i)
     }
   })
@@ -87,6 +87,47 @@ describe('D5/CA03 — canal email exige transporte na subida', () => {
     })
 
     expect(module.enabledChannels).toContain('email')
+  })
+
+  /**
+   * Num produto real as três capacidades do e-mail não moram no mesmo processo: quem deriva o
+   * endereço de resposta é a API, quem entrega é o relay da fila, quem baixa o MIME e lê o DKIM é o
+   * worker do webhook. Exigir as três de cada processo faria cada um implementar um `throw` no que
+   * não tem — que é pior do que declarar a ausência.
+   */
+  test('o processo que só deriva o endereço de resposta liga o canal', () => {
+    const module = createConversationModule({
+      config: { enabledChannels: ['email'] },
+      providers: {
+        db: inertDb,
+        clock: fixedClock(),
+        channels: {},
+        emailTransport: {
+          deriveReplyAddress: () => 'reply+token@example.test',
+          verifyReplyToken: () => true,
+        },
+      },
+    })
+
+    expect(module.enabledChannels).toContain('email')
+  })
+
+  test('transporte sem o endereço de resposta não liga o canal', () => {
+    expect(() =>
+      createConversationModule({
+        config: { enabledChannels: ['email'] },
+        providers: {
+          db: inertDb,
+          clock: fixedClock(),
+          channels: {},
+          emailTransport: {
+            async sendEmail() {
+              return { providerMessageId: randomUUID() }
+            },
+          } as never,
+        },
+      }),
+    ).toThrow(ChannelTransportMissingError)
   })
 
   test('sem email pedido, nenhum transporte é exigido', () => {
