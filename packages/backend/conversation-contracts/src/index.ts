@@ -27,3 +27,26 @@ export type { AttachmentCapability, AudioCapability, ChannelCapability } from '.
 
 export { advanceDeliveryStatus } from './deliveryStatus'
 export type { DeliveryStatusState, DeliveryStatusEvent, DeliveryStatusResult } from './deliveryStatus'
+
+export type {
+  SendConversationTextInput,
+  SendConversationAttachmentInput,
+  ConversationChannelSendResult,
+  ConversationChannelPort,
+  DeriveEmailReplyAddressInput,
+  VerifyEmailReplyTokenInput,
+  SendConversationEmailInput,
+  SendConversationEmailResult,
+  RecordRawInboundEmailInput,
+  RecordRawInboundEmailResult,
+  VerifyEmailDkimInput,
+  ConversationEmailTransportPort,
+  ClockPort,
+  PutConversationObjectInput,
+  ConversationObjectLocation,
+  CreateSignedConversationObjectUrlInput,
+  ObjectStoragePort,
+  TranscribeAudioInput,
+  TranscribeAudioResult,
+  TranscriberPort,
+} from './ports'
