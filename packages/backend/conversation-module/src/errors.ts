@@ -29,6 +29,7 @@ export const CONVERSATION_ERROR_CODES = {
   UPLOAD_NOT_FOUND: 'CONVERSATION_UPLOAD_NOT_FOUND',
   UPLOAD_EXPIRED: 'CONVERSATION_UPLOAD_EXPIRED',
   UNASSIGNED_NOT_FOUND: 'CONVERSATION_UNASSIGNED_NOT_FOUND',
+  ATTACHMENT_NOT_FOUND: 'CONVERSATION_ATTACHMENT_NOT_FOUND',
 } as const
 
 /**
@@ -120,5 +121,11 @@ export class UnassignedNotFoundError extends ConversationModuleError {
     super(`Item da fila de não atribuídas não encontrado.`, 404, CONVERSATION_ERROR_CODES.UNASSIGNED_NOT_FOUND, {
       unassignedId,
     })
+  }
+}
+
+export class AttachmentNotFoundError extends ConversationModuleError {
+  constructor(public readonly attachmentId: string) {
+    super(`Anexo não encontrado.`, 404, CONVERSATION_ERROR_CODES.ATTACHMENT_NOT_FOUND, { attachmentId })
   }
 }

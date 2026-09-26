@@ -108,6 +108,29 @@ export type {
 export type { FilterConversationCandidatesInput, FilterConversationCandidatesPort } from './use-cases/Attribution.types'
 
 export {
+  RequestAttachmentUploadUseCase,
+  LinkAttachmentUploadsUseCase,
+  CreateAttachmentDownloadUrlUseCase,
+  ATTACHMENT_UPLOAD_EXPIRES_IN_SECONDS,
+  ATTACHMENT_DOWNLOAD_EXPIRES_IN_SECONDS,
+} from './use-cases/Attachment.use-cases'
+export type {
+  RequestAttachmentUploadInput,
+  RequestAttachmentUploadResult,
+  LinkAttachmentUploadsInput,
+  CreateAttachmentDownloadUrlInput,
+  CreateAttachmentDownloadUrlResult,
+} from './use-cases/Attachment.use-cases'
+
+export {
+  attachmentKindOf,
+  matchesAttachmentSignature,
+  normalizeAttachmentFileName,
+  ATTACHMENT_CONTENT_TYPE_KINDS,
+  ATTACHMENT_FILE_NAME_MAX_LENGTH,
+} from './domain/attachmentType'
+
+export {
   ConversationModuleError,
   CONVERSATION_ERROR_CODES,
   ChannelPortNotConfiguredError,
@@ -120,4 +143,5 @@ export {
   UploadNotFoundError,
   UploadExpiredError,
   UnassignedNotFoundError,
+  AttachmentNotFoundError,
 } from './errors'

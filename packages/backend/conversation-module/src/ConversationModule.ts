@@ -7,10 +7,10 @@
  * de `providers.channels` porque o transporte de e-mail tem forma própria
  * (`ConversationEmailTransportPort`, com assunto e threading) — por ora `email` só entra em
  * `enabledChannels` se `providers.emailTransport` vier. A exigência "email ligado sem transporte
- * falha na subida" é da T309/T310, não desta task. Anexo (T209/T210), atribuição genérica
- * (T207/T208) e respostas rápidas (T211) chegam nas próximas tasks — os repositórios delas ainda
- * não são instanciados aqui de propósito, para o factory não carregar dependência que nenhum
- * caso de uso desta task consome.
+ * falha na subida" é da T309/T310, não desta task. `providers.objectStorage` ausente desliga
+ * anexo (RF8): os três casos de uso de anexo lançam `AttachmentsDisabledError` na primeira
+ * chamada — nunca um `if (module.attachments)` no host. Respostas rápidas (T211) ainda não têm
+ * caso de uso aqui.
  */
 import type {
   ClockPort,
@@ -39,12 +39,24 @@ import {
   AttributeInboundMessageUseCase,
 } from './use-cases/Attribution.use-cases'
 import type { FilterConversationCandidatesPort } from './use-cases/Attribution.types'
+import { AttachmentRepository } from './repositories/AttachmentRepository'
+import {
+  CreateAttachmentDownloadUrlUseCase,
+  LinkAttachmentUploadsUseCase,
+  RequestAttachmentUploadUseCase,
+} from './use-cases/Attachment.use-cases'
+import { ConfigMissingError } from './errors'
 
 /** Canal comum, enviado por `ConversationChannelPort` — `email` fica de fora (D5). */
 type NonEmailChannel = Exclude<ConversationChannel, 'email'>
 
-/** Reservada para configuração futura; vazia hoje — nada aqui liga ou desliga recurso (ver `providers`). */
-export type ConversationModuleConfig = Record<string, never>
+export type ConversationModuleConfig = {
+  /**
+   * Obrigatório só quando `providers.objectStorage` vem preenchido — é onde o pedido e a cópia
+   * final do anexo (RF8) são gravados. Sem `objectStorage`, o campo nunca é lido.
+   */
+  readonly attachmentsBucket?: string
+}
 
 /**
  * Reservada para toggles que não sejam gate de porta. Vazia hoje de propósito — o que liga/desliga
@@ -81,16 +93,23 @@ export type ConversationModule = {
     readonly markConversationRead: MarkConversationReadUseCase
     readonly attributeInboundMessage: AttributeInboundMessageUseCase
     readonly assignUnassignedToConversation: AssignUnassignedToConversationUseCase
+    readonly requestAttachmentUpload: RequestAttachmentUploadUseCase
+    readonly linkAttachmentUploads: LinkAttachmentUploadsUseCase
+    readonly createAttachmentDownloadUrl: CreateAttachmentDownloadUrlUseCase
   }
 }
 
 export function createConversationModule(params: CreateConversationModuleParams): ConversationModule {
   const { providers } = params
+  if (providers.objectStorage && !params.config?.attachmentsBucket) {
+    throw new ConfigMissingError('attachmentsBucket')
+  }
 
   const conversations = new ConversationRepository(providers.db)
   const messages = new MessageRepository(providers.db)
   const reads = new ReadRepository(providers.db)
   const unassigned = new UnassignedRepository(providers.db)
+  const attachments = new AttachmentRepository(providers.db)
 
   const enabledChannels: ConversationChannel[] = [
     ...(Object.keys(providers.channels) as NonEmailChannel[]),
@@ -118,6 +137,21 @@ export function createConversationModule(params: CreateConversationModuleParams)
         messages,
         unassigned,
         clock: providers.clock,
+      }),
+      requestAttachmentUpload: new RequestAttachmentUploadUseCase({
+        attachments,
+        objectStorage: providers.objectStorage,
+        clock: providers.clock,
+        bucket: params.config?.attachmentsBucket ?? '',
+      }),
+      linkAttachmentUploads: new LinkAttachmentUploadsUseCase({
+        attachments,
+        objectStorage: providers.objectStorage,
+        clock: providers.clock,
+      }),
+      createAttachmentDownloadUrl: new CreateAttachmentDownloadUrlUseCase({
+        attachments,
+        objectStorage: providers.objectStorage,
       }),
     },
   }
