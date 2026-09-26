@@ -56,6 +56,7 @@ export type {
   ReadRepositoryPort,
   UnassignedRepositoryPort,
   QuickReplyRepositoryPort,
+  QuickReplyReorderTransaction,
   FindConversationBySubjectParams,
   FindOpenConversationByParticipantParams,
   FindParticipantParams,
@@ -94,6 +95,8 @@ export type {
 } from './use-cases/Message.use-cases'
 export { MarkConversationReadUseCase } from './use-cases/Read.use-cases'
 export type { MarkConversationReadInput } from './use-cases/Read.use-cases'
+
+export { ReorderQuickRepliesUseCase } from './use-cases/QuickReply.use-cases'
 
 export {
   AttributeInboundMessageUseCase,
@@ -145,6 +148,7 @@ export {
   UnassignedNotFoundError,
   AttachmentNotFoundError,
   ChannelTransportMissingError,
+  QuickReplyOrderInvalidError,
 } from './errors'
 
 export { buildReplyAddress, deriveReplyToken, hashReplyToken, verifyReplyToken } from './domain/replyToken'

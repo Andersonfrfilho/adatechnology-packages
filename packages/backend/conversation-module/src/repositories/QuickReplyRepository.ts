@@ -9,7 +9,7 @@ import {
   type ConversationQuickReplyRow,
   type NewConversationQuickReplyRow,
 } from '../schema/schema'
-import type { QuickReplyRepositoryPort } from './ports'
+import type { QuickReplyReorderTransaction, QuickReplyRepositoryPort } from './ports'
 
 export class QuickReplyRepository implements QuickReplyRepositoryPort {
   constructor(private readonly db: ConversationDatabase) {}
@@ -68,5 +68,38 @@ export class QuickReplyRepository implements QuickReplyRepositoryPort {
       .where(and(eq(conversationQuickReplies.companyId, params.companyId), eq(conversationQuickReplies.id, params.id)))
       .returning()
     return row
+  }
+
+  async reorder<TResult>(
+    params: { companyId: string; audience: string },
+    work: (transaction: QuickReplyReorderTransaction) => Promise<TResult>,
+  ): Promise<TResult> {
+    return this.db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(conversationQuickReplies)
+        .where(
+          and(
+            eq(conversationQuickReplies.companyId, params.companyId),
+            eq(conversationQuickReplies.audience, params.audience),
+          ),
+        )
+        .orderBy(asc(conversationQuickReplies.position))
+        // Trava as linhas do público antes de conferir o conjunto (RF9) — duas reordenações
+        // concorrentes não podem gravar uma mistura das duas. API nativa do drizzle-orm 1.x.
+        .for('update')
+
+      return work({
+        rows,
+        async setPositions(positions) {
+          for (const { id, position } of positions) {
+            await tx
+              .update(conversationQuickReplies)
+              .set({ position, updatedAt: new Date() })
+              .where(and(eq(conversationQuickReplies.companyId, params.companyId), eq(conversationQuickReplies.id, id)))
+          }
+        },
+      })
+    })
   }
 }

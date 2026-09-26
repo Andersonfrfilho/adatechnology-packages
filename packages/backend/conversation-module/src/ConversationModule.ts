@@ -55,6 +55,7 @@ import {
   CreateQuickReplyUseCase,
   ListAllQuickRepliesUseCase,
   ListQuickRepliesForComposerUseCase,
+  ReorderQuickRepliesUseCase,
   UpdateQuickReplyUseCase,
 } from './use-cases/QuickReply.use-cases'
 import { ChannelTransportMissingError, ConfigMissingError } from './errors'
@@ -159,6 +160,7 @@ export type ConversationModule = {
     readonly listAllQuickReplies: ListAllQuickRepliesUseCase
     readonly listQuickRepliesForComposer: ListQuickRepliesForComposerUseCase
     readonly updateQuickReply: UpdateQuickReplyUseCase
+    readonly reorderQuickReplies: ReorderQuickRepliesUseCase
   }
 }
 
@@ -231,6 +233,9 @@ export function createConversationModule(params: CreateConversationModuleParams)
       updateQuickReply: new UpdateQuickReplyUseCase({
         quickReplies,
         clock: providers.clock,
+      }),
+      reorderQuickReplies: new ReorderQuickRepliesUseCase({
+        quickReplies,
       }),
     },
   }

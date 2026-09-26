@@ -33,6 +33,7 @@ export const CONVERSATION_ERROR_CODES = {
   CHANNEL_TRANSPORT_MISSING: 'CONVERSATION_CHANNEL_TRANSPORT_MISSING',
   QUICK_REPLY_INVALID: 'CONVERSATION_QUICK_REPLY_INVALID',
   QUICK_REPLY_NOT_FOUND: 'CONVERSATION_QUICK_REPLY_NOT_FOUND',
+  QUICK_REPLY_ORDER_INVALID: 'CONVERSATION_QUICK_REPLY_ORDER_INVALID',
 } as const
 
 /**
@@ -166,5 +167,16 @@ export class QuickReplyInvalidError extends ConversationModuleError {
 export class QuickReplyNotFoundError extends ConversationModuleError {
   constructor(public readonly quickReplyId: string) {
     super(`Resposta rápida não encontrada.`, 404, CONVERSATION_ERROR_CODES.QUICK_REPLY_NOT_FOUND, { quickReplyId })
+  }
+}
+
+/** A lista recebida para reordenar não é exatamente o conjunto atual do público (repetido, faltando ou sobrando). */
+export class QuickReplyOrderInvalidError extends ConversationModuleError {
+  constructor() {
+    super(
+      `A lista para reordenar não corresponde ao conjunto atual de respostas do público.`,
+      422,
+      CONVERSATION_ERROR_CODES.QUICK_REPLY_ORDER_INVALID,
+    )
   }
 }

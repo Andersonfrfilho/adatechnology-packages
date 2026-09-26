@@ -8,9 +8,9 @@
 import { CONVERSATION_QUICK_REPLY_MAX_LENGTH } from '../schema/schema'
 import type { ConversationQuickReplyRow, NewConversationQuickReplyRow } from '../schema/schema'
 import type { QuickReplyRepositoryPort } from '../repositories/ports'
-import { QuickReplyInvalidError, QuickReplyNotFoundError } from '../errors'
+import { QuickReplyInvalidError, QuickReplyNotFoundError, QuickReplyOrderInvalidError } from '../errors'
 
-export { QuickReplyInvalidError, QuickReplyNotFoundError }
+export { QuickReplyInvalidError, QuickReplyNotFoundError, QuickReplyOrderInvalidError }
 
 type Clock = { now(): Date }
 
@@ -112,5 +112,39 @@ export class UpdateQuickReplyUseCase {
 
     if (!updated) throw new QuickReplyNotFoundError(input.id)
     return updated
+  }
+}
+
+/**
+ * A reordenação é do conjunto inteiro de um público, de uma vez — não é um `update` por linha
+ * (a tela do consumidor arrasta-e-solta o público inteiro). A porta trava as linhas do público
+ * (com as inativas) antes de este caso de uso conferir que `ids` é exatamente o mesmo conjunto
+ * já cadastrado ali: sem repetido, sem faltar, sem sobrar. Divergência é erro tipado, nunca uma
+ * reordenação parcial — e a escrita das posições novas acontece na mesma transação da trava.
+ */
+export class ReorderQuickRepliesUseCase {
+  constructor(
+    private readonly dependencies: {
+      readonly quickReplies: QuickReplyRepositoryPort
+    },
+  ) {}
+
+  async execute(input: {
+    readonly companyId: string
+    readonly audience: string
+    readonly ids: readonly string[]
+  }): Promise<void> {
+    await this.dependencies.quickReplies.reorder(
+      { companyId: input.companyId, audience: input.audience },
+      async ({ rows, setPositions }) => {
+        const known = new Set(rows.map((row) => row.id))
+        const asked = new Set(input.ids)
+        const sameSet =
+          asked.size === input.ids.length && asked.size === known.size && input.ids.every((id) => known.has(id))
+        if (!sameSet) throw new QuickReplyOrderInvalidError()
+
+        await setPositions(input.ids.map((id, position) => ({ id, position })))
+      },
+    )
   }
 }

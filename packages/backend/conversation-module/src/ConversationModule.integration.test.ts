@@ -31,12 +31,14 @@ import {
   conversationAttachments,
   conversationMessages,
   conversationParticipants,
+  conversationQuickReplies,
   conversationReads,
   conversations,
   conversationUnassigned,
   conversationUploads,
 } from './schema/schema'
 import { createConversationModule, type ConversationModule } from './ConversationModule'
+import { QuickReplyOrderInvalidError } from './errors'
 
 const databaseUrl = process.env.DRIZZLE_TEST_DATABASE_URL ?? process.env.DATABASE_URL
 const describeWithDatabase = databaseUrl === undefined ? describe.skip : describe
@@ -84,6 +86,7 @@ async function cleanupCompany(db: ConversationDatabase, companyId: string): Prom
   if (messageIds.length) {
     await db.delete(conversationAttachments).where(inArray(conversationAttachments.messageId, messageIds))
   }
+  await db.delete(conversationQuickReplies).where(eq(conversationQuickReplies.companyId, companyId))
   await db.delete(conversationUploads).where(eq(conversationUploads.companyId, companyId))
   await db.delete(conversationReads).where(eq(conversationReads.companyId, companyId))
   await db.delete(conversationUnassigned).where(eq(conversationUnassigned.companyId, companyId))
@@ -434,6 +437,185 @@ describeWithDatabase('conversation-module — integração contra Postgres real 
       })
 
       await expect(Promise.resolve(insert)).rejects.toBeDefined()
+    })
+  })
+
+  describe('RF9 — reordenar respostas rápidas, quarta falta do primeiro consumidor', () => {
+    test('grava as posições novas do público inteiro, pela ordem pedida', async () => {
+      const companyId = newCompanyId()
+      const r1 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R1' })
+      const r2 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R2' })
+      const r3 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R3' })
+
+      await module.useCases.reorderQuickReplies.execute({
+        companyId,
+        audience: 'customer',
+        ids: [r3.id, r1.id, r2.id],
+      })
+
+      const rows = await db
+        .select()
+        .from(conversationQuickReplies)
+        .where(
+          and(eq(conversationQuickReplies.companyId, companyId), eq(conversationQuickReplies.audience, 'customer')),
+        )
+      const byId = new Map(rows.map((row) => [row.id, row]))
+      expect(byId.get(r3.id)?.position).toBe(0)
+      expect(byId.get(r1.id)?.position).toBe(1)
+      expect(byId.get(r2.id)?.position).toBe(2)
+    })
+
+    test('divergência de conjunto recusa com erro tipado e não grava nada', async () => {
+      const companyId = newCompanyId()
+      const r1 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R1' })
+      await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R2' })
+
+      let threw: unknown
+      try {
+        await module.useCases.reorderQuickReplies.execute({
+          companyId,
+          audience: 'customer',
+          ids: [r1.id],
+        })
+      } catch (error) {
+        threw = error
+      }
+      expect(threw).toBeInstanceOf(QuickReplyOrderInvalidError)
+
+      const rows = await db
+        .select()
+        .from(conversationQuickReplies)
+        .where(
+          and(eq(conversationQuickReplies.companyId, companyId), eq(conversationQuickReplies.audience, 'customer')),
+        )
+      expect(rows.find((row) => row.id === r1.id)?.position).toBe(0)
+    })
+
+    test('a inativa participa da reordenação e mantém o lugar dado', async () => {
+      const companyId = newCompanyId()
+      const active = await module.useCases.createQuickReply.execute({
+        companyId,
+        audience: 'customer',
+        bodyText: 'Ativa',
+      })
+      const inactive = await module.useCases.createQuickReply.execute({
+        companyId,
+        audience: 'customer',
+        bodyText: 'Inativa',
+      })
+      await module.useCases.updateQuickReply.execute({ companyId, id: inactive.id, active: false })
+
+      await module.useCases.reorderQuickReplies.execute({
+        companyId,
+        audience: 'customer',
+        ids: [inactive.id, active.id],
+      })
+
+      const rows = await db
+        .select()
+        .from(conversationQuickReplies)
+        .where(
+          and(eq(conversationQuickReplies.companyId, companyId), eq(conversationQuickReplies.audience, 'customer')),
+        )
+      const byId = new Map(rows.map((row) => [row.id, row]))
+      expect(byId.get(inactive.id)?.position).toBe(0)
+      expect(byId.get(inactive.id)?.active).toBe(false)
+      expect(byId.get(active.id)?.position).toBe(1)
+    })
+
+    test('duas reordenações concorrentes do mesmo público terminam numa das duas ordens pedidas, nunca numa mistura', async () => {
+      const companyId = newCompanyId()
+      const r1 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R1' })
+      const r2 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R2' })
+      const r3 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R3' })
+
+      const orderA = [r1.id, r2.id, r3.id]
+      const orderB = [r3.id, r2.id, r1.id]
+
+      // Duas conexões próprias, como na corrida de CA02 acima: numa conexão só o protocolo do
+      // Postgres serializa os round-trips e a corrida nunca aconteceria de verdade.
+      const sqlA = new SQL(databaseUrl!)
+      const sqlB = new SQL(databaseUrl!)
+      try {
+        const dbA = drizzle({ client: sqlA }) as unknown as ConversationDatabase
+        const dbB = drizzle({ client: sqlB }) as unknown as ConversationDatabase
+        const moduleA = createConversationModule({ providers: { db: dbA, clock: fixedClock(), channels: {} } })
+        const moduleB = createConversationModule({ providers: { db: dbB, clock: fixedClock(), channels: {} } })
+
+        const results = await Promise.allSettled([
+          moduleA.useCases.reorderQuickReplies.execute({ companyId, audience: 'customer', ids: orderA }),
+          moduleB.useCases.reorderQuickReplies.execute({ companyId, audience: 'customer', ids: orderB }),
+        ])
+
+        // As duas reordenações pedem o mesmo conjunto — nenhuma das duas deveria ser recusada
+        // pela regra de conjunto; o `for update` só as serializa, nunca as faz falhar.
+        expect(results.every((result) => result.status === 'fulfilled')).toBe(true)
+      } finally {
+        await sqlA.end()
+        await sqlB.end()
+      }
+
+      const rows = await db
+        .select()
+        .from(conversationQuickReplies)
+        .where(
+          and(eq(conversationQuickReplies.companyId, companyId), eq(conversationQuickReplies.audience, 'customer')),
+        )
+      const finalOrder = [...rows].sort((a, b) => a.position - b.position).map((row) => row.id)
+
+      const isOrderA = finalOrder.every((id, index) => id === orderA[index])
+      const isOrderB = finalOrder.every((id, index) => id === orderB[index])
+      expect(isOrderA || isOrderB).toBe(true)
+
+      // Nunca uma mistura: as posições são um conjunto 0..n-1 sem repetição, sempre.
+      const positions = rows.map((row) => row.position).sort((a, b) => a - b)
+      expect(positions).toEqual([0, 1, 2])
+    })
+
+    test('id de outra empresa nunca entra no conjunto — recusa como sobra', async () => {
+      const companyId = newCompanyId()
+      const otherCompanyId = newCompanyId()
+      const r1 = await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R1' })
+      const foreign = await module.useCases.createQuickReply.execute({
+        companyId: otherCompanyId,
+        audience: 'customer',
+        bodyText: 'De outra empresa',
+      })
+
+      let threw: unknown
+      try {
+        await module.useCases.reorderQuickReplies.execute({
+          companyId,
+          audience: 'customer',
+          ids: [r1.id, foreign.id],
+        })
+      } catch (error) {
+        threw = error
+      }
+      expect(threw).toBeInstanceOf(QuickReplyOrderInvalidError)
+
+      const [foreignRow] = await db
+        .select()
+        .from(conversationQuickReplies)
+        .where(and(eq(conversationQuickReplies.companyId, otherCompanyId), eq(conversationQuickReplies.id, foreign.id)))
+        .limit(1)
+      expect(foreignRow?.companyId).toBe(otherCompanyId)
+    })
+
+    test('lista vazia num público vazio é no-op; num público com linhas é erro', async () => {
+      const companyId = newCompanyId()
+
+      await module.useCases.reorderQuickReplies.execute({ companyId, audience: 'customer', ids: [] })
+
+      await module.useCases.createQuickReply.execute({ companyId, audience: 'customer', bodyText: 'R1' })
+
+      let threw: unknown
+      try {
+        await module.useCases.reorderQuickReplies.execute({ companyId, audience: 'customer', ids: [] })
+      } catch (error) {
+        threw = error
+      }
+      expect(threw).toBeInstanceOf(QuickReplyOrderInvalidError)
     })
   })
 })
