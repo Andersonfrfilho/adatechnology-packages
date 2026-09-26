@@ -118,10 +118,10 @@ describe('ReceiveMessageUseCase (RF6)', () => {
       conversationId: CONVERSATION_ID,
       channel: 'portal',
       bodyText: 'Oi',
-      authorUserId: 'contractor-user-1',
+      authorUserId: 'customer-user-1',
     })
 
-    expect(message.authorUserId).toBe('contractor-user-1')
+    expect(message.authorUserId).toBe('customer-user-1')
     expect(message.senderAddress).toBeNull()
   })
 })

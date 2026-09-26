@@ -47,7 +47,7 @@ describe('o núcleo não carrega vocabulário de produto (CA01)', () => {
 
   it('a varredura passou pelos arquivos conhecidos', () => {
     const files = listSourceFiles(SOURCE_DIRECTORY).map((path) => relative(SOURCE_DIRECTORY, path))
-    for (const known of ['channelCapabilities.ts', 'deliveryStatus.ts', 'index.ts', 'ports.ts', 'vocabulary.ts']) {
+    for (const known of ['index.ts', 'schema/schema.ts', 'runMigrations.ts']) {
       expect(files).toContain(known)
     }
   })

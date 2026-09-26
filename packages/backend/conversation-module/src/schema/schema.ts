@@ -1,9 +1,8 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
- * O núcleo de conversa (spec 211, ADR-0085): schema Postgres próprio (`conversation`), extraído da
- * spec 183 (`apps/api-transportada/src/database/occurrence-conversation.schema.ts`) sem nenhum
- * conceito de ocorrência, contratante ou motorista — o assunto é o par opaco `subject_type`/
+ * O núcleo de conversa (spec 211, ADR-0085): schema Postgres próprio (`conversation`), extraído do
+ * produto de origem sem nenhum conceito de domínio dele — o assunto é o par opaco `subject_type`/
  * `subject_id` (D1), e nenhuma FK sai do módulo (RNF3, RNF4): `company_id` vem sempre do contexto
  * autenticado do host, nunca de FK para uma tabela de empresas dele.
  *

@@ -2,9 +2,9 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  *
  * RF7, D7, CA06: atribuição genérica de mensagem recebida por canal externo, portada de
- * `whatsapp-attribution.policy.ts` (spec 183) — a **regra**, não o vocabulário (nada de
- * `contractorId`/`driverUserId` aqui; a regra de "quem pode ver essa conversa" que a origem
- * resolvia com `optedInContractorIds` vira `filterCandidates`, porta opcional do host).
+ * `whatsapp-attribution.policy.ts` do produto de origem — a **regra**, não o vocabulário: nenhum
+ * participante com nome de domínio aqui, e a regra de "quem pode ver essa conversa" vira
+ * `filterCandidates`, porta opcional do host.
  */
 import type { ClockPort, ConversationChannel } from '@adatechnology/conversation-contracts'
 

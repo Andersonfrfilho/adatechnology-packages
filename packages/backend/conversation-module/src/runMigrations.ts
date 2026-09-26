@@ -20,8 +20,8 @@ export function conversationMigrationsFolder(): string {
 
 export type RunConversationMigrationsParams = {
   readonly db: ConversationDatabase
-  // O `migrate` do driver do host — `drizzle-orm/node-postgres/migrator`,
-  // `drizzle-orm/bun-sql/migrator`, etc. O módulo não escolhe driver pelo host.
+  // O `migrate` do conector do host — `drizzle-orm/node-postgres/migrator`,
+  // `drizzle-orm/bun-sql/migrator`, etc. O módulo não escolhe conector pelo host.
   readonly migrate: (db: never, config: { migrationsFolder: string; migrationsTable?: string }) => Promise<void>
 }
 
