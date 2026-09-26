@@ -22,7 +22,6 @@ import type {
   NewConversationMessageRow,
   NewConversationParticipantRow,
   NewConversationQuickReplyRow,
-  NewConversationReadRow,
   NewConversationRow,
   NewConversationUnassignedRow,
   NewConversationUploadRow,
@@ -376,7 +375,12 @@ export function createInMemoryQuickReplies(): InMemoryQuickReplyRepository {
       return row
     },
     async listByAudience(params) {
-      return rows.filter((row) => row.companyId === params.companyId && row.audience === params.audience)
+      return rows
+        .filter((row) => row.companyId === params.companyId && row.audience === params.audience)
+        .sort((a, b) => a.position - b.position)
+    },
+    async listByCompany(params) {
+      return rows.filter((row) => row.companyId === params.companyId).sort((a, b) => a.position - b.position)
     },
     async findById(params) {
       return rows.find((row) => row.companyId === params.companyId && row.id === params.id)

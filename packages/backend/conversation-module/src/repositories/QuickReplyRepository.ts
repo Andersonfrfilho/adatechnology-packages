@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
-import { and, eq } from 'drizzle-orm'
+import { and, eq, asc } from 'drizzle-orm'
 
 import type { ConversationDatabase } from '../database.types'
 import {
@@ -30,6 +30,15 @@ export class QuickReplyRepository implements QuickReplyRepositoryPort {
           eq(conversationQuickReplies.audience, params.audience),
         ),
       )
+      .orderBy(asc(conversationQuickReplies.position))
+  }
+
+  async listByCompany(params: { companyId: string }): Promise<ConversationQuickReplyRow[]> {
+    return this.db
+      .select()
+      .from(conversationQuickReplies)
+      .where(eq(conversationQuickReplies.companyId, params.companyId))
+      .orderBy(asc(conversationQuickReplies.position))
   }
 
   async findById(params: { companyId: string; id: string }): Promise<ConversationQuickReplyRow | undefined> {

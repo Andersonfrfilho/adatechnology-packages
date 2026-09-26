@@ -20,7 +20,6 @@ import type {
   NewConversationMessageRow,
   NewConversationParticipantRow,
   NewConversationQuickReplyRow,
-  NewConversationReadRow,
   NewConversationRow,
   NewConversationUnassignedRow,
   NewConversationUploadRow,
@@ -169,6 +168,7 @@ export type UnassignedRepositoryPort = {
 export type QuickReplyRepositoryPort = {
   create(values: NewConversationQuickReplyRow): Promise<ConversationQuickReplyRow>
   listByAudience(params: { companyId: string; audience: string }): Promise<ConversationQuickReplyRow[]>
+  listByCompany(params: { companyId: string }): Promise<ConversationQuickReplyRow[]>
   findById(params: { companyId: string; id: string }): Promise<ConversationQuickReplyRow | undefined>
   update(params: {
     companyId: string

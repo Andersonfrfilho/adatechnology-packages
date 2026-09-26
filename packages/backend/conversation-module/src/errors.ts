@@ -30,6 +30,8 @@ export const CONVERSATION_ERROR_CODES = {
   UPLOAD_EXPIRED: 'CONVERSATION_UPLOAD_EXPIRED',
   UNASSIGNED_NOT_FOUND: 'CONVERSATION_UNASSIGNED_NOT_FOUND',
   ATTACHMENT_NOT_FOUND: 'CONVERSATION_ATTACHMENT_NOT_FOUND',
+  QUICK_REPLY_INVALID: 'CONVERSATION_QUICK_REPLY_INVALID',
+  QUICK_REPLY_NOT_FOUND: 'CONVERSATION_QUICK_REPLY_NOT_FOUND',
 } as const
 
 /**
@@ -127,5 +129,22 @@ export class UnassignedNotFoundError extends ConversationModuleError {
 export class AttachmentNotFoundError extends ConversationModuleError {
   constructor(public readonly attachmentId: string) {
     super(`Anexo não encontrado.`, 404, CONVERSATION_ERROR_CODES.ATTACHMENT_NOT_FOUND, { attachmentId })
+  }
+}
+
+/** Texto em branco ou acima de 500 caracteres. */
+export class QuickReplyInvalidError extends ConversationModuleError {
+  constructor() {
+    super(
+      `Texto da resposta rápida inválido — deve ter entre 1 e 500 caracteres.`,
+      422,
+      CONVERSATION_ERROR_CODES.QUICK_REPLY_INVALID,
+    )
+  }
+}
+
+export class QuickReplyNotFoundError extends ConversationModuleError {
+  constructor(public readonly quickReplyId: string) {
+    super(`Resposta rápida não encontrada.`, 404, CONVERSATION_ERROR_CODES.QUICK_REPLY_NOT_FOUND, { quickReplyId })
   }
 }

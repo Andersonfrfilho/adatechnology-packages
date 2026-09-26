@@ -9,8 +9,7 @@
  * `enabledChannels` se `providers.emailTransport` vier. A exigência "email ligado sem transporte
  * falha na subida" é da T309/T310, não desta task. `providers.objectStorage` ausente desliga
  * anexo (RF8): os três casos de uso de anexo lançam `AttachmentsDisabledError` na primeira
- * chamada — nunca um `if (module.attachments)` no host. Respostas rápidas (T211) ainda não têm
- * caso de uso aqui.
+ * chamada — nunca um `if (module.attachments)` no host.
  */
 import type {
   ClockPort,
@@ -26,6 +25,7 @@ import { ConversationRepository } from './repositories/ConversationRepository'
 import { MessageRepository } from './repositories/MessageRepository'
 import { ReadRepository } from './repositories/ReadRepository'
 import { UnassignedRepository } from './repositories/UnassignedRepository'
+import { QuickReplyRepository } from './repositories/QuickReplyRepository'
 import { OpenConversationUseCase } from './use-cases/Conversation.use-cases'
 import {
   ListConversationMessagesUseCase,
@@ -45,6 +45,12 @@ import {
   LinkAttachmentUploadsUseCase,
   RequestAttachmentUploadUseCase,
 } from './use-cases/Attachment.use-cases'
+import {
+  CreateQuickReplyUseCase,
+  ListAllQuickRepliesUseCase,
+  ListQuickRepliesForComposerUseCase,
+  UpdateQuickReplyUseCase,
+} from './use-cases/QuickReply.use-cases'
 import { ConfigMissingError } from './errors'
 
 /** Canal comum, enviado por `ConversationChannelPort` — `email` fica de fora (D5). */
@@ -96,6 +102,10 @@ export type ConversationModule = {
     readonly requestAttachmentUpload: RequestAttachmentUploadUseCase
     readonly linkAttachmentUploads: LinkAttachmentUploadsUseCase
     readonly createAttachmentDownloadUrl: CreateAttachmentDownloadUrlUseCase
+    readonly createQuickReply: CreateQuickReplyUseCase
+    readonly listAllQuickReplies: ListAllQuickRepliesUseCase
+    readonly listQuickRepliesForComposer: ListQuickRepliesForComposerUseCase
+    readonly updateQuickReply: UpdateQuickReplyUseCase
   }
 }
 
@@ -110,6 +120,7 @@ export function createConversationModule(params: CreateConversationModuleParams)
   const reads = new ReadRepository(providers.db)
   const unassigned = new UnassignedRepository(providers.db)
   const attachments = new AttachmentRepository(providers.db)
+  const quickReplies = new QuickReplyRepository(providers.db)
 
   const enabledChannels: ConversationChannel[] = [
     ...(Object.keys(providers.channels) as NonEmailChannel[]),
@@ -152,6 +163,20 @@ export function createConversationModule(params: CreateConversationModuleParams)
       createAttachmentDownloadUrl: new CreateAttachmentDownloadUrlUseCase({
         attachments,
         objectStorage: providers.objectStorage,
+      }),
+      createQuickReply: new CreateQuickReplyUseCase({
+        quickReplies,
+        clock: providers.clock,
+      }),
+      listAllQuickReplies: new ListAllQuickRepliesUseCase({
+        quickReplies,
+      }),
+      listQuickRepliesForComposer: new ListQuickRepliesForComposerUseCase({
+        quickReplies,
+      }),
+      updateQuickReply: new UpdateQuickReplyUseCase({
+        quickReplies,
+        clock: providers.clock,
       }),
     },
   }
