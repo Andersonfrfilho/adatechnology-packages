@@ -54,6 +54,8 @@ export type {
   PutConversationObjectInput,
   ConversationObjectLocation,
   CreateSignedConversationObjectUrlInput,
+  CreateSignedConversationDownloadUrlInput,
+  CreateSignedConversationUploadUrlInput,
   ObjectStoragePort,
   TranscribeAudioInput,
   TranscribeAudioResult,

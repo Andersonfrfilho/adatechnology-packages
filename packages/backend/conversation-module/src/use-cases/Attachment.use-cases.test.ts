@@ -54,6 +54,15 @@ describe('RequestAttachmentUploadUseCase (RF8)', () => {
     })
 
     expect(result.uploadUrl).toBeInstanceOf(URL)
+    /**
+     * A URL assinada amarra **o que vai subir**: o tipo e o tamanho daquele pedido, não um teto do
+     * bucket. Sem isso, quem tem a URL sobe qualquer coisa até ela expirar — a conferência de bytes
+     * na ligação recusaria o anexo depois, mas o objeto já teria entrado no bucket.
+     */
+    expect(objectStorage.signedUploads).toHaveLength(1)
+    expect(objectStorage.signedUploads[0]?.contentType).toBe('image/png')
+    expect(objectStorage.signedUploads[0]?.contentLength).toBe(PNG_BYTES.byteLength)
+    expect(objectStorage.signedUploads[0]?.key).toBe(result.objectKey)
     expect(result.objectKey).not.toContain(CONVERSATION_ID)
     expect(result.objectKey).not.toContain('user-1')
     expect(attachments.uploadRows).toHaveLength(1)

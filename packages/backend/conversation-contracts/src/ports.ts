@@ -126,14 +126,31 @@ export type CreateSignedConversationObjectUrlInput = ConversationObjectLocation 
 }
 
 /**
+ * A URL assinada de subida **amarra o que vai subir**: tipo e tamanho exatos daquele pedido, não um
+ * teto do bucket. Sem isso, quem tem a URL sobe qualquer coisa, de qualquer tamanho, até ela
+ * expirar — a conferência de bytes na ligação do anexo recusa o arquivo depois, mas o objeto já
+ * entrou no bucket. É o que o produto de origem sempre assinou, e o que o provedor de storage pede.
+ */
+export type CreateSignedConversationUploadUrlInput = CreateSignedConversationObjectUrlInput & {
+  readonly contentType: string
+  readonly contentLength: number
+}
+
+/** Baixar leva `filename` e `disposition`, que é o que decide abrir na aba ou salvar. */
+export type CreateSignedConversationDownloadUrlInput = CreateSignedConversationObjectUrlInput & {
+  readonly disposition: 'attachment' | 'inline'
+  readonly fileName: string
+}
+
+/**
  * Nomes espelham `object-storage-provider` (não importado — este pacote não depende dele; RF4).
  */
 export type ObjectStoragePort = {
   put(input: PutConversationObjectInput): Promise<void>
   get(input: ConversationObjectLocation): Promise<ReadableStream<Uint8Array>>
   delete(input: ConversationObjectLocation): Promise<void>
-  createSignedDownload(input: CreateSignedConversationObjectUrlInput): Promise<URL>
-  createSignedUpload(input: CreateSignedConversationObjectUrlInput): Promise<URL>
+  createSignedDownload(input: CreateSignedConversationDownloadUrlInput): Promise<URL>
+  createSignedUpload(input: CreateSignedConversationUploadUrlInput): Promise<URL>
 }
 
 export type TranscribeAudioInput = {
