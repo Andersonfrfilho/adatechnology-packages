@@ -53,7 +53,7 @@ export {
   isReplyOverdue,
 } from './replyLatency'
 export type { ReplyLatency, ReplyLatencyParams } from './replyLatency'
-// Canal de origem: capacidades por plataforma (janela de sessão, reabertura, tipo de identificador).
+// Canal de origem: exibição por plataforma (rótulo, ícone, reabertura, tipo de identificador).
 export {
   CONVERSATION_CHANNEL,
   DEFAULT_CONVERSATION_CHANNEL,
@@ -75,6 +75,10 @@ export type {
   HandleKind,
   FormatContactHandleParams,
 } from './conversationChannel'
+// Capacidade comportamental do canal (RF10, D3) — confirma leitura, janela, anexo, áudio, resposta
+// rápida, transporte próprio. Vem de `@adatechnology/conversation-contracts`; ver channelCapability.ts.
+export { channelCapabilityFor } from './channelCapability'
+export type { ChannelCapability } from '@adatechnology/conversation-contracts'
 export type { ConversationWindow } from './conversationWindow'
 export { ConversationRow } from './ConversationRow'
 export { ChannelIcon, CHANNEL_BRAND_COLOR } from './ChannelIcon'

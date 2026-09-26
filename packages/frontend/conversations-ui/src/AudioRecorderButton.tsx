@@ -8,7 +8,7 @@
  * hospeda e devolve o `mediaId` é o host, via `uploadMedia`.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
 import { AudioPlayer } from './AudioPlayer'
 
@@ -56,6 +56,12 @@ export interface AudioRecorderButtonProps {
   maxDurationMilliseconds?: number
   labels?: Partial<AudioRecorderButtonLabels>
   disabled?: boolean
+  /**
+   * Por que o microfone está desabilitado (RF10, D3) — o canal atual não grava áudio. Sai como
+   * `aria-describedby`, não só `data-cv-tooltip`: o tooltip visual não é lido por leitor de tela
+   * sozinho, e uma dica que só aparece no hover falha exatamente para quem mais precisa dela.
+   */
+  disabledHint?: string
 }
 
 /**
@@ -96,9 +102,12 @@ export function AudioRecorderButton({
   maxDurationMilliseconds = DEFAULT_MAX_RECORDING_MILLISECONDS,
   labels,
   disabled,
+  disabledHint,
 }: AudioRecorderButtonProps) {
   const labelOf = (key: keyof AudioRecorderButtonLabels): string =>
     labels?.[key] ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS[key]
+  const disabledHintId = useId()
+  const showDisabledHint = Boolean(disabled && disabledHint)
   const [isRecording, setIsRecording] = useState(false)
   const [pending, setPending] = useState<PendingRecording | undefined>(undefined)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -226,8 +235,9 @@ export function AudioRecorderButton({
         type="button"
         disabled={disabled || pending !== undefined}
         onClick={() => (isRecording ? stop() : void start())}
-        data-cv-tooltip={toggleLabel}
+        data-cv-tooltip={showDisabledHint ? disabledHint : toggleLabel}
         aria-label={toggleLabel}
+        aria-describedby={showDisabledHint ? disabledHintId : undefined}
         aria-pressed={isRecording}
         /* Mesma caixa do botão de enviar: o microfone ocupa o lugar dele enquanto o campo está
            vazio, e qualquer diferença de tamanho faz a barra pular a cada letra digitada. */
@@ -243,6 +253,11 @@ export function AudioRecorderButton({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
         )}
       </button>
+      {showDisabledHint && (
+        <span id={disabledHintId} className="sr-only">
+          {disabledHint}
+        </span>
+      )}
     </div>
   )
 }

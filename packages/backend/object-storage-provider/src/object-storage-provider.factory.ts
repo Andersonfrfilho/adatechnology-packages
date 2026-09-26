@@ -92,6 +92,15 @@ export function createObjectStorageProvider(config: ObjectStorageProviderConfig)
     region: config.region,
     forcePathStyle: config.forcePathStyle,
     credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    /**
+     * Checksum só quando a operação exige. O padrão do SDK (`WHEN_SUPPORTED`) amarra na URL
+     * assinada de PUT o CRC32 de um corpo que ainda não existe — o do corpo vazio —, e o storage
+     * que confere o checksum recusa o upload real com `BadDigest`. A integridade do `put()` segue
+     * garantida pelo sha256 que ele mesmo confere, e a do upload assinado é de quem consome
+     * (`head()` depois do upload), como o comentário de `createSignedUpload` já diz.
+     */
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   })
   let isClosed = false
 

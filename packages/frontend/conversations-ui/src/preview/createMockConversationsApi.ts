@@ -108,7 +108,11 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
 
     fetchMessages(conversationId, fetchParams): Promise<MessagePayload[]> {
       return withLatency(() => {
-        const messages = params.store.listMessages(conversationId)
+        const allMessages = params.store.listMessages(conversationId)
+        const before = fetchParams?.before
+        // Mesma semântica do backend real: com `before`, corta tudo a partir dessa mensagem (ela
+        // não volta) para simular a paginação de "carregar mensagens anteriores" no preview.
+        const messages = before ? allMessages.filter((message) => message.timestamp < before) : allMessages
         const limit = fetchParams?.limit
         return limit ? messages.slice(-limit) : messages
       })
