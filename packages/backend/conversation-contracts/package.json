@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/conversation-contracts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Shared types, zod schemas, and port interfaces for the conversation core (contracts only — no runtime behavior)",
   "license": "MIT",
   "publishConfig": {
