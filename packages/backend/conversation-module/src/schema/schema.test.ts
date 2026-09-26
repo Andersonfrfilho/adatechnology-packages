@@ -182,7 +182,7 @@ describe('schema do núcleo de conversa', () => {
         ...config.columns.map((item) => item.name),
         ...config.indexes.map((item) => item.config.name ?? ''),
         ...config.checks.map((item) => item.name),
-        ...config.uniqueConstraints.map((item) => item.getName()),
+        ...config.uniqueConstraints.map((item) => item.getName() ?? ''),
         ...config.foreignKeys.map((item) => item.getName()),
       ]
       for (const name of names) {
