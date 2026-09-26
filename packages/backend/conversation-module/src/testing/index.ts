@@ -10,6 +10,7 @@ export {
   createInMemoryUnassigned,
   createInMemoryQuickReplies,
   createFixedClock,
+  createInMemoryObjectStorage,
 } from './inMemoryRepositories'
 export type {
   InMemoryConversationRepository,
@@ -18,4 +19,5 @@ export type {
   InMemoryReadRepository,
   InMemoryUnassignedRepository,
   InMemoryQuickReplyRepository,
+  InMemoryObjectStorage,
 } from './inMemoryRepositories'

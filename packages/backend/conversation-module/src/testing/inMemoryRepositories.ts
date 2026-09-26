@@ -7,6 +7,8 @@
  */
 import { randomUUID } from 'node:crypto'
 
+import type { ObjectStoragePort } from '@adatechnology/conversation-contracts'
+
 import type {
   ConversationAttachmentRow,
   ConversationMessageRow,
@@ -393,4 +395,40 @@ export function createInMemoryQuickReplies(): InMemoryQuickReplyRepository {
 
 export function createFixedClock(now: Date): { now(): Date } {
   return { now: () => now }
+}
+
+export type InMemoryObjectStorage = ObjectStoragePort & {
+  readonly objects: Map<string, { bytes: Uint8Array; contentType: string }>
+}
+
+/** Dublê do `ObjectStoragePort` (T209/T210): guarda os bytes em memória, chaveados por `bucket/key`. */
+export function createInMemoryObjectStorage(): InMemoryObjectStorage {
+  const objects = new Map<string, { bytes: Uint8Array; contentType: string }>()
+  const keyOf = (location: { bucket: string; key: string }): string => `${location.bucket}/${location.key}`
+
+  return {
+    objects,
+    async put(input) {
+      objects.set(keyOf(input), { bytes: input.body, contentType: input.contentType })
+    },
+    async get(input) {
+      const object = objects.get(keyOf(input))
+      if (!object) throw new Error(`conversation-module/testing: objeto ausente em ${keyOf(input)}`)
+      return new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(object.bytes)
+          controller.close()
+        },
+      })
+    },
+    async delete(input) {
+      objects.delete(keyOf(input))
+    },
+    async createSignedDownload(input) {
+      return new URL(`https://storage.test/${keyOf(input)}?mode=download`)
+    },
+    async createSignedUpload(input) {
+      return new URL(`https://storage.test/${keyOf(input)}?mode=upload`)
+    },
+  }
 }
