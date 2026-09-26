@@ -145,3 +145,6 @@ export {
   UnassignedNotFoundError,
   AttachmentNotFoundError,
 } from './errors'
+
+export { buildReplyAddress, deriveReplyToken, hashReplyToken, verifyReplyToken } from './domain/replyToken'
+export type { BuildReplyAddressInput, DeriveReplyTokenInput, VerifyReplyTokenInput } from './domain/replyToken'

@@ -46,7 +46,9 @@ const VECTORS = [
   },
 ] as const
 
-function deriveWithOriginPrefix(vector: (typeof VECTORS)[number]): string {
+type TokenInput = { readonly secret: string; readonly companyId: string; readonly conversationId: string }
+
+function deriveWithOriginPrefix(vector: TokenInput): string {
   return deriveReplyToken({
     companyId: vector.companyId,
     conversationId: vector.conversationId,
