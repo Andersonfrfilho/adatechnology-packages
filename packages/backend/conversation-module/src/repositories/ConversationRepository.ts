@@ -79,6 +79,28 @@ export class ConversationRepository implements ConversationRepositoryPort {
     return row?.conversation
   }
 
+  async listOpenByParticipant(params: FindOpenConversationByParticipantParams): Promise<ConversationRow[]> {
+    const rows = await this.db
+      .select({ conversation: conversations })
+      .from(conversations)
+      .innerJoin(
+        conversationParticipants,
+        and(
+          eq(conversationParticipants.companyId, conversations.companyId),
+          eq(conversationParticipants.conversationId, conversations.id),
+        ),
+      )
+      .where(
+        and(
+          eq(conversations.companyId, params.companyId),
+          eq(conversations.status, 'open'),
+          eq(conversationParticipants.channel, params.channel),
+          eq(conversationParticipants.identifier, params.identifier),
+        ),
+      )
+    return rows.map((row) => row.conversation)
+  }
+
   async addParticipant(values: NewConversationParticipantRow): Promise<ConversationParticipantRow> {
     const existing = await this.findParticipant({
       companyId: values.companyId,

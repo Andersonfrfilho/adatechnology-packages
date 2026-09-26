@@ -104,6 +104,21 @@ export function createInMemoryConversations(seed: ConversationRow[] = []): InMem
           row.status === 'open',
       )
     },
+    async listOpenByParticipant(params: FindOpenConversationByParticipantParams) {
+      const candidateConversationIds = new Set(
+        participantRows
+          .filter(
+            (participant) =>
+              participant.companyId === params.companyId &&
+              participant.channel === params.channel &&
+              participant.identifier === params.identifier,
+          )
+          .map((participant) => participant.conversationId),
+      )
+      return rows.filter(
+        (row) => row.companyId === params.companyId && row.status === 'open' && candidateConversationIds.has(row.id),
+      )
+    },
     async addParticipant(values: NewConversationParticipantRow) {
       const existing = participantRows.find(
         (participant) =>

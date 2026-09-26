@@ -58,6 +58,13 @@ export type ConversationRepositoryPort = {
    * uma aberta por participante por construção deste método (RF6, D7 "nunca palpite").
    */
   findOpenByParticipant(params: FindOpenConversationByParticipantParams): Promise<ConversationRow | undefined>
+  /**
+   * Candidatas à atribuição genérica (RF7, D7): **todas** as conversas abertas do participante
+   * `(canal, identificador)`, com ou sem assunto — diferente de `findOpenByParticipant`, que só
+   * resolve a idempotência da conversa sem assunto. Quem decide entre várias é o caso de uso
+   * (T208), nunca este método — "nunca palpite" também vale para a porta.
+   */
+  listOpenByParticipant(params: FindOpenConversationByParticipantParams): Promise<ConversationRow[]>
   addParticipant(values: NewConversationParticipantRow): Promise<ConversationParticipantRow>
   findParticipant(params: FindParticipantParams): Promise<ConversationParticipantRow | undefined>
 }
