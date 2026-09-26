@@ -106,8 +106,16 @@ describeWithDatabase('conversation-module — integração contra Postgres real 
 
   beforeAll(async () => {
     sql = new SQL(databaseUrl!)
-    db = drizzle(sql) as unknown as ConversationDatabase
-    await runConversationMigrations({ db, migrate: (target, config) => migrate(target as never, config) })
+    db = drizzle({ client: sql }) as unknown as ConversationDatabase
+    // `drizzle-orm/bun-sql/migrator` devolve `Promise<void | MigratorInitFailResponse>` no 1.x — o
+    // `MigratorInitFailResponse` só volta com `init: true` (uso de `drizzle-kit pull --init`, que
+    // este módulo não usa), então descartar o valor aqui preserva o comportamento de sempre.
+    await runConversationMigrations({
+      db,
+      migrate: async (target, config) => {
+        await migrate(target as never, config)
+      },
+    })
 
     module = createConversationModule({
       providers: {
@@ -170,8 +178,8 @@ describeWithDatabase('conversation-module — integração contra Postgres real 
       const sqlA = new SQL(databaseUrl!)
       const sqlB = new SQL(databaseUrl!)
       try {
-        const dbA = drizzle(sqlA) as unknown as ConversationDatabase
-        const dbB = drizzle(sqlB) as unknown as ConversationDatabase
+        const dbA = drizzle({ client: sqlA }) as unknown as ConversationDatabase
+        const dbB = drizzle({ client: sqlB }) as unknown as ConversationDatabase
         const moduleA = createConversationModule({ providers: { db: dbA, clock: fixedClock(), channels: {} } })
         const moduleB = createConversationModule({ providers: { db: dbB, clock: fixedClock(), channels: {} } })
 
