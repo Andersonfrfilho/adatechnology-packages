@@ -42,3 +42,29 @@ export type {
   NewConversationUploadRow,
   ConversationUploadStatus,
 } from './schema/schema'
+
+export { ConversationRepository } from './repositories/ConversationRepository'
+export { MessageRepository } from './repositories/MessageRepository'
+export { AttachmentRepository } from './repositories/AttachmentRepository'
+export { ReadRepository } from './repositories/ReadRepository'
+export { UnassignedRepository } from './repositories/UnassignedRepository'
+export { QuickReplyRepository } from './repositories/QuickReplyRepository'
+export type {
+  ConversationRepositoryPort,
+  MessageRepositoryPort,
+  AttachmentRepositoryPort,
+  ReadRepositoryPort,
+  UnassignedRepositoryPort,
+  QuickReplyRepositoryPort,
+  FindConversationBySubjectParams,
+  FindOpenConversationByParticipantParams,
+  FindParticipantParams,
+  FindMessageByProviderIdParams,
+  UpdateMessageStatusParams,
+  ListConversationMessagesParams,
+  ListConversationMessagesPage,
+  UpsertConversationReadParams,
+  FindUnassignedByProviderIdParams,
+  ListOpenUnassignedParams,
+  AssignUnassignedParams,
+} from './repositories/ports'
