@@ -15,6 +15,7 @@ export const CHANNEL_BRAND_COLOR: Readonly<Record<ConversationChannel, string>> 
   [CONVERSATION_CHANNEL.MESSENGER]: '#0084FF',
   [CONVERSATION_CHANNEL.INSTAGRAM]: '#E4405F',
   [CONVERSATION_CHANNEL.WEBCHAT]: '#64748B',
+  [CONVERSATION_CHANNEL.EMAIL]: '#EA4335',
 }
 
 export interface ChannelIconProps {
@@ -56,6 +57,16 @@ function Glyph({ channel }: { channel: ConversationChannel }) {
         <rect x="6.5" y="6.5" width="11" height="11" rx="3.5" fill="none" stroke="#fff" strokeWidth="1.6" />
         <circle cx="12" cy="12" r="2.6" fill="none" stroke="#fff" strokeWidth="1.6" />
         <circle cx="16.4" cy="7.6" r="1" fill="#fff" />
+      </>
+    )
+  }
+
+  if (channel === CONVERSATION_CHANNEL.EMAIL) {
+    return (
+      <>
+        <rect x="2" y="4" width="20" height="16" rx="3" fill={color} />
+        {/* Envelope aberto: o traço mínimo que ainda lê como e-mail numa fila de conversas. */}
+        <path d="M3.5 6.5 12 13l8.5-6.5" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
       </>
     )
   }

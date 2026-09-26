@@ -389,6 +389,7 @@ export function ConversationPane({
               <MessageBubble
                 message={message}
                 isMine={message.direction === 'outbound'}
+                channel={conversation.channel}
                 isFirstInGroup={!previous || previous.sender !== message.sender}
                 {...(messageSelection
                   ? {
@@ -507,6 +508,7 @@ export function ConversationPane({
           value={draft}
           onChange={setDraft}
           onSend={(text) => void handleSend(text)}
+          channel={conversation.channel}
           // Habilita clipe E microfone: o composer desenha o gravador sozinho quando existe um jeito
           // de entregar arquivo, porque áudio gravado é um anexo como qualquer outro.
           {...(onAttach ? { onAttach: (file: File) => void handleAttach(file) } : {})}

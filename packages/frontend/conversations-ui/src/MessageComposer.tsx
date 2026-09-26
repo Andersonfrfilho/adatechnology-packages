@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from 'react'
 import { AudioRecorderButton } from './AudioRecorderButton'
+import { channelCapabilityFor } from './channelCapability'
+import type { ConversationChannel } from './conversationChannel'
 import type { ConversationsFeatures } from './types'
 import { cn } from './lib/cn'
 import { COMPOSER_BAR_CLASS, QUICK_REPLY_PILL_CLASS } from './composer.constant'
@@ -53,6 +55,12 @@ export interface MessageComposerLabels {
   send: string
   removeAttachment: string
   quickReplies: string
+  /** RF10, D3: por que o anexo está desabilitado no canal atual. */
+  attachDisabledHint: string
+  /** RF10, D3: por que o microfone está desabilitado no canal atual. */
+  audioDisabledHint: string
+  /** RF10, D3: por que a mensagem pronta está desabilitada no canal atual. */
+  quickRepliesDisabledHint: string
 }
 
 export const DEFAULT_MESSAGE_COMPOSER_LABELS: MessageComposerLabels = {
@@ -61,6 +69,9 @@ export const DEFAULT_MESSAGE_COMPOSER_LABELS: MessageComposerLabels = {
   send: 'Enviar',
   removeAttachment: 'Remover anexo',
   quickReplies: 'Mensagens prontas',
+  attachDisabledHint: 'Este canal não aceita anexo.',
+  audioDisabledHint: 'Este canal não grava áudio.',
+  quickRepliesDisabledHint: 'Este canal não aceita mensagem pronta.',
 }
 
 /**
@@ -90,6 +101,12 @@ export interface MessageComposerProps {
   value?: string
   onChange?: (value: string) => void
   features?: ConversationsFeatures
+  /**
+   * Canal da conversa (RF10, D3). Ausente = `whatsapp`, o comportamento de antes desta mudança.
+   * Decide o que aparece desabilitado com dica: anexo, microfone e mensagem pronta que o canal não
+   * suporta nunca somem sem explicação — ficam visíveis e desabilitados.
+   */
+  channel?: ConversationChannel
   placeholder?: string
   maxLength?: number
   disabled?: boolean
@@ -147,6 +164,7 @@ export const MessageComposer = ({
   quickReplyVariables,
   savedQuickReplies,
   features,
+  channel,
   placeholder = 'Digite uma mensagem...',
   maxLength,
   disabled = false,
@@ -161,6 +179,16 @@ export const MessageComposer = ({
   const sendLabel = labels?.send ?? DEFAULT_MESSAGE_COMPOSER_LABELS.send
   const removeAttachmentLabel = labels?.removeAttachment ?? DEFAULT_MESSAGE_COMPOSER_LABELS.removeAttachment
   const quickRepliesLabel = labels?.quickReplies ?? DEFAULT_MESSAGE_COMPOSER_LABELS.quickReplies
+  const attachDisabledHintLabel = labels?.attachDisabledHint ?? DEFAULT_MESSAGE_COMPOSER_LABELS.attachDisabledHint
+  const audioDisabledHintLabel = labels?.audioDisabledHint ?? DEFAULT_MESSAGE_COMPOSER_LABELS.audioDisabledHint
+  const quickRepliesDisabledHintLabel =
+    labels?.quickRepliesDisabledHint ?? DEFAULT_MESSAGE_COMPOSER_LABELS.quickRepliesDisabledHint
+  const capability = channelCapabilityFor(channel)
+  const attachmentsAllowed = capability.attachments.accepted
+  const audioRecordingAllowed = capability.audio.records
+  const quickRepliesAllowed = capability.quickReplies
+  const attachHintId = useId()
+  const quickRepliesHintId = useId()
   const [internalText, setInternalText] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
   const [attachments, setAttachments] = useState<FilePreview[]>([])
@@ -397,7 +425,14 @@ export const MessageComposer = ({
    * duração ou revisão diferentes) não muda de comportamento ao atualizar.
    */
   const effectiveIdleAction =
-    idleAction ?? (onAttach ? <AudioRecorderButton onRecorded={(file) => onAttach(file)} /> : undefined)
+    idleAction ??
+    (onAttach ? (
+      <AudioRecorderButton
+        onRecorded={(file) => onAttach(file)}
+        disabled={!audioRecordingAllowed}
+        disabledHint={audioRecordingAllowed ? undefined : audioDisabledHintLabel}
+      />
+    ) : undefined)
 
   const canSend = text.trim().length > 0 || attachments.length > 0
   const remaining = maxLength ? maxLength - text.length : null
@@ -546,18 +581,27 @@ export const MessageComposer = ({
         </div>
 
         {showQuickRepliesButton && (
-          <button
-            ref={quickRepliesTriggerRef}
-            type="button"
-            data-cv-tooltip={quickRepliesLabel}
-            aria-label={quickRepliesLabel}
-            onClick={openQuickRepliesViaButton}
-            className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-          </button>
+          <>
+            <button
+              ref={quickRepliesTriggerRef}
+              type="button"
+              disabled={!quickRepliesAllowed}
+              data-cv-tooltip={quickRepliesAllowed ? quickRepliesLabel : quickRepliesDisabledHintLabel}
+              aria-label={quickRepliesLabel}
+              aria-describedby={quickRepliesAllowed ? undefined : quickRepliesHintId}
+              onClick={openQuickRepliesViaButton}
+              className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+            </button>
+            {!quickRepliesAllowed && (
+              <span id={quickRepliesHintId} className="sr-only">
+                {quickRepliesDisabledHintLabel}
+              </span>
+            )}
+          </>
         )}
 
         {showAttachButton && (
@@ -571,15 +615,22 @@ export const MessageComposer = ({
               className="hidden"
             />
             <button
-              data-cv-tooltip={attachLabel}
+              disabled={!attachmentsAllowed}
+              data-cv-tooltip={attachmentsAllowed ? attachLabel : attachDisabledHintLabel}
               onClick={() => fileInputRef.current?.click()}
-              className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors"
+              aria-describedby={attachmentsAllowed ? undefined : attachHintId}
+              className="w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 flex-shrink-0 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               aria-label={attachLabel}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
               </svg>
             </button>
+            {!attachmentsAllowed && (
+              <span id={attachHintId} className="sr-only">
+                {attachDisabledHintLabel}
+              </span>
+            )}
           </>
         )}
 
