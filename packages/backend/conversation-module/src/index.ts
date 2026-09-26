@@ -144,6 +144,7 @@ export {
   UploadExpiredError,
   UnassignedNotFoundError,
   AttachmentNotFoundError,
+  ChannelTransportMissingError,
 } from './errors'
 
 export { buildReplyAddress, deriveReplyToken, hashReplyToken, verifyReplyToken } from './domain/replyToken'

@@ -30,6 +30,7 @@ export const CONVERSATION_ERROR_CODES = {
   UPLOAD_EXPIRED: 'CONVERSATION_UPLOAD_EXPIRED',
   UNASSIGNED_NOT_FOUND: 'CONVERSATION_UNASSIGNED_NOT_FOUND',
   ATTACHMENT_NOT_FOUND: 'CONVERSATION_ATTACHMENT_NOT_FOUND',
+  CHANNEL_TRANSPORT_MISSING: 'CONVERSATION_CHANNEL_TRANSPORT_MISSING',
   QUICK_REPLY_INVALID: 'CONVERSATION_QUICK_REPLY_INVALID',
   QUICK_REPLY_NOT_FOUND: 'CONVERSATION_QUICK_REPLY_NOT_FOUND',
 } as const
@@ -45,6 +46,25 @@ export class ChannelPortNotConfiguredError extends ConversationModuleError {
       500,
       CONVERSATION_ERROR_CODES.CHANNEL_NOT_CONFIGURED,
       { channel },
+    )
+  }
+}
+
+/**
+ * D5, CA03: canal com `requiresTransport: true` (RF2) pedido em `config.enabledChannels` sem a
+ * porta de transporte correspondente na subida — canal que aceita mensagem e perde a resposta é
+ * pior que canal desligado.
+ */
+export class ChannelTransportMissingError extends ConversationModuleError {
+  constructor(
+    public readonly channel: ConversationChannel,
+    public readonly transportPortName: string,
+  ) {
+    super(
+      `Canal ${channel} pedido em enabledChannels sem transporte — injete a porta ${transportPortName} para ligar este canal.`,
+      500,
+      CONVERSATION_ERROR_CODES.CHANNEL_TRANSPORT_MISSING,
+      { channel, transportPortName },
     )
   }
 }

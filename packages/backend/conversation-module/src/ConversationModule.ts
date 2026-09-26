@@ -6,18 +6,24 @@
  * da porta correspondente em `providers`. `email` é tratado à parte (D5): ele não é um membro comum
  * de `providers.channels` porque o transporte de e-mail tem forma própria
  * (`ConversationEmailTransportPort`, com assunto e threading) — por ora `email` só entra em
- * `enabledChannels` se `providers.emailTransport` vier. A exigência "email ligado sem transporte
- * falha na subida" é da T309/T310, não desta task. `providers.objectStorage` ausente desliga
+ * `enabledChannels` se `providers.emailTransport` vier. `providers.objectStorage` ausente desliga
  * anexo (RF8): os três casos de uso de anexo lançam `AttachmentsDisabledError` na primeira
  * chamada — nunca um `if (module.attachments)` no host.
+ *
+ * T310, D5, CA03: `config.enabledChannels` é o roster que o produto declara querer ("cada produto
+ * liga só os canais que quer") — a checagem que roda sobre ele **não é** um `if (channel ===
+ * 'email')`: é dirigida pela capacidade (`requiresTransport`, RF2), contra uma tabela declarativa
+ * de qual porta cada canal-com-transporte exige. Canal `requiresTransport: false` nunca entra na
+ * checagem, com ou sem porta.
  */
-import type {
-  ClockPort,
-  ConversationChannel,
-  ConversationChannelPort,
-  ConversationEmailTransportPort,
-  ObjectStoragePort,
-  TranscriberPort,
+import {
+  getChannelCapabilities,
+  type ClockPort,
+  type ConversationChannel,
+  type ConversationChannelPort,
+  type ConversationEmailTransportPort,
+  type ObjectStoragePort,
+  type TranscriberPort,
 } from '@adatechnology/conversation-contracts'
 
 import type { ConversationDatabase } from './database.types'
@@ -51,7 +57,7 @@ import {
   ListQuickRepliesForComposerUseCase,
   UpdateQuickReplyUseCase,
 } from './use-cases/QuickReply.use-cases'
-import { ConfigMissingError } from './errors'
+import { ChannelTransportMissingError, ConfigMissingError } from './errors'
 
 /** Canal comum, enviado por `ConversationChannelPort` — `email` fica de fora (D5). */
 type NonEmailChannel = Exclude<ConversationChannel, 'email'>
@@ -62,6 +68,46 @@ export type ConversationModuleConfig = {
    * final do anexo (RF8) são gravados. Sem `objectStorage`, o campo nunca é lido.
    */
   readonly attachmentsBucket?: string
+  /**
+   * Os canais que o produto quer ligar (D5: "cada produto liga só os canais que quer"). Ausente ou
+   * vazio, nenhuma checagem de transporte roda — compatível com quem só usa `providers.channels`/
+   * `providers.emailTransport` para decidir o que está ligado. Canal aqui com
+   * `requiresTransport: true` (RF2) e sem a porta correspondente em `providers` falha a subida
+   * (`ChannelTransportMissingError`, D5, CA03).
+   */
+  readonly enabledChannels?: readonly ConversationChannel[]
+}
+
+/** D5, T310: qual porta cada canal-com-transporte exige, e como saber se ela veio. */
+const CHANNEL_TRANSPORT_REQUIREMENTS: Partial<
+  Record<
+    ConversationChannel,
+    { readonly portName: string; readonly present: (providers: ConversationModuleProviders) => boolean }
+  >
+> = {
+  email: {
+    portName: 'ConversationEmailTransportPort',
+    present: (providers) => Boolean(providers.emailTransport),
+  },
+}
+
+/**
+ * D5, CA03: para cada canal pedido com `requiresTransport: true` (RF2), exige a porta que a tabela
+ * acima nomeia. Canal com `requiresTransport: false` nunca entra aqui — a checagem é por
+ * capacidade, não por uma lista de canais escrita à mão.
+ */
+function assertEnabledChannelsHaveTransport(
+  enabledChannels: readonly ConversationChannel[],
+  providers: ConversationModuleProviders,
+): void {
+  for (const channel of enabledChannels) {
+    if (!getChannelCapabilities(channel).requiresTransport) continue
+
+    const requirement = CHANNEL_TRANSPORT_REQUIREMENTS[channel]
+    if (!requirement || !requirement.present(providers)) {
+      throw new ChannelTransportMissingError(channel, requirement?.portName ?? 'transporte do canal')
+    }
+  }
 }
 
 /**
@@ -111,6 +157,7 @@ export type ConversationModule = {
 
 export function createConversationModule(params: CreateConversationModuleParams): ConversationModule {
   const { providers } = params
+  assertEnabledChannelsHaveTransport(params.config?.enabledChannels ?? [], providers)
   if (providers.objectStorage && !params.config?.attachmentsBucket) {
     throw new ConfigMissingError('attachmentsBucket')
   }
