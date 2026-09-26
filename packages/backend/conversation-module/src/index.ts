@@ -148,3 +148,10 @@ export {
 
 export { buildReplyAddress, deriveReplyToken, hashReplyToken, verifyReplyToken } from './domain/replyToken'
 export type { BuildReplyAddressInput, DeriveReplyTokenInput, VerifyReplyTokenInput } from './domain/replyToken'
+
+export { EMAIL_THREADING_REFERENCES_MAX_COUNT, buildEmailThreadingHeaders } from './domain/emailThreading'
+export type {
+  BuildEmailThreadingHeadersInput,
+  EmailThreadingHeaders,
+  LastInboundEmailMessage,
+} from './domain/emailThreading'
