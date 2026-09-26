@@ -68,3 +68,43 @@ export type {
   ListOpenUnassignedParams,
   AssignUnassignedParams,
 } from './repositories/ports'
+
+export { createConversationModule } from './ConversationModule'
+export type {
+  ConversationModule,
+  ConversationModuleConfig,
+  ConversationModuleFeatures,
+  ConversationModuleProviders,
+  CreateConversationModuleParams,
+} from './ConversationModule'
+
+export { OpenConversationUseCase } from './use-cases/Conversation.use-cases'
+export type { OpenConversationInput } from './use-cases/Conversation.use-cases'
+export {
+  ListConversationMessagesUseCase,
+  ReceiveMessageUseCase,
+  SendMessageUseCase,
+  UpdateMessageStatusUseCase,
+} from './use-cases/Message.use-cases'
+export type {
+  ListConversationMessagesInput,
+  ReceiveMessageInput,
+  SendMessageInput,
+  UpdateMessageStatusInput,
+} from './use-cases/Message.use-cases'
+export { MarkConversationReadUseCase } from './use-cases/Read.use-cases'
+export type { MarkConversationReadInput } from './use-cases/Read.use-cases'
+
+export {
+  ConversationModuleError,
+  CONVERSATION_ERROR_CODES,
+  ChannelPortNotConfiguredError,
+  ConversationNotFoundError,
+  MessageNotFoundError,
+  ConfigMissingError,
+  AttachmentsDisabledError,
+  AttachmentTypeMismatchError,
+  AttachmentTooLargeError,
+  UploadNotFoundError,
+  UploadExpiredError,
+} from './errors'

@@ -73,6 +73,8 @@ export type UpdateMessageStatusParams = {
   readonly id: string
   readonly status: MessageStatus
   readonly statusTimes: Readonly<Record<string, string>>
+  /** Gravado junto quando o envio acaba de devolver o id do provedor (T206, `SendMessageUseCase`). */
+  readonly providerMessageId?: string
 }
 
 export type ListConversationMessagesParams = {

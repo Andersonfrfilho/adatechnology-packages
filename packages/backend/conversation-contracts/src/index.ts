@@ -28,6 +28,15 @@ export type { AttachmentCapability, AudioCapability, ChannelCapability } from '.
 export { advanceDeliveryStatus } from './deliveryStatus'
 export type { DeliveryStatusState, DeliveryStatusEvent, DeliveryStatusResult } from './deliveryStatus'
 
+export {
+  openConversationParticipantSchema,
+  openConversationBodySchema,
+  sendMessageBodySchema,
+  markConversationReadBodySchema,
+  quickReplyBodySchema,
+} from './requestSchemas'
+export type { OpenConversationBody, SendMessageBody, MarkConversationReadBody, QuickReplyBody } from './requestSchemas'
+
 export type {
   SendConversationTextInput,
   SendConversationAttachmentInput,

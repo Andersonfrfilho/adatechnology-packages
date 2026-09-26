@@ -50,7 +50,11 @@ export class MessageRepository implements MessageRepositoryPort {
   async updateStatus(params: UpdateMessageStatusParams): Promise<ConversationMessageRow | undefined> {
     const [row] = await this.db
       .update(conversationMessages)
-      .set({ status: params.status, statusTimes: { ...params.statusTimes } })
+      .set({
+        status: params.status,
+        statusTimes: { ...params.statusTimes },
+        ...(params.providerMessageId !== undefined ? { providerMessageId: params.providerMessageId } : {}),
+      })
       .where(and(eq(conversationMessages.companyId, params.companyId), eq(conversationMessages.id, params.id)))
       .returning()
     return row

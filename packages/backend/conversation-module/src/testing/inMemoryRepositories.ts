@@ -174,6 +174,7 @@ export function createInMemoryMessages(seed: ConversationMessageRow[] = []): InM
       if (!row) return undefined
       row.status = params.status
       row.statusTimes = { ...params.statusTimes }
+      if (params.providerMessageId !== undefined) row.providerMessageId = params.providerMessageId
       return row
     },
     async list(params: ListConversationMessagesParams): Promise<ListConversationMessagesPage> {
