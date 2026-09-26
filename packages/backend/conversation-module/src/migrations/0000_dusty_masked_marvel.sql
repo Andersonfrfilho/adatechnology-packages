@@ -53,11 +53,11 @@ CREATE TABLE "conversation"."messages" (
 	CONSTRAINT "messages_status_direction_check" CHECK (("conversation"."messages"."direction" = 'outbound') = ("conversation"."messages"."status" is not null)),
 	CONSTRAINT "messages_dkim_result_check" CHECK ("conversation"."messages"."dkim_result" is null or ("conversation"."messages"."dkim_result" in ('aligned', 'not_aligned', 'unverifiable', 'absent') and "conversation"."messages"."channel" = 'email' and "conversation"."messages"."direction" = 'inbound')),
 	CONSTRAINT "messages_body_length_check" CHECK (length("conversation"."messages"."body_text") <= 8000),
-	CONSTRAINT "messages_email_reachable_status_check" CHECK ("conversation"."messages"."channel" <> $1 or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'sent', 'delivered', 'failed', 'bounced')),
-	CONSTRAINT "messages_whatsapp_reachable_status_check" CHECK ("conversation"."messages"."channel" <> $1 or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'sent', 'delivered', 'read', 'failed')),
-	CONSTRAINT "messages_app_reachable_status_check" CHECK ("conversation"."messages"."channel" <> $1 or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'delivered', 'read')),
-	CONSTRAINT "messages_portal_reachable_status_check" CHECK ("conversation"."messages"."channel" <> $1 or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('delivered', 'read')),
-	CONSTRAINT "messages_webchat_reachable_status_check" CHECK ("conversation"."messages"."channel" <> $1 or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'delivered', 'failed'))
+	CONSTRAINT "messages_email_reachable_status_check" CHECK ("conversation"."messages"."channel" <> 'email' or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'sent', 'delivered', 'failed', 'bounced')),
+	CONSTRAINT "messages_whatsapp_reachable_status_check" CHECK ("conversation"."messages"."channel" <> 'whatsapp' or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'sent', 'delivered', 'read', 'failed')),
+	CONSTRAINT "messages_app_reachable_status_check" CHECK ("conversation"."messages"."channel" <> 'app' or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'delivered', 'read')),
+	CONSTRAINT "messages_portal_reachable_status_check" CHECK ("conversation"."messages"."channel" <> 'portal' or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('delivered', 'read')),
+	CONSTRAINT "messages_webchat_reachable_status_check" CHECK ("conversation"."messages"."channel" <> 'webchat' or "conversation"."messages"."status" is null or "conversation"."messages"."status" in ('queued', 'delivered', 'failed'))
 );
 --> statement-breakpoint
 CREATE TABLE "conversation"."participants" (

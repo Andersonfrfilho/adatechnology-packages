@@ -194,7 +194,10 @@ export const conversationMessages = conversationSchema.table(
     ...CONVERSATION_CHANNEL.map((channel) =>
       check(
         `messages_${channel}_reachable_status_check`,
-        sql`${table.channel} <> ${channel} or ${table.status} is null or ${table.status} in (${sql.raw(inList(CHANNEL_CAPABILITIES[channel].reachableStatuses))})`,
+        // O canal entra como literal (`sql.raw`), nunca como parâmetro de bind: DDL não aceita
+        // `$1` — o Postgres recusa `CHECK` com parâmetro, porque a constraint não tem plano de
+        // execução parametrizável (achado T202, corrigido com o mesmo `inList` das outras CHECKs).
+        sql`${table.channel} <> ${sql.raw(`'${channel}'`)} or ${table.status} is null or ${table.status} in (${sql.raw(inList(CHANNEL_CAPABILITIES[channel].reachableStatuses))})`,
       ),
     ),
     index('messages_conversation_created_idx').on(table.companyId, table.conversationId, table.createdAt, table.id),

@@ -1,5 +1,5 @@
 {
-  "id": "4833f3aa-e999-43a7-ae4a-84b8b2d840c9",
+  "id": "7b0acafd-d2fb-4dbd-83aa-67de5432cf3e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -368,23 +368,23 @@
         },
         "messages_email_reachable_status_check": {
           "name": "messages_email_reachable_status_check",
-          "value": "\"conversation\".\"messages\".\"channel\" <> $1 or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'sent', 'delivered', 'failed', 'bounced')"
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'email' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'sent', 'delivered', 'failed', 'bounced')"
         },
         "messages_whatsapp_reachable_status_check": {
           "name": "messages_whatsapp_reachable_status_check",
-          "value": "\"conversation\".\"messages\".\"channel\" <> $1 or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'sent', 'delivered', 'read', 'failed')"
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'whatsapp' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'sent', 'delivered', 'read', 'failed')"
         },
         "messages_app_reachable_status_check": {
           "name": "messages_app_reachable_status_check",
-          "value": "\"conversation\".\"messages\".\"channel\" <> $1 or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'delivered', 'read')"
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'app' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'delivered', 'read')"
         },
         "messages_portal_reachable_status_check": {
           "name": "messages_portal_reachable_status_check",
-          "value": "\"conversation\".\"messages\".\"channel\" <> $1 or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('delivered', 'read')"
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'portal' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('delivered', 'read')"
         },
         "messages_webchat_reachable_status_check": {
           "name": "messages_webchat_reachable_status_check",
-          "value": "\"conversation\".\"messages\".\"channel\" <> $1 or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'delivered', 'failed')"
+          "value": "\"conversation\".\"messages\".\"channel\" <> 'webchat' or \"conversation\".\"messages\".\"status\" is null or \"conversation\".\"messages\".\"status\" in ('queued', 'delivered', 'failed')"
         }
       },
       "isRLSEnabled": false

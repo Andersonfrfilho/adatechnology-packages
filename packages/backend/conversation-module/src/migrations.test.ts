@@ -32,4 +32,20 @@ describe('migrations embarcadas', () => {
     const sql = readFileSync(join(MIGRATIONS_DIR, String(first)), 'utf8')
     expect(sql).toContain('CREATE SCHEMA IF NOT EXISTS "conversation"')
   })
+
+  /**
+   * T202 (achado do coordenador): um CHECK gerado a partir de `${channel}` sem `sql.raw` saiu como
+   * `"channel" <> $1` — parâmetro de bind dentro de DDL, que o Postgres recusa (constraint não tem
+   * plano de execução parametrizável). Toda migration embarcada é SQL estático, nunca prepared
+   * statement — `$<n>` aqui é sempre sinal de um valor que devia ter entrado como literal.
+   */
+  it('nenhuma migration carrega parâmetro de bind — DDL é sempre literal', () => {
+    const offenders = migrationFiles().flatMap((file) => {
+      const sql = readFileSync(join(MIGRATIONS_DIR, file), 'utf8')
+      const matches = sql.match(/\$[0-9]+/g) ?? []
+      return matches.map((match) => `${file}: ${match}`)
+    })
+
+    expect(offenders).toEqual([])
+  })
 })
