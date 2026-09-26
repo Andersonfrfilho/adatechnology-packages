@@ -155,3 +155,8 @@ export type {
   EmailThreadingHeaders,
   LastInboundEmailMessage,
 } from './domain/emailThreading'
+
+export { computeRawEmailSha256 } from './domain/rawEmail'
+
+export { parseEmailMime } from './domain/emailMime'
+export type { ParsedEmailAttachment, ParsedEmailMime } from './domain/emailMime'

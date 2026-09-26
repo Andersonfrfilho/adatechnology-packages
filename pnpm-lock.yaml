@@ -230,6 +230,9 @@ importers:
       '@adatechnology/conversation-contracts':
         specifier: workspace:*
         version: link:../conversation-contracts
+      postal-mime:
+        specifier: ^2.7.6
+        version: 2.7.6
       zod:
         specifier: ^3.24.1
         version: 3.25.76

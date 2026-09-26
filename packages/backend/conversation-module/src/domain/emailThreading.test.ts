@@ -9,10 +9,7 @@
  */
 import { describe, expect, it } from 'bun:test'
 
-import {
-  EMAIL_THREADING_REFERENCES_MAX_COUNT,
-  buildEmailThreadingHeaders,
-} from './emailThreading'
+import { EMAIL_THREADING_REFERENCES_MAX_COUNT, buildEmailThreadingHeaders } from './emailThreading'
 
 describe('buildEmailThreadingHeaders', () => {
   it('sem mensagem recebida anterior, In-Reply-To e References ficam ausentes (nunca string vazia)', () => {
