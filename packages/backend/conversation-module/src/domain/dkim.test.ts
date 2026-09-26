@@ -58,14 +58,39 @@ function resolverFor(records: Readonly<Record<string, string>>) {
   }
 }
 
+/**
+ * ⚠️ A tipagem publicada da `mailauth@5.0.3` descreve `dkimSign` recebendo **uma** assinatura no
+ * objeto raiz, e a implementação só assina o que vem em `signatureData` — passar como o tipo manda
+ * compila e devolve mensagem sem assinatura. Declaramos aqui a forma que a implementação aceita, em
+ * vez de seguir a declaração errada. Só o teste assina; o pacote em si apenas verifica.
+ */
+type DkimSignature = {
+  readonly algorithm: string
+  readonly canonicalization: string
+  readonly privateKey: string
+  readonly selector: string
+  readonly signingDomain: string
+}
+type DkimSign = (
+  input: Buffer,
+  options: { readonly signatureData: readonly DkimSignature[] },
+) => Promise<{ readonly signatures: string }>
+
 async function sign(message: Buffer, domain: string, privateKey: string): Promise<Buffer> {
-  const { dkimSign } = await import('mailauth/lib/dkim/sign')
+  const { dkimSign } = (await import('mailauth/lib/dkim/sign')) as unknown as { dkimSign: DkimSign }
   const signature = await dkimSign(message, {
-    algorithm: 'rsa-sha256',
-    canonicalization: 'relaxed/relaxed',
-    signatureData: [{ domainName: domain, keySelector: SELECTOR, privateKey }],
+    signatureData: [
+      {
+        algorithm: 'rsa-sha256',
+        canonicalization: 'relaxed/relaxed',
+        privateKey,
+        selector: SELECTOR,
+        signingDomain: domain,
+      },
+    ],
   })
-  return Buffer.concat([Buffer.from(signature.signatures), message])
+  const headers = String(signature.signatures)
+  return Buffer.concat([Buffer.from(headers.endsWith('\r\n') ? headers : `${headers}\r\n`), message])
 }
 
 beforeAll(async () => {

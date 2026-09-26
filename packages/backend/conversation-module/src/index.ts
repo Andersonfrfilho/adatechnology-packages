@@ -160,3 +160,6 @@ export { computeRawEmailSha256 } from './domain/rawEmail'
 
 export { parseEmailMime } from './domain/emailMime'
 export type { ParsedEmailAttachment, ParsedEmailMime } from './domain/emailMime'
+
+export { createDkimVerifier, resolveDkimAlignment } from './domain/dkim'
+export type { CreateDkimVerifierInput, DkimDnsResolver, DkimSignatureVerification, DkimVerifier } from './domain/dkim'
