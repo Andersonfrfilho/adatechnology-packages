@@ -7,6 +7,11 @@
  * derruba a subida com `42P06`. Sem Postgres aqui de propósito, no molde de
  * `notification-module/migrations.test.ts`: o que se verifica é a FORMA do SQL, verificável por
  * leitura, e roda em qualquer `bun test`.
+ *
+ * ⚠️ O layout é o do `drizzle-kit@1.x`: uma pasta por migration (`<timestamp>_<nome>/migration.sql`),
+ * que é o que o `drizzle-orm@1.x` do consumidor sabe ler. O layout antigo (`0000_nome.sql` mais
+ * `meta/_journal.json`) faz o migrator do consumidor falhar na subida — foi assim que o primeiro
+ * host descobriu, ao ligar as migrations do pacote no `pre-deploy`.
  */
 
 import { describe, expect, it } from 'bun:test'
@@ -15,15 +20,24 @@ import { join } from 'node:path'
 
 const MIGRATIONS_DIR = join(__dirname, 'migrations')
 
+/** Uma pasta por migration, nomeada pelo timestamp — a ordem alfabética é a ordem de aplicação. */
 function migrationFiles(): readonly string[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((name) => name.endsWith('.sql'))
+  return readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(entry.name, 'migration.sql'))
     .sort()
 }
 
 describe('migrations embarcadas', () => {
   it('existe ao menos uma, senão o teste passa por vacuidade', () => {
     expect(migrationFiles().length).toBeGreaterThan(0)
+  })
+
+  it('cada migration mora na própria pasta, no layout que o drizzle-orm 1.x lê', () => {
+    expect(readdirSync(MIGRATIONS_DIR)).not.toContain('meta')
+    for (const file of migrationFiles()) {
+      expect(file).toMatch(/^\d{14}_[a-z0-9_]+\/migration\.sql$/)
+    }
   })
 
   it('a primeira migration cria o schema do módulo com IF NOT EXISTS', () => {
