@@ -313,6 +313,34 @@ describe('ObjectStorageProvider public contract', () => {
     )
   })
 
+  /**
+   * O SDK 3.1091 calcula checksum por padrão (`requestChecksumCalculation: 'WHEN_SUPPORTED'`) e, na
+   * URL assinada de PUT, amarra o CRC32 de um corpo que ainda não existe — o do corpo **vazio**. O
+   * storage que confere o checksum (MinIO recente, SeaweedFS) recusa o upload real com `BadDigest`.
+   * Medido pelo transportada (spec 183): 400 sem a correção, 200 com ela. O cliente não pode depender
+   * de o consumidor lembrar `AWS_REQUEST_CHECKSUM_CALCULATION`, então o teste roda sem a variável.
+   */
+  test('signed upload URLs never bind a checksum of an empty body', async () => {
+    const previous = process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+    delete process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+    try {
+      const signedUpload = await createProvider().createSignedUpload({
+        bucket: BUCKET,
+        key: KEY,
+        expiresInSeconds: 60,
+        contentLength: ORIGINAL_BYTES.byteLength,
+        contentType: CONTENT_TYPE,
+      })
+      const parameters = [...signedUpload.searchParams.keys()].map((name) => name.toLowerCase())
+
+      expect(parameters.filter((name) => name.includes('checksum'))).toEqual([])
+      expect(signedUpload.searchParams.get('X-Amz-SignedHeaders')).not.toContain('checksum')
+    } finally {
+      if (previous === undefined) delete process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+      else process.env.AWS_REQUEST_CHECKSUM_CALCULATION = previous
+    }
+  })
+
   test('rejects invalid expiration, oversized content, and invalid content type for signed uploads', async () => {
     const provider = createProvider()
     const validUpload = {
