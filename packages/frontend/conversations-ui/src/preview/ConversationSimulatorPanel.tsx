@@ -66,6 +66,10 @@ const SIMULATOR_PANEL_CHANNEL_WORDING: Readonly<Record<ConversationChannel, Chan
     destinationHint: 'entrega na API do chat do site',
     placeholder: 'Escreva como o visitante…',
   },
+  [CONVERSATION_CHANNEL.EMAIL]: {
+    destinationHint: 'entrega na caixa de entrada do contratante',
+    placeholder: 'Escreva como quem respondeu o e-mail…',
+  },
 }
 
 /** Rótulos do painel já resolvidos para o canal — útil para o host que monta o cabeçalho por fora. */

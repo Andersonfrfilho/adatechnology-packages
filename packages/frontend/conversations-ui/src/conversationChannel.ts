@@ -17,6 +17,7 @@ export const CONVERSATION_CHANNEL = {
   MESSENGER: 'messenger',
   INSTAGRAM: 'instagram',
   WEBCHAT: 'webchat',
+  EMAIL: 'email',
 } as const
 export type ConversationChannel = (typeof CONVERSATION_CHANNEL)[keyof typeof CONVERSATION_CHANNEL]
 
@@ -35,14 +36,21 @@ export const HANDLE_KIND = {
   PHONE: 'phone',
   USERNAME: 'username',
   SESSION: 'session',
+  EMAIL: 'email',
 } as const
 export type HandleKind = (typeof HANDLE_KIND)[keyof typeof HANDLE_KIND]
 
+/**
+ * Só o que é **exibição** do canal — rótulo, ícone, como reabrir, como mostrar o identificador.
+ * Capacidade de **comportamento** (confirma leitura, tem janela e de quantas horas, aceita anexo e
+ * áudio, precisa de transporte próprio) não mora mais aqui: para canal que
+ * `@adatechnology/conversation-contracts` conhece, ela vem de `channelCapabilityFor` (RF10). Manter
+ * os dois tipos de capacidade juntos foi o que criou a "janela" duplicada (`windowHours`) que a
+ * spec 211 mandou apagar — a mesma verdade não pode morar em dois lugares.
+ */
 export type ChannelCapabilities = {
   readonly label: string
   readonly icon: string
-  readonly hasSessionWindow: boolean
-  readonly windowHours: number
   readonly reopenMechanism: ReopenMechanism
   readonly handleKind: HandleKind
 }
@@ -51,8 +59,6 @@ export const CHANNEL_CAPABILITIES: Readonly<Record<ConversationChannel, ChannelC
   [CONVERSATION_CHANNEL.WHATSAPP]: {
     label: 'WhatsApp',
     icon: '💬',
-    hasSessionWindow: true,
-    windowHours: 24,
     reopenMechanism: REOPEN_MECHANISM.TEMPLATE,
     handleKind: HANDLE_KIND.PHONE,
   },
@@ -60,16 +66,12 @@ export const CHANNEL_CAPABILITIES: Readonly<Record<ConversationChannel, ChannelC
     // Messenger também tem 24h, mas reabre com message tag — não com template aprovado.
     label: 'Messenger',
     icon: '📨',
-    hasSessionWindow: true,
-    windowHours: 24,
     reopenMechanism: REOPEN_MECHANISM.TAG,
     handleKind: HANDLE_KIND.USERNAME,
   },
   [CONVERSATION_CHANNEL.INSTAGRAM]: {
     label: 'Instagram',
     icon: '📷',
-    hasSessionWindow: true,
-    windowHours: 24,
     reopenMechanism: REOPEN_MECHANISM.TAG,
     handleKind: HANDLE_KIND.USERNAME,
   },
@@ -77,10 +79,15 @@ export const CHANNEL_CAPABILITIES: Readonly<Record<ConversationChannel, ChannelC
     // Chat próprio: sem intermediário, sem janela. Bloquear o composer aqui seria inventar limite.
     label: 'Chat do site',
     icon: '🌐',
-    hasSessionWindow: false,
-    windowHours: 0,
     reopenMechanism: REOPEN_MECHANISM.NONE,
     handleKind: HANDLE_KIND.SESSION,
+  },
+  [CONVERSATION_CHANNEL.EMAIL]: {
+    // RF10: e-mail entra no vocabulário; ele não reabre por template nem por tag — é só resposta.
+    label: 'E-mail',
+    icon: '✉️',
+    reopenMechanism: REOPEN_MECHANISM.NONE,
+    handleKind: HANDLE_KIND.EMAIL,
   },
 }
 
@@ -135,6 +142,8 @@ export function formatContactHandle(params: FormatContactHandleParams): string {
 
   if (handleKind === HANDLE_KIND.PHONE) return formatPhone(params.handle)
   if (handleKind === HANDLE_KIND.USERNAME) return params.handle.startsWith('@') ? params.handle : `@${params.handle}`
+  // Endereço de e-mail já é o identificador exibível — nem telefone, nem "@usuário".
+  if (handleKind === HANDLE_KIND.EMAIL) return params.handle
 
   // Sessão de chat de site é um id opaco: mostrar o hash inteiro não ajuda ninguém.
   return `Visitante ${params.handle.slice(-6)}`
