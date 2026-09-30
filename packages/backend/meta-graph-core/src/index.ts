@@ -1,4 +1,6 @@
 export {
+  META_GRAPH_ERROR_CODES,
+  isDeterministicMetaRejection,
   MetaGraphError,
   WhatsAppAudioTranscodeError,
   WhatsAppConfigError,
