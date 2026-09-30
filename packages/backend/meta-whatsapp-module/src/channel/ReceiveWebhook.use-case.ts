@@ -15,6 +15,7 @@ import type { MessageRepository } from '../repositories/MessageRepository'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
 import type { RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
+import { isDeterministicMetaRejection } from '@adatechnology/meta-graph-core'
 import {
   verifyWebhookSignature,
   claimWebhookDelivery,
@@ -333,8 +334,34 @@ export class ReceiveWebhookUseCase {
       await this.params.inboundQueue.enqueue(job, { jobId: buildInboundJobId(job) })
       return
     }
-    await this.dispatcher.run(job)
+
+    // Sem fila, o efeito roda dentro da requisição do webhook — e é aqui que a resposta do bot é
+    // enviada. Uma recusa determinística da Meta (token sem escopo, conta barrada de mandar para o
+    // país) subiria daqui, viraria resposta não-2xx e faria a Meta reentregar o evento; a reentrega
+    // falha idêntica, e webhook que falha com frequência a Meta desativa. Trocar a resposta do bot
+    // por todo o canal derrubado é o pior negócio possível — a mensagem do cliente já está gravada
+    // neste ponto, então o que se perde aqui é a reação, não o registro.
+    //
+    // Rede e timeout continuam subindo de propósito: aqueles a reentrega resolve, e é o único
+    // motivo de o claim do nonce ser curto.
+    try {
+      await this.dispatcher.run(job)
+    } catch (error) {
+      if (!isDeterministicMetaRejection(error)) throw error
+
+      await this.params.hooks?.onInboundEffectRejected?.({
+        companyId: job.companyId,
+        kind: job.kind,
+        whatsappNumber: resolveJobNumber(job),
+        code: error.code,
+        error,
+      })
+    }
   }
+}
+
+function resolveJobNumber(job: InboundDispatchJob): string | undefined {
+  return job.kind === 'message' ? job.message.from : job.whatsappNumber
 }
 
 export { extractAnswer, extractContent }

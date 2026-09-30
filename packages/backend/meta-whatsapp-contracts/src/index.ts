@@ -88,6 +88,7 @@ export type {
   MetaWhatsAppHooks,
   InboundContact,
   MessageHookOutcome,
+  InboundEffectRejectedDescriptor,
   InboundMediaDescriptor,
   TranscriptionDeferredDescriptor,
   UnhandledWebhookEventDescriptor,
