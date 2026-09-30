@@ -80,11 +80,39 @@ export type WhatsAppMessageEcho = z.infer<typeof whatsAppMessageEchoSchema>
 export const whatsAppMessageStatusSchema = z.enum(['sent', 'delivered', 'read', 'failed'])
 export type WhatsAppMessageStatusValue = z.infer<typeof whatsAppMessageStatusSchema>
 
+/**
+ * Por que a Meta recusou a entrega. Só existe no webhook de status, e só quando `status` é
+ * `failed`.
+ *
+ * `code` é o que decide: 131030 é número fora da allowlist do ambiente de teste, 131047 é janela
+ * de 24h vencida, 130497 é conta barrada de mandar mensagem para o país. São três causas sem nada
+ * em comum — allowlist, tempo e restrição de conta — e todas chegam ao cliente como a mesma
+ * ausência de resposta. Sem o código, distinguir uma da outra custa uma investigação inteira.
+ */
+export const whatsAppStatusErrorSchema = z.object({
+  code: z.number().optional(),
+  title: z.string().optional(),
+  message: z.string().optional(),
+  href: z.string().optional(),
+  error_data: z.object({ details: z.string().optional() }).optional(),
+})
+export type WhatsAppStatusError = z.infer<typeof whatsAppStatusErrorSchema>
+
+/**
+ * `errors` entra no schema porque `z.object` descarta o que não declara: enquanto o campo não
+ * existia aqui, o motivo da recusa era apagado na validação e nunca chegava a `onStatusUpdate` —
+ * o hook era chamado, mas com o único dado que importa já removido. Quem precisava do motivo
+ * tinha de reprocessar o corpo cru do webhook por fora do módulo.
+ *
+ * Tolerante de propósito: campo que a Meta parar de mandar não pode derrubar a validação do
+ * webhook inteiro, porque isso troca um envio sem explicação por todos os eventos perdidos.
+ */
 export const whatsAppStatusSchema = z.object({
   id: z.string(),
   status: whatsAppMessageStatusSchema,
   timestamp: z.string(),
   recipient_id: z.string().optional(),
+  errors: z.array(whatsAppStatusErrorSchema).optional(),
 })
 export type WhatsAppStatus = z.infer<typeof whatsAppStatusSchema>
 
