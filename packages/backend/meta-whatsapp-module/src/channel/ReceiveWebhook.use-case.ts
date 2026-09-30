@@ -294,12 +294,22 @@ export class ReceiveWebhookUseCase {
     })
   }
 
+  /**
+   * Recusa de entrega não é exceção: a Meta responde 200 ao envio e só depois manda `failed` neste
+   * webhook. Para quem não guarda o motivo aqui, todo envio recusado vira silêncio idêntico ao de
+   * um bug próprio — o cliente não recebe nada e não há onde ler de quem é a culpa.
+   *
+   * O motivo segue em duas direções porque as perguntas são duas: `payload` responde "este envio
+   * chegou?" muito depois, e `onStatusUpdate` deixa o host reagir agora (alertar, pausar a fila,
+   * trocar de canal).
+   */
   private async handleStatus(companyId: string, status: WhatsAppStatus): Promise<void> {
-    const updated = await this.params.messageRepository.updateMessageStatus(
+    const updated = await this.params.messageRepository.updateMessageStatus({
       companyId,
-      status.id,
-      status.status as MessageStatus,
-    )
+      waMessageId: status.id,
+      status: status.status as MessageStatus,
+      deliveryError: status.errors?.[0],
+    })
     if (!updated) return
 
     this.params.realtime?.emit(`conv:${updated.whatsappNumber}`, 'message-status', {

@@ -1,6 +1,11 @@
-import { and, eq, lt } from 'drizzle-orm'
+import { and, eq, lt, sql } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
-import type { MessageDirection, MessageSender, MessageStatus } from '@adatechnology/meta-whatsapp-contracts'
+import type {
+  MessageDirection,
+  MessageSender,
+  MessageStatus,
+  WhatsAppStatusError,
+} from '@adatechnology/meta-whatsapp-contracts'
 import { messages, type MessageRow, type NewMessageRow } from '../schema/schema'
 import type { TranscriptionStatus } from '../transcription.types'
 
@@ -19,6 +24,18 @@ export interface InsertMessageParams {
   /** `undefined` deixa a coluna nula: não avaliado, distinto de avaliado e limpo. */
   moderationFlagged?: boolean | null
   moderationTerms?: string[] | null
+}
+
+export interface UpdateMessageStatusParams {
+  companyId: string
+  waMessageId: string
+  status: MessageStatus
+  /**
+   * Por que a Meta recusou, quando `status` é `failed`. Fica na linha da mensagem, e não só no
+   * log, porque a pergunta que aparece depois é sempre sobre um envio específico: "este pedido o
+   * cliente chegou a receber?". Log vence por retenção e some; a linha do transcript não.
+   */
+  deliveryError?: WhatsAppStatusError | undefined
 }
 
 export interface ListMessagesParams {
@@ -78,14 +95,40 @@ export class MessageRepository {
     return created
   }
 
-  async updateMessageStatus(
-    companyId: string,
-    waMessageId: string,
-    status: MessageStatus,
-  ): Promise<MessageRow | undefined> {
+  /**
+   * O motivo da recusa entra em `payload` por merge, não por sobrescrita: a coluna já pode guardar
+   * o que o envio gravou, e trocar aquilo pelo erro perderia o conteúdo para registrar a falha —
+   * exatamente a linha em que se vai querer os dois juntos.
+   *
+   * O parâmetro vai como objeto, nunca como `JSON.stringify`: o driver `bun-sql` liga string a
+   * jsonb como *escalar string*, e aí `||` concatena em array (`[{...}, "{...}"]`) em vez de
+   * mesclar, sem erro nenhum para denunciar.
+   *
+   * `normalizedPayload` existe porque a mesma armadilha já gravou linha torta: `mapToDriverValue`
+   * do jsonb do drizzle faz `JSON.stringify`, então toda escrita anterior sob `bun-sql` virou
+   * escalar string no banco. A leitura desfaz (`JSON.parse`) e esconde isso do app, mas o `||`
+   * não desfaz. Aqui a linha é normalizada de volta a objeto na própria escrita, em vez de o
+   * merge produzir lixo sobre um dado que já estava errado.
+   *
+   * Coberto por `MessageRepository.deliveryError.integration.test.ts` contra Postgres de verdade:
+   * é diferença de driver, e mock nenhum a reproduz.
+   */
+  async updateMessageStatus(params: UpdateMessageStatusParams): Promise<MessageRow | undefined> {
+    const { companyId, waMessageId, status, deliveryError } = params
+    const column = messages.payload
+    const normalizedPayload = sql`case
+      when jsonb_typeof(${column}) = 'object' then ${column}
+      when jsonb_typeof(${column}) = 'string' then (${column} #>> '{}')::jsonb
+      else '{}'::jsonb
+    end`
+
     const [updated] = await this.db
       .update(messages)
-      .set({ status, ...(status === 'read' ? { readAt: new Date() } : {}) })
+      .set({
+        status,
+        ...(status === 'read' ? { readAt: new Date() } : {}),
+        ...(deliveryError ? { payload: sql`${normalizedPayload} || ${{ deliveryError }}::jsonb` } : {}),
+      })
       .where(and(eq(messages.companyId, companyId), eq(messages.waMessageId, waMessageId)))
       .returning()
     return updated

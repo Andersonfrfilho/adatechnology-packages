@@ -7,6 +7,7 @@ export {
   whatsAppMessageEchoSchema,
   whatsAppMessageStatusSchema,
   whatsAppStatusSchema,
+  whatsAppStatusErrorSchema,
   whatsAppWebhookValueSchema,
   whatsAppWebhookChangeSchema,
   whatsAppWebhookPayloadSchema,
@@ -27,6 +28,7 @@ export type {
   WhatsAppMessageEcho,
   WhatsAppMessageStatusValue,
   WhatsAppStatus,
+  WhatsAppStatusError,
   WhatsAppWebhookValue,
   WhatsAppWebhookChange,
   WhatsAppWebhookPayload,
@@ -120,3 +122,5 @@ export {
 } from './errors'
 
 export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './previewMedia.types'
+
+export { hashWaMessageId } from './waMessageId'
