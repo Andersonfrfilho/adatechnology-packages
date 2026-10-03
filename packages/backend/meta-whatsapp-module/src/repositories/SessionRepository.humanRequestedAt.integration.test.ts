@@ -40,8 +40,13 @@ describeWithDatabase('SessionRepository.takeover/release limpam humanRequestedAt
 
   beforeAll(async () => {
     sql = new SQL(databaseUrl!)
-    db = drizzle(sql) as unknown as MetaWhatsAppDatabase
-    await runMetaWhatsAppMigrations({ db, migrate: (target, config) => migrate(target as never, config) })
+    db = drizzle({ client: sql }) as unknown as MetaWhatsAppDatabase
+    await runMetaWhatsAppMigrations({
+      db,
+      migrate: async (target, config) => {
+        await migrate(target as never, config)
+      },
+    })
     repository = new SessionRepository(db)
   })
 
