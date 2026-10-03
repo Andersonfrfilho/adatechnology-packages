@@ -5,6 +5,7 @@ import {
   type ChannelAdapterInterface,
   type ObjectStorageInterface,
   type SendChannelMediaParams,
+  type SendTextOptions,
 } from '@adatechnology/meta-whatsapp-contracts'
 import { resolvePreviewUploadId } from './previewMedia'
 
@@ -51,8 +52,8 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     }
   }
 
-  async sendText(to: string, body: string): Promise<{ externalMessageId: string | null }> {
-    const result = await this.translateErrors(() => this.messages.sendText(to, body))
+  async sendText(to: string, body: string, options?: SendTextOptions): Promise<{ externalMessageId: string | null }> {
+    const result = await this.translateErrors(() => this.messages.sendText(to, body, options))
     return { externalMessageId: result.waMessageId }
   }
 

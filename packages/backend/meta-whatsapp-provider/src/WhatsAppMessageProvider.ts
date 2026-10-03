@@ -18,6 +18,7 @@ import type {
   SendCatalogMessageParams,
   SendProductMessageParams,
   SendProductListMessageParams,
+  SendTextOptions,
 } from './types'
 import { normalizeOutboundAudio, type AudioTranscoder } from './normalizeOutboundAudio'
 
@@ -68,13 +69,17 @@ export class WhatsAppMessageProvider {
     }
   }
 
-  async sendText(to: string, body: string): Promise<SendMessageResult> {
+  async sendText(to: string, body: string, options?: SendTextOptions): Promise<SendMessageResult> {
     return this.postMessage({
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
       type: 'text',
-      text: { body },
+      /*
+       * `preview_url` só é enviado quando pedido: omitido, a Meta assume `false`, e mandar o campo
+       * sempre faria toda mensagem com URL virar cartão sem ninguém ter escolhido isso.
+       */
+      text: { body, ...(options?.previewUrl ? { preview_url: true } : {}) },
     })
   }
 

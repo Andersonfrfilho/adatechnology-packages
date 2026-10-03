@@ -40,6 +40,26 @@ describe('WhatsAppMessageProvider.sendText', () => {
     expect(payload).toMatchObject({ type: 'text', to: '5511999990000', text: { body: 'olá' } })
   })
 
+  test('omits preview_url unless it is asked for', async () => {
+    const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.1' }] })
+    const provider = buildProvider()
+
+    await provider.sendText('5511999990000', 'veja https://example.com')
+
+    const payload = JSON.parse(String(calls[0]!.requestInit.body))
+    expect(payload.text.preview_url).toBeUndefined()
+  })
+
+  test('asks for the link card when previewUrl is set', async () => {
+    const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.1' }] })
+    const provider = buildProvider()
+
+    await provider.sendText('5511999990000', 'veja https://example.com', { previewUrl: true })
+
+    const payload = JSON.parse(String(calls[0]!.requestInit.body))
+    expect(payload.text).toEqual({ body: 'veja https://example.com', preview_url: true })
+  })
+
   test('returns null waMessageId when the Graph API omits the messages array', async () => {
     mockJsonResponseOnce({})
     const provider = buildProvider()
