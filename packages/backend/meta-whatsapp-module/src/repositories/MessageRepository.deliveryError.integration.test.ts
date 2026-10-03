@@ -68,8 +68,13 @@ describeWithDatabase('MessageRepository.updateMessageStatus grava o motivo da re
 
   beforeAll(async () => {
     sql = new SQL(databaseUrl!)
-    db = drizzle(sql) as unknown as MetaWhatsAppDatabase
-    await runMetaWhatsAppMigrations({ db, migrate: (target, config) => migrate(target as never, config) })
+    db = drizzle({ client: sql }) as unknown as MetaWhatsAppDatabase
+    await runMetaWhatsAppMigrations({
+      db,
+      migrate: async (target, config) => {
+        await migrate(target as never, config)
+      },
+    })
     repository = new MessageRepository(db)
     sessionRepository = new SessionRepository(db)
   })
@@ -133,7 +138,9 @@ describeWithDatabase('MessageRepository.updateMessageStatus grava o motivo da re
       payload: { templateName: 'pedido_a_caminho' },
     })
 
-    // É o que `insertMessage` grava hoje sob `bun-sql`: jsonb de tipo `string`, não `object`.
+    // Linha como as que o `bun-sql` do drizzle 0.x gravou: jsonb de tipo `string`. O 1.x já grava `object`,
+    // então a torta é forçada à mão para o teste não depender do driver.
+    await sql`update meta_whatsapp.messages set payload = to_jsonb(payload::text) where wa_message_id = ${waMessageId}`
     const [antes] =
       await sql`select jsonb_typeof(payload) as tipo from meta_whatsapp.messages where wa_message_id = ${waMessageId}`
     expect(antes?.tipo).toBe('string')
