@@ -15,6 +15,7 @@ import type {
   SendInteractiveButtonsParams,
   SendInteractiveListParams,
   SendLocationParams,
+  SendTextOptions,
   SendCatalogMessageParams,
   SendProductMessageParams,
   SendProductListMessageParams,
@@ -68,13 +69,18 @@ export class WhatsAppMessageProvider {
     }
   }
 
-  async sendText(to: string, body: string): Promise<SendMessageResult> {
+  /**
+   * `previewUrl` é o que faz a Meta renderizar o card do primeiro link do corpo. Opt-in, e só aqui:
+   * a API não aceita preview em mensagem `interactive`, então um link que precisa de card não pode
+   * viajar dentro de um resumo com botões.
+   */
+  async sendText(to: string, body: string, options?: SendTextOptions): Promise<SendMessageResult> {
     return this.postMessage({
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
       type: 'text',
-      text: { body },
+      text: { body, ...(options?.previewUrl ? { preview_url: true } : {}) },
     })
   }
 

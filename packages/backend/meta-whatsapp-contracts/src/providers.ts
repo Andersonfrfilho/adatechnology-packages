@@ -34,8 +34,17 @@ export type SendChannelMediaParams =
   | (SendChannelMediaCommon & { buffer: Buffer; mediaId?: string | undefined })
   | (SendChannelMediaCommon & { buffer?: undefined; mediaId: string })
 
+/**
+ * `previewUrl`: a Meta só renderiza o card de um link quando a mensagem pede. É opt-in porque o
+ * card rouba a altura da bolha, e a maioria das mensagens não quer isso. Vale apenas para mensagem
+ * de texto — a API não aceita preview em mensagem `interactive`.
+ */
+export type SendTextOptions = {
+  readonly previewUrl?: boolean | undefined
+}
+
 export interface ChannelAdapterInterface {
-  sendText(to: string, body: string): Promise<{ externalMessageId: string | null }>
+  sendText(to: string, body: string, options?: SendTextOptions): Promise<{ externalMessageId: string | null }>
   /**
    * Envia arquivo. Com `mediaId` conhecido, o binário não sobe de novo — a Meta aceita reusar o id
    * por 30 dias, e o `mediaId` devolvido é o que permite guardá-lo para os próximos destinatários.

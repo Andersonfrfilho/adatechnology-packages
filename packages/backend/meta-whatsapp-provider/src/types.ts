@@ -89,6 +89,14 @@ export type SendInteractiveListParams = {
  * `name` e `address` são opcionais porque a Meta os trata como rótulo do pino, não como endereço de
  * verdade: quem os manda decide o que o cliente lê sob o mapa, e mandar só a coordenada é válido.
  */
+/**
+ * `previewUrl`: a Meta só renderiza o card do primeiro link do corpo quando a mensagem pede. Opt-in
+ * porque o card ocupa a bolha inteira, e vale só para texto — `interactive` não aceita preview.
+ */
+export type SendTextOptions = {
+  readonly previewUrl?: boolean | undefined
+}
+
 export type SendLocationParams = {
   readonly to: string
   readonly latitude: number
