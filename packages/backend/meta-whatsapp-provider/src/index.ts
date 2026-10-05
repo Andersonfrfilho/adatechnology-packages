@@ -33,6 +33,7 @@ export type {
   InteractiveListSection,
   SendInteractiveListParams,
   SendLocationParams,
+  SendTextOptions,
   SendCatalogMessageParams,
   SendProductMessageParams,
   ProductListSection,

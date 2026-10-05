@@ -62,7 +62,7 @@ export {
   flowNodeDataSchema,
   flowGraphNodesSchema,
 } from './flow.types'
-export type { SendChannelMediaParams } from './providers'
+export type { SendChannelMediaParams, SendTextOptions } from './providers'
 export type {
   FlowNodeType,
   FlowQuestionType,
