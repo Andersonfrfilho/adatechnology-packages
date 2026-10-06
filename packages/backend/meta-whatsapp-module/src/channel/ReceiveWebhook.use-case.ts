@@ -11,6 +11,7 @@ import {
   type WhatsAppStatus,
   type MessageStatus,
 } from '@adatechnology/meta-whatsapp-contracts'
+import { INBOUND_LOCATION_CONTENT } from '../inboundLocation.constant'
 import type { MessageRepository } from '../repositories/MessageRepository'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
@@ -59,9 +60,15 @@ const EMPTY_RESULT: Omit<ReceiveWebhookResult, 'duplicate'> = {
   unhandledEvents: 0,
 }
 
+type ExtractionOptions = { readonly isLocationRedacted: boolean }
+const DEFAULT_EXTRACTION_OPTIONS: ExtractionOptions = { isLocationRedacted: false }
+
 // Texto legível para o transcript. Uma mensagem interativa traz título E id; guardamos o título
 // (é o que o cliente viu), com o id como fallback quando a Meta não manda título.
-function extractContent(message: WhatsAppMessage): string | null {
+function extractContent(
+  message: WhatsAppMessage,
+  { isLocationRedacted }: ExtractionOptions = DEFAULT_EXTRACTION_OPTIONS,
+): string | null {
   if (message.text?.body) return message.text.body
   const interactive = message.interactive
   if (interactive?.button_reply) return interactive.button_reply.title || interactive.button_reply.id
@@ -71,13 +78,17 @@ function extractContent(message: WhatsAppMessage): string | null {
     return `Pedido: ${items} item(ns)`
   }
   if (message.location) {
+    if (isLocationRedacted) return INBOUND_LOCATION_CONTENT
     const label = message.location.name ?? message.location.address
-    return label ? `📍 Localização: ${label}` : '📍 Localização'
+    return label ? `📍 Localização: ${label}` : INBOUND_LOCATION_CONTENT
   }
   return message.image?.caption ?? message.document?.caption ?? null
 }
 
-function extractPayload(message: WhatsAppMessage): Record<string, unknown> | null {
+function extractPayload(
+  message: WhatsAppMessage,
+  { isLocationRedacted }: ExtractionOptions = DEFAULT_EXTRACTION_OPTIONS,
+): Record<string, unknown> | null {
   const payload: Record<string, unknown> = {}
   if (message.interactive) payload['interactive'] = message.interactive
   if (message.order) payload['order'] = message.order
@@ -86,7 +97,7 @@ function extractPayload(message: WhatsAppMessage): Record<string, unknown> | nul
   if (message.video) payload['video'] = message.video
   if (message.document) payload['document'] = message.document
   if (message.sticker) payload['sticker'] = message.sticker
-  if (message.location) payload['location'] = message.location
+  if (message.location && !isLocationRedacted) payload['location'] = message.location
   if (message.context?.referred_product) payload['referredProduct'] = message.context.referred_product
   return Object.keys(payload).length > 0 ? payload : null
 }
@@ -120,6 +131,8 @@ export class ReceiveWebhookUseCase {
        * Configurá-la é o que faz a conversa sobreviver a um deploy no meio do atendimento.
        */
       inboundQueue?: InboundDispatchQueueInterface
+      /** Não grava `location` no transcript; ver `MetaWhatsAppModuleFeatures.redactInboundLocation`. */
+      redactInboundLocation?: boolean
     },
   ) {
     this.dispatcher = new InboundEffectsDispatcher({
@@ -267,14 +280,17 @@ export class ReceiveWebhookUseCase {
   private async handleMessage(companyId: string, message: WhatsAppMessage, profileName?: string): Promise<void> {
     // Persistir fica na requisição de propósito: é escrita local, custa pouco, e é o que garante
     // que a mensagem do cliente existe no banco mesmo que tudo depois dela falhe.
+    const extractionOptions: ExtractionOptions = {
+      isLocationRedacted: this.params.redactInboundLocation ?? false,
+    }
     const saved = await this.params.logMessage.execute({
       companyId,
       whatsappNumber: message.from,
       direction: 'inbound',
       sender: 'customer',
       type: message.type,
-      content: extractContent(message),
-      payload: extractPayload(message),
+      content: extractContent(message, extractionOptions),
+      payload: extractPayload(message, extractionOptions),
       waMessageId: message.id,
       status: 'received',
       startState: this.params.startState,

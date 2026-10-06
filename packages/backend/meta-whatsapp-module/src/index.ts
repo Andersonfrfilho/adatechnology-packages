@@ -25,6 +25,7 @@ export type {
 } from './schema/schema'
 
 export { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
+export { INBOUND_LOCATION_CONTENT } from './inboundLocation.constant'
 export { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
 export type { ReceiveWebhookParams, ReceiveWebhookResult } from './channel/ReceiveWebhook.use-case'
 export {
