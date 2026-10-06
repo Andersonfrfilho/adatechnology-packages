@@ -28,6 +28,10 @@ import { ListConversationDocumentsUseCase } from './use-cases/ListConversationDo
 import { ListCompanyDocumentsUseCase } from './use-cases/ListCompanyDocuments.use-case'
 import { DeleteConversationUseCase } from './use-cases/DeleteConversation.use-case'
 import { PurgeExpiredDocumentsUseCase } from './use-cases/PurgeExpiredDocuments.use-case'
+import {
+  CountInboundLocationsUseCase,
+  RedactInboundLocationsUseCase,
+} from './use-cases/RedactInboundLocations.use-case'
 import { DocumentRepository } from './repositories/DocumentRepository'
 import { ExportConversationUseCase } from './use-cases/ExportConversation.use-case'
 import {
@@ -92,6 +96,19 @@ export interface MetaWhatsAppModuleFeatures {
    * ignorado em vez de produzir um canal que falha na primeira nota de voz.
    */
   previewMedia?: boolean
+
+  /**
+   * Não grava a coordenada no transcript: `payload.location` não é copiado e `content` vira
+   * `INBOUND_LOCATION_CONTENT`, sem nome nem endereço. `type` continua `'location'`. O gancho
+   * `onMessageReceived` segue recebendo a mensagem crua inteira — é por ele que o host usa o ponto.
+   *
+   * **Desligado por omissão, e a decisão é consciente.** A coordenada é dado pessoal (a casa do
+   * cliente), mas outros hosts a leem do transcript; quem não tem finalidade para ela liga a opção.
+   *
+   * Ressalva: com `inboundQueue` o job carrega a mensagem CRUA. A opção cobre o transcript, não a
+   * fila do host. Linhas já gravadas se redigem com `conversations.redactInboundLocations`.
+   */
+  redactInboundLocation?: boolean
 }
 
 /**
@@ -223,6 +240,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     startState,
     hooks,
     realtime: providers.realtime,
+    redactInboundLocation: params.features?.redactInboundLocation ?? false,
   })
 
   // Só existe se a flag estiver ligada — não adianta o host "não usar" um interpretador que
@@ -348,6 +366,9 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
       // órfãos, já que a lista de uploadId vive justamente nas linhas que ela derruba.
       delete: new DeleteConversationUseCase(sessionRepository, documentRepository, providers.objectStorage),
       purgeExpiredDocuments: new PurgeExpiredDocumentsUseCase(documentRepository, providers.objectStorage),
+      // Legado de `features.redactInboundLocation`: conta e redige a coordenada já gravada, por empresa.
+      countInboundLocations: new CountInboundLocationsUseCase(messageRepository),
+      redactInboundLocations: new RedactInboundLocationsUseCase(messageRepository),
       export: new ExportConversationUseCase(sessionRepository),
       // undefined quando transcrição não foi injetada, ou quando o storage não sabe ler de volta.
       // O painel consulta a ausência para decidir se desenha o botão "transcrever".
