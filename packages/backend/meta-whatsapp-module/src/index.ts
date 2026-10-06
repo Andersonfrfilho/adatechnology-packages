@@ -144,6 +144,16 @@ export type { LinkDocumentParams, ListDocumentsParams, ListDocumentsResult } fro
 export { DeleteConversationUseCase } from './use-cases/DeleteConversation.use-case'
 export type { DeleteConversationParams, DeleteConversationResult } from './use-cases/DeleteConversation.use-case'
 export { PurgeExpiredDocumentsUseCase } from './use-cases/PurgeExpiredDocuments.use-case'
+export {
+  CountInboundLocationsUseCase,
+  RedactInboundLocationsUseCase,
+} from './use-cases/RedactInboundLocations.use-case'
+export type {
+  CountInboundLocationsParams,
+  CountInboundLocationsResult,
+  RedactInboundLocationsParams,
+  RedactInboundLocationsResult,
+} from './use-cases/RedactInboundLocations.use-case'
 export type {
   PurgeExpiredDocumentsParams,
   PurgeExpiredDocumentsResult,

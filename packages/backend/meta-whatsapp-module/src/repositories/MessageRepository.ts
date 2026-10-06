@@ -1,4 +1,4 @@
-import { and, eq, lt, sql } from 'drizzle-orm'
+import { and, count, eq, lt, sql } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
 import type {
   MessageDirection,
@@ -6,6 +6,7 @@ import type {
   MessageStatus,
   WhatsAppStatusError,
 } from '@adatechnology/meta-whatsapp-contracts'
+import { INBOUND_LOCATION_CONTENT } from '../inboundLocation.constant'
 import { messages, type MessageRow, type NewMessageRow } from '../schema/schema'
 import type { TranscriptionStatus } from '../transcription.types'
 
@@ -65,6 +66,15 @@ export interface SaveTranscriptionParams {
 }
 
 const DEFAULT_LIMIT = 50
+
+export interface InboundLocationScopeParams {
+  companyId: string
+  receivedBefore: Date
+}
+
+export interface RedactInboundLocationsRepositoryParams extends InboundLocationScopeParams {
+  batchSize: number
+}
 
 export class MessageRepository {
   constructor(private readonly db: MetaWhatsAppDatabase) {}
@@ -132,6 +142,68 @@ export class MessageRepository {
       .where(and(eq(messages.companyId, companyId), eq(messages.waMessageId, waMessageId)))
       .returning()
     return updated
+  }
+
+  /**
+   * Linhas de entrada com `payload.location` que a redação alcança, mais as localizações com
+   * `payload` escalar string (gravação antiga do `bun-sql` com drizzle 0.x), nas quais `payload ?
+   * 'location'` dá falso e que, por isso, a redação não toca.
+   */
+  async countInboundLocations(params: InboundLocationScopeParams): Promise<{ counted: number; unreachable: number }> {
+    const inboundScope = and(
+      eq(messages.companyId, params.companyId),
+      eq(messages.direction, 'inbound'),
+      lt(messages.createdAt, params.receivedBefore),
+    )
+    const [reachable] = await this.db
+      .select({ total: count() })
+      .from(messages)
+      .where(and(inboundScope, this.hasRedactableLocation()))
+    const [unreachable] = await this.db
+      .select({ total: count() })
+      .from(messages)
+      .where(and(inboundScope, eq(messages.type, 'location'), sql`jsonb_typeof(${messages.payload}) = 'string'`))
+    return { counted: reachable?.total ?? 0, unreachable: unreachable?.total ?? 0 }
+  }
+
+  /**
+   * Redige UMA passada: tira `location` de `payload` (NULL quando não sobra chave) e põe o rótulo
+   * neutro em `content` das linhas de tipo `location`. Sem `ORDER BY`: o índice por empresa não serve
+   * à ordenação e a passada não precisa dela. `FOR UPDATE SKIP LOCKED` evita brigar com o webhook; o
+   * `company_id` é repetido fora da subconsulta. Nunca devolve nem registra os ids das linhas.
+   */
+  async redactInboundLocations(params: RedactInboundLocationsRepositoryParams): Promise<{ redacted: number }> {
+    const batch = this.db.$with('batch').as(
+      this.db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.companyId, params.companyId),
+            eq(messages.direction, 'inbound'),
+            lt(messages.createdAt, params.receivedBefore),
+            this.hasRedactableLocation(),
+          ),
+        )
+        .limit(params.batchSize)
+        .for('update', { skipLocked: true }),
+    )
+
+    const updated = await this.db
+      .with(batch)
+      .update(messages)
+      .set({
+        payload: sql`nullif(${messages.payload} - 'location', '{}'::jsonb)`,
+        content: sql`case when ${messages.type} = 'location' then ${INBOUND_LOCATION_CONTENT} else ${messages.content} end`,
+      })
+      .from(batch)
+      .where(and(eq(messages.id, batch.id), eq(messages.companyId, params.companyId)))
+      .returning({ id: messages.id })
+    return { redacted: updated.length }
+  }
+
+  private hasRedactableLocation() {
+    return sql`jsonb_typeof(${messages.payload}) = 'object' and ${messages.payload} ? 'location'`
   }
 
   /**
