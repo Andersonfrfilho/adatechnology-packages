@@ -858,6 +858,7 @@ export type NfeXmlParty = {
   readonly name?: string
   readonly tradeName?: string
   readonly stateRegistration?: string
+  readonly email?: string
   readonly address?: NfeXmlAddress
 }
 
@@ -1026,14 +1027,7 @@ export type ConsultarPorChaveParams = {
 }
 
 export type FiscalConfig =
-  | NfceConfig
-  | NfeConfig
-  | SatConfig
-  | NfseConfig
-  | NotaRpConfig
-  | CteConfig
-  | MdfeConfig
-  | NfeDistribuicaoConfig
+  NfceConfig | NfeConfig | SatConfig | NfseConfig | NotaRpConfig | CteConfig | MdfeConfig | NfeDistribuicaoConfig
 
 export type FiscalItem = {
   /** Código interno do produto */

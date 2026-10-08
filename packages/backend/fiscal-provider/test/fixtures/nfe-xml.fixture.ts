@@ -14,6 +14,8 @@ type BuildNfeXmlParams = {
   readonly issuerCnpj?: string
   readonly recipientCnpj?: string
   readonly carrierCnpj?: string
+  /** Conteúdo literal de dest/email. Ausente omite a tag. */
+  readonly recipientEmail?: string
   /** Valor literal de det/prod/cEAN. `null` omite a tag. Default: "SEM GTIN". */
   readonly productGtin?: string | null
   /** Valor literal de det/prod/cEANTrib. `null` omite a tag. Default: "SEM GTIN". */
@@ -161,6 +163,7 @@ function buildNfeNode(params: BuildNfeXmlParams): string {
     '<UF>RJ</UF><CEP>20040002</CEP><cPais>1058</cPais><xPais>BRASIL</xPais>',
     '<fone>2133334444</fone></enderDest>',
     '<indIEDest>1</indIEDest><IE>222222222222</IE>',
+    params.recipientEmail === undefined ? '' : `<email>${params.recipientEmail}</email>`,
     '</dest>',
     '<det nItem="1"><prod>',
     '<cProd>SKU-001</cProd>',
