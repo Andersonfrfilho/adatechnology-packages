@@ -5,7 +5,7 @@ import { buildConversation, findForeignClassTokens, findUtilityClassTokens } fro
 import { groupParticipantConversations } from './participantGrouping'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS } from './participantLabels'
 import type { ParticipantSubjectGroup } from './participant.types'
-import { ParticipantInbox } from './ParticipantInbox'
+import { ParticipantInbox, type ParticipantInboxProps } from './ParticipantInbox'
 
 const GROUPS: readonly ParticipantSubjectGroup[] = [
   { subjectType: 'invoice', label: 'Invoice' },
@@ -13,7 +13,13 @@ const GROUPS: readonly ParticipantSubjectGroup[] = [
 ]
 
 const CONVERSATIONS = [
-  buildConversation({ subjectId: '1', subjectLabel: 'Awaiting one', awaitingParticipant: true, unreadCount: 2, lastMessagePreview: 'Please send the photo' }),
+  buildConversation({
+    subjectId: '1',
+    subjectLabel: 'Awaiting one',
+    awaitingParticipant: true,
+    unreadCount: 2,
+    lastMessagePreview: 'Please send the photo',
+  }),
   buildConversation({ subjectId: '2', subjectLabel: 'Invoice two' }),
   buildConversation({ subjectId: '3', subjectType: 'incident', subjectLabel: 'Incident three' }),
   buildConversation({ subjectId: '4', subjectLabel: 'Old one', status: 'closed' }),
@@ -24,6 +30,7 @@ type RenderOverrides = {
   filter?: string
   status?: 'idle' | 'loading' | 'ready' | 'error'
   hasMore?: boolean
+  renderSubjectIcon?: ParticipantInboxProps['renderSubjectIcon']
 }
 
 function render(overrides: RenderOverrides = {}): string {
@@ -44,9 +51,64 @@ function render(overrides: RenderOverrides = {}): string {
       refresh={() => undefined}
       hasMore={overrides.hasMore ?? false}
       loadMore={() => undefined}
+      renderSubjectIcon={overrides.renderSubjectIcon}
     />,
   )
 }
+
+describe('ParticipantInbox channels and subject icon', () => {
+  const withChannels = [
+    buildConversation({ subjectId: '9', subjectLabel: 'Chatty', channels: ['whatsapp', 'app'], iconName: 'file-text' }),
+  ]
+
+  it('shows channel badges only when the conversation has channels', () => {
+    expect(render({ conversations: withChannels })).toContain('cv-p-channel--app')
+    expect(render()).not.toContain('cv-p-channels')
+  })
+
+  it('keeps the badge order stable and the accessible text present', () => {
+    const markup = render({ conversations: withChannels })
+
+    expect(markup.indexOf('cv-p-channel--app')).toBeLessThan(markup.indexOf('cv-p-channel--whatsapp'))
+    expect(markup).toContain('<span class="cv-p-sr-only">WhatsApp</span>')
+  })
+
+  it('uses renderSubjectIcon when it returns a node', () => {
+    const markup = render({
+      renderSubjectIcon: (conversation) => <i data-icon={conversation.iconName ?? 'none'} />,
+      conversations: withChannels,
+    })
+
+    expect(markup).toContain('cv-p-inbox__icon')
+    expect(markup).toContain('data-icon="file-text"')
+  })
+
+  it('falls back to the group icon when renderSubjectIcon returns null or undefined', () => {
+    const groups = [{ subjectType: 'invoice', label: 'Invoice', icon: 'GRP' }]
+    const view = groupParticipantConversations({ conversations: withChannels, subjectGroups: groups })
+    const renderWith = (renderSubjectIcon: ParticipantInboxProps['renderSubjectIcon']) =>
+      renderToStaticMarkup(
+        <ParticipantInbox
+          view={view}
+          subjectGroups={groups}
+          filter="all"
+          onFilterChange={() => undefined}
+          onSelect={() => undefined}
+          labels={DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS}
+          status="ready"
+          refresh={() => undefined}
+          hasMore={false}
+          loadMore={() => undefined}
+          renderSubjectIcon={renderSubjectIcon}
+        />,
+      )
+
+    expect(renderWith(() => null)).toContain('GRP')
+    expect(renderWith(() => undefined)).toContain('GRP')
+    expect(renderWith(undefined)).toContain('GRP')
+    expect(renderWith(() => <i data-custom="1" />)).not.toContain('GRP')
+  })
+})
 
 describe('ParticipantInbox', () => {
   it('renders section headers with label and count, awaiting highlighted', () => {

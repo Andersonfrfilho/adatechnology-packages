@@ -1,15 +1,16 @@
 import type { ReactNode } from 'react'
 
-import type {
-  ParticipantConversationSummary,
-  ParticipantSubjectRef,
-} from '@adatechnology/conversation-contracts'
+import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import type { ConversationChannel } from '../conversationChannel'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ConversationsTheme } from '../types'
 import { ParticipantConversationsScreen } from './ParticipantConversationsScreen'
-import type { ParticipantConversationsClassNames, ParticipantSubjectGroup } from './participant.types'
+import type {
+  ParticipantConversationsClassNames,
+  ParticipantSubjectGroup,
+  ParticipantSubjectIconRenderer,
+} from './participant.types'
 import type { ParticipantConversationsApi, ParticipantPendingMessage } from './participantApi.types'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { useParticipantInbox } from './useParticipantInbox'
@@ -30,6 +31,7 @@ export type ParticipantConversationsProps = {
   pendingMessages?: readonly ParticipantPendingMessage[]
   onRetryPending?: (clientMessageId: string) => void
   quickReplies?: readonly QuickReply[]
+  renderSubjectIcon?: ParticipantSubjectIconRenderer
   renderSubjectCard?: (conversation: ParticipantConversationSummary) => ReactNode
   onOpenSubject?: (subject: ParticipantSubjectRef) => void
 }
@@ -38,5 +40,10 @@ export function ParticipantConversations(props: ParticipantConversationsProps) {
   const inbox = useParticipantInbox(props.api)
   const { status, conversations, hasMore, refresh, loadMore, markSubjectRead } = inbox
 
-  return <ParticipantConversationsScreen {...props} inbox={{ status, conversations, hasMore, refresh, loadMore, markSubjectRead }} />
+  return (
+    <ParticipantConversationsScreen
+      {...props}
+      inbox={{ status, conversations, hasMore, refresh, loadMore, markSubjectRead }}
+    />
+  )
 }

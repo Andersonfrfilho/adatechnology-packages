@@ -47,6 +47,12 @@ export type ParticipantConversationsLabels = {
   readonly protocolPrefix: string
   readonly copyProtocol: string
   readonly protocolCopied: string
+  readonly channelsGroup: string
+  readonly channelApp: string
+  readonly channelWhatsapp: string
+  readonly channelEmail: string
+  readonly channelPortal: string
+  readonly channelWebchat: string
 }
 
 export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsLabels = {
@@ -96,6 +102,12 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   protocolPrefix: 'Protocol',
   copyProtocol: 'Copy protocol',
   protocolCopied: 'Protocol copied',
+  channelsGroup: 'Channels in this conversation',
+  channelApp: 'App',
+  channelWhatsapp: 'WhatsApp',
+  channelEmail: 'Email',
+  channelPortal: 'Portal',
+  channelWebchat: 'Web chat',
 }
 
 export function formatParticipantLabel(template: string, count: number): string {

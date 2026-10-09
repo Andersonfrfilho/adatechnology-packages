@@ -1,14 +1,15 @@
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
-import { formatTimestamp, isSameDay } from '../lib/format'
 import type {
   ParticipantInboxFilter,
   ParticipantInboxSection,
   ParticipantInboxView,
   ParticipantSubjectGroup,
+  ParticipantSubjectIconRenderer,
 } from './participant.types'
-import { formatParticipantLabel, type ParticipantConversationsLabels } from './participantLabels'
+import { type ParticipantConversationsLabels } from './participantLabels'
 import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadView'
+import { ParticipantInboxRow } from './ParticipantInboxRow'
 import { ParticipantInboxSearchField, type ParticipantInboxSearch } from './ParticipantInboxSearchField'
 import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
 
@@ -27,15 +28,11 @@ export type ParticipantInboxProps = {
   readonly locale?: string
   /** Absent = no search field. The host narrows the view with the query; the field only edits it. */
   readonly search?: ParticipantInboxSearch
+  /** Absent, or returning null/undefined, = the subject group icon. */
+  readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
 }
 
 const ALL_FILTER = 'all'
-
-function formatRowTime(iso: string, locale: string | undefined): string {
-  const date = new Date(iso)
-  if (isSameDay(date, new Date())) return formatTimestamp(iso)
-  return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
-}
 
 function resolveNoResultsLabel({ view, hasMore, labels }: ParticipantInboxProps): string {
   if (view.hasMatchesOutsideFilter) return labels.noResultsInFilter
@@ -75,50 +72,6 @@ function Filters({ filters, active, labels, onChange }: FiltersProps) {
   )
 }
 
-type RowProps = {
-  readonly conversation: ParticipantConversationSummary
-  readonly group: ParticipantSubjectGroup | undefined
-  readonly labels: ParticipantConversationsLabels
-  readonly locale?: string
-  readonly onSelect: (subject: ParticipantSubjectRef) => void
-}
-
-function Row({ conversation, group, labels, locale, onSelect }: RowProps) {
-  const kind = group?.label ?? conversation.subjectType
-  const className = conversation.awaitingParticipant ? 'cv-p-row cv-p-row--awaiting' : 'cv-p-row'
-  const { subjectType, subjectId } = conversation
-
-  return (
-    <button type="button" className={className} onClick={() => onSelect({ subjectType, subjectId })}>
-      <span className="cv-p-row__icon" aria-hidden="true">
-        {group?.icon ?? kind.slice(0, 2)}
-      </span>
-      <span className="cv-p-row__body">
-        <span className="cv-p-row__kind">{kind}</span>
-        <span className="cv-p-row__title">{conversation.subjectLabel}</span>
-        {conversation.protocol ? (
-          <span className="cv-p-protocol">
-            <span className="cv-p-sr-only">{labels.protocolPrefix} </span>
-            {conversation.protocol}
-          </span>
-        ) : null}
-        {conversation.lastMessagePreview ? (
-          <span className="cv-p-row__preview">{conversation.lastMessagePreview}</span>
-        ) : null}
-      </span>
-      <span className="cv-p-row__meta">
-        {conversation.lastMessageAt ? <span>{formatRowTime(conversation.lastMessageAt, locale)}</span> : null}
-        {conversation.unreadCount > 0 ? (
-          <span className="cv-p-row__unread">
-            <span aria-hidden="true">{conversation.unreadCount}</span>
-            <span className="cv-p-sr-only">{formatParticipantLabel(labels.unreadCount, conversation.unreadCount)}</span>
-          </span>
-        ) : null}
-      </span>
-    </button>
-  )
-}
-
 function SectionHeading({ title, count }: { readonly title: string; readonly count: number }) {
   return (
     <>
@@ -136,13 +89,14 @@ function Section({
   readonly props: ParticipantInboxProps
 }) {
   const rows = section.conversations.map((conversation) => (
-    <Row
+    <ParticipantInboxRow
       key={`${conversation.subjectType}:${conversation.subjectId}`}
       conversation={conversation}
       group={props.subjectGroups.find((group) => group.subjectType === conversation.subjectType)}
       labels={props.labels}
       locale={props.locale}
       onSelect={props.onSelect}
+      renderSubjectIcon={props.renderSubjectIcon}
     />
   ))
   const heading = <SectionHeading title={sectionTitle(section, props)} count={section.conversations.length} />

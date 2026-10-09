@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from 'bun:test'
 
+import type { ConversationChannel } from './vocabulary'
 import {
   PARTICIPANT_CONVERSATION_STATUS,
   SUBJECT_TYPE_PATTERN,
@@ -124,6 +125,35 @@ describe('protocol do resumo da conversa', () => {
   it('limita o protocolo a 32 caracteres', () => {
     expect(parse('A'.repeat(32))).toBe(true)
     expect(parse('A'.repeat(33))).toBe(false)
+  })
+})
+
+describe('channels e iconName do resumo da conversa', () => {
+  const parseWith = (extra: Record<string, unknown>) =>
+    participantConversationSummarySchema.safeParse({ ...VALID_SUMMARY, ...extra }).success
+
+  it('aceita canais do vocabulário e ausente ou vazio', () => {
+    expect(parseWith({ channels: ['app', 'whatsapp'] })).toBe(true)
+    expect(parseWith({ channels: [] })).toBe(true)
+    expect(participantConversationSummarySchema.safeParse(VALID_SUMMARY).success).toBe(true)
+    assertExact<Exact<ParticipantConversationSummary['channels'], ConversationChannel[] | undefined>>()
+  })
+
+  it('recusa canal fora do vocabulário, duplicata e mais de 5 itens', () => {
+    expect(parseWith({ channels: ['sms'] })).toBe(false)
+    expect(parseWith({ channels: ['app', 'app'] })).toBe(false)
+    expect(parseWith({ channels: ['app', 'whatsapp', 'email', 'portal', 'webchat'] })).toBe(true)
+    expect(parseWith({ channels: ['app', 'whatsapp', 'email', 'portal', 'webchat', 'app'] })).toBe(false)
+  })
+
+  it('aceita iconName em minúsculas e recusa maiúscula, espaço, vazio e 33 caracteres', () => {
+    expect(parseWith({ iconName: 'file-text' })).toBe(true)
+    expect(parseWith({ iconName: 'a'.repeat(32) })).toBe(true)
+    expect(parseWith({ iconName: 'FileText' })).toBe(false)
+    expect(parseWith({ iconName: 'file text' })).toBe(false)
+    expect(parseWith({ iconName: '' })).toBe(false)
+    expect(parseWith({ iconName: 'a'.repeat(33) })).toBe(false)
+    assertExact<Exact<ParticipantConversationSummary['iconName'], string | undefined>>()
   })
 })
 

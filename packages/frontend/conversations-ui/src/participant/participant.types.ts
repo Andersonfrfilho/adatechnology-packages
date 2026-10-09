@@ -8,6 +8,9 @@ export type ParticipantSubjectGroup = {
   readonly icon?: ReactNode
 }
 
+/** Host-drawn icon for a list row; null/undefined falls back to the subject group icon. */
+export type ParticipantSubjectIconRenderer = (conversation: ParticipantConversationSummary) => ReactNode
+
 export type ParticipantInboxSection = {
   /** 'awaiting' | 'closed' | 'other' or the subjectType of a group. */
   readonly key: string

@@ -4,6 +4,7 @@ export { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS, type ParticipantConversations
 export type {
   ParticipantConversationsClassNames,
   ParticipantSubjectGroup,
+  ParticipantSubjectIconRenderer,
   ParticipantInboxView,
   ParticipantInboxSection,
   GroupParticipantConversationsParams,

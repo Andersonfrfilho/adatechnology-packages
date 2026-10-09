@@ -56,6 +56,7 @@ export function ParticipantConversationsScreen(props: ParticipantConversationsSc
             hasMore={inbox.hasMore}
             loadMore={() => void inbox.loadMore()}
             locale={props.locale}
+            renderSubjectIcon={props.renderSubjectIcon}
             search={{ value: searchQuery, onChange: setSearchQuery, isVisible: isSearchVisible }}
           />
         </div>

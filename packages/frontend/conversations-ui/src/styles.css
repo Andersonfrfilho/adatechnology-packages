@@ -1229,6 +1229,14 @@
   width: 2.25rem; height: 2.25rem; display: grid; place-items: center; border: 1px solid var(--cv-p-i-border);
   border-radius: var(--cv-p-i-radius); font: 0.7rem 'SFMono-Regular', Consolas, monospace; text-transform: uppercase; color: var(--cv-p-i-accent);
 }
+.cv-p-inbox__icon { color: var(--cv-p-i-accent); font-size: 1rem; }
+.cv-p-inbox__icon svg { width: 1.25rem; height: 1.25rem; }
+.cv-p-row__tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
+.cv-p-channels { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
+.cv-p-channel { display: inline-grid; place-items: center; width: 1.375rem; height: 1.375rem; border: 1px solid var(--cv-p-i-border); border-radius: var(--cv-p-i-radius); color: var(--cv-p-i-text-muted); }
+.cv-p-channel svg { display: block; }
+.cv-p-channel--whatsapp { color: var(--cv-p-channel-whatsapp, #25a05a); }
+.cv-p-channel--app { color: var(--cv-p-channel-app, var(--cv-p-i-accent)); }
 .cv-p-row__body { display: flex; flex-direction: column; min-width: 0; }
 .cv-p-row__kind { font: 0.64rem 'SFMono-Regular', Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cv-p-i-text-muted); }
 .cv-p-row__title { font-weight: 600; font-size: 0.92rem; }

@@ -167,6 +167,25 @@ pacote nunca gera nem conhece o formato, só **exibe, copia e busca**. Campo aus
   `noResultsLoadedOnly`, `protocolPrefix`, `copyProtocol` (padrão "Copy protocol"), `protocolCopied`.
 - **Classes novas:** `.cv-p-protocol`, `.cv-p-protocol__copy`, `.cv-p-search` (mesmos tokens `--cv-p-*`).
 
+### Canais e ícone do assunto na lista
+
+`ParticipantConversationSummary.channels?` (até 5 canais do vocabulário `email | whatsapp | app | portal | webchat`, sem
+repetição, pode ser vazio) e `iconName?` (1 a 32 caracteres, `[a-z0-9-]`, nome **opaco**: o pacote não conhece o
+catálogo) chegam **calculados pelo servidor**: `channels` são os canais distintos das mensagens da conversa e
+`iconName` o nome escolhido pelo produto para o assunto. **O pacote não deduz nada**; campo ausente = nada é desenhado.
+
+- **Lista:** a linha mostra à esquerda o ícone do assunto e, ao lado do protocolo, os selos de canal. O ícone vem de
+  `renderSubjectIcon?: (conversation) => ReactNode` (em `ParticipantConversations`); se a prop faltar, ou devolver
+  `null`/`undefined`, cai no ícone do grupo (`subjectGroups[].icon`). O host usa `conversation.iconName` para escolher.
+- **Selos de canal:** `<ul class="cv-p-channels">` com um `<li class="cv-p-channel cv-p-channel--{canal}">` por canal, na
+  ordem fixa app, whatsapp, email, portal, webchat (duplicata e canal desconhecido são ignorados). O sinal visual é o ícone
+  (cor é só reforço); o nome do canal está sempre em `<span class="cv-p-sr-only">`. Sem `channels` ou vazio, nem o `<ul>`.
+- **Cabeçalho da conversa:** os mesmos selos ao lado do protocolo.
+- **Labels novas** (defaults em inglês): `channelsGroup` ("Channels in this conversation"), `channelApp`,
+  `channelWhatsapp`, `channelEmail`, `channelPortal`, `channelWebchat`.
+- **Classes novas:** `.cv-p-channels`, `.cv-p-channel`, `.cv-p-row__tags`, `.cv-p-inbox__icon`; cores opcionais
+  `--cv-p-channel-app` e `--cv-p-channel-whatsapp`.
+
 ### Variáveis `--cv-p-*`
 
 Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há também a prop `theme`
