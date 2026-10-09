@@ -146,4 +146,41 @@ describe('ParticipantThread', () => {
     expect(findUtilityClassTokens(markup)).toEqual([])
     expect(findForeignClassTokens(markup)).toEqual([])
   })
+
+  it('draws no avatar by default', () => {
+    expect(render()).not.toContain('cv-p-avatar')
+    expect(render()).not.toContain('cv-p-bubble-row')
+  })
+
+  it('draws initials on the first received message of each sequence, never on own messages', () => {
+    const markup = render({
+      avatars: 'initials',
+      items: [
+        { kind: 'server', message: buildMessage({ id: 'a', authorName: 'Ana Souza' }) },
+        { kind: 'server', message: buildMessage({ id: 'b', authorName: 'Ana Souza' }) },
+        { kind: 'server', message: buildMessage({ id: 'c', direction: 'inbound' }) },
+        { kind: 'server', message: buildMessage({ id: 'd', authorName: 'Ana Souza' }) },
+        { kind: 'server', message: buildMessage({ id: 'e', authorName: 'Bruno Lima' }) },
+      ],
+    })
+    expect(markup.match(/class="cv-p-bubble-row"/g)?.length).toBe(4)
+    expect(markup.match(/class="cv-p-avatar" aria-hidden="true">AS</g)?.length).toBe(2)
+    expect(markup.match(/class="cv-p-avatar" aria-hidden="true">BL</g)?.length).toBe(1)
+  })
+
+  it('uses the neutral icon when the author has no usable name', () => {
+    const markup = render({ avatars: 'initials' })
+    expect(markup).toContain('class="cv-p-avatar" aria-hidden="true"><svg')
+  })
+
+  it('gives the host slot precedence over initials, even without the avatars prop', () => {
+    const markup = render({
+      avatars: 'initials',
+      renderAuthorAvatar: ({ name }) => <img alt="" src={`https://photos.example/${name ?? 'none'}.png`} />,
+      items: [{ kind: 'server', message: buildMessage({ id: 'a', authorName: 'Ana Souza' }) }],
+    })
+    expect(markup).toContain('src="https://photos.example/Ana Souza.png"')
+    expect(markup).not.toContain('>AS<')
+    expect(render({ renderAuthorAvatar: () => <i>x</i> })).toContain('<i>x</i>')
+  })
 })

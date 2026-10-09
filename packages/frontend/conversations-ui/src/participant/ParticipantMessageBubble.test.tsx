@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS } from './participantLabels'
@@ -9,7 +10,10 @@ import { ParticipantMessageBubble } from './ParticipantMessageBubble'
 const LABELS = DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS
 const resolveAttachmentUrl = async (): Promise<string> => 'https://files.example/a.png'
 
-function renderServer(message = buildMessage({ id: 'm1' }), extra: { onRetry?: () => void; confirmsRead?: boolean } = {}): string {
+function renderServer(
+  message = buildMessage({ id: 'm1' }),
+  extra: { onRetry?: () => void; confirmsRead?: boolean } = {},
+): string {
   const item: ParticipantTimelineItem = { kind: 'server', message }
   return renderToStaticMarkup(
     <ParticipantMessageBubble
@@ -82,14 +86,18 @@ describe('ParticipantMessageBubble', () => {
   })
 
   it('downgrades read to delivered when the channel does not confirm reads', () => {
-    const markup = renderServer(buildMessage({ id: 'a', direction: 'inbound', status: 'read' }), { confirmsRead: false })
+    const markup = renderServer(buildMessage({ id: 'a', direction: 'inbound', status: 'read' }), {
+      confirmsRead: false,
+    })
 
     expect(markup).toContain('cv-status-ticks--delivered')
     expect(markup).not.toContain('cv-status-ticks--read')
   })
 
   it('shows no status on the other side', () => {
-    expect(renderServer(buildMessage({ id: 'a', direction: 'outbound', status: 'read' }))).not.toContain('cv-status-ticks')
+    expect(renderServer(buildMessage({ id: 'a', direction: 'outbound', status: 'read' }))).not.toContain(
+      'cv-status-ticks',
+    )
   })
 
   it('renders pending sending and queued with their texts', () => {
@@ -163,5 +171,44 @@ describe('ParticipantMessageBubble', () => {
     expect(findUtilityClassTokens(markup)).toEqual([])
     expect(findForeignClassTokens(markup)).toEqual([])
     expect(markup).toContain('cv-p-')
+  })
+})
+
+describe('ParticipantMessageBubble avatar slot', () => {
+  const GOLDEN_RECEIVED =
+    '<div class="cv-p-bubble"><span class="cv-p-bubble__author">Ana Souza</span><div class="cv-message-text"><div><span>Hi</span></div></div><span class="cv-p-bubble__meta"><time class="cv-p-bubble__time" dateTime="2026-10-01T10:00:00.000Z">HH:MM</time></span></div>'
+
+  function renderWith(direction: 'inbound' | 'outbound', avatar?: ReactNode): string {
+    const message = buildMessage({ id: 'm', direction, authorName: 'Ana Souza', text: 'Hi' })
+    return renderToStaticMarkup(
+      <ParticipantMessageBubble
+        item={{ kind: 'server', message }}
+        labels={LABELS}
+        confirmsRead
+        resolveAttachmentUrl={resolveAttachmentUrl}
+        avatar={avatar}
+      />,
+    ).replace(/>\d\d:\d\d</, '>HH:MM<')
+  }
+
+  it('keeps the markup identical to the one before the prop existed when avatar is absent', () => {
+    expect(renderWith('outbound')).toBe(GOLDEN_RECEIVED)
+  })
+
+  it('puts the avatar to the left of a received bubble inside a row', () => {
+    const markup = renderWith('outbound', <span className="cv-p-avatar">AS</span>)
+    expect(markup).toBe(
+      `<div class="cv-p-bubble-row"><span class="cv-p-bubble-row__avatar"><span class="cv-p-avatar">AS</span></span>${GOLDEN_RECEIVED}</div>`,
+    )
+  })
+
+  it('reserves the avatar space when the slot is null', () => {
+    expect(renderWith('outbound', null)).toContain('<span class="cv-p-bubble-row__avatar"></span>')
+  })
+
+  it('never draws the avatar on an own message', () => {
+    const own = renderWith('inbound', <span className="cv-p-avatar">AS</span>)
+    expect(own).not.toContain('cv-p-avatar')
+    expect(own).not.toContain('cv-p-bubble-row')
   })
 })

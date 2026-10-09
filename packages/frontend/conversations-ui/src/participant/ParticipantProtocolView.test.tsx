@@ -148,16 +148,14 @@ describe('copy button', () => {
       />,
     )
 
-  it('has a default visible label starting the accessible name', () => {
+  it('has a default accessible name that starts with the visible action and carries the code', () => {
     expect(LABELS.copyProtocol).toBe('Copy protocol')
-    const markup = render(false)
-    expect(markup).toContain('<span aria-hidden="true">Copy protocol</span>')
-    expect(markup).toContain('<span class="cv-p-sr-only">Copy protocol 261009-K7M2</span>')
+    expect(render(false)).toContain('aria-label="Copy protocol 261009-K7M2"')
   })
 
-  it('swaps the visible text for the confirmation while copied, hidden from assistive tech', () => {
+  it('shows the confirmation next to the icon while copied, hidden from assistive tech', () => {
     const markup = render(true)
-    expect(markup).toContain(`<span aria-hidden="true">${LABELS.protocolCopied}</span>`)
+    expect(markup).toContain(`<span class="cv-p-protocol__copied" aria-hidden="true">${LABELS.protocolCopied}</span>`)
     expect(markup).toContain(`<span>${LABELS.protocolCopied}</span></div>`)
   })
 

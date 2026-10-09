@@ -157,9 +157,9 @@ pacote nunca gera nem conhece o formato, só **exibe, copia e busca**. Campo aus
 
 - **Lista:** a linha mostra o protocolo abaixo do título (fonte mono); o prefixo `labels.protocolPrefix` é um `<span>` só para
   leitor de tela (sem `aria-label` em elemento genérico, que o ARIA 1.2 proíbe).
-- **Cabeçalho da conversa:** protocolo abaixo do título e botão de copiar (alvo de 44px) que usa
-  `navigator.clipboard.writeText`; falha de cópia é silenciosa. Durante 3 s o texto visível do botão vira
-  `labels.protocolCopied` (o nome acessível segue "`copyProtocol` + código") e o aviso também vai numa região
+- **Cabeçalho da conversa:** ver "Cabeçalho da conversa" abaixo. O botão de copiar usa `navigator.clipboard.writeText`;
+  falha de cópia é silenciosa. É **só um ícone** (`Copy`, vira `Check` por 3 s) com `aria-label` = "`copyProtocol` + código";
+  durante os 3 s aparece ao lado do ícone o texto curto `labels.protocolCopied` e o aviso também vai numa região
   `aria-live="polite"` sempre na árvore; copiar de novo dentro dos 3 s reinicia o prazo e reanuncia.
 - **Busca:** um campo `type="search"` acima da lista filtra por título (sem acento nem caixa) **ou** protocolo
   (parcial, sem traço, sem caixa: `k7m2` acha `261009-K7M2`). Aparece só quando alguma conversa tem `protocol` ou
@@ -193,12 +193,38 @@ cv-p-channel--{canal}">`, um prefixo sr-only `Channels in this conversation: ` e
   o leitor dizer "Channels in this conversation: App, WhatsApp".
 - **`renderSubjectIcon`** deve ser **puro e não lançar** (o pacote não tem error boundary); `null`, `undefined`, `false` e
   `''` valem como ausente.
-- **Cabeçalho da conversa:** os mesmos selos ao lado do protocolo.
+- **Cabeçalho da conversa:** os mesmos selos, na variante `inline` (ícone de 16px), na mesma linha do protocolo.
 - **Labels novas** (defaults em inglês): `channelsGroup` ("Channels in this conversation"), `channelApp`,
   `channelWhatsapp`, `channelEmail`, `channelPortal`, `channelWebchat`.
 - **Classes novas:** `.cv-p-channels`, `.cv-p-channel`, `.cv-p-row__tags`, `.cv-p-inbox__icon`; cores opcionais
   `--cv-p-channel-app` (padrão: o destaque) e `--cv-p-channel-whatsapp` (padrão `#20914f`, ≥ 3:1 sobre as superfícies claras e
   escuras; ao trocar, mantenha 3:1).
+
+### Cabeçalho da conversa
+
+Em coluna, ao lado do botão voltar (quando há `onBack`): (1) **eyebrow** com o `label` do grupo do assunto em
+`subjectGroups` (mono, caixa alta, como o rótulo da linha da lista; ausente se o tipo não tem grupo); (2) **título**
+(`subjectLabel`, no máximo 2 linhas com reticências; clicável só com `onOpenSubject`); (3) **linha meta** única
+(`.cv-p-thread__meta`, flex que só quebra se faltar espaço) com o protocolo, o botão de copiar só com ícone e os selos de
+canal inline. A área de toque do botão é de 44x44px mas o glifo tem 18px e a margem negativa impede que a linha cresça.
+Sem `protocol` não há protocolo nem botão; sem `channels` não há selos; sem nenhum dos dois a linha meta não existe. O título vive no
+cabeçalho; o cartão de `renderSubjectCard` (do host) deve trazer só o que o cabeçalho não diz, sem repetir o título.
+Classes novas: `.cv-p-thread__eyebrow`, `.cv-p-thread__meta`, `.cv-p-protocol__copied`.
+
+### Avatar do autor (opt-in)
+
+**O SDK não tem foto de usuário**: o cadastro só traz `authorName`. O avatar é opt-in e o host fornece a foto pelo slot.
+
+- `avatars="initials"` (em `ParticipantConversations`): desenha, à esquerda da bolha **recebida**, um quadrado de 32px
+  (`border-radius: var(--cv-p-radius)`, respeita tema reto) com até 2 iniciais do autor (primeiro e último nome, ignorando
+  preposições e pontuação); nome vazio, `?` ou só emoji cai no ícone neutro. Aparece só na **primeira** mensagem de uma
+  sequência do mesmo autor (as seguintes reservam o espaço para alinhar as bolhas); mensagem própria nunca tem avatar.
+  O avatar é `aria-hidden`: o nome do autor já está no texto da bolha.
+- `renderAuthorAvatar?: (author: { name: string | null }) => ReactNode`: slot do host (uma `<img>`, por exemplo) desenhado
+  dentro do mesmo quadrado de 32px; tem precedência sobre as iniciais, liga o avatar sozinho e, se devolver `null`/`undefined`,
+  cai nas iniciais. Deve ser puro e não lançar.
+- Sem nenhuma das duas props o markup da bolha é idêntico ao anterior. Classes novas: `.cv-p-avatar`, `.cv-p-bubble-row`,
+  `.cv-p-bubble-row__avatar`. Nenhum label novo.
 
 ### Variáveis `--cv-p-*`
 

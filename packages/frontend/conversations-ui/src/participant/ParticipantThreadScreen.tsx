@@ -24,9 +24,15 @@ export type ParticipantThreadScreenProps = Omit<ParticipantConversationsScreenPr
   readonly dispatchSendStates: Dispatch<ParticipantSendStatesAction>
 }
 
-type OpenedState = { readonly status: 'idle' | 'loading' | 'missing' } | { readonly status: 'found'; readonly conversation: ParticipantConversationSummary }
+type OpenedState =
+  | { readonly status: 'idle' | 'loading' | 'missing' }
+  | { readonly status: 'found'; readonly conversation: ParticipantConversationSummary }
 
-function useOpenedConversation(api: ParticipantConversationsApi, subject: ParticipantSubjectRef, isNeeded: boolean): OpenedState {
+function useOpenedConversation(
+  api: ParticipantConversationsApi,
+  subject: ParticipantSubjectRef,
+  isNeeded: boolean,
+): OpenedState {
   const [opened, setOpened] = useState<OpenedState>({ status: 'idle' })
   const { subjectType, subjectId } = subject
   const canOpen = api.openConversation !== undefined
@@ -47,7 +53,13 @@ function useOpenedConversation(api: ParticipantConversationsApi, subject: Partic
   return opened
 }
 
-function NotFound({ labels, onBack }: { readonly labels: ParticipantConversationsLabels; readonly onBack?: () => void }) {
+function NotFound({
+  labels,
+  onBack,
+}: {
+  readonly labels: ParticipantConversationsLabels
+  readonly onBack?: () => void
+}) {
   return (
     <div className="cv-p cv-p-thread">
       <header className="cv-p-thread__header">
@@ -74,7 +86,8 @@ export function ParticipantThreadScreen(props: ParticipantThreadScreenProps) {
   if (conversation) return <LoadedThread {...props} conversation={conversation} />
   const isResolving = opened.status === 'loading' || (api.openConversation !== undefined && opened.status === 'idle')
   const isListLoading = inbox.status === 'idle' || inbox.status === 'loading'
-  if (isResolving || (api.openConversation === undefined && isListLoading)) return <div className="cv-p cv-p-thread" aria-busy="true" />
+  if (isResolving || (api.openConversation === undefined && isListLoading))
+    return <div className="cv-p cv-p-thread" aria-busy="true" />
   return <NotFound labels={labels} onBack={props.onBack} />
 }
 
@@ -130,6 +143,9 @@ function LoadedThread(props: LoadedThreadProps) {
       }}
       quickReplies={props.quickReplies}
       renderSubjectCard={props.renderSubjectCard}
+      subjectGroups={props.subjectGroups}
+      avatars={props.avatars}
+      renderAuthorAvatar={props.renderAuthorAvatar}
     />
   )
 }
