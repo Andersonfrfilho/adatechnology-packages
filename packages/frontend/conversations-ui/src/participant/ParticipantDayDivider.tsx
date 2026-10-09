@@ -6,10 +6,12 @@ export type ParticipantDayDividerProps = {
 }
 
 export function ParticipantDayDivider({ day, locale }: ParticipantDayDividerProps) {
+  const label = day.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' })
+
   return (
-    <div className="cv-p-day" role="separator">
+    <div className="cv-p-day" role="separator" aria-label={label}>
       <time className="cv-p-day__label" dateTime={toDateTimeAttribute(day)}>
-        {day.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' })}
+        {label}
       </time>
     </div>
   )

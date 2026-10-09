@@ -66,6 +66,19 @@ describe('wallpaper', () => {
     }
   })
 
+  it('uses logical properties for the text, the meta and the title button, so RTL mirrors', () => {
+    expect(declarationsIn('.cv-p-bubble > .cv-message-text').get('margin-inline-end')).toBe('auto')
+    expect(declarationsIn('.cv-p-thread__title-button').get('text-align')).toBe('start')
+  })
+
+  it('restores the bubble corner radius in print, where the tail is off', () => {
+    const rule = declarationsIn('.cv-p-bubble', mediaBody('print') ?? '')
+    expect(rule.get('border-radius')).toBe('var(--cv-p-i-radius)')
+    expect(declarationsIn('.cv-p-bubble--mine', mediaBody('print') ?? '').get('border-radius')).toBe(
+      'var(--cv-p-i-radius)',
+    )
+  })
+
   it('never reaches the composer, the header or the bubbles', () => {
     for (const selector of ['.cv-p-composer', '.cv-p-thread__header', '.cv-p-bubble']) {
       expect(declarationsIn(selector).has('background-image')).toBe(false)
@@ -75,8 +88,8 @@ describe('wallpaper', () => {
 
 describe('day pill', () => {
   it('is a separator holding a time with a machine date', () => {
-    expect(renderThread()).toContain(
-      '<div class="cv-p-day" role="separator"><time class="cv-p-day__label" dateTime="2026-10-01">',
+    expect(renderThread()).toMatch(
+      /<div class="cv-p-day" role="separator" aria-label="[^"]+"><time class="cv-p-day__label" dateTime="2026-10-01">/,
     )
   })
 
@@ -124,7 +137,7 @@ describe('time and ticks at the foot of the bubble', () => {
     expect(bubble.get('align-items')).toBe('flex-end')
     expect(bubble.get('max-width')).toBe('85%')
     const meta = declarationsIn('.cv-p-bubble__meta')
-    expect(meta.get('margin-left')).toBe('auto')
+    expect(meta.get('margin-inline-start')).toBe('auto')
     expect(meta.get('flex')).toBe('0 0 auto')
     expect(declarationsIn('.cv-p-bubble > .cv-message-text').get('min-width')).toBe('0')
   })

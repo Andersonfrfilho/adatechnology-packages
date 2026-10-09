@@ -5,7 +5,7 @@ Telas de conversa parametrizáveis por endpoint, tema e capacidades. Subpaths: `
 
 ## Visão do participante (`/participant`)
 
-Tela de conversa do lado de **quem conversa com a empresa** (app do motorista, portal do cliente). Não usa
+Tela de conversa do lado de **quem conversa com a empresa** (app de campo, portal do cliente). Não usa
 `ConversationsProvider`, não puxa `@xyflow/react` nem o `ConversationsWorkspace`, e não depende de Tailwind:
 todas as classes são `.cv-p-*` e vêm de `@adatechnology/conversations-ui/styles.css`.
 
@@ -202,18 +202,17 @@ cv-p-channel--{canal}">`, um prefixo sr-only `Channels in this conversation: ` e
 
 ### Conversa no desenho do WhatsApp, no nosso estilo
 
-A conversa segue os padrões de chat do WhatsApp, mas só com os tokens `--cv-p-*` (no app do motorista: escuro, cobre, cantos
+A conversa segue os padrões de chat do WhatsApp, mas só com os tokens `--cv-p-*` (por exemplo, em um tema escuro de cantos
 retos, rótulos em mono). Tudo é `.cv-p-*`; nenhum componente do painel do operador é usado.
 
-**Cabeçalho** (barra única de no mínimo 4rem, fundo `--cv-p-surface-raised`, borda inferior de 1px), da esquerda para a direita:
+**Cabeçalho** (barra única com piso de 4rem (com título longo, protocolo longo e 3 canais a linha meta quebra e a barra chega a cerca de 110px), fundo `--cv-p-surface-raised`, borda inferior de 1px), da esquerda para a direita:
 (1) **voltar** só com ícone (seta de 24px, sem caixa nem borda, área de toque 44x44, `aria-label` = label `back`, foco visível;
 ausente sem `onBack`); (2) **avatar da conversa**: tile de 2.5rem (`border-radius: var(--cv-p-radius)`) com o ícone do assunto, o
 mesmo da lista (`renderSubjectIcon` do host; se devolver vazio, o `icon` do grupo em `subjectGroups`; sem nenhum dos dois não há
-tile e o título recua). `ParticipantThread`/`ParticipantThreadHeader` ganharam a prop opcional `renderSubjectIcon`, repassada por
-`ParticipantConversations`; (3) **título em duas linhas**: o `subjectLabel` (uma linha com reticências, cortada só no `span` interno
+tile e o título recua). o `renderSubjectIcon` e o `icon` do grupo, que já existiam, passam a desenhar também esse tile (o cabeçalho não tem o
+fallback de duas letras da linha da lista); (3) **título em duas linhas**: o `subjectLabel` (uma linha com reticências, cortada só no `span` interno
 `.cv-p-thread__title-text` para o anel de foco do botão não ser recortado; clicável só com `onOpenSubject`) e a **linha meta**
-(`.cv-p-thread__meta`) com o protocolo, o botão de copiar só com ícone e os selos de canal inline. O rótulo do grupo (eyebrow) só
-aparece quando não há avatar: o tile já representa o grupo e o espaço em 320px é curto. A área de toque do copiar tem 44px de
+(`.cv-p-thread__meta`) com o protocolo, o botão de copiar só com ícone e os selos de canal inline. O rótulo do grupo (eyebrow) some quando há tile: o tile já representa o grupo e o espaço em 320px é curto. A área de toque do copiar tem 44px de
 largura e 36px de altura; a margem negativa de cima é coberta pelo `padding-top` da linha meta, então nunca invade o título.
 Sem `protocol` não há protocolo nem botão; sem `channels` não há selos; sem nenhum dos dois a linha meta não existe. O cartão de
 `renderSubjectCard` (do host) deve trazer só o que o cabeçalho não diz.
@@ -224,6 +223,9 @@ com `--cv-p-wallpaper-size` para o tamanho do ladrilho (padrão `24px 24px`). So
 
 **Separador de dia**: pílula centralizada (fundo elevado, borda de 1px, texto mono pequeno, raio do token), `role="separator"`
 com um `<time datetime="AAAA-MM-DD">` do dia local.
+
+**Direção do texto (RTL)**: margens, alinhamento e hora da bolha usam propriedades lógicas e espelham sozinhos; o **rabinho** do balão
+(triângulos e canto reto) usa posições físicas e em RTL continua à esquerda/direita como em LTR (limitação conhecida).
 
 **Bolha**: hora e ticks ficam na mesma bolha, juntos ao pé e à direita (`.cv-p-bubble__meta`); se o texto cabe com folga, a
 hora fica na mesma linha dele, senão cai para a linha de baixo, à direita, sem sobrepor. Largura máxima de 85%.
@@ -276,21 +278,21 @@ Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há també
 (`primaryColor` → `--cv-p-accent`, `backgroundColor` → `--cv-p-surface`, `textPrimary` → `--cv-p-text`,
 `textSecondary` → `--cv-p-text-muted`).
 
-| Variável                  | Para que serve                          | Padrão (claro) |
-| ------------------------- | --------------------------------------- | -------------- |
-| `--cv-p-surface`          | fundo da tela                           | `#ffffff`      |
-| `--cv-p-surface-raised`   | fundo de bolhas recebidas e campos      | `#f3f4f6`      |
-| `--cv-p-text`             | texto principal                         | `#111827`      |
-| `--cv-p-text-muted`       | texto secundário                        | `#5b6573`      |
-| `--cv-p-border`           | bordas                                  | `#d5d9df`      |
-| `--cv-p-accent`           | destaque, botão primário, bolha própria | `#a85a1c`      |
-| `--cv-p-accent-contrast`  | texto sobre o destaque                  | `#ffffff`      |
-| `--cv-p-highlight`        | fundo de "espera sua resposta"          | `#fbefe2`      |
-| `--cv-p-danger`           | erro e falha de envio                   | `#c62828`      |
-| `--cv-p-radius`           | raio dos cantos                         | `0`            |
-| `--cv-p-wallpaper`        | fundo da lista de mensagens (`none` desliga) | pontos sutis |
-| `--cv-p-channel-app`      | cor do selo do canal app                | o destaque     |
-| `--cv-p-channel-whatsapp` | cor do selo do canal WhatsApp           | `#20914f`      |
+| Variável                  | Para que serve                               | Padrão (claro) |
+| ------------------------- | -------------------------------------------- | -------------- |
+| `--cv-p-surface`          | fundo da tela                                | `#ffffff`      |
+| `--cv-p-surface-raised`   | fundo de bolhas recebidas e campos           | `#f3f4f6`      |
+| `--cv-p-text`             | texto principal                              | `#111827`      |
+| `--cv-p-text-muted`       | texto secundário                             | `#5b6573`      |
+| `--cv-p-border`           | bordas                                       | `#d5d9df`      |
+| `--cv-p-accent`           | destaque, botão primário, bolha própria      | `#a85a1c`      |
+| `--cv-p-accent-contrast`  | texto sobre o destaque                       | `#ffffff`      |
+| `--cv-p-highlight`        | fundo de "espera sua resposta"               | `#fbefe2`      |
+| `--cv-p-danger`           | erro e falha de envio                        | `#c62828`      |
+| `--cv-p-radius`           | raio dos cantos                              | `0`            |
+| `--cv-p-wallpaper`        | fundo da lista de mensagens (`none` desliga) | pontos sutis   |
+| `--cv-p-channel-app`      | cor do selo do canal app                     | o destaque     |
+| `--cv-p-channel-whatsapp` | cor do selo do canal WhatsApp                | `#20914f`      |
 
 O tema escuro segue a classe `.dark` (mesma do restante do pacote). Os nomes `.cv-p-*` e `--cv-p-*` são API
 pública e não mudam sem nova versão maior.

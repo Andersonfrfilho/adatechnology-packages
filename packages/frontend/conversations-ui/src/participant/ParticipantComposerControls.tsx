@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ChangeEvent } from 'react'
+import { useLayoutEffect, useRef, type ChangeEvent } from 'react'
 
 import { Paperclip, Send } from 'lucide-react'
 
@@ -63,7 +63,7 @@ type MessageFieldProps = {
 export function MessageField({ value, label, placeholder, disabled, maxLength, onChange }: MessageFieldProps) {
   const fieldRef = useRef<HTMLTextAreaElement>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (fieldRef.current) fitTextareaHeight(fieldRef.current)
   }, [value])
 

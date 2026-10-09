@@ -4,6 +4,7 @@ import { formatTimestamp, isSameDay } from '../lib/format'
 import type { ParticipantSubjectGroup, ParticipantSubjectIconRenderer } from './participant.types'
 import { formatParticipantLabel, type ParticipantConversationsLabels } from './participantLabels'
 import { ParticipantChannelBadges } from './ParticipantChannelBadges'
+import { isDrawable, resolveConversationIcon } from './participantSubjectIcon'
 
 export type ParticipantInboxRowProps = {
   readonly conversation: ParticipantConversationSummary
@@ -21,17 +22,18 @@ function formatRowTime(iso: string, locale: string | undefined): string {
 }
 
 function RowIcon({ props, kind }: { readonly props: ParticipantInboxRowProps; readonly kind: string }) {
-  const custom = props.renderSubjectIcon?.(props.conversation)
-  if (custom !== null && custom !== undefined && custom !== false && custom !== '') {
+  const { conversation, group, renderSubjectIcon } = props
+  const hostIcon = renderSubjectIcon?.(conversation)
+  if (isDrawable(hostIcon)) {
     return (
       <span className="cv-p-row__icon cv-p-inbox__icon" aria-hidden="true">
-        {custom}
+        {hostIcon}
       </span>
     )
   }
   return (
     <span className="cv-p-row__icon" aria-hidden="true">
-      {props.group?.icon ?? kind.slice(0, 2)}
+      {resolveConversationIcon({ conversation, group }) ?? kind.slice(0, 2)}
     </span>
   )
 }

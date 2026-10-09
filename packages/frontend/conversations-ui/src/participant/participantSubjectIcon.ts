@@ -10,11 +10,11 @@ export type ResolveConversationIconParams = {
   readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
 }
 
-function isDrawable(node: ReactNode): boolean {
+export function isDrawable(node: ReactNode): boolean {
   return node !== null && node !== undefined && node !== false && node !== ''
 }
 
-/** Same precedence as the list row: the host icon, then the group icon, then nothing. */
+/** Host icon, then group icon, then nothing; the list row adds its own text fallback, the header draws no tile. */
 export function resolveConversationIcon({
   conversation,
   group,

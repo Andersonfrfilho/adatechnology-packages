@@ -55,7 +55,7 @@ describe('avatar sequence in the thread', () => {
 
   it('shows the avatar again after the day separator', () => {
     const markup = render([ana('a', '2026-10-01T10:00:00.000Z'), ana('b', '2026-10-03T10:00:00.000Z')])
-    expect(markup).toContain('role="separator"')
+    expect(markup).toMatch(/role="separator" aria-label="[^"]+"/)
     expect(countAvatars(markup)).toBe(2)
   })
 
