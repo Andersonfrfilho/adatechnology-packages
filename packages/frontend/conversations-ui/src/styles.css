@@ -1295,5 +1295,11 @@
   .cv-p-row, .cv-p-button, .cv-p-chip { transition: background-color 0.12s, border-color 0.12s; }
 }
 
+/* Faixas de altura própria numa coluna flex: overflow != visible anula o min-height:auto, então sem isto encolhem. */
+.cv-p-inbox__title, .cv-p-search, .cv-p-filters, .cv-p-error, .cv-p-loading, .cv-p-inbox__more, .cv-p-empty,
+.cv-p-section__heading, .cv-p-row,
+.cv-p-thread__header, .cv-p-thread__subject-card, .cv-p-thread__live, .cv-p-thread__closed,
+.cv-p-composer, .cv-p-quick, .cv-p-files, .cv-p-composer__row, .cv-p-composer__error { flex: 0 0 auto; }
+
 .cv-p-root { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .cv-p-root__screen { display: flex; flex-direction: column; flex: 1; min-height: 0; }
