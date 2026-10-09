@@ -32,6 +32,7 @@ export type ParticipantConversationsLabels = {
   readonly statusFailed: string
   readonly statusFailedShort: string
   readonly retry: string
+  readonly notFound: string
 }
 
 export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsLabels = {
@@ -67,6 +68,7 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   statusFailed: 'Failed — tap to retry',
   statusFailedShort: 'Failed',
   retry: 'Retry',
+  notFound: 'Conversation not found',
 }
 
 export function formatParticipantLabel(template: string, count: number): string {

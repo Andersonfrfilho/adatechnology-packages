@@ -1268,3 +1268,6 @@
 @media (prefers-reduced-motion: no-preference) {
   .cv-p-row, .cv-p-button, .cv-p-chip { transition: background-color 0.12s, border-color 0.12s; }
 }
+
+.cv-p-root { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.cv-p-root__screen { display: flex; flex-direction: column; flex: 1; min-height: 0; }

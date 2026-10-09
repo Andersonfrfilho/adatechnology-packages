@@ -35,3 +35,9 @@ export type GroupParticipantConversationsParams = {
   /** subjectType, or 'all'/undefined for everything. */
   readonly filter?: string
 }
+
+export type ParticipantConversationsClassNames = {
+  readonly root: string
+  readonly inbox: string
+  readonly thread: string
+}

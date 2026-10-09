@@ -77,3 +77,44 @@ describe('o bundle do host não paga por @xyflow/react sem pedir', () => {
     expect(await distText('index.js')).not.toContain('@xyflow/react')
   })
 })
+
+describe('a visão do participante é leve e isolada', () => {
+  const PARTICIPANT_ENTRY_LIMIT_BYTES = 250 * 1024
+
+  async function participantBundle(): Promise<string> {
+    // O entry mais os chunks relativos que ele importa, transitivamente: é o que o host baixa.
+    const seen = new Set<string>()
+    const queue = ['participant/index.js']
+    let total = ''
+    while (queue.length > 0) {
+      const file = queue.shift() as string
+      if (seen.has(file)) continue
+      seen.add(file)
+      const text = await distText(file)
+      total += text
+      for (const match of text.matchAll(/(?:from|import)\s*"(\.[^"]+\.js)"/g)) {
+        const target = new URL(match[1] as string, `file:///${file}`).pathname.slice(1)
+        queue.push(target)
+      }
+    }
+    return total
+  }
+
+  it('não puxa o xyflow nem o ConversationsWorkspace', async () => {
+    const bundle = await participantBundle()
+
+    expect(bundle).not.toContain('xyflow')
+    expect(bundle).not.toContain('ConversationsWorkspace')
+  })
+
+  it('fica abaixo de 250 KB com os chunks que importa', async () => {
+    const bundle = await participantBundle()
+
+    expect(new TextEncoder().encode(bundle).length).toBeLessThan(PARTICIPANT_ENTRY_LIMIT_BYTES)
+  })
+
+  it('entrega a tela e os tipos no subpath /participant', async () => {
+    expect(await distText('participant/index.js')).toContain('ParticipantConversations')
+    expect(await distText('participant/index.d.ts')).toContain('ParticipantConversations')
+  })
+})
