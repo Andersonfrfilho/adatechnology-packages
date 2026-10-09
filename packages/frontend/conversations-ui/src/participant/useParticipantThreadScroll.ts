@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import { collectServerMessageIds, countNewIncomingMessages } from './participantNewMessages'
 import type { ParticipantTimelineItem } from './participantMessages'
+import { useScrollAwayState } from './useScrollAwayState'
 import { useStickToBottom, type ParticipantThreadScroll } from './useStickToBottom'
 
 export type UseParticipantThreadScrollResult = {
@@ -14,8 +15,15 @@ function keyOf(item: ParticipantTimelineItem | undefined): string | undefined {
   return item.kind === 'server' ? item.message.id : `pending:${item.pending.clientMessageId}`
 }
 
-export function useParticipantThreadScroll(items: readonly ParticipantTimelineItem[]): UseParticipantThreadScrollResult {
-  const { scroll, isNearBottom } = useStickToBottom({ firstKey: keyOf(items[0]), lastKey: keyOf(items[items.length - 1]) })
+export function useParticipantThreadScroll(
+  items: readonly ParticipantTimelineItem[],
+): UseParticipantThreadScrollResult {
+  const { scroll: base, isNearBottom } = useStickToBottom({
+    firstKey: keyOf(items[0]),
+    lastKey: keyOf(items[items.length - 1]),
+  })
+  const { isAwayFromBottom, scrollToLatest } = useScrollAwayState(base.ref, isNearBottom)
+  const scroll = { ...base, isAwayFromBottom, scrollToLatest }
   const seenIds = useRef<ReadonlySet<string>>(new Set())
 
   useEffect(() => {

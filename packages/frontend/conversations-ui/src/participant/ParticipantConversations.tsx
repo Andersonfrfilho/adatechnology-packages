@@ -5,6 +5,7 @@ import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@ada
 import type { ConversationChannel } from '../conversationChannel'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ConversationsTheme } from '../types'
+import type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
 import { ParticipantConversationsScreen } from './ParticipantConversationsScreen'
 import type {
   ParticipantConversationsClassNames,
@@ -34,6 +35,12 @@ export type ParticipantConversationsProps = {
   renderSubjectIcon?: ParticipantSubjectIconRenderer
   renderSubjectCard?: (conversation: ParticipantConversationSummary) => ReactNode
   onOpenSubject?: (subject: ParticipantSubjectRef) => void
+  /** Absent draws no avatar. The SDK has no photo: the host supplies it through renderAuthorAvatar. */
+  avatars?: 'initials'
+  /** Host slot for the author's photo; wins over 'initials' and enables avatars on its own. */
+  renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
+  tail?: boolean
 }
 
 export function ParticipantConversations(props: ParticipantConversationsProps) {

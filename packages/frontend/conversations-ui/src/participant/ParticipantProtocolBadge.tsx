@@ -1,3 +1,4 @@
+import { Check, Copy } from 'lucide-react'
 import { useEffect, useReducer } from 'react'
 
 import type { ParticipantConversationsLabels } from './participantLabels'
@@ -29,18 +30,25 @@ export function ParticipantProtocolBadgeView({
   const { isCopied, copyCount } = copyState
   return (
     <>
-      <div className="cv-p-protocol cv-p-protocol--header">
+      <span className="cv-p-protocol cv-p-protocol--header">
         <span className="cv-p-protocol__code">
           <span className="cv-p-sr-only">{labels.protocolPrefix} </span>
           {protocol}
         </span>
-        <button type="button" className="cv-p-protocol__copy" onClick={onCopy}>
-          <span aria-hidden="true">{isCopied ? labels.protocolCopied : labels.copyProtocol}</span>
-          <span className="cv-p-sr-only">
-            {labels.copyProtocol} {protocol}
-          </span>
+        <button
+          type="button"
+          className="cv-p-protocol__copy"
+          aria-label={`${labels.copyProtocol} ${protocol}`}
+          onClick={onCopy}
+        >
+          {isCopied ? <Check size={18} aria-hidden={true} /> : <Copy size={18} aria-hidden={true} />}
+          {isCopied ? (
+            <span className="cv-p-protocol__copied" aria-hidden="true">
+              {labels.protocolCopied}
+            </span>
+          ) : null}
         </button>
-      </div>
+      </span>
       <div className="cv-p-sr-only" role="status" aria-live="polite">
         {isCopied ? <span key={copyCount}>{labels.protocolCopied}</span> : null}
       </div>

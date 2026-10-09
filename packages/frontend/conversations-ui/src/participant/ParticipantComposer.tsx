@@ -1,9 +1,10 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 
 import { channelCapabilityFor } from '../channelCapability'
 import type { ConversationChannel } from '../conversationChannel'
 import { formatFileSize } from '../lib/format'
 import type { QuickReply } from '../quickReplies/quickReply.types'
+import { AttachControl, MessageField, SendButton } from './ParticipantComposerControls'
 import { maxBytesForChannel, reduceFilesSelection, type ParticipantFileRejection } from './participantFileValidation'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { applyQuickReply } from './participantQuickReply'
@@ -73,34 +74,6 @@ function rejectionText(rejection: ParticipantFileRejection, labels: ParticipantC
   return rejection === 'tooLarge' ? labels.attachmentTooLarge : labels.attachmentTypeNotAccepted
 }
 
-type AttachControlProps = {
-  readonly labels: ParticipantConversationsLabels
-  readonly disabled: boolean
-  readonly acceptedTypes?: readonly string[]
-  readonly onChosen: (event: ChangeEvent<HTMLInputElement>) => void
-}
-
-function AttachControl({ labels, disabled, acceptedTypes, onChosen }: AttachControlProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  return (
-    <>
-      <input
-        ref={fileInputRef}
-        className="cv-p-composer__file-input"
-        type="file"
-        multiple
-        hidden
-        accept={acceptedTypes?.join(',')}
-        onChange={onChosen}
-      />
-      <button type="button" className="cv-p-button" disabled={disabled} onClick={() => fileInputRef.current?.click()}>
-        <span aria-hidden="true">＋</span>
-        <span className="cv-p-sr-only">{labels.attach}</span>
-      </button>
-    </>
-  )
-}
-
 function useFileSelection(props: ParticipantComposerProps) {
   const [rejection, setRejection] = useState<ParticipantFileRejection | undefined>(undefined)
   const { files, onFilesChange, channel } = props
@@ -147,20 +120,15 @@ export function ParticipantComposer(props: ParticipantComposerProps) {
         {channelCapabilityFor(channel).attachments.accepted ? (
           <AttachControl labels={labels} disabled={disabled} acceptedTypes={props.acceptedTypes} onChosen={handleFilesChosen} />
         ) : null}
-        <textarea
-          className="cv-p-composer__input"
-          aria-label={labels.messageInputLabel}
-          placeholder={labels.messageInputPlaceholder}
-          rows={1}
+        <MessageField
           value={value}
-          maxLength={props.maxLength}
+          label={labels.messageInputLabel}
+          placeholder={labels.messageInputPlaceholder}
           disabled={disabled}
-          onChange={(event) => onChange(event.target.value)}
+          maxLength={props.maxLength}
+          onChange={onChange}
         />
-        <button type="submit" className="cv-p-button cv-p-button--primary" disabled={!canSend}>
-          <span aria-hidden="true">➤</span>
-          <span className="cv-p-sr-only">{labels.send}</span>
-        </button>
+        <SendButton label={labels.send} disabled={!canSend} />
       </div>
     </form>
   )

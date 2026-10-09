@@ -1,14 +1,15 @@
+import type { ReactNode } from 'react'
+
 import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
-import { MessageText } from '../MessageText'
-import { StatusTicks } from '../StatusTicks'
 import { formatTimestamp } from '../lib/format'
+import { FailedActions, OwnStatus } from './ParticipantBubbleStatus'
+import { ParticipantMessageText } from './ParticipantMessageText'
 import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import {
   isOwnMessage,
   resolveOwnMessageStatus,
-  type ParticipantOwnMessageStatus,
   type ParticipantPendingDisplayState,
   type ParticipantTimelineItem,
 } from './participantMessages'
@@ -24,6 +25,10 @@ export type ParticipantMessageBubbleProps = {
   readonly onDiscard?: () => void
   /** Absent means no edit button. */
   readonly onEdit?: () => void
+  /** Opt-in slot to the left of a received bubble; null reserves the space, absent changes nothing. */
+  readonly avatar?: ReactNode
+  /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
+  readonly tail?: boolean
 }
 
 type BubbleContent = {
@@ -60,79 +65,11 @@ function describeItem(item: ParticipantTimelineItem): BubbleContent {
   }
 }
 
-function statusText(status: ParticipantOwnMessageStatus, labels: ParticipantConversationsLabels): string {
-  const byStatus: Record<ParticipantOwnMessageStatus, string> = {
-    sending: labels.statusSending,
-    queued: labels.statusQueued,
-    sent: labels.statusSent,
-    delivered: labels.statusDelivered,
-    read: labels.statusRead,
-    failed: labels.statusFailed,
-  }
-  return byStatus[status]
-}
-
-type OwnStatusProps = {
-  readonly status: ParticipantOwnMessageStatus
-  readonly labels: ParticipantConversationsLabels
-  readonly onRetry?: () => void
-}
-
-function OwnStatus({ status, labels, onRetry }: OwnStatusProps) {
-  const ticksStatus = status === 'sending' ? 'queued' : status
-  const isVisibleText = status === 'sending' || status === 'queued' || status === 'failed'
-
-  if (status === 'failed' && onRetry) {
-    return (
-      <button type="button" className="cv-p-bubble__retry" onClick={onRetry}>
-        <StatusTicks status="failed" appearance="stylesheet" />
-        <span>{labels.statusFailed}</span>
-      </button>
-    )
-  }
-
-  const text = status === 'failed' ? labels.statusFailedShort : statusText(status, labels)
-  return (
-    <span className="cv-p-bubble__status">
-      <StatusTicks status={ticksStatus} appearance="stylesheet" />
-      <span className={isVisibleText ? 'cv-p-bubble__status-text' : 'cv-p-sr-only'}>{text}</span>
-    </span>
-  )
-}
-
-type FailedActionsProps = {
-  readonly labels: ParticipantConversationsLabels
-  readonly onDiscard?: () => void
-  readonly onEdit?: () => void
-}
-
-function FailedActions({ labels, onDiscard, onEdit }: FailedActionsProps) {
-  if (!onDiscard && !onEdit) return null
-  return (
-    <span className="cv-p-bubble__actions">
-      {onEdit ? (
-        <button type="button" className="cv-p-bubble__action" onClick={onEdit}>
-          {labels.edit}
-        </button>
-      ) : null}
-      {onDiscard ? (
-        <button type="button" className="cv-p-bubble__action" onClick={onDiscard}>
-          {labels.discard}
-        </button>
-      ) : null}
-    </span>
-  )
-}
-
-function toTextPayload(text: string, createdAt: string, isMine: boolean) {
-  return {
-    id: createdAt,
-    type: 'text' as const,
-    content: text,
-    direction: isMine ? ('inbound' as const) : ('outbound' as const),
-    sender: isMine ? ('customer' as const) : ('agent' as const),
-    timestamp: createdAt,
-  }
+function bubbleClassName(isMine: boolean, hasTail: boolean): string {
+  const classes = ['cv-p-bubble']
+  if (isMine) classes.push('cv-p-bubble--mine')
+  if (!hasTail) classes.push('cv-p-bubble--no-tail')
+  return classes.join(' ')
 }
 
 export function ParticipantMessageBubble({
@@ -143,6 +80,8 @@ export function ParticipantMessageBubble({
   onRetry,
   onDiscard,
   onEdit,
+  avatar,
+  tail = true,
 }: ParticipantMessageBubbleProps) {
   const content = describeItem(item)
   const { isMine } = content
@@ -150,16 +89,14 @@ export function ParticipantMessageBubble({
     ? resolveOwnMessageStatus({ displayState: content.displayState, serverStatus: content.serverStatus, confirmsRead })
     : undefined
 
-  return (
-    <div className={isMine ? 'cv-p-bubble cv-p-bubble--mine' : 'cv-p-bubble'}>
+  const bubble = (
+    <div className={bubbleClassName(isMine, tail)}>
       {isMine ? (
         <span className="cv-p-sr-only">{labels.me}</span>
       ) : content.authorName ? (
         <span className="cv-p-bubble__author">{content.authorName}</span>
       ) : null}
-      {content.text ? (
-        <MessageText message={toTextPayload(content.text, content.createdAt, isMine)} copyOnClick={false} appearance="stylesheet" />
-      ) : null}
+      {content.text ? <ParticipantMessageText text={content.text} labels={labels} /> : null}
       {content.attachments.map((attachment) => (
         <ParticipantAttachmentItem
           key={attachment.id}
@@ -180,6 +117,13 @@ export function ParticipantMessageBubble({
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
       </span>
       {ownStatus === 'failed' ? <FailedActions labels={labels} onDiscard={onDiscard} onEdit={onEdit} /> : null}
+    </div>
+  )
+  if (avatar === undefined || isMine) return bubble
+  return (
+    <div className="cv-p-bubble-row">
+      <span className="cv-p-bubble-row__avatar">{avatar}</span>
+      {bubble}
     </div>
   )
 }

@@ -1,6 +1,11 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject, type UIEvent } from 'react'
 
-import { NEAR_BOTTOM_THRESHOLD_PX, resolveScrollAction, scrollAnchorAfterPrepend, shouldStickToBottom } from './participantScroll'
+import {
+  NEAR_BOTTOM_THRESHOLD_PX,
+  resolveScrollAction,
+  scrollAnchorAfterPrepend,
+  shouldStickToBottom,
+} from './participantScroll'
 
 export type UseStickToBottomParams = {
   readonly firstKey: string | undefined
@@ -10,6 +15,9 @@ export type UseStickToBottomParams = {
 export type ParticipantThreadScroll = {
   readonly ref: RefObject<HTMLDivElement | null>
   readonly onScroll: (event: UIEvent<HTMLDivElement>) => void
+  /** Absent draws no scroll-to-latest button. */
+  readonly isAwayFromBottom?: boolean
+  readonly scrollToLatest?: () => void
 }
 
 export type UseStickToBottomResult = {
@@ -27,7 +35,13 @@ type Snapshot = {
 
 export function useStickToBottom({ firstKey, lastKey }: UseStickToBottomParams): UseStickToBottomResult {
   const ref = useRef<HTMLDivElement | null>(null)
-  const snapshot = useRef<Snapshot>({ hasPositioned: false, firstKey: undefined, lastKey: undefined, scrollTop: 0, scrollHeight: 0 })
+  const snapshot = useRef<Snapshot>({
+    hasPositioned: false,
+    firstKey: undefined,
+    lastKey: undefined,
+    scrollTop: 0,
+    scrollHeight: 0,
+  })
   const [isNearBottom, setIsNearBottom] = useState(true)
   const isNearBottomRef = useRef(true)
 

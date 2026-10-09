@@ -1,4 +1,5 @@
 export { ParticipantConversations, type ParticipantConversationsProps } from './ParticipantConversations'
+export type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
 export { groupParticipantConversations } from './participantGrouping'
 export { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS, type ParticipantConversationsLabels } from './participantLabels'
 export type {
