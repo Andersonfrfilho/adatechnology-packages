@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'bun:test'
 
+import { splitBlocks } from './cssBlocks.test-helper'
+
 // legacyStyles.fixture.css is the styles.css shipped by 0.4.2; the stylesheet is global, so anything
 // added since must be namespaced under .cv- and must not reach the host's own elements.
 const LEGACY_CSS = readFileSync(join(import.meta.dir, 'legacyStyles.fixture.css'), 'utf8')
@@ -10,38 +12,7 @@ const CURRENT_CSS = readFileSync(join(import.meta.dir, 'styles.css'), 'utf8')
 const NESTED_AT_RULES = ['@media', '@supports']
 const ALLOWED_NEW_AT_RULES = ['@media', '@supports', '@keyframes']
 
-type Block = { readonly prelude: string; readonly body: string | undefined }
 type Inventory = { selectors: string[]; atRules: string[]; keyframeNames: string[] }
-
-function splitBlocks(css: string): Block[] {
-  const blocks: Block[] = []
-  let depth = 0
-  let start = 0
-  let bodyStart = 0
-  let prelude = ''
-  for (let index = 0; index < css.length; index += 1) {
-    const char = css[index]
-    if (depth === 0 && char === ';') {
-      blocks.push({ prelude: css.slice(start, index).trim(), body: undefined })
-      start = index + 1
-    }
-    if (char === '{') {
-      if (depth === 0) {
-        prelude = css.slice(start, index).trim()
-        bodyStart = index + 1
-      }
-      depth += 1
-    }
-    if (char === '}') {
-      depth -= 1
-      if (depth === 0) {
-        blocks.push({ prelude, body: css.slice(bodyStart, index) })
-        start = index + 1
-      }
-    }
-  }
-  return blocks
-}
 
 function splitSelectorList(prelude: string): string[] {
   const parts: string[] = []
