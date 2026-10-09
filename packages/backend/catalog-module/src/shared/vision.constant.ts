@@ -29,4 +29,20 @@ export const VISION = {
    * empresas, e ainda custa poucos milissegundos.
    */
   HNSW_EF_SEARCH: 200,
+  /**
+   * Acima disto o primeiro candidato dispensa o desempate.
+   *
+   * O desempate por modelo de visao custa ~4s medidos, e do outro lado ha alguem olhando o
+   * "digitando" no WhatsApp. Um vizinho com score altissimo nao precisa de segunda opiniao: gastar
+   * a inferencia ali e pagar o degrau mais caro da cascata justamente no caso mais facil.
+   */
+  RANK_SKIP_SCORE: 0.92,
+  /**
+   * Vantagem minima do primeiro sobre o segundo para dispensar o desempate.
+   *
+   * Score alto sozinho nao basta: dois itens irmaos (mesmo produto, sabores diferentes) pontuam
+   * alto E parecido, e e exatamente ai que o desempate ganha o seu tempo de volta. A folga e o que
+   * separa "obvio" de "dois candidatos bons".
+   */
+  RANK_SKIP_MARGIN: 0.08,
 } as const
