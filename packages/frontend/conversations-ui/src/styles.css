@@ -1139,7 +1139,8 @@
 
 /* Participant view (.cv-p-*). Public theming API: override --cv-p-surface, --cv-p-surface-raised,
    --cv-p-text, --cv-p-text-muted, --cv-p-border, --cv-p-accent, --cv-p-accent-contrast,
-   --cv-p-highlight, --cv-p-danger, --cv-p-radius on .cv-p or any ancestor. */
+   --cv-p-highlight, --cv-p-danger, --cv-p-radius, --cv-p-channel-app, --cv-p-channel-whatsapp on .cv-p or any
+   ancestor. Channel colors must keep 3:1 against surface, surface-raised and highlight. */
 .cv-p {
   --cv-p-i-surface: var(--cv-p-surface, #ffffff);
   --cv-p-i-surface-raised: var(--cv-p-surface-raised, #f3f4f6);
@@ -1235,7 +1236,7 @@
 .cv-p-channels { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
 .cv-p-channel { display: inline-grid; place-items: center; width: 1.375rem; height: 1.375rem; border: 1px solid var(--cv-p-i-border); border-radius: var(--cv-p-i-radius); color: var(--cv-p-i-text-muted); }
 .cv-p-channel svg { display: block; }
-.cv-p-channel--whatsapp { color: var(--cv-p-channel-whatsapp, #25a05a); }
+.cv-p-channel--whatsapp { color: var(--cv-p-channel-whatsapp, #20914f); }
 .cv-p-channel--app { color: var(--cv-p-channel-app, var(--cv-p-i-accent)); }
 .cv-p-row__body { display: flex; flex-direction: column; min-width: 0; }
 .cv-p-row__kind { font: 0.64rem 'SFMono-Regular', Consolas, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cv-p-i-text-muted); }
@@ -1282,7 +1283,7 @@
 .cv-p-files__size { color: var(--cv-p-i-text-muted); }
 .cv-p-files__remove { min-width: var(--cv-p-i-touch); min-height: var(--cv-p-i-touch); background: transparent; border: 0; color: inherit; font: inherit; cursor: pointer; }
 
-.cv-p-protocol { font: 0.7rem 'SFMono-Regular', Consolas, monospace; letter-spacing: 0.04em; color: var(--cv-p-i-text-muted); }
+.cv-p-protocol { min-width: 0; overflow-wrap: anywhere; font: 0.7rem 'SFMono-Regular', Consolas, monospace; letter-spacing: 0.04em; color: var(--cv-p-i-text-muted); }
 .cv-p-protocol--header { display: flex; align-items: center; gap: 0.5rem; }
 .cv-p-protocol__copy { min-height: var(--cv-p-i-touch); min-width: var(--cv-p-i-touch); padding: 0 0.75rem; background: transparent; border: 1px solid var(--cv-p-i-border); border-radius: var(--cv-p-i-radius); color: var(--cv-p-i-text); font: inherit; font-size: 0.75rem; cursor: pointer; }
 .cv-p-search { padding: 0.625rem 1rem; border-bottom: 1px solid var(--cv-p-i-border); }

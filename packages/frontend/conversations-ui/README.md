@@ -177,14 +177,21 @@ catálogo) chegam **calculados pelo servidor**: `channels` são os canais distin
 - **Lista:** a linha mostra à esquerda o ícone do assunto e, ao lado do protocolo, os selos de canal. O ícone vem de
   `renderSubjectIcon?: (conversation) => ReactNode` (em `ParticipantConversations`); se a prop faltar, ou devolver
   `null`/`undefined`, cai no ícone do grupo (`subjectGroups[].icon`). O host usa `conversation.iconName` para escolher.
-- **Selos de canal:** `<ul class="cv-p-channels">` com um `<li class="cv-p-channel cv-p-channel--{canal}">` por canal, na
-  ordem fixa app, whatsapp, email, portal, webchat (duplicata e canal desconhecido são ignorados). O sinal visual é o ícone
-  (cor é só reforço); o nome do canal está sempre em `<span class="cv-p-sr-only">`. Sem `channels` ou vazio, nem o `<ul>`.
+- **Selos de canal:** um por canal, na ordem fixa app, whatsapp, email, portal, webchat (duplicata e canal desconhecido são
+  ignorados). O sinal visual é o ícone (cor é só reforço); o nome do canal está sempre em `<span class="cv-p-sr-only">`.
+  Sem `channels` ou vazio, nada é desenhado. Duas marcações (`ParticipantChannelBadges variant`): no **cabeçalho** da
+  conversa, `<ul class="cv-p-channels" aria-label>` com `<li class="cv-p-channel cv-p-channel--{canal}">`; na **linha** da
+  lista (dentro de um `<button>`, onde lista não é HTML válido), `<span class="cv-p-channels">` com `<span class="cv-p-channel
+cv-p-channel--{canal}">`, um prefixo sr-only `Channels in this conversation: ` e o nome seguido de vírgula e espaço, para
+  o leitor dizer "Channels in this conversation: App, WhatsApp".
+- **`renderSubjectIcon`** deve ser **puro e não lançar** (o pacote não tem error boundary); `null`, `undefined`, `false` e
+  `''` valem como ausente.
 - **Cabeçalho da conversa:** os mesmos selos ao lado do protocolo.
 - **Labels novas** (defaults em inglês): `channelsGroup` ("Channels in this conversation"), `channelApp`,
   `channelWhatsapp`, `channelEmail`, `channelPortal`, `channelWebchat`.
 - **Classes novas:** `.cv-p-channels`, `.cv-p-channel`, `.cv-p-row__tags`, `.cv-p-inbox__icon`; cores opcionais
-  `--cv-p-channel-app` e `--cv-p-channel-whatsapp`.
+  `--cv-p-channel-app` (padrão: o destaque) e `--cv-p-channel-whatsapp` (padrão `#20914f`, ≥ 3:1 sobre as superfícies claras e
+  escuras; ao trocar, mantenha 3:1).
 
 ### Variáveis `--cv-p-*`
 
@@ -192,18 +199,20 @@ Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há també
 (`primaryColor` → `--cv-p-accent`, `backgroundColor` → `--cv-p-surface`, `textPrimary` → `--cv-p-text`,
 `textSecondary` → `--cv-p-text-muted`).
 
-| Variável                 | Para que serve                          | Padrão (claro) |
-| ------------------------ | --------------------------------------- | -------------- |
-| `--cv-p-surface`         | fundo da tela                           | `#ffffff`      |
-| `--cv-p-surface-raised`  | fundo de bolhas recebidas e campos      | `#f3f4f6`      |
-| `--cv-p-text`            | texto principal                         | `#111827`      |
-| `--cv-p-text-muted`      | texto secundário                        | `#5b6573`      |
-| `--cv-p-border`          | bordas                                  | `#d5d9df`      |
-| `--cv-p-accent`          | destaque, botão primário, bolha própria | `#a85a1c`      |
-| `--cv-p-accent-contrast` | texto sobre o destaque                  | `#ffffff`      |
-| `--cv-p-highlight`       | fundo de "espera sua resposta"          | `#fbefe2`      |
-| `--cv-p-danger`          | erro e falha de envio                   | `#c62828`      |
-| `--cv-p-radius`          | raio dos cantos                         | `0`            |
+| Variável                  | Para que serve                          | Padrão (claro) |
+| ------------------------- | --------------------------------------- | -------------- |
+| `--cv-p-surface`          | fundo da tela                           | `#ffffff`      |
+| `--cv-p-surface-raised`   | fundo de bolhas recebidas e campos      | `#f3f4f6`      |
+| `--cv-p-text`             | texto principal                         | `#111827`      |
+| `--cv-p-text-muted`       | texto secundário                        | `#5b6573`      |
+| `--cv-p-border`           | bordas                                  | `#d5d9df`      |
+| `--cv-p-accent`           | destaque, botão primário, bolha própria | `#a85a1c`      |
+| `--cv-p-accent-contrast`  | texto sobre o destaque                  | `#ffffff`      |
+| `--cv-p-highlight`        | fundo de "espera sua resposta"          | `#fbefe2`      |
+| `--cv-p-danger`           | erro e falha de envio                   | `#c62828`      |
+| `--cv-p-radius`           | raio dos cantos                         | `0`            |
+| `--cv-p-channel-app`      | cor do selo do canal app                | o destaque     |
+| `--cv-p-channel-whatsapp` | cor do selo do canal WhatsApp           | `#20914f`      |
 
 O tema escuro segue a classe `.dark` (mesma do restante do pacote). Os nomes `.cv-p-*` e `--cv-p-*` são API
 pública e não mudam sem nova versão maior.

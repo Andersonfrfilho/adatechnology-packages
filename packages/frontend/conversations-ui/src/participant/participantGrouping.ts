@@ -1,4 +1,3 @@
-import { filterConversationsBySearch } from './participantProtocol'
 import type { ParticipantConversationSummary } from '@adatechnology/conversation-contracts'
 
 import type {
@@ -7,6 +6,7 @@ import type {
   ParticipantInboxSection,
   ParticipantInboxView,
 } from './participant.types'
+import { filterConversationsBySearch } from './participantProtocol'
 
 const ALL_FILTER = 'all'
 const SECTION_AWAITING = 'awaiting'
@@ -54,9 +54,16 @@ function buildFilters(
   return { filters: [all, ...groupFilters], showFilters: groupFilters.length >= 2 }
 }
 
+function resolveActiveFilter(params: GroupParticipantConversationsParams): string {
+  const { filter, conversations } = params
+  if (filter === undefined || filter === ALL_FILTER) return ALL_FILTER
+  return conversations.some((conversation) => conversation.subjectType === filter) ? filter : ALL_FILTER
+}
+
 export function groupParticipantConversations(params: GroupParticipantConversationsParams): ParticipantInboxView {
-  const { filter, subjectGroups } = params
-  const isFiltered = filter !== undefined && filter !== ALL_FILTER
+  const { subjectGroups } = params
+  const filter = resolveActiveFilter(params)
+  const isFiltered = filter !== ALL_FILTER
   const searched = filterConversationsBySearch(params.conversations, params.searchQuery ?? '')
   const visible = isFiltered ? searched.filter((conversation) => conversation.subjectType === filter) : searched
   const knownTypes = new Set(subjectGroups.map((group) => group.subjectType))
@@ -79,5 +86,5 @@ export function groupParticipantConversations(params: GroupParticipantConversati
   })
 
   const hasMatchesOutsideFilter = isFiltered && visible.length === 0 && searched.length > 0
-  return { sections, hasMatchesOutsideFilter, ...buildFilters(params) }
+  return { sections, hasMatchesOutsideFilter, activeFilter: filter, ...buildFilters(params) }
 }

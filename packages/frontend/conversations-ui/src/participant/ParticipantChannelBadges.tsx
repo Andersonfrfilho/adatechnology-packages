@@ -22,23 +22,54 @@ const ICONS: Record<
 export type ParticipantChannelBadgesProps = {
   readonly channels: readonly string[] | undefined
   readonly labels: ParticipantConversationsLabels
+  /** 'list' draws ul/li; 'inline' draws spans only, valid inside a button. */
+  readonly variant?: 'list' | 'inline'
 }
 
-export function ParticipantChannelBadges({ channels, labels }: ParticipantChannelBadgesProps) {
+type BadgeProps = {
+  readonly descriptor: ParticipantChannelDescriptor
+  readonly labels: ParticipantConversationsLabels
+  readonly separator: string
+}
+
+function BadgeContent({ descriptor, labels, separator }: BadgeProps) {
+  const Icon = ICONS[descriptor.iconName]
+  return (
+    <>
+      <Icon size={14} aria-hidden={true} />
+      <span className="cv-p-sr-only">{`${resolveParticipantChannelLabel(descriptor, labels)}${separator}`}</span>
+    </>
+  )
+}
+
+export function ParticipantChannelBadges({ channels, labels, variant = 'list' }: ParticipantChannelBadgesProps) {
   const descriptors = resolveParticipantChannels(channels)
   if (descriptors.length === 0) return null
 
+  if (variant === 'inline') {
+    return (
+      <span className="cv-p-channels">
+        <span className="cv-p-sr-only">{`${labels.channelsGroup}: `}</span>
+        {descriptors.map((descriptor, index) => (
+          <span key={descriptor.channel} className={`cv-p-channel cv-p-channel--${descriptor.channel}`}>
+            <BadgeContent
+              descriptor={descriptor}
+              labels={labels}
+              separator={index < descriptors.length - 1 ? ', ' : ''}
+            />
+          </span>
+        ))}
+      </span>
+    )
+  }
+
   return (
     <ul className="cv-p-channels" aria-label={labels.channelsGroup}>
-      {descriptors.map((descriptor) => {
-        const Icon = ICONS[descriptor.iconName]
-        return (
-          <li key={descriptor.channel} className={`cv-p-channel cv-p-channel--${descriptor.channel}`}>
-            <Icon size={14} aria-hidden={true} />
-            <span className="cv-p-sr-only">{resolveParticipantChannelLabel(descriptor, labels)}</span>
-          </li>
-        )
-      })}
+      {descriptors.map((descriptor) => (
+        <li key={descriptor.channel} className={`cv-p-channel cv-p-channel--${descriptor.channel}`}>
+          <BadgeContent descriptor={descriptor} labels={labels} separator="" />
+        </li>
+      ))}
     </ul>
   )
 }

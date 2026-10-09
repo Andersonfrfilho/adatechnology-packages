@@ -213,4 +213,24 @@ describe('groupParticipantConversations with a search query', () => {
     const view = groupParticipantConversations({ conversations, subjectGroups: GROUPS, filter: 'zeta' })
     expect(view.hasMatchesOutsideFilter).toBe(false)
   })
+
+  it('a filter pointing at a subject with no conversations behaves as all', () => {
+    const view = groupParticipantConversations({
+      conversations: [build({ subjectId: '1', subjectType: 'zeta' })],
+      subjectGroups: GROUPS,
+      filter: 'alpha',
+    })
+    expect(idsOf(view)).toEqual(['1'])
+    expect(view.activeFilter).toBe('all')
+    expect(view.hasMatchesOutsideFilter).toBe(false)
+  })
+
+  it('keeps a filter that still has conversations as active', () => {
+    const view = groupParticipantConversations({
+      conversations: [build({ subjectId: '1', subjectType: 'zeta' })],
+      subjectGroups: GROUPS,
+      filter: 'zeta',
+    })
+    expect(view.activeFilter).toBe('zeta')
+  })
 })

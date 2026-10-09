@@ -129,7 +129,7 @@ export function ParticipantInbox(props: ParticipantInboxProps) {
     <div className="cv-p cv-p-inbox" aria-busy={loadView.isLoading}>
       <h2 className="cv-p-inbox__title">{labels.inboxTitle}</h2>
       {view.showFilters ? (
-        <Filters filters={view.filters} active={filter} labels={labels} onChange={onFilterChange} />
+        <Filters filters={view.filters} active={view.activeFilter} labels={labels} onChange={onFilterChange} />
       ) : null}
       {props.search?.isVisible ? <ParticipantInboxSearchField search={props.search} labels={labels} /> : null}
       {loadView.isLoading ? <ParticipantLoading labels={labels} /> : null}

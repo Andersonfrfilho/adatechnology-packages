@@ -73,6 +73,41 @@ describe('ParticipantInbox channels and subject icon', () => {
     expect(markup).toContain('<span class="cv-p-sr-only">WhatsApp</span>')
   })
 
+  it('row badges are phrasing content: no list inside the row button, header keeps its list', () => {
+    const markup = render({ conversations: withChannels })
+    const button = markup.slice(markup.indexOf('<button'), markup.indexOf('</button>'))
+
+    expect(button).toContain('cv-p-channels')
+    expect(button).not.toContain('<ul')
+    expect(button).not.toContain('<li')
+    expect(button).toContain('Channels in this conversation: ')
+  })
+
+  it('treats false and empty string from renderSubjectIcon as absent', () => {
+    const groups = [{ subjectType: 'invoice', label: 'Invoice', icon: 'GRP' }]
+    const view = groupParticipantConversations({ conversations: withChannels, subjectGroups: groups })
+    const renderWith = (renderSubjectIcon: ParticipantInboxProps['renderSubjectIcon']) =>
+      renderToStaticMarkup(
+        <ParticipantInbox
+          view={view}
+          subjectGroups={groups}
+          filter="all"
+          onFilterChange={() => undefined}
+          onSelect={() => undefined}
+          labels={DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS}
+          status="ready"
+          refresh={() => undefined}
+          hasMore={false}
+          loadMore={() => undefined}
+          renderSubjectIcon={renderSubjectIcon}
+        />,
+      )
+
+    expect(renderWith(() => false)).toContain('GRP')
+    expect(renderWith(() => '')).toContain('GRP')
+    expect(renderWith(() => <i data-custom="1" />)).not.toContain('GRP')
+  })
+
   it('uses renderSubjectIcon when it returns a node', () => {
     const markup = render({
       renderSubjectIcon: (conversation) => <i data-icon={conversation.iconName ?? 'none'} />,

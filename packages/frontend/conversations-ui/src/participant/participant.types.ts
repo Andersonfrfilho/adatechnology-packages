@@ -30,6 +30,8 @@ export type ParticipantInboxView = {
   readonly sections: readonly ParticipantInboxSection[]
   readonly filters: readonly ParticipantInboxFilter[]
   readonly showFilters: boolean
+  /** The filter actually applied: 'all' when the requested one has no conversations left. */
+  readonly activeFilter: string
   /** The search finds conversations, but none under the active subject filter. */
   readonly hasMatchesOutsideFilter: boolean
 }

@@ -22,7 +22,7 @@ function formatRowTime(iso: string, locale: string | undefined): string {
 
 function RowIcon({ props, kind }: { readonly props: ParticipantInboxRowProps; readonly kind: string }) {
   const custom = props.renderSubjectIcon?.(props.conversation)
-  if (custom !== null && custom !== undefined) {
+  if (custom !== null && custom !== undefined && custom !== false && custom !== '') {
     return (
       <span className="cv-p-row__icon cv-p-inbox__icon" aria-hidden="true">
         {custom}
@@ -55,7 +55,7 @@ export function ParticipantInboxRow(props: ParticipantInboxRowProps) {
               {conversation.protocol}
             </span>
           ) : null}
-          <ParticipantChannelBadges channels={conversation.channels} labels={labels} />
+          <ParticipantChannelBadges channels={conversation.channels} labels={labels} variant="inline" />
         </span>
         {conversation.lastMessagePreview ? (
           <span className="cv-p-row__preview">{conversation.lastMessagePreview}</span>
