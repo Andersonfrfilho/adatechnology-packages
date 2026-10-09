@@ -45,3 +45,20 @@ describe('linhas da capacidade que a tela não pode fingir', () => {
     expect(CORE_CHANNEL_CAPABILITIES.portal.audio).toEqual({ plays: true, records: false })
   })
 })
+
+// App e portal são canais do contrato que a UI passou a exibir (T1.0a): a capacidade vem do
+// contrato, nunca da regra do WhatsApp, que daria janela de 24h e 100 MB onde não existem.
+describe('canais app e portal', () => {
+  it('app: anexo de 25 MB, grava áudio e não tem janela de sessão', () => {
+    const capability = channelCapabilityFor(CONVERSATION_CHANNEL.APP)
+
+    expect(capability).toBe(CORE_CHANNEL_CAPABILITIES.app)
+    expect(capability.attachments.maxBytes).toBe(25 * 1024 * 1024)
+    expect(capability.audio.records).toBe(true)
+    expect(capability.sessionWindowHours).toBeNull()
+  })
+
+  it('portal: ouve áudio e não grava', () => {
+    expect(channelCapabilityFor(CONVERSATION_CHANNEL.PORTAL).audio.records).toBe(false)
+  })
+})

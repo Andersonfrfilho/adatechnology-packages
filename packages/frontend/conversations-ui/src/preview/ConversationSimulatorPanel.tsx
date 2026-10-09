@@ -62,6 +62,14 @@ const SIMULATOR_PANEL_CHANNEL_WORDING: Readonly<Record<ConversationChannel, Chan
     destinationHint: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.destinationHint,
     placeholder: DEFAULT_CONVERSATION_SIMULATOR_PANEL_LABELS.placeholder,
   },
+  [CONVERSATION_CHANNEL.APP]: {
+    destinationHint: 'entrega no app do contratante',
+    placeholder: 'Escreva como quem usa o app…',
+  },
+  [CONVERSATION_CHANNEL.PORTAL]: {
+    destinationHint: 'entrega no portal do contratante',
+    placeholder: 'Escreva como quem usa o portal…',
+  },
   [CONVERSATION_CHANNEL.WEBCHAT]: {
     destinationHint: 'entrega na API do chat do site',
     placeholder: 'Escreva como o visitante…',

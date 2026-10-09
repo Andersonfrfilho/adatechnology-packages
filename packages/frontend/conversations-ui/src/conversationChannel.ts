@@ -10,16 +10,22 @@
  * funcionando exatamente como antes.
  */
 
+import type { ConversationChannel as CoreConversationChannel } from '@adatechnology/conversation-contracts'
+
 import { formatPhone, phoneCountryFlag } from './lib/phone'
 
 export const CONVERSATION_CHANNEL = {
   WHATSAPP: 'whatsapp',
   MESSENGER: 'messenger',
   INSTAGRAM: 'instagram',
+  APP: 'app',
+  PORTAL: 'portal',
   WEBCHAT: 'webchat',
   EMAIL: 'email',
 } as const
-export type ConversationChannel = (typeof CONVERSATION_CHANNEL)[keyof typeof CONVERSATION_CHANNEL]
+
+/** O que o contrato conhece, mais os dois canais da Meta que a UI já servia antes dele. */
+export type ConversationChannel = CoreConversationChannel | 'messenger' | 'instagram'
 
 export const DEFAULT_CONVERSATION_CHANNEL: ConversationChannel = CONVERSATION_CHANNEL.WHATSAPP
 
@@ -74,6 +80,18 @@ export const CHANNEL_CAPABILITIES: Readonly<Record<ConversationChannel, ChannelC
     icon: '📷',
     reopenMechanism: REOPEN_MECHANISM.TAG,
     handleKind: HANDLE_KIND.USERNAME,
+  },
+  [CONVERSATION_CHANNEL.APP]: {
+    label: 'App',
+    icon: '📱',
+    reopenMechanism: REOPEN_MECHANISM.NONE,
+    handleKind: HANDLE_KIND.SESSION,
+  },
+  [CONVERSATION_CHANNEL.PORTAL]: {
+    label: 'Portal',
+    icon: '🔗',
+    reopenMechanism: REOPEN_MECHANISM.NONE,
+    handleKind: HANDLE_KIND.SESSION,
   },
   [CONVERSATION_CHANNEL.WEBCHAT]: {
     // Chat próprio: sem intermediário, sem janela. Bloquear o composer aqui seria inventar limite.
