@@ -27,10 +27,10 @@ function Title({ conversation, labels, onOpenSubject }: TitleProps) {
           aria-label={`${labels.openSubject}: ${subjectLabel}`}
           onClick={() => onOpenSubject({ subjectType, subjectId })}
         >
-          {subjectLabel}
+          <span className="cv-p-thread__title-text">{subjectLabel}</span>
         </button>
       ) : (
-        subjectLabel
+        <span className="cv-p-thread__title-text">{subjectLabel}</span>
       )}
     </h2>
   )

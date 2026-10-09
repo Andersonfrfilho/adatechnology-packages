@@ -30,16 +30,14 @@ function lettersOf(word: string): string {
 }
 
 function firstLetter(word: string): string {
-  return (Array.from(word)[0] ?? '').toLocaleUpperCase()
+  return (Array.from(word.normalize('NFC'))[0] ?? '').toUpperCase()
 }
 
 /** Up to two initials; undefined when the name has no letters, so the caller draws the neutral icon. */
 export function authorInitials(name: string | null | undefined): string | undefined {
-  const words = (name ?? '').split(/\s+/).map(lettersOf).filter(Boolean)
-  const significant = words.filter((word) => !NAME_PARTICLES.has(word.toLowerCase()))
-  const first = significant[0] ?? words[0]
+  const [first, ...rest] = (name ?? '').split(/\s+/).map(lettersOf).filter(Boolean)
   if (first === undefined) return undefined
-  const last = significant.length > 1 ? significant[significant.length - 1] : undefined
+  const last = rest.filter((word) => !NAME_PARTICLES.has(word.toLowerCase())).pop()
   return `${firstLetter(first)}${last === undefined ? '' : firstLetter(last)}`
 }
 

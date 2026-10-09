@@ -204,9 +204,9 @@ cv-p-channel--{canal}">`, um prefixo sr-only `Channels in this conversation: ` e
 
 Em coluna, ao lado do botão voltar (quando há `onBack`): (1) **eyebrow** com o `label` do grupo do assunto em
 `subjectGroups` (mono, caixa alta, como o rótulo da linha da lista; ausente se o tipo não tem grupo); (2) **título**
-(`subjectLabel`, no máximo 2 linhas com reticências; clicável só com `onOpenSubject`); (3) **linha meta** única
+(`subjectLabel`, no máximo 2 linhas com reticências, cortadas só no `span` interno `.cv-p-thread__title-text` para o anel de foco do botão não ser recortado; clicável só com `onOpenSubject`); (3) **linha meta** única
 (`.cv-p-thread__meta`, flex que só quebra se faltar espaço) com o protocolo, o botão de copiar só com ícone e os selos de
-canal inline. A área de toque do botão é de 44x44px mas o glifo tem 18px e a margem negativa impede que a linha cresça.
+canal inline. A área de toque do botão tem 44px de largura e 36px de altura (o glifo tem 18px); a margem negativa de cima é coberta pelo `padding-top` da linha meta, então a área nunca invade o título.
 Sem `protocol` não há protocolo nem botão; sem `channels` não há selos; sem nenhum dos dois a linha meta não existe. O título vive no
 cabeçalho; o cartão de `renderSubjectCard` (do host) deve trazer só o que o cabeçalho não diz, sem repetir o título.
 Classes novas: `.cv-p-thread__eyebrow`, `.cv-p-thread__meta`, `.cv-p-protocol__copied`.
@@ -221,8 +221,8 @@ Classes novas: `.cv-p-thread__eyebrow`, `.cv-p-thread__meta`, `.cv-p-protocol__c
   sequência do mesmo autor (as seguintes reservam o espaço para alinhar as bolhas); mensagem própria nunca tem avatar.
   O avatar é `aria-hidden`: o nome do autor já está no texto da bolha.
 - `renderAuthorAvatar?: (author: { name: string | null }) => ReactNode`: slot do host (uma `<img>`, por exemplo) desenhado
-  dentro do mesmo quadrado de 32px; tem precedência sobre as iniciais, liga o avatar sozinho e, se devolver `null`/`undefined`,
-  cai nas iniciais. Deve ser puro e não lançar.
+  dentro do mesmo quadrado de 32px; tem precedência sobre as iniciais, liga o avatar sozinho e, se devolver `null`, `undefined`,
+  `false` ou `''`, cai nas iniciais. Deve ser puro e não lançar.
 - Sem nenhuma das duas props o markup da bolha é idêntico ao anterior. Classes novas: `.cv-p-avatar`, `.cv-p-bubble-row`,
   `.cv-p-bubble-row__avatar`. Nenhum label novo.
 
@@ -238,6 +238,13 @@ remove o rabinho e devolve o canto arredondado (`.cv-p-bubble--no-tail`).
 - Funciona com tema reto (`--cv-p-radius: 0`) e arredondado: o canto inferior correspondente fica reto para o rabo emendar.
 - É decorativo (`pointer-events: none`, pseudo-elemento): não muda área de toque, conteúdo nem altura mínima. Com avatar a
   bolha recua 0.25rem para o rabo não encostar no quadrado. Sem animação.
+- Em `forced-colors: active` e na impressão os triângulos somem (viram quadrados sólidos sem `border-color` transparente) e o
+  canto volta ao raio do token.
+
+### Limitações conhecidas
+
+- O avatar alinha pelo topo da bolha, não pelo rabinho no canto inferior.
+- Sem suporte a RTL: o rabinho e o avatar assumem escrita da esquerda para a direita.
 
 ### Variáveis `--cv-p-*`
 

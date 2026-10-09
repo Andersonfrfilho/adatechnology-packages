@@ -13,11 +13,12 @@ export type ParticipantAuthorAvatarProps = {
 
 export function ParticipantAuthorAvatar({ name, render }: ParticipantAuthorAvatarProps) {
   const fromHost = render?.({ name })
+  const hasHostContent = !(fromHost == null || fromHost === false || fromHost === '')
   const initials = authorInitials(name)
   const fallback = initials ?? <User size={16} aria-hidden={true} />
   return (
     <span className="cv-p-avatar" aria-hidden="true">
-      {fromHost ?? fallback}
+      {hasHostContent ? fromHost : fallback}
     </span>
   )
 }

@@ -22,6 +22,15 @@ describe('authorInitials', () => {
     expect(authorInitials('élida ávila')).toBe('ÉÁ')
   })
 
+  it('keeps the first word even when it looks like a particle', () => {
+    expect(authorInitials('Le Minh')).toBe('LM')
+    expect(authorInitials('Van Morrison')).toBe('VM')
+  })
+
+  it('composes accents before taking the initial', () => {
+    expect(authorInitials('e\u0301lida')).toBe('\u00c9')
+  })
+
   it('falls back to the first word when only prepositions remain', () => {
     expect(authorInitials('de da')).toBe('D')
   })
