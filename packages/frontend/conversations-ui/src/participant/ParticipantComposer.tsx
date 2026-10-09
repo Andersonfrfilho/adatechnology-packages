@@ -18,6 +18,8 @@ export type ParticipantComposerProps = {
   /** Absent means the `app` channel. */
   readonly channel?: ConversationChannel
   readonly disabled?: boolean
+  /** Blocks only the send button: the field stays editable while a send is in flight. */
+  readonly isSending?: boolean
   readonly maxLength?: number
   /** MIME types or wildcards offered to the file picker and enforced before sending. */
   readonly acceptedTypes?: readonly string[]
@@ -121,9 +123,9 @@ function useFileSelection(props: ParticipantComposerProps) {
 }
 
 export function ParticipantComposer(props: ParticipantComposerProps) {
-  const { value, onChange, files, onSend, labels, channel = 'app', disabled = false } = props
+  const { value, onChange, files, onSend, labels, channel = 'app', disabled = false, isSending = false } = props
   const { rejection, handleFilesChosen, handleRemoveFile } = useFileSelection(props)
-  const canSend = !disabled && (value.trim().length > 0 || files.length > 0)
+  const canSend = !disabled && !isSending && (value.trim().length > 0 || files.length > 0)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault()

@@ -19,7 +19,14 @@ const CONVERSATIONS = [
   buildConversation({ subjectId: '4', subjectLabel: 'Old one', status: 'closed' }),
 ]
 
-function render(overrides: { conversations?: typeof CONVERSATIONS; filter?: string } = {}): string {
+type RenderOverrides = {
+  conversations?: typeof CONVERSATIONS
+  filter?: string
+  status?: 'idle' | 'loading' | 'ready' | 'error'
+  hasMore?: boolean
+}
+
+function render(overrides: RenderOverrides = {}): string {
   const view = groupParticipantConversations({
     conversations: overrides.conversations ?? CONVERSATIONS,
     subjectGroups: GROUPS,
@@ -33,6 +40,10 @@ function render(overrides: { conversations?: typeof CONVERSATIONS; filter?: stri
       onFilterChange={() => undefined}
       onSelect={() => undefined}
       labels={DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS}
+      status={overrides.status ?? 'ready'}
+      refresh={() => undefined}
+      hasMore={overrides.hasMore ?? false}
+      loadMore={() => undefined}
     />,
   )
 }
@@ -86,6 +97,45 @@ describe('ParticipantInbox', () => {
 
     expect(markup).toContain('No conversations yet')
     expect(markup).not.toContain('cv-p-row"')
+  })
+
+  it('while loading shows a busy skeleton and never the empty state', () => {
+    const markup = render({ conversations: [], status: 'loading' })
+
+    expect(markup).toContain('aria-busy="true"')
+    expect(markup).toContain('Loading…')
+    expect(markup).not.toContain('No conversations yet')
+    expect(render({ conversations: [], status: 'idle' })).not.toContain('No conversations yet')
+  })
+
+  it('on error shows an alert with retry and never the empty state', () => {
+    const markup = render({ conversations: [], status: 'error' })
+
+    expect(markup).toContain('role="alert"')
+    expect(markup).toContain('Could not load')
+    expect(markup).toContain('Retry')
+    expect(markup).not.toContain('No conversations yet')
+    expect(markup).not.toContain('aria-busy="true"')
+  })
+
+  it('on success shows the empty state without busy or alert', () => {
+    const markup = render({ conversations: [], status: 'ready' })
+
+    expect(markup).toContain('No conversations yet')
+    expect(markup).not.toContain('role="alert"')
+    expect(markup).toContain('aria-busy="false"')
+  })
+
+  it('keeps the rows and adds the alert when a later request fails', () => {
+    const markup = render({ status: 'error' })
+
+    expect(markup).toContain('Awaiting one')
+    expect(markup).toContain('role="alert"')
+  })
+
+  it('shows load more only when there is a next page', () => {
+    expect(render()).not.toContain('Load more')
+    expect(render({ hasMore: true })).toContain('Load more')
   })
 
   it('uses only cv-p-* classes and no Tailwind utilities', () => {

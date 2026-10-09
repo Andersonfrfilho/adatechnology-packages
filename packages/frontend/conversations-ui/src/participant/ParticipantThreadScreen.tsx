@@ -8,10 +8,11 @@ import { bindAttachmentUrlResolver } from './bindAttachmentUrlResolver'
 import type { ParticipantDrafts } from './participantDrafts'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantConversationsApi } from './participantApi.types'
-import { findFailedEntry } from './participantSendController'
+import { findFailedEntry, hasSendingEntry } from './participantSendController'
 import type { ParticipantSendStates, ParticipantSendStatesAction } from './participantSendStates'
 import { useParticipantDraft } from './useParticipantDraft'
 import { useParticipantConversationView } from './useParticipantConversationView'
+import { useParticipantThreadScroll } from './useParticipantThreadScroll'
 
 export type ParticipantThreadScreenProps = Omit<ParticipantConversationsScreenProps, 'selected' | 'labels'> & {
   readonly selected: ParticipantSubjectRef
@@ -88,6 +89,7 @@ function LoadedThread(props: LoadedThreadProps) {
     onMarkedRead: inbox.markSubjectRead,
   })
   const resolveAttachmentUrl = useMemo(() => bindAttachmentUrlResolver(api), [api])
+  const { scroll, newMessagesCount } = useParticipantThreadScroll(items)
 
   function handleSend(): void {
     const content = takeForSend()
@@ -110,6 +112,11 @@ function LoadedThread(props: LoadedThreadProps) {
       resolveAttachmentUrl={resolveAttachmentUrl}
       draft={{ value: draft.text, onChange: setText, files: draft.files, onFilesChange: setFiles }}
       onSend={handleSend}
+      status={thread.status}
+      refresh={() => void thread.refresh()}
+      scroll={scroll}
+      newMessagesCount={newMessagesCount}
+      isSending={hasSendingEntry(sendEntries)}
       channel={props.channel}
       locale={props.locale}
       onBack={props.onBack}

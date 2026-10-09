@@ -7,6 +7,7 @@ import {
   collectKnownClientMessageIds,
   createParticipantSendEntry,
   findFailedEntry,
+  hasSendingEntry,
   participantSendReducer,
   toLocalPending,
   type ParticipantSendEntry,
@@ -169,5 +170,13 @@ describe('participantSendStatesReducer', () => {
 
     expect(noop).toBe(started)
     expect(gone.size).toBe(0)
+  })
+})
+
+describe('hasSendingEntry', () => {
+  it('is true only while some send is in the sending state', () => {
+    expect(hasSendingEntry([])).toBe(false)
+    expect(hasSendingEntry([entry('a', { state: 'failed' }), entry('b', { state: 'queued' })])).toBe(false)
+    expect(hasSendingEntry([entry('a', { state: 'failed' }), entry('b', { state: 'sending' })])).toBe(true)
   })
 })

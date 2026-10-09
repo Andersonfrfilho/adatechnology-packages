@@ -91,6 +91,10 @@ export function findFailedEntry(entries: readonly ParticipantSendEntry[], client
   return entries.find((item) => item.clientMessageId === clientMessageId && item.state === 'failed')
 }
 
+export function hasSendingEntry(entries: readonly ParticipantSendEntry[]): boolean {
+  return entries.some((item) => item.state === 'sending')
+}
+
 export function collectKnownClientMessageIds(params: CollectKnownClientMessageIdsParams): ReadonlySet<string> {
   const known = new Set<string>()
   for (const message of params.messages) {

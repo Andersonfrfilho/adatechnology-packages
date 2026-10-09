@@ -35,7 +35,8 @@ export type ParticipantConversationsProps = {
 }
 
 export function ParticipantConversations(props: ParticipantConversationsProps) {
-  const { status, conversations, markSubjectRead } = useParticipantInbox(props.api)
+  const inbox = useParticipantInbox(props.api)
+  const { status, conversations, hasMore, refresh, loadMore, markSubjectRead } = inbox
 
-  return <ParticipantConversationsScreen {...props} inbox={{ status, conversations, markSubjectRead }} />
+  return <ParticipantConversationsScreen {...props} inbox={{ status, conversations, hasMore, refresh, loadMore, markSubjectRead }} />
 }

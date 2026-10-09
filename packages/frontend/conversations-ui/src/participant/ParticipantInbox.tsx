@@ -8,6 +8,8 @@ import type {
   ParticipantSubjectGroup,
 } from './participant.types'
 import { formatParticipantLabel, type ParticipantConversationsLabels } from './participantLabels'
+import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadView'
+import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
 
 export type ParticipantInboxProps = {
   readonly view: ParticipantInboxView
@@ -17,6 +19,10 @@ export type ParticipantInboxProps = {
   readonly onFilterChange: (filter: string) => void
   readonly onSelect: (subject: ParticipantSubjectRef) => void
   readonly labels: ParticipantConversationsLabels
+  readonly status: ParticipantLoadStatus
+  readonly refresh: () => void
+  readonly hasMore: boolean
+  readonly loadMore: () => void
   readonly locale?: string
 }
 
@@ -138,17 +144,25 @@ function Section({ section, props }: { readonly section: ParticipantInboxSection
 
 export function ParticipantInbox(props: ParticipantInboxProps) {
   const { view, labels, filter, onFilterChange } = props
+  const loadView = resolveLoadView({ status: props.status, hasItems: view.sections.length > 0 })
 
   return (
-    <div className="cv-p cv-p-inbox">
+    <div className="cv-p cv-p-inbox" aria-busy={loadView.isLoading}>
       <h2 className="cv-p-inbox__title">{labels.inboxTitle}</h2>
       {view.showFilters ? (
         <Filters filters={view.filters} active={filter} labels={labels} onChange={onFilterChange} />
       ) : null}
-      {view.sections.length === 0 ? <p className="cv-p-empty">{labels.emptyInbox}</p> : null}
+      {loadView.isLoading ? <ParticipantLoading labels={labels} /> : null}
+      {loadView.hasError ? <ParticipantLoadError labels={labels} onRetry={props.refresh} /> : null}
+      {loadView.isEmpty ? <p className="cv-p-empty">{labels.emptyInbox}</p> : null}
       {view.sections.map((section) => (
         <Section key={section.key} section={section} props={props} />
       ))}
+      {props.hasMore ? (
+        <button type="button" className="cv-p-button cv-p-inbox__more" onClick={props.loadMore}>
+          {labels.loadMore}
+        </button>
+      ) : null}
     </div>
   )
 }

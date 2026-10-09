@@ -22,6 +22,11 @@ function render(overrides: Partial<ParticipantThreadProps> = {}): string {
       resolveAttachmentUrl={async () => 'https://files.example/a'}
       draft={{ value: '', onChange: () => undefined, files: [], onFilesChange: () => undefined }}
       onSend={() => undefined}
+      status="ready"
+      refresh={() => undefined}
+      scroll={{ ref: { current: null }, onScroll: () => undefined }}
+      newMessagesCount={0}
+      isSending={false}
       {...overrides}
     />,
   )
@@ -61,6 +66,36 @@ describe('ParticipantThread', () => {
     expect(quiet).not.toContain('New messages')
     expect(loud).toContain('aria-live="polite"')
     expect(loud).toContain('New messages')
+  })
+
+  it('while loading shows a busy skeleton', () => {
+    const markup = render({ items: [], status: 'loading' })
+
+    expect(markup).toContain('aria-busy="true"')
+    expect(markup).toContain('Loading…')
+    expect(render()).toContain('aria-busy="false"')
+  })
+
+  it('on error shows an alert with retry', () => {
+    const markup = render({ items: [], status: 'error' })
+
+    expect(markup).toContain('role="alert"')
+    expect(markup).toContain('Retry')
+    expect(markup).not.toContain('aria-busy="true"')
+  })
+
+  it('on success draws neither loading nor error', () => {
+    const markup = render()
+
+    expect(markup).not.toContain('role="alert"')
+    expect(markup).not.toContain('cv-p-loading')
+  })
+
+  it('disables only the send button while sending, never the field', () => {
+    const markup = render({ isSending: true, draft: { value: 'hi', onChange: () => undefined, files: [], onFilesChange: () => undefined } })
+
+    expect(markup).toMatch(/<button[^>]*type="submit"[^>]*disabled/)
+    expect(markup).not.toMatch(/<textarea[^>]*disabled/)
   })
 
   it('shows load older only when hasMore and onLoadOlder exist', () => {

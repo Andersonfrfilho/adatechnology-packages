@@ -9,6 +9,12 @@ Tela de conversa do lado de **quem conversa com a empresa** (app do motorista, p
 `ConversationsProvider`, não puxa `@xyflow/react` nem o `ConversationsWorkspace`, e não depende de Tailwind:
 todas as classes são `.cv-p-*` e vêm de `@adatechnology/conversations-ui/styles.css`.
 
+`@adatechnology/conversations-ui/styles.css` é **requisito**: sem ele a tela fica sem layout e o `MessageText` e o
+`StatusTicks` perdem a formatação (negrito, itálico, tachado, tiques coloridos). Importe-o uma vez na raiz do app.
+
+`MessageText` **não copia ao tocar** por padrão; quem quiser o comportamento antigo passa `copyOnClick` (e, se
+quiser outro idioma no aviso, `copiedLabel`).
+
 ### Uso mínimo
 
 ```tsx
@@ -59,35 +65,58 @@ Capacidades opcionais existem **por ausência de prop**: sem `onBack` não há b
 ### Adapter REST de `ParticipantConversationsApi`
 
 ```ts
-import type { ParticipantConversationsApi, ParticipantMessage } from '@adatechnology/conversations-ui/participant'
+import { z } from 'zod'
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+import { participantConversationPageSchema, participantMessageSchema } from '@adatechnology/conversation-contracts'
+import type { ParticipantConversationsApi } from '@adatechnology/conversations-ui/participant'
+
+async function request(path: string, init?: RequestInit): Promise<unknown> {
   const response = await fetch(`/api/v1${path}`, { ...init, credentials: 'include' })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  return ((await response.json()) as { data: T }).data
+  return ((await response.json()) as { data: unknown }).data
+}
+
+function conversationPath({ subjectType, subjectId }: { subjectType: string; subjectId: string }): string {
+  return `/conversations/${encodeURIComponent(subjectType)}/${encodeURIComponent(subjectId)}`
 }
 
 export const participantApi: ParticipantConversationsApi = {
-  listConversations: ({ cursor } = {}) =>
-    request(`/conversations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
-  fetchMessages: ({ subjectType, subjectId }, { before, limit } = {}) =>
-    request(`/conversations/${subjectType}/${subjectId}/messages?limit=${limit ?? 30}${before ? `&before=${before}` : ''}`),
+  listConversations: async ({ cursor } = {}) =>
+    participantConversationPageSchema.parse(
+      await request(`/conversations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
+    ),
+  fetchMessages: async (subject, { before, limit } = {}) =>
+    z.array(participantMessageSchema).parse(
+      await request(
+        `${conversationPath(subject)}/messages?limit=${limit ?? 30}${before ? `&before=${encodeURIComponent(before)}` : ''}`,
+      ),
+    ),
   sendMessage: async ({ subject, clientMessageId, text }) => {
-    const message = await request<ParticipantMessage>(
-      `/conversations/${subject.subjectType}/${subject.subjectId}/messages`,
-      {
+    const message = participantMessageSchema.parse(
+      await request(`${conversationPath(subject)}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': clientMessageId },
         body: JSON.stringify({ text }),
-      },
+      }),
     )
     return { outcome: 'sent', message }
   },
-  markRead: ({ subjectType, subjectId }) =>
-    request(`/conversations/${subjectType}/${subjectId}/read`, { method: 'POST' }),
-  resolveAttachmentUrl: async (attachment) => (await request<{ url: string }>(`/attachments/${attachment.id}/url`)).url,
+  markRead: async (subject) => {
+    await request(`${conversationPath(subject)}/read`, { method: 'POST' })
+  },
+  resolveAttachmentUrl: async (attachment) =>
+    z.object({ url: z.string() }).parse(await request(`/attachments/${encodeURIComponent(attachment.id)}/url`)).url,
 }
 ```
+
+A resposta do servidor é entrada não confiável: valide com os schemas do `@adatechnology/conversation-contracts`
+(`participantConversationPageSchema`, `participantMessageSchema`) e use `encodeURIComponent` em todo segmento de URL
+que vem de `subjectType`, `subjectId`, cursor ou id.
+
+**Eco de `clientMessageId` (obrigatório).** Toda mensagem criada por `sendMessage` volta com o `clientMessageId`
+recebido (o mesmo valor do `Idempotency-Key`): é por ele que a bolha local é substituída pela mensagem do servidor.
+Sem o eco, a bolha local fica duplicada ao lado da mensagem real. O servidor também precisa tratar com segurança
+duas requisições simultâneas com a mesma chave (toque duplo, reenvio): uma cria, a outra devolve a mesma mensagem.
 
 Ao tocar em enviar, o campo é limpo na hora e a **bolha passa a ser a dona** do texto e dos arquivos (o segundo
 toque não envia nada). `sendMessage` que lança significa falha: a bolha mostra "reenviar" (repete o **mesmo**
@@ -97,8 +126,8 @@ devolva `{ outcome: 'queued' }` e devolva a fila durável em `pendingMessages`: 
 ou o servidor refletirem o mesmo `clientMessageId`. Falha de uma mensagem que veio do servidor mostra só "Falhou";
 falha de uma pendente do host só ganha "reenviar" se `onRetryPending` for passado. O pacote não conhece IndexedDB.
 
-`api` deve ter identidade **estável** (crie o adapter uma vez, fora do render): trocar a instância reinscreve os
-eventos de `subscribe`, mas não zera a conversa. Métodos de adapter escritos como classe funcionam, o pacote preserva o `this`.
+`api` **precisa ser estável** (crie o adapter uma vez, fora do render, ou memorize-o): uma instância nova a cada
+render refaz a carga da lista e reinscreve os eventos de `subscribe` a cada renderização. Métodos de adapter escritos como classe funcionam, o pacote preserva o `this`.
 
 ### Aviso: `direction` é sempre na perspectiva da empresa
 

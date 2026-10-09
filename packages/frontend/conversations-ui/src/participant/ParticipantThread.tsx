@@ -10,6 +10,9 @@ import { ParticipantComposer } from './ParticipantComposer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import { bindPendingActions, resolveParticipantBubbleActions, type ParticipantPendingActions } from './participantBubbleActions'
 import type { ParticipantConversationsLabels } from './participantLabels'
+import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadView'
+import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
+import type { ParticipantThreadScroll } from './useStickToBottom'
 import type { ParticipantTimelineItem } from './participantMessages'
 import { ParticipantMessageBubble } from './ParticipantMessageBubble'
 
@@ -28,14 +31,20 @@ export type ParticipantThreadProps = {
   readonly resolveAttachmentUrl: ResolveParticipantAttachmentUrl
   readonly draft: ParticipantThreadDraft
   readonly onSend: () => void
+  readonly status: ParticipantLoadStatus
+  readonly refresh: () => void
+  /** Ref and onScroll of the scrolling area; the hook that owns the rule is useParticipantThreadScroll. */
+  readonly scroll: ParticipantThreadScroll
+  /** Messages from the other side that arrived while the user was reading above. */
+  readonly newMessagesCount: number
+  /** A send is in flight: only the send button waits, the field stays editable. */
+  readonly isSending: boolean
   readonly channel?: ConversationChannel
   readonly locale?: string
   readonly onBack?: () => void
   readonly onOpenSubject?: (subject: ParticipantSubjectRef) => void
   readonly onLoadOlder?: () => void
   readonly pendingActions?: ParticipantPendingActions
-  readonly newMessagesCount?: number
-  readonly isSending?: boolean
   readonly quickReplies?: readonly QuickReply[]
   readonly acceptedTypes?: readonly string[]
   readonly maxLength?: number
@@ -129,7 +138,7 @@ function Footer({ props }: { readonly props: ParticipantThreadProps }) {
       onSend={props.onSend}
       labels={labels}
       channel={props.channel}
-      disabled={props.isSending}
+      isSending={props.isSending}
       maxLength={props.maxLength}
       acceptedTypes={props.acceptedTypes}
       quickReplies={props.quickReplies}
@@ -140,12 +149,15 @@ function Footer({ props }: { readonly props: ParticipantThreadProps }) {
 export function ParticipantThread(props: ParticipantThreadProps) {
   const { conversation, labels, hasMore, onLoadOlder, renderSubjectCard } = props
   const subjectCard = renderSubjectCard?.(conversation)
+  const loadView = resolveLoadView({ status: props.status, hasItems: props.items.length > 0 })
 
   return (
-    <div className="cv-p cv-p-thread">
+    <div className="cv-p cv-p-thread" aria-busy={loadView.isLoading}>
       <Header props={props} />
       {subjectCard ? <div className="cv-p-thread__subject-card">{subjectCard}</div> : null}
-      <div className="cv-p-thread__scroll">
+      <div className="cv-p-thread__scroll" ref={props.scroll.ref} onScroll={props.scroll.onScroll}>
+        {loadView.isLoading ? <ParticipantLoading labels={labels} /> : null}
+        {loadView.hasError ? <ParticipantLoadError labels={labels} onRetry={props.refresh} /> : null}
         {hasMore && onLoadOlder ? (
           <button type="button" className="cv-p-thread__older" onClick={onLoadOlder}>
             {labels.loadOlder}
@@ -154,7 +166,7 @@ export function ParticipantThread(props: ParticipantThreadProps) {
         <Timeline props={props} />
       </div>
       <div className="cv-p-thread__live" role="status" aria-live="polite">
-        {props.newMessagesCount && props.newMessagesCount > 0 ? labels.newMessages : ''}
+        {props.newMessagesCount > 0 ? labels.newMessages : ''}
       </div>
       <Footer props={props} />
     </div>

@@ -11,7 +11,7 @@ import { buildParticipantThemeStyle } from './participantTheme'
 import type { UseParticipantInboxResult } from './useParticipantInbox'
 
 export type ParticipantConversationsScreenProps = ParticipantConversationsProps & {
-  readonly inbox: Pick<UseParticipantInboxResult, 'status' | 'conversations' | 'markSubjectRead'>
+  readonly inbox: Pick<UseParticipantInboxResult, 'status' | 'conversations' | 'hasMore' | 'refresh' | 'loadMore' | 'markSubjectRead'>
 }
 
 const ALL_FILTER = 'all'
@@ -42,6 +42,10 @@ export function ParticipantConversationsScreen(props: ParticipantConversationsSc
             onFilterChange={setFilter}
             onSelect={props.onSelect}
             labels={labels}
+            status={inbox.status}
+            refresh={() => void inbox.refresh()}
+            hasMore={inbox.hasMore}
+            loadMore={() => void inbox.loadMore()}
             locale={props.locale}
           />
         </div>

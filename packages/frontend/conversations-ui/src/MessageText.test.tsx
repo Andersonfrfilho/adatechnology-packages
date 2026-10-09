@@ -25,7 +25,7 @@ describe('MessageText', () => {
     expect(markup).not.toContain('[&_')
   })
 
-  it('o badge "Copiado!" usa a classe cv-message-text__copied e nenhuma utilitária Tailwind', () => {
+  it('o badge usa a classe cv-message-text__copied e nenhuma utilitária Tailwind', () => {
     const markup = renderToStaticMarkup(<MessageTextCopiedBadge />)
 
     expect(markup).toContain('cv-message-text__copied')
@@ -33,5 +33,24 @@ describe('MessageText', () => {
     expect(markup).not.toContain('bg-[')
     expect(markup).not.toContain('px-1.5')
     expect(markup).not.toContain('-translate-y-full')
+  })
+
+  it('por padrão não copia ao toque: sem onClick, sem role=button e sem user-select', () => {
+    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} />)
+
+    expect(markup).not.toContain('role="button"')
+    expect(markup).not.toContain('tabindex')
+  })
+
+  it('com copyOnClick vira um controle acessível por teclado', () => {
+    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} copyOnClick />)
+
+    expect(markup).toContain('role="button"')
+    expect(markup).toContain('tabindex="0"')
+  })
+
+  it('o badge usa "Copied" por padrão e aceita outro rótulo', () => {
+    expect(renderToStaticMarkup(<MessageTextCopiedBadge />)).toContain('Copied')
+    expect(renderToStaticMarkup(<MessageTextCopiedBadge label="Copiado!" />)).toContain('Copiado!')
   })
 })

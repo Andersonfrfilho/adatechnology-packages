@@ -26,6 +26,9 @@ function renderScreen(overrides: Partial<ParticipantConversationsScreenProps> = 
       inbox={{
         status: 'ready',
         conversations: [buildConversation({ subjectId: '1', subjectLabel: 'Invoice 4521' })],
+        hasMore: false,
+        refresh: async () => undefined,
+        loadMore: async () => undefined,
         markSubjectRead: () => undefined,
       }}
       {...overrides}

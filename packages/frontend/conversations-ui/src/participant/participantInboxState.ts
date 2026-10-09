@@ -29,6 +29,18 @@ function withCursor(
   return { ...rest, status: 'ready', conversations, ...(nextCursor === undefined ? {} : { nextCursor }) }
 }
 
+/** Revalidation brings the first page again: it must not drop the pages appended after it. */
+function mergeFirstPage(
+  state: ParticipantInboxState,
+  incoming: readonly ParticipantConversationSummary[],
+  nextCursor: string | undefined,
+): ParticipantInboxState {
+  const incomingKeys = new Set(incoming.map(subjectKey))
+  const retained = state.conversations.filter((conversation) => !incomingKeys.has(subjectKey(conversation)))
+  const cursor = retained.length > 0 ? state.nextCursor : nextCursor
+  return withCursor(state, [...incoming, ...retained], cursor)
+}
+
 function appendUnique(
   current: readonly ParticipantConversationSummary[],
   incoming: readonly ParticipantConversationSummary[],
@@ -44,7 +56,7 @@ export function participantInboxReducer(state: ParticipantInboxState, action: Pa
     case 'started':
       return state.status === 'ready' ? state : { ...state, status: 'loading' }
     case 'loaded':
-      return withCursor(state, action.conversations, action.nextCursor)
+      return mergeFirstPage(state, action.conversations, action.nextCursor)
     case 'appended':
       return withCursor(state, appendUnique(state.conversations, action.conversations), action.nextCursor)
     case 'markedRead': {

@@ -35,6 +35,9 @@ export type ParticipantConversationsLabels = {
   readonly discard: string
   readonly edit: string
   readonly notFound: string
+  readonly loading: string
+  readonly loadError: string
+  readonly loadMore: string
 }
 
 export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsLabels = {
@@ -73,6 +76,9 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   discard: 'Discard',
   edit: 'Edit',
   notFound: 'Conversation not found',
+  loading: 'Loading…',
+  loadError: 'Could not load. Check your connection and try again.',
+  loadMore: 'Load more',
 }
 
 export function formatParticipantLabel(template: string, count: number): string {
