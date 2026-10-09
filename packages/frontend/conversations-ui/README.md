@@ -410,7 +410,7 @@ Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há també
 | `--cv-p-border`           | bordas                                       | `#d5d9df`      |
 | `--cv-p-accent`           | destaque, botão primário, bolha própria      | `#a85a1c`      |
 | `--cv-p-accent-contrast`  | texto sobre o destaque                       | `#ffffff`      |
-| `--cv-p-highlight`        | fundo de "espera sua resposta" e da bolha própria | `#fcf3ea` |
+| `--cv-p-highlight`        | fundo de "espera sua resposta" e da bolha própria | `#fcf3ea` (use cor opaca: é fundo de bolha, e translúcido deixa o wallpaper aparecer) |
 | `--cv-p-danger`           | erro e falha de envio                        | `#c62828`      |
 | `--cv-p-radius`           | raio dos cantos                              | `0`            |
 | `--cv-p-wallpaper`        | fundo da lista de mensagens (`none` desliga) | pontos sutis   |
