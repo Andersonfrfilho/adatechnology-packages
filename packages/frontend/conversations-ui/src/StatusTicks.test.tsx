@@ -6,6 +6,12 @@ import { StatusTicks } from './StatusTicks'
 const TAILWIND_UTILITIES = ['text-sky-500', 'text-red-500', 'text-black/40', 'flex', 'cursor-help', 'leading-none']
 
 describe('StatusTicks', () => {
+  it('em stylesheet um status desconhecido cai em sent (um tique)', () => {
+    const markup = renderToStaticMarkup(<StatusTicks status="xyz" appearance="stylesheet" />)
+
+    expect(markup).toContain('cv-status-ticks--sent')
+  })
+
   it('em stylesheet renderiza o estado queued com relógio e rótulo acessível', () => {
     const markup = renderToStaticMarkup(<StatusTicks status="queued" appearance="stylesheet" />)
 

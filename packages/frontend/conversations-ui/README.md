@@ -20,7 +20,7 @@ Props opt-in (o padrão é sempre o comportamento da 0.4.2):
   desliga a cópia); `copiedLabel` (padrão `Copiado!`).
 - `StatusTicks`: `appearance?: 'tailwind' | 'stylesheet'` (padrão `'tailwind'`). Só em `'stylesheet'` valem o estado
   `queued` (relógio), `bounced` tratado como `failed` e o `aria-label`; `queuedLabel?: string` (padrão `Queued`) define
-  o rótulo do relógio. No padrão, qualquer status diferente de `sent` e `failed` desenha dois tiques, como na 0.4.2.
+  o rótulo do relógio. No padrão, qualquer status diferente de `sent` e `failed` desenha dois tiques, como na 0.4.2; em `'stylesheet'`, um status desconhecido cai em `sent` (um tique).
 
 ### Uso mínimo
 

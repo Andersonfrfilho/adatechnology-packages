@@ -1,7 +1,8 @@
-import { useCallback, useState, type KeyboardEvent } from 'react'
+import { useCallback, useState } from 'react'
 import { CHAT_TEXT_SECONDARY_CLASS } from './theme'
 import type { MessagePayload } from './types'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
+import { resolveCopyInteraction } from './messageTextCopyInteraction'
 import { MessageTextCopiedBadge, type MessageTextAppearance } from './MessageTextCopiedBadge'
 
 export interface MessageTextProps {
@@ -39,22 +40,15 @@ export function MessageText({
     }
   }, [copyOnClick, message.content])
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    void handleCopy()
-  }
-
   if (message.type === 'template')
     return <p className={`text-sm italic ${CHAT_TEXT_SECONDARY_CLASS}`}>{message.content ?? 'Template message'}</p>
 
-  const keyboardProps = copyOnClick && accessibleCopy ? { role: 'button', tabIndex: 0, onKeyDown: handleKeyDown } : {}
+  const interactionProps = resolveCopyInteraction({ copyOnClick, accessibleCopy, onCopy: handleCopy })
 
   return (
     <div
-      onClick={copyOnClick ? handleCopy : undefined}
       className={resolveClassName(appearance, copyOnClick)}
-      {...keyboardProps}
+      {...interactionProps}
     >
       <div>{parseWhatsAppFormatting(message.content ?? '')}</div>
       {copied && <MessageTextCopiedBadge label={copiedLabel} appearance={appearance} />}
