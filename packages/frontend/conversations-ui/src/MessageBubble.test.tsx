@@ -56,13 +56,13 @@ describe('MessageBubble e o selo de lida por canal (D4, CA04)', () => {
   it('email não confirma leitura — o selo de lida não aparece mesmo com status "read"', () => {
     const markup = renderToStaticMarkup(<MessageBubble message={TEXT_MESSAGE} isMine channel="email" />)
 
-    expect(markup).not.toContain('cv-status-ticks--read')
+    expect(markup).not.toContain('text-sky-500')
   })
 
   it('whatsapp confirma leitura — o selo de lida aparece normalmente', () => {
     const markup = renderToStaticMarkup(<MessageBubble message={TEXT_MESSAGE} isMine channel="whatsapp" />)
 
-    expect(markup).toContain('cv-status-ticks--read')
+    expect(markup).toContain('text-sky-500')
   })
 
   it('sem channel, o padrão continua sendo whatsapp — comportamento de antes desta mudança', () => {

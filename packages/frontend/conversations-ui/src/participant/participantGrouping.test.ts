@@ -4,7 +4,9 @@ import type { ParticipantConversationSummary } from '@adatechnology/conversation
 
 import { groupParticipantConversations } from './participantGrouping'
 
-function build(overrides: Partial<ParticipantConversationSummary> & { subjectId: string }): ParticipantConversationSummary {
+function build(
+  overrides: Partial<ParticipantConversationSummary> & { subjectId: string },
+): ParticipantConversationSummary {
   return {
     subjectType: 'invoice',
     subjectLabel: 'Label',
@@ -60,7 +62,12 @@ describe('groupParticipantConversations', () => {
         build({ subjectId: 'a', subjectType: 'zeta', lastMessageAt: null, subjectLabel: 'A' }),
         build({ subjectId: 'b', subjectType: 'zeta', lastMessageAt: '2026-10-01T10:00:00.000Z', subjectLabel: 'Beta' }),
         build({ subjectId: 'c', subjectType: 'zeta', lastMessageAt: '2026-10-02T10:00:00.000Z', subjectLabel: 'Z' }),
-        build({ subjectId: 'd', subjectType: 'zeta', lastMessageAt: '2026-10-01T10:00:00.000Z', subjectLabel: 'Alpha' }),
+        build({
+          subjectId: 'd',
+          subjectType: 'zeta',
+          lastMessageAt: '2026-10-01T10:00:00.000Z',
+          subjectLabel: 'Alpha',
+        }),
       ],
     })
     expect(view.sections[0]?.conversations.map((c) => c.subjectId)).toEqual(['c', 'd', 'b', 'a'])
@@ -133,6 +140,97 @@ describe('groupParticipantConversations', () => {
       ],
     })
     expect(view.sections.map((section) => section.conversations.map((c) => c.subjectId))).toEqual([['2'], ['3']])
-    expect(groupParticipantConversations({ subjectGroups: GROUPS, filter: 'all', conversations: [build({ subjectId: '1' })] }).sections).toHaveLength(1)
+    expect(
+      groupParticipantConversations({
+        subjectGroups: GROUPS,
+        filter: 'all',
+        conversations: [build({ subjectId: '1' })],
+      }).sections,
+    ).toHaveLength(1)
+  })
+})
+
+describe('groupParticipantConversations with a search query', () => {
+  const conversations = [
+    build({ subjectId: '1', subjectType: 'alpha', protocol: '261009-K7M2', unreadCount: 2 }),
+    build({ subjectId: '2', subjectType: 'zeta', protocol: '261008-AB23', unreadCount: 1 }),
+    build({ subjectId: '3', subjectType: 'zeta', protocol: '261007-CD45' }),
+  ]
+  const idsOf = (view: ReturnType<typeof groupParticipantConversations>) =>
+    view.sections.flatMap((section) => section.conversations.map((item) => item.subjectId))
+
+  it('keeps chips and counts computed on the whole list, not on the search result', () => {
+    const view = groupParticipantConversations({
+      conversations,
+      subjectGroups: GROUPS,
+      filter: 'all',
+      searchQuery: 'k7m2',
+    })
+    expect(idsOf(view)).toEqual(['1'])
+    expect(view.showFilters).toBe(true)
+    expect(view.filters.map((filter) => [filter.subjectType, filter.unreadCount])).toEqual([
+      ['all', 3],
+      ['zeta', 1],
+      ['alpha', 2],
+    ])
+  })
+
+  it('chip of another subject plus the protocol of a conversation outside it: chips stay and the view says so', () => {
+    const view = groupParticipantConversations({
+      conversations,
+      subjectGroups: GROUPS,
+      filter: 'zeta',
+      searchQuery: '261009',
+    })
+    expect(view.sections).toEqual([])
+    expect(view.showFilters).toBe(true)
+    expect(view.hasMatchesOutsideFilter).toBe(true)
+  })
+
+  it('a query that matches inside the active filter shows only those rows', () => {
+    const view = groupParticipantConversations({
+      conversations,
+      subjectGroups: GROUPS,
+      filter: 'zeta',
+      searchQuery: 'ab23',
+    })
+    expect(idsOf(view)).toEqual(['2'])
+    expect(view.hasMatchesOutsideFilter).toBe(false)
+  })
+
+  it('a query that matches nothing anywhere is not an outside-filter match', () => {
+    const view = groupParticipantConversations({
+      conversations,
+      subjectGroups: GROUPS,
+      filter: 'zeta',
+      searchQuery: 'zzz',
+    })
+    expect(view.hasMatchesOutsideFilter).toBe(false)
+    expect(view.showFilters).toBe(true)
+  })
+
+  it('without a query nothing is outside the filter', () => {
+    const view = groupParticipantConversations({ conversations, subjectGroups: GROUPS, filter: 'zeta' })
+    expect(view.hasMatchesOutsideFilter).toBe(false)
+  })
+
+  it('a filter pointing at a subject with no conversations behaves as all', () => {
+    const view = groupParticipantConversations({
+      conversations: [build({ subjectId: '1', subjectType: 'zeta' })],
+      subjectGroups: GROUPS,
+      filter: 'alpha',
+    })
+    expect(idsOf(view)).toEqual(['1'])
+    expect(view.activeFilter).toBe('all')
+    expect(view.hasMatchesOutsideFilter).toBe(false)
+  })
+
+  it('keeps a filter that still has conversations as active', () => {
+    const view = groupParticipantConversations({
+      conversations: [build({ subjectId: '1', subjectType: 'zeta' })],
+      subjectGroups: GROUPS,
+      filter: 'zeta',
+    })
+    expect(view.activeFilter).toBe('zeta')
   })
 })

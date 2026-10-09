@@ -38,6 +38,21 @@ export type ParticipantConversationsLabels = {
   readonly loading: string
   readonly loadError: string
   readonly loadMore: string
+  readonly searchLabel: string
+  readonly searchPlaceholder: string
+  readonly noResults: string
+  readonly noResultsInFilter: string
+  readonly noResultsLoadedOnly: string
+  /** Spoken before the protocol code, e.g. "Protocol 261009-K7M2". */
+  readonly protocolPrefix: string
+  readonly copyProtocol: string
+  readonly protocolCopied: string
+  readonly channelsGroup: string
+  readonly channelApp: string
+  readonly channelWhatsapp: string
+  readonly channelEmail: string
+  readonly channelPortal: string
+  readonly channelWebchat: string
 }
 
 export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsLabels = {
@@ -79,6 +94,20 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   loading: 'Loading…',
   loadError: 'Could not load. Check your connection and try again.',
   loadMore: 'Load more',
+  searchLabel: 'Search conversations',
+  searchPlaceholder: 'Search by title or protocol',
+  noResults: 'No conversations found',
+  noResultsInFilter: 'No results in this filter — try All',
+  noResultsLoadedOnly: 'Nothing in the loaded conversations — load more',
+  protocolPrefix: 'Protocol',
+  copyProtocol: 'Copy protocol',
+  protocolCopied: 'Protocol copied',
+  channelsGroup: 'Channels in this conversation',
+  channelApp: 'App',
+  channelWhatsapp: 'WhatsApp',
+  channelEmail: 'Email',
+  channelPortal: 'Portal',
+  channelWebchat: 'Web chat',
 }
 
 export function formatParticipantLabel(template: string, count: number): string {

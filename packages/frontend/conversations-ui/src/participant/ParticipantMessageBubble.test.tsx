@@ -105,6 +105,8 @@ describe('ParticipantMessageBubble', () => {
 
     expect(withRetry).toContain('<button')
     expect(withRetry).toContain('Failed — tap to retry')
+    expect(withRetry).toContain('cv-status-ticks--failed')
+    expect(findUtilityClassTokens(withRetry)).toEqual([])
     expect(withoutRetry).not.toContain('<button')
     expect(withoutRetry).toContain('cv-status-ticks--failed')
   })

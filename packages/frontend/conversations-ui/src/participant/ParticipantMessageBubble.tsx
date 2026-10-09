@@ -85,7 +85,7 @@ function OwnStatus({ status, labels, onRetry }: OwnStatusProps) {
   if (status === 'failed' && onRetry) {
     return (
       <button type="button" className="cv-p-bubble__retry" onClick={onRetry}>
-        <StatusTicks status="failed" />
+        <StatusTicks status="failed" appearance="stylesheet" />
         <span>{labels.statusFailed}</span>
       </button>
     )
@@ -94,7 +94,7 @@ function OwnStatus({ status, labels, onRetry }: OwnStatusProps) {
   const text = status === 'failed' ? labels.statusFailedShort : statusText(status, labels)
   return (
     <span className="cv-p-bubble__status">
-      <StatusTicks status={ticksStatus} />
+      <StatusTicks status={ticksStatus} appearance="stylesheet" />
       <span className={isVisibleText ? 'cv-p-bubble__status-text' : 'cv-p-sr-only'}>{text}</span>
     </span>
   )
@@ -158,7 +158,7 @@ export function ParticipantMessageBubble({
         <span className="cv-p-bubble__author">{content.authorName}</span>
       ) : null}
       {content.text ? (
-        <MessageText message={toTextPayload(content.text, content.createdAt, isMine)} copyOnClick={false} />
+        <MessageText message={toTextPayload(content.text, content.createdAt, isMine)} copyOnClick={false} appearance="stylesheet" />
       ) : null}
       {content.attachments.map((attachment) => (
         <ParticipantAttachmentItem

@@ -8,6 +8,9 @@ export type ParticipantSubjectGroup = {
   readonly icon?: ReactNode
 }
 
+/** Host-drawn icon for a list row; null/undefined falls back to the subject group icon. */
+export type ParticipantSubjectIconRenderer = (conversation: ParticipantConversationSummary) => ReactNode
+
 export type ParticipantInboxSection = {
   /** 'awaiting' | 'closed' | 'other' or the subjectType of a group. */
   readonly key: string
@@ -27,6 +30,10 @@ export type ParticipantInboxView = {
   readonly sections: readonly ParticipantInboxSection[]
   readonly filters: readonly ParticipantInboxFilter[]
   readonly showFilters: boolean
+  /** The filter actually applied: 'all' when the requested one has no conversations left. */
+  readonly activeFilter: string
+  /** The search finds conversations, but none under the active subject filter. */
+  readonly hasMatchesOutsideFilter: boolean
 }
 
 export type GroupParticipantConversationsParams = {
@@ -34,6 +41,8 @@ export type GroupParticipantConversationsParams = {
   readonly subjectGroups: readonly ParticipantSubjectGroup[]
   /** subjectType, or 'all'/undefined for everything. */
   readonly filter?: string
+  /** Narrows the rows only: chips and their counts always describe the whole list. */
+  readonly searchQuery?: string
 }
 
 export type ParticipantConversationsClassNames = {

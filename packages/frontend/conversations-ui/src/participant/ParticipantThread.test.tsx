@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { buildConversation, buildMessage, findForeignClassTokens, findUtilityClassTokens } from './participantFixtures.test-helper'
+import {
+  buildConversation,
+  buildMessage,
+  findForeignClassTokens,
+  findUtilityClassTokens,
+} from './participantFixtures.test-helper'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS } from './participantLabels'
 import type { ParticipantTimelineItem } from './participantMessages'
 import { ParticipantThread, type ParticipantThreadProps } from './ParticipantThread'
@@ -54,6 +59,15 @@ describe('ParticipantThread', () => {
     expect(markup).toContain('Card body')
   })
 
+  it('shows channel badges in the header only with channels', () => {
+    expect(render()).not.toContain('cv-p-channels')
+    const markup = render({
+      conversation: buildConversation({ subjectId: '1', channels: ['email', 'app'] }),
+    })
+    expect(markup).toContain('cv-p-channel--app')
+    expect(markup.indexOf('cv-p-channel--app')).toBeLessThan(markup.indexOf('cv-p-channel--email'))
+  })
+
   it('renders day dividers between days', () => {
     expect(render().match(/cv-p-day"/g)?.length).toBe(2)
   })
@@ -92,7 +106,10 @@ describe('ParticipantThread', () => {
   })
 
   it('disables only the send button while sending, never the field', () => {
-    const markup = render({ isSending: true, draft: { value: 'hi', onChange: () => undefined, files: [], onFilesChange: () => undefined } })
+    const markup = render({
+      isSending: true,
+      draft: { value: 'hi', onChange: () => undefined, files: [], onFilesChange: () => undefined },
+    })
 
     expect(markup).toMatch(/<button[^>]*type="submit"[^>]*disabled/)
     expect(markup).not.toMatch(/<textarea[^>]*disabled/)
