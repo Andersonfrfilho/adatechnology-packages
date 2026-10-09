@@ -7,6 +7,7 @@ import { FailedActions, OwnStatus } from './ParticipantBubbleStatus'
 import { ParticipantMessageText } from './ParticipantMessageText'
 import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantConversationsLabels } from './participantLabels'
+import type { ParticipantPerspective } from './participantPerspective'
 import {
   isOwnMessage,
   resolveOwnMessageStatus,
@@ -29,6 +30,8 @@ export type ParticipantMessageBubbleProps = {
   readonly avatar?: ReactNode
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
   readonly tail?: boolean
+  /** Who is looking; absent is the participant. The operator owns the outbound messages. */
+  readonly perspective?: ParticipantPerspective
 }
 
 type BubbleContent = {
@@ -42,11 +45,11 @@ type BubbleContent = {
   readonly serverStatus?: MessageDeliveryStatus
 }
 
-function describeItem(item: ParticipantTimelineItem): BubbleContent {
+function describeItem(item: ParticipantTimelineItem, perspective?: ParticipantPerspective): BubbleContent {
   if (item.kind === 'server') {
     const { message } = item
     return {
-      isMine: isOwnMessage(message),
+      isMine: isOwnMessage(message, perspective),
       authorName: message.authorName ?? undefined,
       text: message.text ?? undefined,
       createdAt: message.createdAt,
@@ -82,8 +85,9 @@ export function ParticipantMessageBubble({
   onEdit,
   avatar,
   tail = true,
+  perspective,
 }: ParticipantMessageBubbleProps) {
-  const content = describeItem(item)
+  const content = describeItem(item, perspective)
   const { isMine } = content
   const ownStatus = isMine
     ? resolveOwnMessageStatus({ displayState: content.displayState, serverStatus: content.serverStatus, confirmsRead })

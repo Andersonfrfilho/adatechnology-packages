@@ -1,6 +1,7 @@
 import type { MessageDeliveryStatus, ParticipantMessage, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import type { ParticipantLocalPendingMessage, ParticipantPendingMessage } from './participantApi.types'
+import { isMessageMine, type ParticipantPerspective } from './participantPerspective'
 
 export type ParticipantPendingDisplayState = 'sending' | 'queued' | 'failed' | 'sent'
 export type ParticipantOwnMessageStatus = 'sending' | 'queued' | 'sent' | 'delivered' | 'read' | 'failed'
@@ -58,9 +59,9 @@ export function mergeParticipantMessages(params: MergeParticipantMessagesParams)
   return items.sort((left, right) => createdAtOf(left) - createdAtOf(right))
 }
 
-/** Direction is from the company perspective: the participant is the inbound side. */
-export function isOwnMessage(message: ParticipantMessage): boolean {
-  return message.direction === 'inbound'
+/** Direction is from the company side: the participant is the inbound side, the operator the outbound one. */
+export function isOwnMessage(message: ParticipantMessage, perspective?: ParticipantPerspective): boolean {
+  return isMessageMine(message, perspective)
 }
 
 export function resolveOwnMessageStatus(params: ResolveOwnMessageStatusParams): ParticipantOwnMessageStatus {

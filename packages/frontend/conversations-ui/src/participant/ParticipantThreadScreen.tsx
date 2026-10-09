@@ -1,19 +1,15 @@
-import { useEffect, useMemo, useState, type Dispatch, type MutableRefObject } from 'react'
+import { useEffect, useState, type Dispatch, type MutableRefObject } from 'react'
 
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import { ParticipantBackButton } from './ParticipantBackButton'
 import { ParticipantThread } from './ParticipantThread'
 import type { ParticipantConversationsScreenProps } from './ParticipantConversationsScreen'
-import { bindAttachmentUrlResolver } from './bindAttachmentUrlResolver'
 import type { ParticipantDrafts } from './participantDrafts'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantConversationsApi } from './participantApi.types'
-import { findFailedEntry, hasSendingEntry } from './participantSendController'
 import type { ParticipantSendStates, ParticipantSendStatesAction } from './participantSendStates'
-import { useParticipantDraft } from './useParticipantDraft'
-import { useParticipantConversationView } from './useParticipantConversationView'
-import { useParticipantThreadScroll } from './useParticipantThreadScroll'
+import { useParticipantThreadController } from './useParticipantThreadController'
 
 export type ParticipantThreadScreenProps = Omit<ParticipantConversationsScreenProps, 'selected' | 'labels'> & {
   readonly selected: ParticipantSubjectRef
@@ -90,53 +86,17 @@ export function ParticipantThreadScreen(props: ParticipantThreadScreenProps) {
 type LoadedThreadProps = ParticipantThreadScreenProps & { readonly conversation: ParticipantConversationSummary }
 
 function LoadedThread(props: LoadedThreadProps) {
-  const { api, selected, conversation, draftsRef, inbox } = props
-  const { draft, setText, setFiles, takeForSend, restoreFromEntry } = useParticipantDraft(draftsRef, selected)
-  const { thread, items, sendEntries, dispatchSend } = useParticipantConversationView({
+  const core = useParticipantThreadController({
     ...props,
-    subject: selected,
-    onMarkedRead: inbox.markSubjectRead,
+    subject: props.selected,
+    onMarkedRead: props.inbox.markSubjectRead,
   })
-  const resolveAttachmentUrl = useMemo(() => bindAttachmentUrlResolver(api), [api])
-  const { scroll, newMessagesCount } = useParticipantThreadScroll(items)
-
-  function handleSend(): void {
-    const content = takeForSend()
-    if (content) void thread.send(content)
-  }
-
-  function handleEdit(clientMessageId: string): void {
-    const entry = findFailedEntry(sendEntries, clientMessageId)
-    if (!entry) return
-    restoreFromEntry(entry)
-    dispatchSend({ type: 'discarded', clientMessageId })
-  }
 
   return (
     <ParticipantThread
-      conversation={conversation}
-      items={items}
-      hasMore={thread.hasMore}
-      labels={props.labels}
-      resolveAttachmentUrl={resolveAttachmentUrl}
-      draft={{ value: draft.text, onChange: setText, files: draft.files, onFilesChange: setFiles }}
-      onSend={handleSend}
-      status={thread.status}
-      refresh={() => void thread.refresh()}
-      scroll={scroll}
-      newMessagesCount={newMessagesCount}
-      isSending={hasSendingEntry(sendEntries)}
-      channel={props.channel}
-      locale={props.locale}
+      {...core}
       onBack={props.onBack}
       onOpenSubject={props.onOpenSubject}
-      onLoadOlder={() => void thread.loadOlder()}
-      pendingActions={{
-        retryLocal: (clientMessageId) => void thread.retry(clientMessageId),
-        discardLocal: (clientMessageId) => dispatchSend({ type: 'discarded', clientMessageId }),
-        editLocal: handleEdit,
-        ...(props.onRetryPending ? { retryHost: props.onRetryPending } : {}),
-      }}
       quickReplies={props.quickReplies}
       renderSubjectCard={props.renderSubjectCard}
       subjectGroups={props.subjectGroups}

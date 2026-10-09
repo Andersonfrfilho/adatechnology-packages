@@ -15,6 +15,7 @@ import {
 } from './participantBubbleActions'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { isOwnMessage, type ParticipantTimelineItem } from './participantMessages'
+import type { ParticipantPerspective } from './participantPerspective'
 
 export type ParticipantTimelineProps = {
   readonly items: readonly ParticipantTimelineItem[]
@@ -26,6 +27,7 @@ export type ParticipantTimelineProps = {
   readonly avatars?: 'initials'
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
   readonly tail?: boolean
+  readonly perspective?: ParticipantPerspective
 }
 
 function createdAtOf(item: ParticipantTimelineItem): string {
@@ -38,9 +40,9 @@ function keyOf(item: ParticipantTimelineItem): string {
 
 type AuthorOfItem = { readonly isMine: boolean; readonly author: ParticipantAvatarAuthor }
 
-function authorOf(item: ParticipantTimelineItem): AuthorOfItem {
+function authorOf(item: ParticipantTimelineItem, perspective?: ParticipantPerspective): AuthorOfItem {
   if (item.kind === 'pending') return { isMine: true, author: null }
-  return { isMine: isOwnMessage(item.message), author: item.message.authorName ?? null }
+  return { isMine: isOwnMessage(item.message, perspective), author: item.message.authorName ?? null }
 }
 
 function resolveActions(item: ParticipantTimelineItem, pendingActions?: ParticipantPendingActions) {
@@ -76,7 +78,7 @@ export function ParticipantTimeline(props: ParticipantTimelineProps) {
       previousAuthor = undefined
     }
     previousDay = day
-    const { isMine, author } = authorOf(item)
+    const { isMine, author } = authorOf(item, props.perspective)
     const showAvatar = shouldShowAvatar({ previousAuthor, author, isMine })
     previousAuthor = isMine ? undefined : author
     const avatar = resolveAvatarSlot({
@@ -94,6 +96,7 @@ export function ParticipantTimeline(props: ParticipantTimelineProps) {
         confirmsRead={confirmsRead}
         resolveAttachmentUrl={resolveAttachmentUrl}
         tail={props.tail}
+        perspective={props.perspective}
         avatar={avatar}
         {...resolveActions(item, pendingActions)}
       />,

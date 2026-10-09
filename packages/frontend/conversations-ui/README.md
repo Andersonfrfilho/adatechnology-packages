@@ -299,6 +299,97 @@ A bolha usa um renderizador próprio da visão do participante (`ParticipantMess
 
 **Valores copiáveis:** a detecção é conservadora. CPF e CNPJ só valem com dígitos verificadores corretos (sequências repetidas não valem), a chave exige exatamente 44 dígitos (grupos de 4 opcionais) e o telefone exige 10 a 15 dígitos (BR: DDD 11–99) **com formatação**: sem máscara, só vale com `+55`, DDD entre parênteses ou separador depois do DDD (`1234567890` solto, como em "pedido 1234567890", não é telefone); número internacional exige `+`. Valores monetários, datas e números curtos não são destacados. O toque copia, mostra "Copied" no próprio valor e anuncia na região `aria-live` única da conversa. Os rótulos `copyValue`, `valueCopied` e `externalLinkHint` vêm de `labels` (padrão em inglês). O SDK só escreve na área de transferência quando a pessoa toca: não envia nem armazena nada.
 
+### `ConversationThread`: uma conversa, vista por qualquer um dos lados
+
+`ConversationThread` desenha **uma** conversa (um assunto) no mesmo desenho da visão do participante, sem lista
+e sem inbox. Serve ao app do participante e, com `perspective="operator"`, ao painel de quem atende. O SDK não
+conhece as ações do host: encerrar, reabrir ou qualquer outra entram pelo slot `headerActions`.
+
+```tsx
+import { ConversationThread } from '@adatechnology/conversations-ui/participant'
+
+<ConversationThread
+  api={operatorApi}
+  subject={{ subjectType: 'case', subjectId: caseId }}
+  perspective="operator"
+  title={caseTitle}
+  protocol={protocol}
+  channels={['app', 'whatsapp']}
+  status={isClosed ? 'closed' : 'open'}
+  counterpartLabel={`Participante: ${participantName}`}
+  headerActions={<button type="button" onClick={handleClose}>Encerrar conversa</button>}
+  avatars="initials"
+  quickReplies={quickReplies}
+  labels={{ messageInputPlaceholder: 'Mensagem ao participante' }}
+/>
+```
+
+| Prop | Tipo | Efeito |
+| ---- | ---- | ------ |
+| `api` | `ConversationThreadApi` | `fetchMessages`, `sendMessage` e `resolveAttachmentUrl` obrigatórios; `markRead` e `subscribe` opcionais. É o mesmo adapter de `ParticipantConversationsApi`, sem `listConversations` e `openConversation` |
+| `subject` | `ParticipantSubjectRef` | o assunto da conversa |
+| `perspective` | `'participant' \| 'operator'` | padrão `participant` (comportamento da tela de sempre) |
+| `title` | `string` | título do cabeçalho |
+| `protocol?`, `channels?` | | selo copiável e selos de canal; ausentes não desenham nada |
+| `status?` | `'open' \| 'closed'` | `closed` tira o compositor e mostra `labels.closedNotice` |
+| `counterpartLabel?` | `string` | linha curta sob o título, montada pelo host |
+| `headerActions?` | `ReactNode` | slot à direita do cabeçalho; ausente não desenha nada |
+| `onBack?` | `() => void` | ausente = sem seta (o diálogo do host já tem o próprio fechar) |
+| `quickReplies?` | `QuickReply[]` | chips acima do campo; tocar **preenche**, nunca envia |
+| `renderSubjectIcon?`, `subjectGroups?` | | ícone do assunto no cabeçalho, como na lista |
+| `avatars?`, `renderAuthorAvatar?`, `tail?` | | iguais aos de `ParticipantConversations` |
+| `labels?`, `theme?`, `className?`, `locale?`, `channel?` | | iguais aos de `ParticipantConversations` |
+| `pendingMessages?`, `onRetryPending?`, `onMarkedRead?` | | fila durável do host e aviso de leitura registrada |
+
+**Perspectiva.** `direction` é sempre do ponto de vista da empresa. Em `participant`, "minha" é `inbound`.
+Em `operator`, "minha" é `outbound`: a bolha própria vai à direita, os tiques de enviada, entregue e lida
+aparecem nas mensagens do operador, e o avatar de iniciais e o rótulo de autor (`authorName`) aparecem nas da
+contraparte (`inbound`). O envio, o rascunho local, os estados `sending`/`queued`/`failed` e o retry são os de
+sempre. A leitura segue a perspectiva: o componente chama `markRead(subject)` quando há mensagens **da outra
+parte** sem `readAt` e sem `status: 'read'`; o operador marca só as `inbound`. Sem `subscribe`, a conversa
+revalida ao voltar o foco, a visibilidade e a conexão.
+
+**Exemplo de adapter do operador.** O painel já tem as rotas dele; o adapter só traduz:
+
+```ts
+import { participantMessageSchema } from '@adatechnology/conversation-contracts'
+import type { ConversationThreadApi } from '@adatechnology/conversations-ui/participant'
+
+export const operatorThreadApi: ConversationThreadApi = {
+  fetchMessages: async ({ subjectType, subjectId }, params) =>
+    z.array(participantMessageSchema).parse(await http.get(`/conversations/${subjectType}/${subjectId}/messages`, { params })),
+  sendMessage: async ({ subject, clientMessageId, text, files }) => {
+    const body = await http.post(`/conversations/${subject.subjectType}/${subject.subjectId}/messages`, { text, files }, {
+      headers: { 'Idempotency-Key': clientMessageId },
+    })
+    return { outcome: 'sent', message: participantMessageSchema.parse(body) }
+  },
+  markRead: ({ subjectType, subjectId }) => http.post(`/conversations/${subjectType}/${subjectId}/read`),
+  resolveAttachmentUrl: async (attachment, disposition) => (await http.get(`/attachments/${attachment.id}/url`, { params: { disposition } })).url,
+}
+```
+
+**Tema claro do painel.** Os tokens padrão já são claros. Para um painel bege com acento laranja, basta mapear:
+
+```css
+.panel-conversation {
+  --cv-p-surface: #f2efe9;
+  --cv-p-surface-raised: #ffffff;
+  --cv-p-text: #1f2a30;
+  --cv-p-text-muted: #59636a;
+  --cv-p-border: #cfc8bb;
+  --cv-p-accent: #a85a1c;
+  --cv-p-highlight: #fbf3ea;
+}
+```
+
+Os contrastes são verificados por teste (`participantThemeContrast.test.ts`) com os padrões claro e escuro e com este
+mapeamento: texto, hora, autor, links e valores copiáveis nas duas bolhas a 4,5:1 ou mais; tiques, borda da bolha
+própria e sublinhado dos valores copiáveis a 3:1 ou mais; o fundo pontilhado se mantém sutil (no máximo 2:1 contra a
+superfície) e nenhum texto depende dele (o erro de carga ganha painel sólido). A borda da bolha **recebida** é
+decorativa (cerca de 1,4:1): quem a distingue da página é o preenchimento, e o texto passa de 4,5:1. Ao mapear o
+acento, mantenha-o a 4,5:1 contra `--cv-p-highlight`, que é onde ficam os links da bolha própria.
+
 ### Limitações conhecidas
 
 - O avatar alinha pelo topo da bolha, não pelo rabinho no canto inferior.
@@ -319,12 +410,14 @@ Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há també
 | `--cv-p-border`           | bordas                                       | `#d5d9df`      |
 | `--cv-p-accent`           | destaque, botão primário, bolha própria      | `#a85a1c`      |
 | `--cv-p-accent-contrast`  | texto sobre o destaque                       | `#ffffff`      |
-| `--cv-p-highlight`        | fundo de "espera sua resposta"               | `#fbefe2`      |
+| `--cv-p-highlight`        | fundo de "espera sua resposta" e da bolha própria | `#fcf3ea` |
 | `--cv-p-danger`           | erro e falha de envio                        | `#c62828`      |
 | `--cv-p-radius`           | raio dos cantos                              | `0`            |
 | `--cv-p-wallpaper`        | fundo da lista de mensagens (`none` desliga) | pontos sutis   |
 | `--cv-p-scrollbar-thumb`  | polegar das barras de rolagem finas          | `--cv-p-border` |
 | `--cv-p-scrollbar-thumb-hover` | polegar ao passar o mouse ou arrastar   | `--cv-p-accent` |
+| `--cv-p-tick`             | tiques de enviada/entregue na bolha própria  | `--cv-p-text-muted` |
+| `--cv-p-tick-read`        | tique de lida                                | `#0369a1` (escuro `#5cc8ff`) |
 | `--cv-p-channel-app`      | cor do selo do canal app                     | o destaque     |
 | `--cv-p-channel-whatsapp` | cor do selo do canal WhatsApp                | `#20914f`      |
 
