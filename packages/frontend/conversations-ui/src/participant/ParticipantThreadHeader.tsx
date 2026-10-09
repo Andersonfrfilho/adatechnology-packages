@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import { ParticipantBackButton } from './ParticipantBackButton'
@@ -16,6 +18,10 @@ export type ParticipantThreadHeaderProps = {
   readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
   readonly onBack?: () => void
   readonly onOpenSubject?: (subject: ParticipantSubjectRef) => void
+  /** Short line under the title, written by the host (for example who is on the other side). */
+  readonly counterpartLabel?: string
+  /** Host slot at the end of the bar; the package knows none of these actions. */
+  readonly actions?: ReactNode
 }
 
 type TitleProps = Pick<ParticipantThreadHeaderProps, 'conversation' | 'labels' | 'onOpenSubject'>
@@ -47,6 +53,8 @@ export function ParticipantThreadHeader({
   renderSubjectIcon,
   onBack,
   onOpenSubject,
+  counterpartLabel,
+  actions,
 }: ParticipantThreadHeaderProps) {
   const group = subjectGroups?.find((candidate) => candidate.subjectType === conversation.subjectType)
   const icon = resolveConversationIcon({ conversation, group, renderSubjectIcon })
@@ -59,6 +67,7 @@ export function ParticipantThreadHeader({
       <div className="cv-p-thread__heading">
         {icon === undefined && group ? <p className="cv-p-thread__eyebrow">{group.label}</p> : null}
         <Title conversation={conversation} labels={labels} onOpenSubject={onOpenSubject} />
+        {counterpartLabel ? <p className="cv-p-thread__counterpart">{counterpartLabel}</p> : null}
         {conversation.protocol || hasChannels ? (
           <div className="cv-p-thread__meta">
             {conversation.protocol ? (
@@ -68,6 +77,7 @@ export function ParticipantThreadHeader({
           </div>
         ) : null}
       </div>
+      {actions ? <div className="cv-p-thread__actions">{actions}</div> : null}
     </header>
   )
 }

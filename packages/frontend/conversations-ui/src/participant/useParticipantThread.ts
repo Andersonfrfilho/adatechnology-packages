@@ -17,9 +17,11 @@ import {
   type ParticipantSendEntry,
 } from './participantSendController'
 import { INITIAL_PARTICIPANT_THREAD_STATE, participantThreadReducer, type ParticipantThreadState } from './participantThreadState'
+import type { ParticipantPerspective } from './participantPerspective'
 import { useParticipantMarkRead } from './useParticipantMarkRead'
 import { useParticipantRevalidation } from './useParticipantRevalidation'
 import { useParticipantSend, type UseParticipantSendResult } from './useParticipantSend'
+import { useParticipantUnread } from './useParticipantUnread'
 
 const THREAD_PAGE_SIZE = 30
 
@@ -35,6 +37,8 @@ export type UseParticipantThreadParams = {
   readonly sendEntries: readonly ParticipantSendEntry[]
   readonly dispatchSend: (action: ParticipantSendAction) => void
   readonly hostPending?: readonly ParticipantPendingMessage[]
+  /** Present on a single-conversation screen: unread comes from the messages, not from `unreadCount`. */
+  readonly perspective?: ParticipantPerspective
 }
 
 export type UseParticipantThreadResult = ParticipantThreadState &
@@ -55,7 +59,7 @@ function isForSubject(event: ParticipantConversationEvent | undefined, subject: 
 }
 
 export function useParticipantThread(params: UseParticipantThreadParams): UseParticipantThreadResult {
-  const { api, subject, channel, unreadCount = 0, onMarkedRead, sendEntries, dispatchSend, hostPending = [] } = params
+  const { api, subject, channel, unreadCount = 0, onMarkedRead, sendEntries, dispatchSend, hostPending = [], perspective } = params
   const { subjectType, subjectId } = subject
   const stableSubject = useMemo<ParticipantSubjectRef>(() => ({ subjectType, subjectId }), [subjectType, subjectId])
   const [state, dispatch] = useReducer(participantThreadReducer, INITIAL_PARTICIPANT_THREAD_STATE)
@@ -109,7 +113,14 @@ export function useParticipantThread(params: UseParticipantThreadParams): UsePar
     dispatchSend({ type: 'reflected', knownClientMessageIds: collectKnownClientMessageIds({ messages: state.messages, hostPending }) })
   }, [sendEntries, state.messages, hostPending, dispatchSend])
 
-  useParticipantMarkRead({ apiRef, subject: stableSubject, unreadCount, messageCount: state.messages.length, onMarkedRead })
+  const unread = useParticipantUnread({ messages: state.messages, perspective, reportedUnreadCount: unreadCount, onMarkedRead })
+  useParticipantMarkRead({
+    apiRef,
+    subject: stableSubject,
+    unreadCount: unread.unreadCount,
+    messageCount: state.messages.length,
+    onMarkedRead: unread.handleMarkedRead,
+  })
 
   const localPending = useMemo(() => toLocalPending(sendEntries), [sendEntries])
   return { ...state, localPending, confirmsRead, refresh, loadOlder, ...sending }

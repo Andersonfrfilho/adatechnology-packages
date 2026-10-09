@@ -12,6 +12,7 @@ import type { ParticipantPendingActions } from './participantBubbleActions'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadView'
 import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
+import type { ParticipantPerspective } from './participantPerspective'
 import type { ParticipantThreadScroll } from './useStickToBottom'
 import type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
 import { ParticipantScrollToLatest } from './ParticipantScrollToLatest'
@@ -62,6 +63,12 @@ export type ParticipantThreadProps = {
   readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
   readonly tail?: boolean
+  /** Who is looking; absent is the participant, so nothing changes for the existing screen. */
+  readonly perspective?: ParticipantPerspective
+  /** Short line under the title, written by the host. */
+  readonly counterpartLabel?: string
+  /** Host slot at the end of the header bar (close, reopen...). */
+  readonly headerActions?: ReactNode
 }
 
 function Footer({ props }: { readonly props: ParticipantThreadProps }) {
@@ -100,6 +107,8 @@ function ThreadBody(props: ParticipantThreadProps) {
         renderSubjectIcon={props.renderSubjectIcon}
         onBack={props.onBack}
         onOpenSubject={props.onOpenSubject}
+        counterpartLabel={props.counterpartLabel}
+        actions={props.headerActions}
       />
       {subjectCard ? <div className="cv-p-thread__subject-card">{subjectCard}</div> : null}
       <div className="cv-p-thread__scroll" ref={props.scroll.ref} onScroll={props.scroll.onScroll} tabIndex={-1}>

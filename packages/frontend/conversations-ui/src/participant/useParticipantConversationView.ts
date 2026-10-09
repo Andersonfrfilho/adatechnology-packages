@@ -4,6 +4,7 @@ import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@ada
 
 import type { ConversationChannel } from '../conversationChannel'
 import type { ParticipantConversationsApi, ParticipantPendingMessage } from './participantApi.types'
+import type { ParticipantPerspective } from './participantPerspective'
 import { mergeParticipantMessages, type ParticipantTimelineItem } from './participantMessages'
 import type { ParticipantSendAction, ParticipantSendEntry } from './participantSendController'
 import { selectSendEntries, type ParticipantSendStates, type ParticipantSendStatesAction } from './participantSendStates'
@@ -18,6 +19,7 @@ export type UseParticipantConversationViewParams = {
   readonly pendingMessages?: readonly ParticipantPendingMessage[]
   readonly sendStates: ParticipantSendStates
   readonly dispatchSendStates: Dispatch<ParticipantSendStatesAction>
+  readonly perspective?: ParticipantPerspective
 }
 
 export type UseParticipantConversationViewResult = {
@@ -44,6 +46,7 @@ export function useParticipantConversationView(params: UseParticipantConversatio
     sendEntries,
     dispatchSend,
     hostPending: pendingMessages,
+    perspective: params.perspective,
   })
   const items = useMemo(
     () =>

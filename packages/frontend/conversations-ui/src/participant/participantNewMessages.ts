@@ -1,4 +1,5 @@
 import type { ParticipantTimelineItem } from './participantMessages'
+import { isMessageMine, type ParticipantPerspective } from './participantPerspective'
 
 export function collectServerMessageIds(items: readonly ParticipantTimelineItem[]): ReadonlySet<string> {
   const ids = new Set<string>()
@@ -16,13 +17,17 @@ function latestSeenTime(previousIds: ReadonlySet<string>, items: readonly Partic
   return latest
 }
 
-/** Messages from the other side ('outbound') newer than what the participant has seen; older history loaded above is not news. */
-export function countNewIncomingMessages(previousIds: ReadonlySet<string>, currentItems: readonly ParticipantTimelineItem[]): number {
+/** Messages from the other side of the viewer's perspective newer than what the participant has seen; older history loaded above is not news. */
+export function countNewIncomingMessages(
+  previousIds: ReadonlySet<string>,
+  currentItems: readonly ParticipantTimelineItem[],
+  perspective?: ParticipantPerspective,
+): number {
   const latestSeen = latestSeenTime(previousIds, currentItems)
   return currentItems.filter(
     (item) =>
       item.kind === 'server' &&
-      item.message.direction === 'outbound' &&
+      !isMessageMine(item.message, perspective) &&
       !previousIds.has(item.message.id) &&
       Date.parse(item.message.createdAt) > latestSeen,
   ).length

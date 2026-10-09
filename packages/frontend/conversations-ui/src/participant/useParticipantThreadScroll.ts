@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import { collectServerMessageIds, countNewIncomingMessages } from './participantNewMessages'
 import type { ParticipantTimelineItem } from './participantMessages'
+import type { ParticipantPerspective } from './participantPerspective'
 import { useScrollAwayState } from './useScrollAwayState'
 import { useStickToBottom, type ParticipantThreadScroll } from './useStickToBottom'
 
@@ -17,6 +18,7 @@ function keyOf(item: ParticipantTimelineItem | undefined): string | undefined {
 
 export function useParticipantThreadScroll(
   items: readonly ParticipantTimelineItem[],
+  perspective?: ParticipantPerspective,
 ): UseParticipantThreadScrollResult {
   const { scroll: base, isNearBottom } = useStickToBottom({
     firstKey: keyOf(items[0]),
@@ -30,5 +32,5 @@ export function useParticipantThreadScroll(
     if (isNearBottom) seenIds.current = collectServerMessageIds(items)
   }, [isNearBottom, items])
 
-  return { scroll, newMessagesCount: isNearBottom ? 0 : countNewIncomingMessages(seenIds.current, items) }
+  return { scroll, newMessagesCount: isNearBottom ? 0 : countNewIncomingMessages(seenIds.current, items, perspective) }
 }
