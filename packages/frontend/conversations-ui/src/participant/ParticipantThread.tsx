@@ -15,6 +15,7 @@ import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState
 import type { ParticipantThreadScroll } from './useStickToBottom'
 import type { ParticipantTimelineItem } from './participantMessages'
 import { ParticipantMessageBubble } from './ParticipantMessageBubble'
+import { ParticipantProtocolBadge } from './ParticipantProtocolBadge'
 
 export type ParticipantThreadDraft = {
   readonly value: string
@@ -76,20 +77,23 @@ function Header({ props }: { readonly props: ParticipantThreadProps }) {
           <span className="cv-p-sr-only">{labels.back}</span>
         </button>
       ) : null}
-      <h2 className="cv-p-thread__title">
-        {onOpenSubject ? (
-          <button
-            type="button"
-            className="cv-p-thread__title-button"
-            aria-label={`${labels.openSubject}: ${conversation.subjectLabel}`}
-            onClick={() => onOpenSubject({ subjectType, subjectId })}
-          >
-            {conversation.subjectLabel}
-          </button>
-        ) : (
-          conversation.subjectLabel
-        )}
-      </h2>
+      <div className="cv-p-thread__heading">
+        <h2 className="cv-p-thread__title">
+          {onOpenSubject ? (
+            <button
+              type="button"
+              className="cv-p-thread__title-button"
+              aria-label={`${labels.openSubject}: ${conversation.subjectLabel}`}
+              onClick={() => onOpenSubject({ subjectType, subjectId })}
+            >
+              {conversation.subjectLabel}
+            </button>
+          ) : (
+            conversation.subjectLabel
+          )}
+        </h2>
+        {conversation.protocol ? <ParticipantProtocolBadge protocol={conversation.protocol} labels={labels} /> : null}
+      </div>
     </header>
   )
 }

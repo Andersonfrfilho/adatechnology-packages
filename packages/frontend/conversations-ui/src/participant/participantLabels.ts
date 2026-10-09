@@ -38,6 +38,13 @@ export type ParticipantConversationsLabels = {
   readonly loading: string
   readonly loadError: string
   readonly loadMore: string
+  readonly searchLabel: string
+  readonly searchPlaceholder: string
+  readonly noResults: string
+  /** Spoken before the protocol code, e.g. "Protocol 261009-K7M2". */
+  readonly protocolPrefix: string
+  readonly copyProtocol: string
+  readonly protocolCopied: string
 }
 
 export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsLabels = {
@@ -79,6 +86,12 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   loading: 'Loading…',
   loadError: 'Could not load. Check your connection and try again.',
   loadMore: 'Load more',
+  searchLabel: 'Search conversations',
+  searchPlaceholder: 'Search by title or protocol',
+  noResults: 'No conversations found',
+  protocolPrefix: 'Protocol',
+  copyProtocol: 'Copy',
+  protocolCopied: 'Protocol copied',
 }
 
 export function formatParticipantLabel(template: string, count: number): string {

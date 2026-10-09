@@ -6,6 +6,7 @@ import { ParticipantThreadScreen } from './ParticipantThreadScreen'
 import { draftKey, type ParticipantDrafts } from './participantDrafts'
 import { groupParticipantConversations } from './participantGrouping'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS } from './participantLabels'
+import { filterConversationsBySearch, shouldShowInboxSearch } from './participantProtocol'
 import { participantSendStatesReducer } from './participantSendStates'
 import { buildParticipantThemeStyle } from './participantTheme'
 import type { UseParticipantInboxResult } from './useParticipantInbox'
@@ -19,6 +20,7 @@ const ALL_FILTER = 'all'
 export function ParticipantConversationsScreen(props: ParticipantConversationsScreenProps) {
   const { selected, inbox, subjectGroups, classNames } = props
   const [filter, setFilter] = useState(ALL_FILTER)
+  const [searchQuery, setSearchQuery] = useState('')
   const draftsRef = useRef<ParticipantDrafts>(new Map())
   const [sendStates, dispatchSendStates] = useReducer(participantSendStatesReducer, new Map())
   const labels = useMemo(
@@ -26,9 +28,15 @@ export function ParticipantConversationsScreen(props: ParticipantConversationsSc
     [props.labels],
   )
   const view = useMemo(
-    () => groupParticipantConversations({ conversations: inbox.conversations, subjectGroups, filter }),
-    [inbox.conversations, subjectGroups, filter],
+    () =>
+      groupParticipantConversations({
+        conversations: filterConversationsBySearch(inbox.conversations, searchQuery),
+        subjectGroups,
+        filter,
+      }),
+    [inbox.conversations, subjectGroups, filter, searchQuery],
   )
+  const isSearchVisible = shouldShowInboxSearch(inbox.conversations)
   const rootClassName = ['cv-p-root', props.className, classNames?.root].filter(Boolean).join(' ')
 
   return (
@@ -47,6 +55,7 @@ export function ParticipantConversationsScreen(props: ParticipantConversationsSc
             hasMore={inbox.hasMore}
             loadMore={() => void inbox.loadMore()}
             locale={props.locale}
+            search={{ value: searchQuery, onChange: setSearchQuery, isVisible: isSearchVisible }}
           />
         </div>
       ) : (

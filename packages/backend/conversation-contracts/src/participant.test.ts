@@ -101,6 +101,32 @@ describe('subjectRefSchema', () => {
   })
 })
 
+describe('protocol do resumo da conversa', () => {
+  const parse = (protocol: unknown) =>
+    participantConversationSummarySchema.safeParse({ ...VALID_SUMMARY, protocol }).success
+
+  it('aceita um protocolo legível', () => {
+    expect(parse('261009-K7M2')).toBe(true)
+    assertExact<Exact<ParticipantConversationSummary['protocol'], string | undefined>>()
+  })
+
+  it('aceita o resumo sem protocolo', () => {
+    expect(participantConversationSummarySchema.safeParse(VALID_SUMMARY).success).toBe(true)
+  })
+
+  it('recusa protocolo vazio, com espaço ou fora do padrão', () => {
+    expect(parse('')).toBe(false)
+    expect(parse('2610 09')).toBe(false)
+    expect(parse('261009_K7M2')).toBe(false)
+    expect(parse('protocolo!')).toBe(false)
+  })
+
+  it('limita o protocolo a 32 caracteres', () => {
+    expect(parse('A'.repeat(32))).toBe(true)
+    expect(parse('A'.repeat(33))).toBe(false)
+  })
+})
+
 describe('status da conversa do participante', () => {
   it('fixa open e closed, na ordem', () => {
     expect([...PARTICIPANT_CONVERSATION_STATUS]).toEqual(['open', 'closed'])
@@ -133,9 +159,7 @@ describe('participantConversationSummarySchema', () => {
   })
 
   it('recusa status fora de open/closed', () => {
-    expect(participantConversationSummarySchema.safeParse({ ...VALID_SUMMARY, status: 'archived' }).success).toBe(
-      false,
-    )
+    expect(participantConversationSummarySchema.safeParse({ ...VALID_SUMMARY, status: 'archived' }).success).toBe(false)
   })
 
   it('recusa unreadCount negativo', () => {

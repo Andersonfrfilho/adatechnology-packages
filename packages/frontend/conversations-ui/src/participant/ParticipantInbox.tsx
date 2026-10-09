@@ -9,6 +9,7 @@ import type {
 } from './participant.types'
 import { formatParticipantLabel, type ParticipantConversationsLabels } from './participantLabels'
 import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadView'
+import { ParticipantInboxSearchField, type ParticipantInboxSearch } from './ParticipantInboxSearchField'
 import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
 
 export type ParticipantInboxProps = {
@@ -24,6 +25,8 @@ export type ParticipantInboxProps = {
   readonly hasMore: boolean
   readonly loadMore: () => void
   readonly locale?: string
+  /** Absent = no search field. The host filters the conversations; the field only edits the query. */
+  readonly search?: ParticipantInboxSearch
 }
 
 const ALL_FILTER = 'all'
@@ -88,6 +91,11 @@ function Row({ conversation, group, labels, locale, onSelect }: RowProps) {
       <span className="cv-p-row__body">
         <span className="cv-p-row__kind">{kind}</span>
         <span className="cv-p-row__title">{conversation.subjectLabel}</span>
+        {conversation.protocol ? (
+          <span className="cv-p-protocol" aria-label={`${labels.protocolPrefix} ${conversation.protocol}`}>
+            {conversation.protocol}
+          </span>
+        ) : null}
         {conversation.lastMessagePreview ? <span className="cv-p-row__preview">{conversation.lastMessagePreview}</span> : null}
       </span>
       <span className="cv-p-row__meta">
@@ -144,7 +152,9 @@ function Section({ section, props }: { readonly section: ParticipantInboxSection
 
 export function ParticipantInbox(props: ParticipantInboxProps) {
   const { view, labels, filter, onFilterChange } = props
-  const loadView = resolveLoadView({ status: props.status, hasItems: view.sections.length > 0 })
+  const isSearching = (props.search?.value.trim() ?? '') !== ''
+  const loadView = resolveLoadView({ status: props.status, hasItems: view.sections.length > 0 || isSearching })
+  const hasNoResults = isSearching && view.sections.length === 0 && props.status === 'ready'
 
   return (
     <div className="cv-p cv-p-inbox" aria-busy={loadView.isLoading}>
@@ -152,9 +162,11 @@ export function ParticipantInbox(props: ParticipantInboxProps) {
       {view.showFilters ? (
         <Filters filters={view.filters} active={filter} labels={labels} onChange={onFilterChange} />
       ) : null}
+      {props.search?.isVisible ? <ParticipantInboxSearchField search={props.search} labels={labels} /> : null}
       {loadView.isLoading ? <ParticipantLoading labels={labels} /> : null}
       {loadView.hasError ? <ParticipantLoadError labels={labels} onRetry={props.refresh} /> : null}
       {loadView.isEmpty ? <p className="cv-p-empty">{labels.emptyInbox}</p> : null}
+      {hasNoResults ? <p className="cv-p-empty">{labels.noResults}</p> : null}
       {view.sections.map((section) => (
         <Section key={section.key} section={section} props={props} />
       ))}

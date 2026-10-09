@@ -140,6 +140,23 @@ render refaz a carga da lista e reinscreve os eventos de `subscribe` a cada rend
 empresa, ou seja, foi escrita pelo participante (é a bolha "minha"); `outbound` saiu da empresa. O adapter do
 app **não inverte nada**.
 
+### Protocolo legível da conversa
+
+`ParticipantConversationSummary.protocol?` (1 a 32 caracteres, `[A-Za-z0-9-]`, ex.: `261009-K7M2`) é um código
+curto para citar a conversa por telefone ou mensagem. **Quem gera é o produto, no servidor, uma vez e imutável**: o
+pacote nunca gera nem conhece o formato, só **exibe, copia e busca**. Campo ausente = nada é desenhado.
+
+- **Lista:** a linha mostra o protocolo abaixo do título (fonte mono, `aria-label` "`labels.protocolPrefix` + código").
+- **Cabeçalho da conversa:** protocolo abaixo do título e botão de copiar (alvo de 44px) que usa
+  `navigator.clipboard.writeText`; falha de cópia é silenciosa. O aviso `labels.protocolCopied` vai numa região
+  `aria-live="polite"` que permanece na árvore (visualmente oculta) para leitores de tela.
+- **Busca:** um campo `type="search"` acima da lista filtra por título (sem acento nem caixa) **ou** protocolo
+  (parcial, sem traço, sem caixa: `k7m2` acha `261009-K7M2`). Aparece só quando alguma conversa tem `protocol` ou
+  há mais de 8 conversas na lista; sem nada disso, nada é desenhado. Sem resultado: `labels.noResults`.
+- **Labels novas** (defaults em inglês): `searchLabel`, `searchPlaceholder`, `noResults`, `protocolPrefix`,
+  `copyProtocol`, `protocolCopied`.
+- **Classes novas:** `.cv-p-protocol`, `.cv-p-protocol__copy`, `.cv-p-search` (mesmos tokens `--cv-p-*`).
+
 ### Variáveis `--cv-p-*`
 
 Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há também a prop `theme`
