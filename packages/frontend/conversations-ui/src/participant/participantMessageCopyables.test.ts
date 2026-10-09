@@ -83,11 +83,22 @@ describe('copyable - access key', () => {
 describe('copyable - phone', () => {
   it('detects five formats and keeps the mask as typed', () => {
     expect(inline('(16) 99999-0000')).toBe(copyable('phone', '(16) 99999-0000'))
-    expect(inline('16999990000')).toBe(copyable('phone', '16999990000'))
     expect(inline('+55 16 99999-0000')).toBe(copyable('phone', '+55 16 99999-0000'))
     expect(inline('16 99999-0000')).toBe(copyable('phone', '16 99999-0000'))
     expect(inline('(16) 3333-4444')).toBe(copyable('phone', '(16) 3333-4444'))
     expect(inline('+1 415 555 2671')).toBe(copyable('phone', '+1 415 555 2671'))
+  })
+
+  it('does not take bare 10 or 11 digits for a phone', () => {
+    expect(inline('pedido 1234567890')).toBe('pedido 1234567890')
+    expect(inline('16999990000')).toBe('16999990000')
+    expect(inline('1633334444')).toBe('1633334444')
+  })
+
+  it('accepts a bare number only with +55, a bracketed DDD or a separator after the DDD', () => {
+    expect(inline('+5516999990000')).toBe(copyable('phone', '+5516999990000'))
+    expect(inline('(16)999990000')).toBe(copyable('phone', '(16)999990000'))
+    expect(inline('16-999990000')).toBe(copyable('phone', '16-999990000'))
   })
 
   it('keeps the final dot outside', () => {

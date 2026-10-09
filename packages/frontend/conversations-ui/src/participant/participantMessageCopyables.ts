@@ -25,11 +25,16 @@ function hasPhoneDigitCount(raw: string): boolean {
   return count >= 10 && count <= 15
 }
 
+/** Bare 10/11 digits are order numbers as often as phones: demand +country, a bracketed DDD or a separator after it. */
+function isFormattedBrazilPhone(raw: string): boolean {
+  return /^\+|\(|^\d{2}[\s.-]/u.test(raw) && hasPhoneDigitCount(raw)
+}
+
 const SCANNERS: readonly Scanner[] = [
   { copyKind: 'accessKey', pattern: ACCESS_KEY_PATTERN, isValid: (raw) => !/^(\d)\1+$/.test(bare(raw)) },
   { copyKind: 'cnpj', pattern: CNPJ_PATTERN, isValid: (raw) => isValidCnpj(bare(raw)) },
   { copyKind: 'cpf', pattern: CPF_PATTERN, isValid: (raw) => isValidCpf(bare(raw)) },
-  { copyKind: 'phone', pattern: BRAZIL_PHONE_PATTERN, isValid: hasPhoneDigitCount },
+  { copyKind: 'phone', pattern: BRAZIL_PHONE_PATTERN, isValid: isFormattedBrazilPhone },
   {
     copyKind: 'phone',
     pattern: INTERNATIONAL_PHONE_PATTERN,

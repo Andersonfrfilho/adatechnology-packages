@@ -68,6 +68,8 @@ describe('parseParticipantMessage - code blocks', () => {
   it('parses a single-line block and one that shares the fence lines', () => {
     expect(blocks('```x *y*```')).toBe('PRE[x *y*]')
     expect(blocks('```a\nb```')).toBe('PRE[a\nb]')
+    expect(blocks('```js\nconst a = 1\n```')).toBe('PRE[const a = 1]')
+    expect(blocks('```two words\nx\n```')).toBe('PRE[two words\nx]')
   })
 
   it('keeps inner blank lines and never formats inside', () => {

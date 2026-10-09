@@ -1,3 +1,5 @@
+import { useMemo } from 'react'
+
 import { renderInlineNodes, type ParticipantTextLabels } from './ParticipantMessageNodes'
 import { parseParticipantMessage } from './participantMessageFormat'
 import type { FormatBlock } from './participantMessageFormat.types'
@@ -39,7 +41,7 @@ function renderBlock(block: FormatBlock, labels: ParticipantTextLabels, key: num
 }
 
 export function ParticipantMessageText({ text, labels }: ParticipantMessageTextProps) {
-  const blocks = parseParticipantMessage(text)
+  const blocks = useMemo(() => parseParticipantMessage(text), [text])
   if (blocks.length === 0) return null
   const [only] = blocks
   const children =

@@ -77,12 +77,15 @@ describe('participant message text - stylesheet', () => {
     expect(token.get('user-select')).toBe('text')
   })
 
-  it('gives tokens and the copy icon a touch target of at least 2.75rem without inflating the line', () => {
-    expect(declarationsIn('.cv-p-').size).toBe(0)
+  it('keeps the tap target of tokens and the copy icon from invading neighbouring lines or the link text', () => {
     expect(declarationsIn('.cv-p').get('--cv-p-i-touch')).toBe('2.75rem')
     for (const selector of ['.cv-p-copyable::after', '.cv-p-text__link-copy::after']) {
-      expect(declarationsIn(selector).get('min-height')).toBe('var(--cv-p-i-touch)')
+      expect(declarationsIn(selector).get('min-height')).toBe('1.5rem')
     }
+    const icon = declarationsIn('.cv-p-text__link-copy::after')
+    expect(icon.get('inset-inline')).toBe('0 auto')
+    expect(icon.get('min-width')).toBe('var(--cv-p-i-touch)')
+    expect(icon.get('margin-inline-start')).toBeUndefined()
     expect(declarationsIn('.cv-p-copyable').get('display')).toBe('inline')
     expect(declarationsIn('.cv-p-copyable').get('position')).toBe('relative')
   })

@@ -5,6 +5,7 @@ import { parseInline } from './participantMessageInline'
 export const MAX_FORMATTED_LENGTH = 8000
 
 const FENCE = '```'
+const LANGUAGE_LABEL = /^[a-z][a-z0-9+#.-]{0,19}$/i
 const QUOTE_PREFIX = /^> /
 const BULLET_PREFIX = /^[-*•] +(?=\S)/
 const ORDERED_PREFIX = /^(\d{1,3})[.)] +(?=\S)/
@@ -46,7 +47,8 @@ function readFence(lines: readonly string[], index: number): Fence | undefined {
   if (inner.trimEnd().endsWith(FENCE) && inner.trim() !== FENCE) {
     return { value: inner.trimEnd().slice(0, -FENCE.length), nextIndex: index + 1 }
   }
-  const body: string[] = inner === '' ? [] : [inner]
+  const hasLabel = LANGUAGE_LABEL.test(inner.trim())
+  const body: string[] = inner === '' || hasLabel ? [] : [inner]
   for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
     const line = (lines[cursor] ?? '').trimEnd()
     if (!line.endsWith(FENCE)) {
@@ -55,6 +57,7 @@ function readFence(lines: readonly string[], index: number): Fence | undefined {
     }
     const last = line.slice(0, -FENCE.length)
     if (last !== '') body.push(last)
+    if (last !== '' && hasLabel && body.length === 1) body.unshift(inner)
     return { value: body.join('\n'), nextIndex: cursor + 1 }
   }
   return undefined

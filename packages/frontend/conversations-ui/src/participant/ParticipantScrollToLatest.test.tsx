@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import type { ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import {
@@ -87,6 +88,28 @@ describe('ParticipantScrollToLatest', () => {
 
   it('has the aria-label exactly as the label, without the count', () => {
     expect(renderButton({ newMessagesCount: 3 })).toContain(`aria-label="${LABEL}"`)
+  })
+})
+
+describe('ParticipantScrollToLatest focus', () => {
+  it('moves focus to the scroller before scrolling, since the button unmounts on click', () => {
+    const order: string[] = []
+    const root = ParticipantScrollToLatest({
+      label: LABEL,
+      isAwayFromBottom: true,
+      hasMessages: true,
+      newMessagesCount: 0,
+      onClick: () => void order.push('scroll'),
+    }) as ReactElement<{ children: ReactElement<{ onClick: (event: unknown) => void }> }>
+    const button = root.props.children
+    button.props.onClick({
+      currentTarget: { closest: () => ({ focus: () => void order.push('focus') }) },
+    })
+    expect(order).toEqual(['focus', 'scroll'])
+  })
+
+  it('makes the scroller focusable by script only', () => {
+    expect(renderThread()).toMatch(/<div class="cv-p-thread__scroll" tabindex="-1">/)
   })
 })
 

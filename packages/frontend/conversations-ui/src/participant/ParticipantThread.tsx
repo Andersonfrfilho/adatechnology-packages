@@ -102,7 +102,7 @@ function ThreadBody(props: ParticipantThreadProps) {
         onOpenSubject={props.onOpenSubject}
       />
       {subjectCard ? <div className="cv-p-thread__subject-card">{subjectCard}</div> : null}
-      <div className="cv-p-thread__scroll" ref={props.scroll.ref} onScroll={props.scroll.onScroll}>
+      <div className="cv-p-thread__scroll" ref={props.scroll.ref} onScroll={props.scroll.onScroll} tabIndex={-1}>
         {loadView.isLoading ? <ParticipantLoading labels={labels} /> : null}
         {loadView.hasError ? <ParticipantLoadError labels={labels} onRetry={props.refresh} /> : null}
         {hasMore && onLoadOlder ? (

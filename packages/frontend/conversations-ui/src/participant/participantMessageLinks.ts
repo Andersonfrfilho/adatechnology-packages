@@ -6,7 +6,8 @@ const TRAILING_PUNCTUATION = '.,;:!?*_~\'"]}>'
 
 export function isAllowedLinkHref(href: string): boolean {
   try {
-    return ALLOWED_LINK_PROTOCOLS.has(new URL(href).protocol)
+    const url = new URL(href)
+    return ALLOWED_LINK_PROTOCOLS.has(url.protocol) && url.username === '' && url.password === ''
   } catch {
     return false
   }
@@ -23,13 +24,16 @@ function countOf(text: string, character: string): number {
 }
 
 function trimUrl(raw: string): string {
-  let url = raw
-  for (;;) {
-    const last = url.slice(-1)
-    const hasUnbalancedParenthesis = last === ')' && countOf(url, ')') > countOf(url, '(')
-    if (!hasUnbalancedParenthesis && !TRAILING_PUNCTUATION.includes(last)) return url
-    url = url.slice(0, -1)
+  let openCount = countOf(raw, '(')
+  let closeCount = countOf(raw, ')')
+  let end = raw.length
+  while (end > 0) {
+    const last = raw.charAt(end - 1)
+    if (last === ')' && closeCount > openCount) closeCount -= 1
+    else if (!TRAILING_PUNCTUATION.includes(last)) break
+    end -= 1
   }
+  return raw.slice(0, end)
 }
 
 function toLinkAtom(text: string, start: number, raw: string): InlineAtom | undefined {

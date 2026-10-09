@@ -80,3 +80,21 @@ describe('autolink - unsafe protocols stay text', () => {
     expect(inline('clique: javascript://%0aalert(1)')).toBe('clique: javascript://%0aalert(1)')
   })
 })
+
+describe('autolink - cost and userinfo', () => {
+  it('trims a long run of closing parentheses in linear time', () => {
+    const started = performance.now()
+    inline(`https://a${')'.repeat(7990)}`)
+    expect(performance.now() - started).toBeLessThan(20)
+  })
+
+  it('still balances parentheses', () => {
+    expect(inline('https://a.com/x_(y))')).toBe('⟦l:https://a.com/x_(y)→https://a.com/x_(y)⟧)')
+  })
+
+  it('leaves a link with credentials as text', () => {
+    expect(isAllowedLinkHref('https://user:pass@a.com')).toBe(false)
+    expect(isAllowedLinkHref('https://user@a.com')).toBe(false)
+    expect(inline('https://user:pass@a.com/x')).not.toContain('⟦l:')
+  })
+})
