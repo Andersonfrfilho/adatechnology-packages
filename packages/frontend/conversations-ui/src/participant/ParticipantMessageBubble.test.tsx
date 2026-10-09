@@ -160,9 +160,9 @@ describe('ParticipantMessageBubble', () => {
   it('o texto do participante não é botão nem copia ao toque', () => {
     const markup = renderServer(buildMessage({ id: 'a', direction: 'inbound' }))
 
-    expect(markup).toContain('class="cv-message-text"')
+    expect(markup).toContain('class="cv-p-text"')
     expect(markup).not.toContain('role="button"')
-    expect(markup).not.toContain('cv-message-text--copyable')
+    expect(markup).not.toContain('cv-p-text--copyable')
   })
 
   it('uses only cv-p-* classes and no Tailwind utilities', () => {
@@ -176,7 +176,7 @@ describe('ParticipantMessageBubble', () => {
 
 describe('ParticipantMessageBubble avatar slot', () => {
   const GOLDEN_RECEIVED =
-    '<div class="cv-p-bubble"><span class="cv-p-bubble__author">Ana Souza</span><div class="cv-message-text"><div><span>Hi</span></div></div><span class="cv-p-bubble__meta"><time class="cv-p-bubble__time" dateTime="2026-10-01T10:00:00.000Z">HH:MM</time></span></div>'
+    '<div class="cv-p-bubble"><span class="cv-p-bubble__author">Ana Souza</span><div class="cv-p-text">Hi</div><span class="cv-p-bubble__meta"><time class="cv-p-bubble__time" dateTime="2026-10-01T10:00:00.000Z">HH:MM</time></span></div>'
 
   function renderWith(direction: 'inbound' | 'outbound', avatar?: ReactNode): string {
     const message = buildMessage({ id: 'm', direction, authorName: 'Ana Souza', text: 'Hi' })

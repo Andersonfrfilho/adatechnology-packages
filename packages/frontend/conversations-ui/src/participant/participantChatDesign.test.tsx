@@ -67,7 +67,7 @@ describe('wallpaper', () => {
   })
 
   it('uses logical properties for the text, the meta and the title button, so RTL mirrors', () => {
-    expect(declarationsIn('.cv-p-bubble > .cv-message-text').get('margin-inline-end')).toBe('auto')
+    expect(declarationsIn('.cv-p-bubble > .cv-p-text').get('margin-inline-end')).toBe('auto')
     expect(declarationsIn('.cv-p-thread__title-button').get('text-align')).toBe('start')
   })
 
@@ -139,7 +139,7 @@ describe('time and ticks at the foot of the bubble', () => {
     const meta = declarationsIn('.cv-p-bubble__meta')
     expect(meta.get('margin-inline-start')).toBe('auto')
     expect(meta.get('flex')).toBe('0 0 auto')
-    expect(declarationsIn('.cv-p-bubble > .cv-message-text').get('min-width')).toBe('0')
+    expect(declarationsIn('.cv-p-bubble > .cv-p-text').get('min-width')).toBe('0')
   })
 
   it('keeps author, attachments and failed actions on their own full-width row', () => {

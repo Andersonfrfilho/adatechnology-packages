@@ -282,6 +282,23 @@ remove o rabinho e devolve o canto arredondado (`.cv-p-bubble--no-tail`).
 - Em `forced-colors: active` e na impressão os triângulos somem (viram quadrados sólidos sem `border-color` transparente) e o
   canto volta ao raio do token.
 
+### Texto da mensagem (formatação, links e valores copiáveis)
+
+A bolha usa um renderizador próprio da visão do participante (`ParticipantMessageText`); o `MessageText` e a formatação do painel e dos outros fluxos **não mudam**. O texto vira nós React (nunca `innerHTML`); acima de 8000 caracteres aparece como foi digitado.
+
+| Digitado | Resultado |
+|---|---|
+| `*negrito*`, `_itálico_`, `~riscado~`, `*_ambos_*` | `<strong>`, `<em>`, `<del>`, aninhados; o marcador cola no texto (`* a *`, `2 * 3 * 4`, `snake_case_nome` ficam como estão) |
+| `` `código` `` e bloco entre três crases | `<code>` / `<pre><code>`; nada é formatado nem detectado dentro |
+| `> citação` (linhas seguidas = um bloco) | `<blockquote>` |
+| `- item`, `* item`, `• item` / `1. item`, `1) item` | `<ul>` / `<ol>` (exige o espaço depois do marcador) |
+| `http(s)://…` | `<a>` com `rel="noopener noreferrer nofollow ugc"` e `target="_blank"`, mais um botão de copiar a URL ao lado; pontuação final fica fora |
+| telefone BR/internacional, e-mail, CPF, CNPJ (numérico e alfanumérico), chave de acesso de 44 dígitos | botão que copia o valor como escrito |
+
+**Allowlist de links:** só `http:`, `https:`, `mailto:` e `tel:`; `javascript:`, `data:`, `vbscript:` e qualquer outro protocolo ficam como texto.
+
+**Valores copiáveis:** a detecção é conservadora. CPF e CNPJ só valem com dígitos verificadores corretos (sequências repetidas não valem), a chave exige exatamente 44 dígitos (grupos de 4 opcionais) e o telefone exige 10 a 13 dígitos com DDD 11–99. Valores monetários, datas e números curtos não são destacados. O toque copia, mostra "Copied" no próprio valor e anuncia na região `aria-live` única da conversa. Os rótulos `copyValue`, `valueCopied` e `externalLinkHint` vêm de `labels` (padrão em inglês). O SDK só escreve na área de transferência quando a pessoa toca: não envia nem armazena nada.
+
 ### Limitações conhecidas
 
 - O avatar alinha pelo topo da bolha, não pelo rabinho no canto inferior.

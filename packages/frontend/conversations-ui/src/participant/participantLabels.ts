@@ -55,6 +55,11 @@ export type ParticipantConversationsLabels = {
   readonly channelEmail: string
   readonly channelPortal: string
   readonly channelWebchat: string
+  /** Spoken after a link that opens in a new tab. */
+  readonly externalLinkHint: string
+  /** Prefix of the accessible name of the copy buttons: "Copy 529.982.247-25". */
+  readonly copyValue: string
+  readonly valueCopied: string
 }
 
 export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsLabels = {
@@ -111,6 +116,9 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   channelEmail: 'Email',
   channelPortal: 'Portal',
   channelWebchat: 'Web chat',
+  externalLinkHint: 'opens in a new tab',
+  copyValue: 'Copy',
+  valueCopied: 'Copied',
 }
 
 export function formatParticipantLabel(template: string, count: number): string {

@@ -6,6 +6,7 @@ import type { ConversationChannel } from '../conversationChannel'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ParticipantTimelineItem } from './participantMessages'
 import { ParticipantComposer } from './ParticipantComposer'
+import { ParticipantCopyAnnouncer, ParticipantThreadLive } from './ParticipantCopyAnnouncer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantPendingActions } from './participantBubbleActions'
 import type { ParticipantConversationsLabels } from './participantLabels'
@@ -85,7 +86,7 @@ function Footer({ props }: { readonly props: ParticipantThreadProps }) {
   )
 }
 
-export function ParticipantThread(props: ParticipantThreadProps) {
+function ThreadBody(props: ParticipantThreadProps) {
   const { conversation, labels, hasMore, onLoadOlder, renderSubjectCard } = props
   const subjectCard = renderSubjectCard?.(conversation)
   const loadView = resolveLoadView({ status: props.status, hasItems: props.items.length > 0 })
@@ -118,10 +119,16 @@ export function ParticipantThread(props: ParticipantThreadProps) {
           onClick={props.scroll.scrollToLatest}
         />
       </div>
-      <div className="cv-p-thread__live" role="status" aria-live="polite">
-        {props.newMessagesCount > 0 ? labels.newMessages : ''}
-      </div>
+      <ParticipantThreadLive notice={props.newMessagesCount > 0 ? labels.newMessages : ''} />
       <Footer props={props} />
     </div>
+  )
+}
+
+export function ParticipantThread(props: ParticipantThreadProps) {
+  return (
+    <ParticipantCopyAnnouncer>
+      <ThreadBody {...props} />
+    </ParticipantCopyAnnouncer>
   )
 }

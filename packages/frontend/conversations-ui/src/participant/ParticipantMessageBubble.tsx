@@ -2,9 +2,9 @@ import type { ReactNode } from 'react'
 
 import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
-import { MessageText } from '../MessageText'
 import { formatTimestamp } from '../lib/format'
 import { FailedActions, OwnStatus } from './ParticipantBubbleStatus'
+import { ParticipantMessageText } from './ParticipantMessageText'
 import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import {
@@ -65,17 +65,6 @@ function describeItem(item: ParticipantTimelineItem): BubbleContent {
   }
 }
 
-function toTextPayload(text: string, createdAt: string, isMine: boolean) {
-  return {
-    id: createdAt,
-    type: 'text' as const,
-    content: text,
-    direction: isMine ? ('inbound' as const) : ('outbound' as const),
-    sender: isMine ? ('customer' as const) : ('agent' as const),
-    timestamp: createdAt,
-  }
-}
-
 function bubbleClassName(isMine: boolean, hasTail: boolean): string {
   const classes = ['cv-p-bubble']
   if (isMine) classes.push('cv-p-bubble--mine')
@@ -107,13 +96,7 @@ export function ParticipantMessageBubble({
       ) : content.authorName ? (
         <span className="cv-p-bubble__author">{content.authorName}</span>
       ) : null}
-      {content.text ? (
-        <MessageText
-          message={toTextPayload(content.text, content.createdAt, isMine)}
-          copyOnClick={false}
-          appearance="stylesheet"
-        />
-      ) : null}
+      {content.text ? <ParticipantMessageText text={content.text} labels={labels} /> : null}
       {content.attachments.map((attachment) => (
         <ParticipantAttachmentItem
           key={attachment.id}
