@@ -14,7 +14,10 @@ export function toParticipantApi(api: ConversationThreadApi): ParticipantConvers
     listConversations: async () => ({ data: [] }),
     fetchMessages: (subject, params) => api.fetchMessages(subject, params),
     sendMessage: (input) => api.sendMessage(input),
-    markRead: async (subject) => api.markRead?.(subject),
+    markRead: async (subject) => {
+      if (!api.markRead) throw new Error('The host api has no markRead')
+      await api.markRead(subject)
+    },
     resolveAttachmentUrl: (attachment, disposition) => api.resolveAttachmentUrl(attachment, disposition),
     ...(subscribe ? { subscribe: (listener) => api.subscribe?.(listener) ?? (() => undefined) } : {}),
   }

@@ -16,43 +16,43 @@ import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS, type ParticipantConversations
 import type { ParticipantPerspective } from './participantPerspective'
 import { participantSendStatesReducer } from './participantSendStates'
 import { buildParticipantThemeStyle } from './participantTheme'
-import { useParticipantThreadController } from './useParticipantThreadController'
+import { useParticipantThreadController, type ParticipantThreadCoreProps } from './useParticipantThreadController'
 
 export type ConversationThreadProps = {
-  api: ConversationThreadApi
-  subject: ParticipantSubjectRef
+  readonly api: ConversationThreadApi
+  readonly subject: ParticipantSubjectRef
   /** `participant` (default) is the outside party; `operator` is the company, which owns the outbound messages. */
-  perspective?: ParticipantPerspective
-  title: string
-  protocol?: string
-  channels?: ParticipantConversationSummary['channels']
+  readonly perspective?: ParticipantPerspective
+  readonly title: string
+  readonly protocol?: string
+  readonly channels?: ParticipantConversationSummary['channels']
   /** `closed` removes the composer and shows `labels.closedNotice`. */
-  status?: 'open' | 'closed'
+  readonly status?: 'open' | 'closed'
   /** Short line under the title, written by the host (for example "Participant: Ana"). */
-  counterpartLabel?: string
+  readonly counterpartLabel?: string
   /** Slot at the end of the header bar for the host's own actions (close, reopen...). The package knows none of them. */
-  headerActions?: ReactNode
+  readonly headerActions?: ReactNode
   /** Absent draws no back arrow. */
-  onBack?: () => void
-  renderSubjectIcon?: ParticipantSubjectIconRenderer
-  subjectGroups?: readonly ParticipantSubjectGroup[]
+  readonly onBack?: () => void
+  readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
+  readonly subjectGroups?: readonly ParticipantSubjectGroup[]
   /** Chips above the field: tapping one fills the text, it never sends. */
-  quickReplies?: readonly QuickReply[]
-  labels?: Partial<ParticipantConversationsLabels>
-  theme?: ConversationsTheme
-  className?: string
-  locale?: string
-  channel?: ConversationChannel
-  pendingMessages?: readonly ParticipantPendingMessage[]
-  onRetryPending?: (clientMessageId: string) => void
+  readonly quickReplies?: readonly QuickReply[]
+  readonly labels?: Partial<ParticipantConversationsLabels>
+  readonly theme?: ConversationsTheme
+  readonly className?: string
+  readonly locale?: string
+  readonly channel?: ConversationChannel
+  readonly pendingMessages?: readonly ParticipantPendingMessage[]
+  readonly onRetryPending?: (clientMessageId: string) => void
   /** Tells the host the other side's messages were marked read, to refresh its own badges. */
-  onMarkedRead?: (subject: ParticipantSubjectRef) => void
-  tail?: boolean
-  avatars?: 'initials'
-  renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  readonly onMarkedRead?: (subject: ParticipantSubjectRef) => void
+  readonly tail?: boolean
+  readonly avatars?: 'initials'
+  readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
 }
 
-function ConversationThreadBody(props: ConversationThreadProps) {
+function useConversationThreadCore(props: ConversationThreadProps): ParticipantThreadCoreProps {
   const { perspective = 'participant' } = props
   const { subjectType, subjectId } = props.subject
   const subject = useMemo<ParticipantSubjectRef>(() => ({ subjectType, subjectId }), [subjectType, subjectId])
@@ -68,7 +68,7 @@ function ConversationThreadBody(props: ConversationThreadProps) {
     () => buildThreadSummary({ subject, title, protocol, channels, status }),
     [subject, title, protocol, channels, status],
   )
-  const core = useParticipantThreadController({
+  return useParticipantThreadController({
     api,
     subject,
     conversation,
@@ -83,6 +83,10 @@ function ConversationThreadBody(props: ConversationThreadProps) {
     onRetryPending: props.onRetryPending,
     perspective,
   })
+}
+
+function ConversationThreadBody(props: ConversationThreadProps) {
+  const core = useConversationThreadCore(props)
 
   return (
     <div

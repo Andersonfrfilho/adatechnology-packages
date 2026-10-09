@@ -21,10 +21,19 @@ describe('header additions', () => {
     expect(rule.get('text-overflow')).toBe('ellipsis')
   })
 
-  it('keeps the host actions at the end of the bar without ever shrinking', () => {
+  it('keeps the host actions at the end of the bar, never wider than the bar', () => {
     const rule = declarationsIn('.cv-p-thread__actions')
     expect(rule.get('flex')).toBe('0 0 auto')
     expect(rule.get('margin-inline-start')).toBe('auto')
+    expect(rule.get('max-width')).toBe('100%')
+  })
+
+  it('lets the bar wrap and gives the title a floor only when there are host actions', () => {
+    const withActions = '.cv-p-thread__header:has(.cv-p-thread__actions)'
+    expect(declarationsIn(withActions).get('flex-wrap')).toBe('wrap')
+    expect(declarationsIn(`${withActions} .cv-p-thread__heading`).get('min-width')).toBe('6rem')
+    expect(declarationsIn('.cv-p-thread__header').has('flex-wrap')).toBe(false)
+    expect(declarationsIn('.cv-p-thread__heading').get('min-width')).toBe('0')
   })
 })
 

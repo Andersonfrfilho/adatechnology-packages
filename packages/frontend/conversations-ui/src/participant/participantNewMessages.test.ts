@@ -52,3 +52,24 @@ describe('collectServerMessageIds', () => {
     expect([...collectServerMessageIds([server('a', 'inbound'), server('b', 'outbound')])]).toEqual(['a', 'b'])
   })
 })
+
+describe('countNewIncomingMessages with the operator perspective', () => {
+  const seen = [server('s', 'inbound', '2026-10-01T10:00:00.000Z')]
+  const seenIds = collectServerMessageIds(seen)
+
+  it('counts a new inbound message as news', () => {
+    const items = [...seen, server('n', 'inbound', '2026-10-01T10:05:00.000Z')]
+    expect(countNewIncomingMessages(seenIds, items, 'operator')).toBe(1)
+  })
+
+  it('does not count a new outbound message (written by the operator)', () => {
+    const items = [...seen, server('n', 'outbound', '2026-10-01T10:05:00.000Z')]
+    expect(countNewIncomingMessages(seenIds, items, 'operator')).toBe(0)
+  })
+
+  it('keeps the participant behavior when the perspective is omitted or participant', () => {
+    const items = [...seen, server('n', 'outbound', '2026-10-01T10:05:00.000Z'), server('m', 'inbound', '2026-10-01T10:06:00.000Z')]
+    expect(countNewIncomingMessages(seenIds, items)).toBe(1)
+    expect(countNewIncomingMessages(seenIds, items, 'participant')).toBe(1)
+  })
+})

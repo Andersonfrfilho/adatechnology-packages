@@ -9,10 +9,11 @@ import type { ParticipantConversationsApi, ParticipantPendingMessage } from './p
 import type { ParticipantDrafts } from './participantDrafts'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantPerspective } from './participantPerspective'
-import { findFailedEntry, hasSendingEntry } from './participantSendController'
+import { findFailedEntry, hasSendingEntry, type ParticipantSendAction } from './participantSendController'
 import type { ParticipantSendStates, ParticipantSendStatesAction } from './participantSendStates'
 import { useParticipantConversationView } from './useParticipantConversationView'
 import { useParticipantDraft } from './useParticipantDraft'
+import { useParticipantThread, type UseParticipantThreadResult } from './useParticipantThread'
 import { useParticipantThreadScroll } from './useParticipantThreadScroll'
 
 export type ParticipantThreadControllerParams = {
@@ -54,15 +55,28 @@ export type ParticipantThreadCoreProps = Pick<
   | 'perspective'
 >
 
+type BuildPendingActionsParams = {
+  readonly thread: UseParticipantThreadResult
+  readonly dispatchSend: (action: ParticipantSendAction) => void
+  readonly handleEdit: (clientMessageId: string) => void
+  readonly onRetryPending: ParticipantThreadControllerParams['onRetryPending']
+}
+
+function buildPendingActions({ thread, dispatchSend, handleEdit, onRetryPending }: BuildPendingActionsParams): ParticipantThreadCoreProps['pendingActions'] {
+  return {
+    retryLocal: (clientMessageId) => void thread.retry(clientMessageId),
+    discardLocal: (clientMessageId) => dispatchSend({ type: 'discarded', clientMessageId }),
+    editLocal: handleEdit,
+    ...(onRetryPending ? { retryHost: onRetryPending } : {}),
+  }
+}
+
 export function useParticipantThreadController(params: ParticipantThreadControllerParams): ParticipantThreadCoreProps {
   const { api, subject, conversation, draftsRef } = params
   const { draft, setText, setFiles, takeForSend, restoreFromEntry } = useParticipantDraft(draftsRef, subject)
-  const { thread, items, sendEntries, dispatchSend } = useParticipantConversationView({
-    ...params,
-    onMarkedRead: params.onMarkedRead,
-  })
+  const { thread, items, sendEntries, dispatchSend } = useParticipantConversationView(params)
   const resolveAttachmentUrl = useMemo(() => bindAttachmentUrlResolver(api), [api])
-  const { scroll, newMessagesCount } = useParticipantThreadScroll(items)
+  const { scroll, newMessagesCount } = useParticipantThreadScroll(items, params.perspective)
 
   function handleSend(): void {
     const content = takeForSend()
@@ -92,12 +106,7 @@ export function useParticipantThreadController(params: ParticipantThreadControll
     channel: params.channel,
     locale: params.locale,
     onLoadOlder: () => void thread.loadOlder(),
-    pendingActions: {
-      retryLocal: (clientMessageId) => void thread.retry(clientMessageId),
-      discardLocal: (clientMessageId) => dispatchSend({ type: 'discarded', clientMessageId }),
-      editLocal: handleEdit,
-      ...(params.onRetryPending ? { retryHost: params.onRetryPending } : {}),
-    },
+    pendingActions: buildPendingActions({ thread, dispatchSend, handleEdit, onRetryPending: params.onRetryPending }),
     perspective: params.perspective,
   }
 }

@@ -317,7 +317,7 @@ import { ConversationThread } from '@adatechnology/conversations-ui/participant'
   channels={['app', 'whatsapp']}
   status={isClosed ? 'closed' : 'open'}
   counterpartLabel={`Participante: ${participantName}`}
-  headerActions={<button type="button" onClick={handleClose}>Encerrar conversa</button>}
+  headerActions={<button type="button" onClick={handleClose}>Fechar</button>}
   avatars="initials"
   quickReplies={quickReplies}
   labels={{ messageInputPlaceholder: 'Mensagem ao participante' }}
@@ -326,14 +326,14 @@ import { ConversationThread } from '@adatechnology/conversations-ui/participant'
 
 | Prop | Tipo | Efeito |
 | ---- | ---- | ------ |
-| `api` | `ConversationThreadApi` | `fetchMessages`, `sendMessage` e `resolveAttachmentUrl` obrigatórios; `markRead` e `subscribe` opcionais. É o mesmo adapter de `ParticipantConversationsApi`, sem `listConversations` e `openConversation` |
+| `api` | `ConversationThreadApi` | `fetchMessages`, `sendMessage` e `resolveAttachmentUrl` obrigatórios; `markRead` e `subscribe` opcionais (sem `markRead` não há marcação de leitura nem `onMarkedRead`). Deve ser **estável** (constante de módulo ou `useMemo`): um objeto novo a cada render recria o adapter e a revalidação. É o mesmo adapter de `ParticipantConversationsApi`, sem `listConversations` e `openConversation` |
 | `subject` | `ParticipantSubjectRef` | o assunto da conversa |
 | `perspective` | `'participant' \| 'operator'` | padrão `participant` (comportamento da tela de sempre) |
 | `title` | `string` | título do cabeçalho |
 | `protocol?`, `channels?` | | selo copiável e selos de canal; ausentes não desenham nada |
 | `status?` | `'open' \| 'closed'` | `closed` tira o compositor e mostra `labels.closedNotice` |
 | `counterpartLabel?` | `string` | linha curta sob o título, montada pelo host |
-| `headerActions?` | `ReactNode` | slot à direita do cabeçalho; ausente não desenha nada |
+| `headerActions?` | `ReactNode` | slot à direita do cabeçalho; ausente não desenha nada. Espera botões curtos ou só ícone, cada um com `aria-label`: com ações, a barra quebra de linha e o título mantém no mínimo `6rem` |
 | `onBack?` | `() => void` | ausente = sem seta (o diálogo do host já tem o próprio fechar) |
 | `quickReplies?` | `QuickReply[]` | chips acima do campo; tocar **preenche**, nunca envia |
 | `renderSubjectIcon?`, `subjectGroups?` | | ícone do assunto no cabeçalho, como na lista |
@@ -352,6 +352,8 @@ revalida ao voltar o foco, a visibilidade e a conexão.
 **Exemplo de adapter do operador.** O painel já tem as rotas dele; o adapter só traduz:
 
 ```ts
+import { z } from 'zod'
+
 import { participantMessageSchema } from '@adatechnology/conversation-contracts'
 import type { ConversationThreadApi } from '@adatechnology/conversations-ui/participant'
 
@@ -388,7 +390,7 @@ mapeamento: texto, hora, autor, links e valores copiáveis nas duas bolhas a 4,5
 própria e sublinhado dos valores copiáveis a 3:1 ou mais; o fundo pontilhado se mantém sutil (no máximo 2:1 contra a
 superfície) e nenhum texto depende dele (o erro de carga ganha painel sólido). A borda da bolha **recebida** é
 decorativa (cerca de 1,4:1): quem a distingue da página é o preenchimento, e o texto passa de 4,5:1. Ao mapear o
-acento, mantenha-o a 4,5:1 contra `--cv-p-highlight`, que é onde ficam os links da bolha própria.
+acento, mantenha-o a 4,5:1 contra `--cv-p-highlight`, que é onde ficam os links da bolha própria. Os contrastes só valem com `--cv-p-highlight` **opaco**: o padrão do tema escuro do pacote é translúcido (`rgb(213 138 71 / 10%)`), então o host que mapeia o token deve fornecer um valor opaco.
 
 ### Limitações conhecidas
 
