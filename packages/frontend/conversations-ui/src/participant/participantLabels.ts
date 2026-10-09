@@ -13,6 +13,8 @@ export type ParticipantConversationsLabels = {
   readonly me: string
   readonly newMessages: string
   readonly loadOlder: string
+  /** Accessible name of the floating button that returns to the end of the conversation. */
+  readonly scrollToLatest: string
   readonly closedNotice: string
   readonly messageInputLabel: string
   readonly messageInputPlaceholder: string
@@ -69,6 +71,7 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   me: 'Me',
   newMessages: 'New messages',
   loadOlder: 'Load older messages',
+  scrollToLatest: 'Scroll to latest message',
   closedNotice: 'This conversation is closed',
   messageInputLabel: 'Message',
   messageInputPlaceholder: 'Write a message…',

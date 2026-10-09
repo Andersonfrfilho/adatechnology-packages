@@ -13,6 +13,7 @@ import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadVi
 import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
 import type { ParticipantThreadScroll } from './useStickToBottom'
 import type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+import { ParticipantScrollToLatest } from './ParticipantScrollToLatest'
 import { ParticipantTimeline } from './ParticipantTimeline'
 import { ParticipantThreadHeader } from './ParticipantThreadHeader'
 import type { ParticipantSubjectGroup, ParticipantSubjectIconRenderer } from './participant.types'
@@ -109,6 +110,13 @@ export function ParticipantThread(props: ParticipantThreadProps) {
           </button>
         ) : null}
         <ParticipantTimeline {...props} />
+        <ParticipantScrollToLatest
+          label={labels.scrollToLatest}
+          isAwayFromBottom={props.scroll.isAwayFromBottom === true}
+          hasMessages={props.items.length > 0}
+          newMessagesCount={props.newMessagesCount}
+          onClick={props.scroll.scrollToLatest}
+        />
       </div>
       <div className="cv-p-thread__live" role="status" aria-live="polite">
         {props.newMessagesCount > 0 ? labels.newMessages : ''}

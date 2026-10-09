@@ -12,6 +12,7 @@ import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadVi
 import { ParticipantInboxRow } from './ParticipantInboxRow'
 import { ParticipantInboxSearchField, type ParticipantInboxSearch } from './ParticipantInboxSearchField'
 import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
+import { useRevealActiveChip } from './useRevealActiveChip'
 
 export type ParticipantInboxProps = {
   readonly view: ParticipantInboxView
@@ -54,8 +55,9 @@ type FiltersProps = {
 }
 
 function Filters({ filters, active, labels, onChange }: FiltersProps) {
+  const strip = useRevealActiveChip(active)
   return (
-    <div className="cv-p-filters" role="group" aria-label={labels.filtersGroup}>
+    <div className="cv-p-filters" role="group" aria-label={labels.filtersGroup} ref={strip}>
       {filters.map((filter) => (
         <button
           key={filter.subjectType}

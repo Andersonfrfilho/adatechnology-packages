@@ -224,6 +224,21 @@ com `--cv-p-wallpaper-size` para o tamanho do ladrilho (padrão `24px 24px`). So
 **Separador de dia**: pílula centralizada (fundo elevado, borda de 1px, texto mono pequeno, raio do token), `role="separator"`
 com um `<time datetime="AAAA-MM-DD">` do dia local.
 
+**Rolagem**: as áreas verticais (mensagens, lista de conversas e campo de texto) têm barra fina (`scrollbar-width: thin`, 6px
+em WebKit, trilho transparente, sem setas), polegar `--cv-p-scrollbar-thumb` (padrão `--cv-p-border`) e `--cv-p-scrollbar-thumb-hover`
+(padrão `--cv-p-accent`) ao passar o mouse ou arrastar, sem reservar espaço (`scrollbar-gutter`) para as bolhas não se mexerem, e
+`overscroll-behavior-y: contain` para não encadear a rolagem na página. As faixas horizontais (filtros e respostas rápidas) rolam
+sem barra, com esmaecimento nas bordas, `scroll-snap-type: x proximity` e o filtro ativo trazido à vista ao ser escolhido. Em
+`forced-colors: active` voltam a barra do sistema e a faixa sem máscara. `scroll-behavior: smooth` só vale sob
+`prefers-reduced-motion: no-preference` (lista e faixas; o scroller da conversa continua instantâneo, pois o posicionamento inicial e a
+âncora ao carregar mensagens antigas atribuem `scrollTop`).
+
+**Ir para a última mensagem**: com o leitor longe do fim da conversa (o mesmo limiar de `shouldStickToBottom`, 80px), um botão
+flutuante de 44x44 com `ChevronDown` aparece no canto inferior do scroller; o `aria-label` é o label novo `scrollToLatest`
+(padrão "Scroll to latest message"). Um selo mostra quantas mensagens do outro lado chegaram enquanto o leitor estava longe (limite
+"99+"); ele é decorativo, e a região `aria-live` continua anunciando só o label `newMessages`. O clique rola ao fim (suave só sem
+`prefers-reduced-motion: reduce`) e o botão some ao chegar. Nada é desenhado perto do fim ou sem mensagens.
+
 **Direção do texto (RTL)**: margens, alinhamento e hora da bolha usam propriedades lógicas e espelham sozinhos; o **rabinho** do balão
 (triângulos e canto reto) usa posições físicas e em RTL continua à esquerda/direita como em LTR (limitação conhecida).
 
@@ -291,6 +306,8 @@ Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há també
 | `--cv-p-danger`           | erro e falha de envio                        | `#c62828`      |
 | `--cv-p-radius`           | raio dos cantos                              | `0`            |
 | `--cv-p-wallpaper`        | fundo da lista de mensagens (`none` desliga) | pontos sutis   |
+| `--cv-p-scrollbar-thumb`  | polegar das barras de rolagem finas          | `--cv-p-border` |
+| `--cv-p-scrollbar-thumb-hover` | polegar ao passar o mouse ou arrastar   | `--cv-p-accent` |
 | `--cv-p-channel-app`      | cor do selo do canal app                     | o destaque     |
 | `--cv-p-channel-whatsapp` | cor do selo do canal WhatsApp                | `#20914f`      |
 
