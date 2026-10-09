@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { CHAT_TEXT_SECONDARY_CLASS } from './theme'
 import type { MessagePayload } from './types'
-import { useConversations } from './providers/ConversationsProvider'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
 import { MessageTextCopiedBadge } from './MessageTextCopiedBadge'
 
