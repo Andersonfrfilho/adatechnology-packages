@@ -147,6 +147,14 @@ describe('ParticipantMessageBubble', () => {
     expect(markup).toContain('cv-p-attachment--document')
   })
 
+  it('o texto do participante não é botão nem copia ao toque', () => {
+    const markup = renderServer(buildMessage({ id: 'a', direction: 'inbound' }))
+
+    expect(markup).toContain('class="cv-message-text"')
+    expect(markup).not.toContain('role="button"')
+    expect(markup).not.toContain('cv-message-text--copyable')
+  })
+
   it('uses only cv-p-* classes and no Tailwind utilities', () => {
     const markup = renderServer(buildMessage({ id: 'a', direction: 'inbound', status: 'read' }))
 

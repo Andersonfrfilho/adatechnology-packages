@@ -1131,7 +1131,7 @@
 .cv-status-ticks--failed { color: rgb(239 68 68); }
 
 .cv-message-text { position: relative; font-size: 14.2px; line-height: 19px; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; }
-.cv-message-text[role="button"] { cursor: pointer; }
+.cv-message-text--copyable { user-select: all; cursor: pointer; }
 .cv-message-text strong { font-weight: 700; }
 .cv-message-text em { font-style: italic; }
 .cv-message-text del { text-decoration-line: line-through; }

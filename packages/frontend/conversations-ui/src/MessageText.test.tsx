@@ -35,18 +35,21 @@ describe('MessageText', () => {
     expect(markup).not.toContain('-translate-y-full')
   })
 
-  it('por padrão não copia ao toque: sem onClick, sem role=button e sem user-select', () => {
+  it('por padrão copia ao toque: role=button, tabindex e classe copiável (user-select só aí)', () => {
     const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} />)
-
-    expect(markup).not.toContain('role="button"')
-    expect(markup).not.toContain('tabindex')
-  })
-
-  it('com copyOnClick vira um controle acessível por teclado', () => {
-    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} copyOnClick />)
 
     expect(markup).toContain('role="button"')
     expect(markup).toContain('tabindex="0"')
+    expect(markup).toContain('cv-message-text--copyable')
+  })
+
+  it('com copyOnClick={false} não copia: sem role, sem tabindex e sem classe copiável', () => {
+    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} copyOnClick={false} />)
+
+    expect(markup).not.toContain('role="button"')
+    expect(markup).not.toContain('tabindex')
+    expect(markup).not.toContain('cv-message-text--copyable')
+    expect(markup).toContain('class="cv-message-text"')
   })
 
   it('o badge usa "Copied" por padrão e aceita outro rótulo', () => {

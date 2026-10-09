@@ -12,8 +12,8 @@ todas as classes são `.cv-p-*` e vêm de `@adatechnology/conversations-ui/style
 `@adatechnology/conversations-ui/styles.css` é **requisito**: sem ele a tela fica sem layout e o `MessageText` e o
 `StatusTicks` perdem a formatação (negrito, itálico, tachado, tiques coloridos). Importe-o uma vez na raiz do app.
 
-`MessageText` **não copia ao tocar** por padrão; quem quiser o comportamento antigo passa `copyOnClick` (e, se
-quiser outro idioma no aviso, `copiedLabel`).
+`MessageText` **copia ao tocar** por padrão (como na 0.3.1); `copyOnClick={false}` desliga. O aviso de cópia usa
+`copiedLabel` (padrão `Copied`; passe `copiedLabel="Copiado!"` para manter o português).
 
 ### Uso mínimo
 

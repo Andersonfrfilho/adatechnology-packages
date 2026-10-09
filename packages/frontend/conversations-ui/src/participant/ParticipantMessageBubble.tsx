@@ -157,7 +157,9 @@ export function ParticipantMessageBubble({
       ) : content.authorName ? (
         <span className="cv-p-bubble__author">{content.authorName}</span>
       ) : null}
-      {content.text ? <MessageText message={toTextPayload(content.text, content.createdAt, isMine)} /> : null}
+      {content.text ? (
+        <MessageText message={toTextPayload(content.text, content.createdAt, isMine)} copyOnClick={false} />
+      ) : null}
       {content.attachments.map((attachment) => (
         <ParticipantAttachmentItem
           key={attachment.id}
