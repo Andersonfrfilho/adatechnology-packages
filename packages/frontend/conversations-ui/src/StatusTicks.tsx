@@ -3,9 +3,20 @@ import { AlertTriangle, Clock } from 'lucide-react'
 export interface StatusTicksProps {
   status: string
   title?: string
+  /** 'tailwind' (default) keeps the 0.4.2 markup; 'stylesheet' uses .cv-status-ticks--* and adds queued/bounced handling. */
+  appearance?: 'tailwind' | 'stylesheet'
+  /** Accessible label of the queued state (stylesheet appearance only). Defaults to 'Queued'. */
+  queuedLabel?: string
 }
 
-const STATUS_MODIFIER: Record<string, string> = {
+const TAILWIND_COLOR_CLASS: Record<string, string> = {
+  sent: 'text-black/40 dark:text-white/40',
+  delivered: 'text-black/40 dark:text-white/40',
+  read: 'text-sky-500',
+  failed: 'text-red-500',
+}
+
+const STYLESHEET_MODIFIER: Record<string, string> = {
   queued: 'queued',
   sent: 'sent',
   delivered: 'delivered',
@@ -13,8 +24,6 @@ const STATUS_MODIFIER: Record<string, string> = {
   failed: 'failed',
   bounced: 'failed',
 }
-
-const QUEUED_LABEL = 'Queued'
 
 function Ticks({ double }: { double: boolean }) {
   return (
@@ -30,17 +39,11 @@ function Ticks({ double }: { double: boolean }) {
   )
 }
 
-// Paridade com financiamento-imobiliario-bot/apps/web/src/components/MessageBubble.tsx —
-// mesmo path de SVG, mesma cor por status (read → sky-500, failed → red-500 com AlertTriangle).
-function StatusIcon({ modifier }: { modifier: string }) {
-  if (modifier === 'failed') return <AlertTriangle size={11} />
-  if (modifier === 'queued') return <Clock size={11} />
-  return <Ticks double={modifier !== 'sent'} />
-}
-
-export function StatusTicks({ status, title }: StatusTicksProps) {
-  const modifier = STATUS_MODIFIER[status] ?? 'sent'
-  const ariaLabel = modifier === 'queued' ? QUEUED_LABEL : undefined
+function StylesheetStatusTicks({ status, title, queuedLabel }: { status: string; title?: string; queuedLabel: string }) {
+  const modifier = STYLESHEET_MODIFIER[status] ?? 'sent'
+  const ariaLabel = modifier === 'queued' ? queuedLabel : undefined
+  const icon =
+    modifier === 'failed' ? <AlertTriangle size={11} /> : modifier === 'queued' ? <Clock size={11} /> : <Ticks double={modifier !== 'sent'} />
 
   return (
     <span
@@ -48,7 +51,19 @@ export function StatusTicks({ status, title }: StatusTicksProps) {
       data-cv-tooltip={title ?? ariaLabel}
       aria-label={ariaLabel}
     >
-      <StatusIcon modifier={modifier} />
+      {icon}
+    </span>
+  )
+}
+
+export function StatusTicks({ status, title, appearance = 'tailwind', queuedLabel = 'Queued' }: StatusTicksProps) {
+  if (appearance === 'stylesheet') return <StylesheetStatusTicks status={status} title={title} queuedLabel={queuedLabel} />
+
+  const colorClass = TAILWIND_COLOR_CLASS[status] ?? TAILWIND_COLOR_CLASS.sent
+
+  return (
+    <span className={`cursor-help leading-none flex items-center ${colorClass}`} data-cv-tooltip={title}>
+      {status === 'failed' ? <AlertTriangle size={11} /> : <Ticks double={status !== 'sent'} />}
     </span>
   )
 }

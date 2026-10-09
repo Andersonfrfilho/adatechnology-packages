@@ -15,8 +15,8 @@ const TEXT_MESSAGE: MessagePayload = {
 }
 
 describe('MessageText', () => {
-  it('usa a classe cv-message-text e nenhuma utilitária Tailwind', () => {
-    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} />)
+  it('com appearance="stylesheet" usa a classe cv-message-text e nenhuma utilitária Tailwind', () => {
+    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} appearance="stylesheet" />)
 
     expect(markup).toContain('cv-message-text')
     expect(markup).not.toContain('whitespace-pre-wrap')
@@ -25,8 +25,8 @@ describe('MessageText', () => {
     expect(markup).not.toContain('[&_')
   })
 
-  it('o badge usa a classe cv-message-text__copied e nenhuma utilitária Tailwind', () => {
-    const markup = renderToStaticMarkup(<MessageTextCopiedBadge />)
+  it('o badge em stylesheet usa a classe cv-message-text__copied e nenhuma utilitária Tailwind', () => {
+    const markup = renderToStaticMarkup(<MessageTextCopiedBadge appearance="stylesheet" />)
 
     expect(markup).toContain('cv-message-text__copied')
     expect(markup).not.toContain('absolute')
@@ -35,16 +35,33 @@ describe('MessageText', () => {
     expect(markup).not.toContain('-translate-y-full')
   })
 
-  it('por padrão copia ao toque: role=button, tabindex e classe copiável (user-select só aí)', () => {
+  it('por padrão é o div da 0.4.2: classes Tailwind, sem role nem tabindex', () => {
     const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} />)
+
+    expect(markup).toContain('select-all')
+    expect(markup).toContain('whitespace-pre-wrap')
+    expect(markup).not.toContain('role=')
+    expect(markup).not.toContain('tabindex')
+    expect(markup).not.toContain('cv-message-text')
+  })
+
+  it('com accessibleCopy liga role=button e tabindex', () => {
+    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} accessibleCopy />)
 
     expect(markup).toContain('role="button"')
     expect(markup).toContain('tabindex="0"')
+  })
+
+  it('em stylesheet a classe copiável (user-select) só aparece quando copia', () => {
+    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} appearance="stylesheet" />)
+
     expect(markup).toContain('cv-message-text--copyable')
   })
 
-  it('com copyOnClick={false} não copia: sem role, sem tabindex e sem classe copiável', () => {
-    const markup = renderToStaticMarkup(<MessageText message={TEXT_MESSAGE} copyOnClick={false} />)
+  it('com copyOnClick={false} em stylesheet não copia: sem role, sem tabindex e sem classe copiável', () => {
+    const markup = renderToStaticMarkup(
+      <MessageText message={TEXT_MESSAGE} copyOnClick={false} accessibleCopy appearance="stylesheet" />,
+    )
 
     expect(markup).not.toContain('role="button"')
     expect(markup).not.toContain('tabindex')
@@ -52,8 +69,8 @@ describe('MessageText', () => {
     expect(markup).toContain('class="cv-message-text"')
   })
 
-  it('o badge usa "Copied" por padrão e aceita outro rótulo', () => {
-    expect(renderToStaticMarkup(<MessageTextCopiedBadge />)).toContain('Copied')
-    expect(renderToStaticMarkup(<MessageTextCopiedBadge label="Copiado!" />)).toContain('Copiado!')
+  it('o badge usa "Copiado!" por padrão e aceita outro rótulo', () => {
+    expect(renderToStaticMarkup(<MessageTextCopiedBadge />)).toContain('Copiado!')
+    expect(renderToStaticMarkup(<MessageTextCopiedBadge label="Copied" />)).toContain('Copied')
   })
 })

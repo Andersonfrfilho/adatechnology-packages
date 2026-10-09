@@ -15,3 +15,15 @@ vocabulário, sem repetição) e `iconName?` (nome opaco, `[a-z0-9-]`, até 32) 
 ambos calculados pelo servidor. A UI ganha selos de canal na linha (spans, sem lista dentro do botão) e no cabeçalho (lista), a prop `renderSubjectIcon?`
 (pura, não lança; sem ela ou devolvendo `null`, `undefined`, `false` ou `''`, vale o ícone do grupo) e seis labels novas: `channelsGroup`, `channelApp`, `channelWhatsapp`,
 `channelEmail`, `channelPortal`, `channelWebchat`.
+
+**Compatibilidade: esta versão restaura o padrão da 0.4.2.** A 0.5.0 havia mudado `MessageText` e `StatusTicks` para
+todos os consumidores (classes `.cv-*` no lugar das utilitárias Tailwind, `role="button"`/`tabIndex`/`onKeyDown` no texto,
+rótulo do selo "Copied" no lugar de "Copiado!" e marcação nova dos tiques). A 0.6.0 devolve o padrão: `MessageText` volta ao
+`<div onClick>` com as classes Tailwind exatas, selo "Copiado!", e `StatusTicks` volta à marcação `cursor-help leading-none
+flex items-center` com `text-black/40`/`text-sky-500`/`text-red-500` e `data-cv-tooltip`, sem `aria-label`; quem subiu para a
+0.5.0 volta ao padrão antigo. O comportamento novo é opt-in: `MessageText accessibleCopy` (role, tabIndex e Enter/Espaço) e
+`appearance="stylesheet"` em `MessageText`/`StatusTicks` (classes `.cv-*`; em `StatusTicks` também `queued` com relógio,
+`bounced` como `failed`, `aria-label` e `queuedLabel`). A visão do participante já usa `appearance="stylesheet"`.
+
+Ampliação de tipos a observar: `MessagePayload['status']` passa a aceitar `queued` e `bounced`, e `ConversationChannel`
+ganha `app` e `portal`; `Record<ConversationChannel, …>` e `switch` exaustivos no host precisam cobrir os novos membros.

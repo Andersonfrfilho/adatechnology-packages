@@ -9,11 +9,18 @@ Tela de conversa do lado de **quem conversa com a empresa** (app do motorista, p
 `ConversationsProvider`, não puxa `@xyflow/react` nem o `ConversationsWorkspace`, e não depende de Tailwind:
 todas as classes são `.cv-p-*` e vêm de `@adatechnology/conversations-ui/styles.css`.
 
-`@adatechnology/conversations-ui/styles.css` é **requisito**: sem ele a tela fica sem layout e o `MessageText` e o
-`StatusTicks` perdem a formatação (negrito, itálico, tachado, tiques coloridos). Importe-o uma vez na raiz do app.
+`@adatechnology/conversations-ui/styles.css` é **requisito da visão do participante**: sem ele a tela fica sem layout.
+A visão do participante renderiza `MessageText` e `StatusTicks` com `appearance="stylesheet"` (classes `.cv-*`, sem
+Tailwind). Fora dela, os dois componentes mantêm o padrão da 0.4.2 (classes Tailwind do host).
 
-`MessageText` **copia ao tocar** por padrão (como na 0.3.1); `copyOnClick={false}` desliga. O aviso de cópia usa
-`copiedLabel` (padrão `Copied`; passe `copiedLabel="Copiado!"` para manter o português).
+Props opt-in (o padrão é sempre o comportamento da 0.4.2):
+
+- `MessageText`: `appearance?: 'tailwind' | 'stylesheet'` (padrão `'tailwind'`); `accessibleCopy?: boolean` (padrão
+  `false`; liga `role="button"`, `tabIndex=0` e Enter/Espaço para copiar); `copyOnClick` (padrão `true`; `false`
+  desliga a cópia); `copiedLabel` (padrão `Copiado!`).
+- `StatusTicks`: `appearance?: 'tailwind' | 'stylesheet'` (padrão `'tailwind'`). Só em `'stylesheet'` valem o estado
+  `queued` (relógio), `bounced` tratado como `failed` e o `aria-label`; `queuedLabel?: string` (padrão `Queued`) define
+  o rótulo do relógio. No padrão, qualquer status diferente de `sent` e `failed` desenha dois tiques, como na 0.4.2.
 
 ### Uso mínimo
 
