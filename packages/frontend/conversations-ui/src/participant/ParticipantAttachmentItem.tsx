@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import type { ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
 import { formatFileSize } from '../lib/format'
+import { isSafeAttachmentUrl } from './participantAttachmentUrl'
 import type { ParticipantConversationsLabels } from './participantLabels'
 
 export type ResolveParticipantAttachmentUrl = (
@@ -27,7 +28,7 @@ function useAttachmentUrl(
     let isCurrent = true
     resolveAttachmentUrl(attachment, disposition).then(
       (resolved) => {
-        if (isCurrent) setUrl(resolved)
+        if (isCurrent) setUrl(isSafeAttachmentUrl(resolved) ? resolved.trim() : undefined)
       },
       () => {
         if (isCurrent) setUrl(undefined)

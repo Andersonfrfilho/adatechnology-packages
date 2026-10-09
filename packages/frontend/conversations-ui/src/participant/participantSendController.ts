@@ -3,7 +3,8 @@ import type { ParticipantMessage, ParticipantSubjectRef } from '@adatechnology/c
 import type { ParticipantLocalPendingMessage, ParticipantPendingMessage } from './participantApi.types'
 import type { ParticipantDraft, ParticipantSendContent } from './participantDrafts'
 
-export type ParticipantSendEntryState = 'sending' | 'queued' | 'failed'
+/** 'sent': the server accepted it; the bubble stays until the echo with the clientMessageId shows up in the messages. */
+export type ParticipantSendEntryState = 'sending' | 'queued' | 'failed' | 'sent'
 
 /** The bubble owns the content of a send: text and files live here until the server (or the host queue) reflects the id. */
 export type ParticipantSendEntry = {
@@ -13,11 +14,12 @@ export type ParticipantSendEntry = {
   readonly files: readonly File[]
   readonly createdAt: string
   readonly state: ParticipantSendEntryState
+  readonly sentMessage?: ParticipantMessage
 }
 
 export type ParticipantSendAction =
   | { readonly type: 'started'; readonly entry: ParticipantSendEntry }
-  | { readonly type: 'confirmed'; readonly clientMessageId: string }
+  | { readonly type: 'sent'; readonly clientMessageId: string; readonly message: ParticipantMessage }
   | { readonly type: 'queued'; readonly clientMessageId: string }
   | { readonly type: 'failed'; readonly clientMessageId: string }
   | { readonly type: 'retried'; readonly clientMessageId: string }
@@ -61,6 +63,12 @@ function setState(
   return entries.map((item) => (item === target ? { ...item, state: next } : item))
 }
 
+function markSent(entries: readonly ParticipantSendEntry[], clientMessageId: string, message: ParticipantMessage): readonly ParticipantSendEntry[] {
+  const target = entries.find((item) => item.clientMessageId === clientMessageId)
+  if (!target || target.state === 'sent') return entries
+  return entries.map((item) => (item === target ? { ...item, state: 'sent', sentMessage: message } : item))
+}
+
 function remove(entries: readonly ParticipantSendEntry[], shouldRemove: (item: ParticipantSendEntry) => boolean): readonly ParticipantSendEntry[] {
   const kept = entries.filter((item) => !shouldRemove(item))
   return kept.length === entries.length ? entries : kept
@@ -73,9 +81,10 @@ export function participantSendReducer(
   switch (action.type) {
     case 'started':
       return [...entries.filter((item) => item.clientMessageId !== action.entry.clientMessageId), action.entry]
-    case 'confirmed':
     case 'discarded':
       return remove(entries, (item) => item.clientMessageId === action.clientMessageId)
+    case 'sent':
+      return markSent(entries, action.clientMessageId, action.message)
     case 'queued':
       return setState(entries, action.clientMessageId, ['sending'], 'queued')
     case 'failed':

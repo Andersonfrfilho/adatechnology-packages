@@ -49,9 +49,28 @@ describe('participantSendReducer', () => {
     expect(started[0]?.text).toBe('hello')
   })
 
-  it('a confirmed send disappears (the server message takes its place)', () => {
+  it('a sent send stays visible as sent, holding the server message, until the echo is reflected', () => {
     const sending = participantSendReducer([], { type: 'started', entry: entry('c1') })
-    expect(participantSendReducer(sending, { type: 'confirmed', clientMessageId: 'c1' })).toEqual([])
+    const message = serverMessage('m1', 'c1')
+    const sent = participantSendReducer(sending, { type: 'sent', clientMessageId: 'c1', message })
+
+    expect(states(sent)).toEqual([['c1', 'sent']])
+    expect(sent[0]?.sentMessage).toBe(message)
+    expect(toLocalPending(sent)[0]?.state).toBe('sent')
+  })
+
+  it('a sent entry survives leaving and coming back, and reflected removes it once the echo exists', () => {
+    const subjectStates = participantSendStatesReducer(new Map(), { subject: TRIP_A, action: { type: 'started', entry: entry('c1') } })
+    const afterSent = participantSendStatesReducer(subjectStates, {
+      subject: TRIP_A,
+      action: { type: 'sent', clientMessageId: 'c1', message: serverMessage('m1', 'c1') },
+    })
+    expect(states(selectSendEntries(afterSent, TRIP_A))).toEqual([['c1', 'sent']])
+
+    const notYet = participantSendStatesReducer(afterSent, { subject: TRIP_A, action: { type: 'reflected', knownClientMessageIds: new Set() } })
+    expect(states(selectSendEntries(notYet, TRIP_A))).toEqual([['c1', 'sent']])
+    const echoed = participantSendStatesReducer(afterSent, { subject: TRIP_A, action: { type: 'reflected', knownClientMessageIds: new Set(['c1']) } })
+    expect(selectSendEntries(echoed, TRIP_A)).toEqual([])
   })
 
   it('queued stays visible as queued until the host or the server reflect the id', () => {

@@ -53,7 +53,7 @@ export type ParticipantPendingMessage = {
   readonly state: 'queued' | 'failed'
 }
 
-/** Message still living only in the memory of the screen: being sent, queued by the host and not yet reflected, or failed. */
+/** Message still living only in the memory of the screen: being sent, queued by the host and not yet reflected, sent but not yet echoed, or failed. */
 export type ParticipantLocalPendingMessage = Omit<ParticipantPendingMessage, 'state'> & {
-  readonly state: 'sending' | 'queued' | 'failed'
+  readonly state: 'sending' | 'queued' | 'failed' | 'sent'
 }

@@ -43,7 +43,7 @@ export function useParticipantSend(params: UseParticipantSendParams): UsePartici
         })
         if (result.outcome === 'sent') {
           onSentMessage(result.message)
-          dispatchSend({ type: 'confirmed', clientMessageId })
+          dispatchSend({ type: 'sent', clientMessageId, message: result.message })
           return 'sent'
         }
         dispatchSend({ type: 'queued', clientMessageId })

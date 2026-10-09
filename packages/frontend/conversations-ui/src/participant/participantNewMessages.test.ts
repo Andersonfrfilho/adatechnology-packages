@@ -4,14 +4,31 @@ import { buildMessage } from './participantFixtures.test-helper'
 import { collectServerMessageIds, countNewIncomingMessages } from './participantNewMessages'
 import type { ParticipantTimelineItem } from './participantMessages'
 
-function server(id: string, direction: 'inbound' | 'outbound'): ParticipantTimelineItem {
-  return { kind: 'server', message: buildMessage({ id, direction }) }
+function server(id: string, direction: 'inbound' | 'outbound', createdAt = '2026-10-01T10:00:00.000Z'): ParticipantTimelineItem {
+  return { kind: 'server', message: buildMessage({ id, direction, createdAt }) }
 }
 
 describe('countNewIncomingMessages', () => {
   it('counts only unseen messages from the other side (outbound)', () => {
-    const items = [server('a', 'outbound'), server('b', 'outbound'), server('c', 'inbound'), server('d', 'outbound')]
+    const items = [
+      server('a', 'outbound', '2026-10-01T10:00:00.000Z'),
+      server('b', 'outbound', '2026-10-01T10:01:00.000Z'),
+      server('c', 'inbound', '2026-10-01T10:02:00.000Z'),
+      server('d', 'outbound', '2026-10-01T10:03:00.000Z'),
+    ]
     expect(countNewIncomingMessages(new Set(['a']), items)).toBe(2)
+  })
+
+  it('does not count outbound history loaded above the messages already seen', () => {
+    const seen = [server('m30', 'outbound', '2026-10-01T10:30:00.000Z'), server('m31', 'inbound', '2026-10-01T10:31:00.000Z')]
+    const older = [server('m1', 'outbound', '2026-10-01T10:01:00.000Z'), server('m2', 'outbound', '2026-10-01T10:02:00.000Z')]
+    expect(countNewIncomingMessages(collectServerMessageIds(seen), [...older, ...seen])).toBe(0)
+  })
+
+  it('counts a reply that arrives after the messages already seen', () => {
+    const seen = [server('m30', 'outbound', '2026-10-01T10:30:00.000Z'), server('m31', 'inbound', '2026-10-01T10:31:00.000Z')]
+    const reply = server('m32', 'outbound', '2026-10-01T10:32:00.000Z')
+    expect(countNewIncomingMessages(collectServerMessageIds(seen), [...seen, reply])).toBe(1)
   })
 
   it('is zero when everything was seen', () => {

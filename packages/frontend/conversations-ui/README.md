@@ -126,6 +126,11 @@ devolva `{ outcome: 'queued' }` e devolva a fila durável em `pendingMessages`: 
 ou o servidor refletirem o mesmo `clientMessageId`. Falha de uma mensagem que veio do servidor mostra só "Falhou";
 falha de uma pendente do host só ganha "reenviar" se `onRetryPending` for passado. O pacote não conhece IndexedDB.
 
+Limites do host: devolver `queued` sem refletir a mensagem em `pendingMessages` deixa uma bolha "na fila" sem
+nenhuma ação até a conversa desmontar (ela segura os `File`); `sendMessage` precisa terminar com timeout (uma
+promise que nunca resolve trava o botão de enviar daquele assunto); e se o host tira a mensagem da fila antes de o
+servidor refletir, deve emitir `conversation-changed` para a conversa recarregar.
+
 `api` **precisa ser estável** (crie o adapter uma vez, fora do render, ou memorize-o): uma instância nova a cada
 render refaz a carga da lista e reinscreve os eventos de `subscribe` a cada renderização. Métodos de adapter escritos como classe funcionam, o pacote preserva o `this`.
 

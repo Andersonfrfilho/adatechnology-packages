@@ -168,8 +168,8 @@ export function ParticipantMessageBubble({
           labels={labels}
         />
       ))}
-      {content.pendingFilenames.map((filename) => (
-        <span key={filename} className="cv-p-attachment cv-p-attachment--pending">
+      {content.pendingFilenames.map((filename, index) => (
+        <span key={`${filename}-${index}`} className="cv-p-attachment cv-p-attachment--pending">
           {filename}
         </span>
       ))}

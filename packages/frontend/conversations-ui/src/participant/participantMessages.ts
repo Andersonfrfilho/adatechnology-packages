@@ -2,7 +2,7 @@ import type { MessageDeliveryStatus, ParticipantMessage, ParticipantSubjectRef }
 
 import type { ParticipantLocalPendingMessage, ParticipantPendingMessage } from './participantApi.types'
 
-export type ParticipantPendingDisplayState = 'sending' | 'queued' | 'failed'
+export type ParticipantPendingDisplayState = 'sending' | 'queued' | 'failed' | 'sent'
 export type ParticipantOwnMessageStatus = 'sending' | 'queued' | 'sent' | 'delivered' | 'read' | 'failed'
 
 export type ParticipantTimelineItem =
