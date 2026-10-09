@@ -1,0 +1,64 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * A visão do participante (spec 260, contract §2): o que a API devolve a quem está do lado de fora
+ * da operação (app do motorista, portal do contratante). Resposta é entrada não confiável — por isso
+ * cada tipo nasce com schema zod. `subjectType`/`subjectId` são par opaco: o núcleo não conhece o
+ * assunto do produto. `awaitingParticipant` e `subjectLabel` chegam calculados pelo servidor.
+ * Acrescentar campo é minor; trocar ou tirar é major.
+ */
+import { z } from 'zod'
+
+import { attachmentKindSchema, messageDeliveryStatusSchema, messageDirectionSchema } from './vocabulary'
+
+export const SUBJECT_TYPE_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/
+
+export const subjectRefSchema = z.object({
+  subjectType: z.string().regex(SUBJECT_TYPE_PATTERN),
+  subjectId: z.string().min(1).max(128),
+})
+export type ParticipantSubjectRef = z.infer<typeof subjectRefSchema>
+
+export const PARTICIPANT_CONVERSATION_STATUS = Object.freeze(['open', 'closed'] as const)
+export type ParticipantConversationStatus = (typeof PARTICIPANT_CONVERSATION_STATUS)[number]
+export const participantConversationStatusSchema = z.enum(PARTICIPANT_CONVERSATION_STATUS)
+
+export const participantConversationSummarySchema = subjectRefSchema.extend({
+  subjectLabel: z.string().min(1).max(200),
+  lastMessageAt: z.string().datetime().nullable(),
+  lastMessagePreview: z.string().max(280).optional(),
+  lastMessageDirection: messageDirectionSchema.optional(),
+  unreadCount: z.number().int().min(0),
+  awaitingParticipant: z.boolean(),
+  status: participantConversationStatusSchema,
+  attributes: z.record(z.string(), z.string()).optional(),
+})
+export type ParticipantConversationSummary = z.infer<typeof participantConversationSummarySchema>
+
+export const participantConversationPageSchema = z.object({
+  data: z.array(participantConversationSummarySchema),
+  nextCursor: z.string().min(1).optional(),
+})
+export type ParticipantConversationPage = z.infer<typeof participantConversationPageSchema>
+
+export const participantAttachmentSchema = z.object({
+  id: z.string().min(1),
+  kind: attachmentKindSchema,
+  filename: z.string().min(1),
+  mimeType: z.string().min(1),
+  sizeBytes: z.number().int().min(0),
+})
+export type ParticipantAttachment = z.infer<typeof participantAttachmentSchema>
+
+export const participantMessageSchema = z.object({
+  id: z.string().min(1),
+  clientMessageId: z.string().min(1).optional(),
+  direction: messageDirectionSchema,
+  authorName: z.string().nullable().optional(),
+  text: z.string().nullable().optional(),
+  attachments: z.array(participantAttachmentSchema),
+  createdAt: z.string().datetime(),
+  status: messageDeliveryStatusSchema.optional(),
+  readAt: z.string().datetime().nullable().optional(),
+})
+export type ParticipantMessage = z.infer<typeof participantMessageSchema>
