@@ -27,11 +27,24 @@ export function clearDraft(drafts: ParticipantDrafts, subject: ParticipantSubjec
   return next
 }
 
-/** Clears the subject only if the user did not type more while the send was in flight. */
-export function clearDraftIfUnchanged(
-  drafts: ParticipantDrafts,
-  subject: ParticipantSubjectRef,
-  sent: ParticipantDraft,
-): ParticipantDrafts {
-  return getDraft(drafts, subject) === sent ? clearDraft(drafts, subject) : drafts
+export type ParticipantSendContent = {
+  readonly text?: string
+  readonly files?: readonly File[]
+}
+
+export type TakeDraftForSendResult = {
+  readonly drafts: ParticipantDrafts
+  /** Undefined when there was nothing to send, so a second tap on send does nothing. */
+  readonly content?: ParticipantSendContent
+}
+
+/** The field is cleared the instant the user taps send; the bubble becomes the owner of the content. */
+export function takeDraftForSend(drafts: ParticipantDrafts, subject: ParticipantSubjectRef): TakeDraftForSendResult {
+  const draft = getDraft(drafts, subject)
+  const text = draft.text.trim()
+  if (!text && draft.files.length === 0) return { drafts }
+  return {
+    drafts: clearDraft(drafts, subject),
+    content: { ...(text ? { text } : {}), ...(draft.files.length > 0 ? { files: draft.files } : {}) },
+  }
 }

@@ -8,6 +8,7 @@ import { isSameDay } from '../lib/format'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import { ParticipantComposer } from './ParticipantComposer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
+import { bindPendingActions, resolveParticipantBubbleActions, type ParticipantPendingActions } from './participantBubbleActions'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantTimelineItem } from './participantMessages'
 import { ParticipantMessageBubble } from './ParticipantMessageBubble'
@@ -32,7 +33,7 @@ export type ParticipantThreadProps = {
   readonly onBack?: () => void
   readonly onOpenSubject?: (subject: ParticipantSubjectRef) => void
   readonly onLoadOlder?: () => void
-  readonly onRetryPending?: (clientMessageId: string) => void
+  readonly pendingActions?: ParticipantPendingActions
   readonly newMessagesCount?: number
   readonly isSending?: boolean
   readonly quickReplies?: readonly QuickReply[]
@@ -49,11 +50,9 @@ function keyOf(item: ParticipantTimelineItem): string {
   return item.kind === 'server' ? item.message.id : `pending:${item.pending.clientMessageId}`
 }
 
-function resolveRetry(item: ParticipantTimelineItem, onRetryPending?: (clientMessageId: string) => void) {
-  if (!onRetryPending) return undefined
-  const clientMessageId = item.kind === 'server' ? item.message.clientMessageId : item.pending.clientMessageId
-  if (clientMessageId === undefined) return undefined
-  return () => onRetryPending(clientMessageId)
+function resolveActions(item: ParticipantTimelineItem, pendingActions?: ParticipantPendingActions) {
+  if (!pendingActions || item.kind === 'server') return {}
+  return resolveParticipantBubbleActions(item, bindPendingActions(pendingActions, item.pending.clientMessageId))
 }
 
 function Header({ props }: { readonly props: ParticipantThreadProps }) {
@@ -87,7 +86,7 @@ function Header({ props }: { readonly props: ParticipantThreadProps }) {
 }
 
 function Timeline({ props }: { readonly props: ParticipantThreadProps }) {
-  const { items, labels, locale, resolveAttachmentUrl, onRetryPending } = props
+  const { items, labels, locale, resolveAttachmentUrl, pendingActions } = props
   const confirmsRead = channelCapabilityFor(props.channel ?? 'app').confirmsRead
   const nodes: ReactNode[] = []
   let previousDay: Date | undefined
@@ -109,7 +108,7 @@ function Timeline({ props }: { readonly props: ParticipantThreadProps }) {
         labels={labels}
         confirmsRead={confirmsRead}
         resolveAttachmentUrl={resolveAttachmentUrl}
-        onRetry={resolveRetry(item, onRetryPending)}
+        {...resolveActions(item, pendingActions)}
       />,
     )
   }

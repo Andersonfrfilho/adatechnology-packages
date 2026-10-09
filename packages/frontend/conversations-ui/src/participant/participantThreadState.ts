@@ -1,13 +1,10 @@
 import type { ParticipantMessage } from '@adatechnology/conversation-contracts'
 
-import type { ParticipantLocalPendingMessage } from './participantApi.types'
-
 export type ParticipantThreadState = {
   readonly status: 'idle' | 'loading' | 'ready' | 'error'
   /** Ascending by createdAt. */
   readonly messages: readonly ParticipantMessage[]
   readonly hasMore: boolean
-  readonly localPending: readonly ParticipantLocalPendingMessage[]
   readonly error?: string
 }
 
@@ -17,17 +14,12 @@ export type ParticipantThreadAction =
   | { readonly type: 'loaded'; readonly messages: readonly ParticipantMessage[]; readonly hasMore: boolean }
   | { readonly type: 'olderLoaded'; readonly messages: readonly ParticipantMessage[]; readonly hasMore: boolean }
   | { readonly type: 'failed'; readonly error: string }
-  | { readonly type: 'pendingAdded'; readonly pending: ParticipantLocalPendingMessage }
-  | { readonly type: 'pendingFailed'; readonly clientMessageId: string }
-  | { readonly type: 'pendingRetrying'; readonly clientMessageId: string }
-  | { readonly type: 'pendingRemoved'; readonly clientMessageId: string }
-  | { readonly type: 'sendConfirmed'; readonly clientMessageId: string; readonly message: ParticipantMessage }
+  | { readonly type: 'sendConfirmed'; readonly message: ParticipantMessage }
 
 export const INITIAL_PARTICIPANT_THREAD_STATE: ParticipantThreadState = {
   status: 'idle',
   messages: [],
   hasMore: false,
-  localPending: [],
 }
 
 function unionById(
@@ -39,14 +31,6 @@ function unionById(
   return [...byId.values()].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt))
 }
 
-function dropConfirmedPending(
-  localPending: readonly ParticipantLocalPendingMessage[],
-  messages: readonly ParticipantMessage[],
-): readonly ParticipantLocalPendingMessage[] {
-  const confirmedIds = new Set(messages.flatMap((message) => (message.clientMessageId ? [message.clientMessageId] : [])))
-  return localPending.filter((pending) => !confirmedIds.has(pending.clientMessageId))
-}
-
 function mergeMessages(
   state: ParticipantThreadState,
   incoming: readonly ParticipantMessage[],
@@ -54,20 +38,7 @@ function mergeMessages(
 ): ParticipantThreadState {
   const messages = unionById(state.messages, incoming)
   const { error: _error, ...rest } = state
-  return { ...rest, status: 'ready', messages, hasMore, localPending: dropConfirmedPending(state.localPending, messages) }
-}
-
-function updatePending(
-  state: ParticipantThreadState,
-  clientMessageId: string,
-  pendingState: ParticipantLocalPendingMessage['state'],
-): ParticipantThreadState {
-  return {
-    ...state,
-    localPending: state.localPending.map((pending) =>
-      pending.clientMessageId === clientMessageId ? { ...pending, state: pendingState } : pending,
-    ),
-  }
+  return { ...rest, status: 'ready', messages, hasMore }
 }
 
 export function participantThreadReducer(state: ParticipantThreadState, action: ParticipantThreadAction): ParticipantThreadState {
@@ -82,17 +53,7 @@ export function participantThreadReducer(state: ParticipantThreadState, action: 
       return mergeMessages(state, action.messages, action.hasMore)
     case 'failed':
       return { ...state, status: 'error', error: action.error }
-    case 'pendingAdded':
-      return { ...state, localPending: [...state.localPending.filter((item) => item.clientMessageId !== action.pending.clientMessageId), action.pending] }
-    case 'pendingFailed':
-      return updatePending(state, action.clientMessageId, 'failed')
-    case 'pendingRetrying':
-      return updatePending(state, action.clientMessageId, 'sending')
-    case 'pendingRemoved':
-      return { ...state, localPending: state.localPending.filter((pending) => pending.clientMessageId !== action.clientMessageId) }
-    case 'sendConfirmed': {
-      const confirmed = { ...state, localPending: state.localPending.filter((pending) => pending.clientMessageId !== action.clientMessageId) }
-      return { ...confirmed, messages: unionById(confirmed.messages, [action.message]) }
-    }
+    case 'sendConfirmed':
+      return { ...state, messages: unionById(state.messages, [action.message]) }
   }
 }

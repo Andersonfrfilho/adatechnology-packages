@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 
-import type { ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
+import type { ParticipantMessage, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import { channelCapabilityFor } from '../channelCapability'
 import type { ConversationChannel } from '../conversationChannel'
@@ -8,38 +8,42 @@ import type {
   ParticipantConversationEvent,
   ParticipantConversationsApi,
   ParticipantLocalPendingMessage,
+  ParticipantPendingMessage,
 } from './participantApi.types'
+import {
+  collectKnownClientMessageIds,
+  toLocalPending,
+  type ParticipantSendAction,
+  type ParticipantSendEntry,
+} from './participantSendController'
 import { INITIAL_PARTICIPANT_THREAD_STATE, participantThreadReducer, type ParticipantThreadState } from './participantThreadState'
-import { shouldMarkParticipantRead } from './shouldMarkRead'
+import { useParticipantMarkRead } from './useParticipantMarkRead'
 import { useParticipantRevalidation } from './useParticipantRevalidation'
+import { useParticipantSend, type UseParticipantSendResult } from './useParticipantSend'
 
 const THREAD_PAGE_SIZE = 30
 
 export type UseParticipantThreadParams = {
+  /** Keep it stable: a new identity re-subscribes to events (it never resets the conversation). */
   readonly api: ParticipantConversationsApi
   readonly subject: ParticipantSubjectRef
   readonly channel?: ConversationChannel
   /** Unread count of this subject as the inbox knows it; drives markRead. */
   readonly unreadCount?: number
   readonly onMarkedRead?: (subject: ParticipantSubjectRef) => void
+  /** Sends of this subject, owned above the conversation so they survive leaving it. */
+  readonly sendEntries: readonly ParticipantSendEntry[]
+  readonly dispatchSend: (action: ParticipantSendAction) => void
+  readonly hostPending?: readonly ParticipantPendingMessage[]
 }
 
-export type ParticipantSendDraft = {
-  readonly text?: string
-  readonly files?: readonly File[]
-}
-
-export type ParticipantSendOutcome = 'sent' | 'queued' | 'failed'
-
-export type UseParticipantThreadResult = ParticipantThreadState & {
-  readonly confirmsRead: boolean
-  readonly refresh: () => Promise<void>
-  readonly loadOlder: () => Promise<void>
-  readonly send: (draft: ParticipantSendDraft) => Promise<ParticipantSendOutcome>
-  readonly retry: (clientMessageId: string) => Promise<void>
-}
-
-type SentRecord = { readonly subject: ParticipantSubjectRef; readonly draft: ParticipantSendDraft }
+export type UseParticipantThreadResult = ParticipantThreadState &
+  UseParticipantSendResult & {
+    readonly confirmsRead: boolean
+    readonly localPending: readonly ParticipantLocalPendingMessage[]
+    readonly refresh: () => Promise<void>
+    readonly loadOlder: () => Promise<void>
+  }
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : 'unknown error'
@@ -50,16 +54,13 @@ function isForSubject(event: ParticipantConversationEvent | undefined, subject: 
   return event.subject.subjectType === subject.subjectType && event.subject.subjectId === subject.subjectId
 }
 
-function describeAttachments(files: readonly File[] | undefined): ParticipantLocalPendingMessage['attachments'] {
-  return files?.map((file) => ({ filename: file.name, mimeType: file.type, sizeBytes: file.size }))
-}
-
 export function useParticipantThread(params: UseParticipantThreadParams): UseParticipantThreadResult {
-  const { api, subject, channel, unreadCount = 0, onMarkedRead } = params
+  const { api, subject, channel, unreadCount = 0, onMarkedRead, sendEntries, dispatchSend, hostPending = [] } = params
   const { subjectType, subjectId } = subject
   const stableSubject = useMemo<ParticipantSubjectRef>(() => ({ subjectType, subjectId }), [subjectType, subjectId])
   const [state, dispatch] = useReducer(participantThreadReducer, INITIAL_PARTICIPANT_THREAD_STATE)
-  const sentRecords = useRef(new Map<string, SentRecord>())
+  const apiRef = useRef(api)
+  apiRef.current = api
   const activeSubjectKey = useRef('')
   const confirmsRead = channelCapabilityFor(channel).confirmsRead
 
@@ -67,81 +68,31 @@ export function useParticipantThread(params: UseParticipantThreadParams): UsePar
     const requestKey = `${subjectType}:${subjectId}`
     dispatch({ type: 'started' })
     try {
-      const messages = await api.fetchMessages(stableSubject, { limit: THREAD_PAGE_SIZE })
+      const messages = await apiRef.current.fetchMessages(stableSubject, { limit: THREAD_PAGE_SIZE })
       if (activeSubjectKey.current === requestKey) {
         dispatch({ type: 'loaded', messages, hasMore: messages.length >= THREAD_PAGE_SIZE })
       }
     } catch (error) {
       if (activeSubjectKey.current === requestKey) dispatch({ type: 'failed', error: describeError(error) })
     }
-  }, [api, stableSubject, subjectType, subjectId])
+  }, [stableSubject, subjectType, subjectId])
 
   const oldestMessageId = state.messages[0]?.id
   const loadOlder = useCallback(async (): Promise<void> => {
     if (!oldestMessageId) return
     const requestKey = `${subjectType}:${subjectId}`
     try {
-      const messages = await api.fetchMessages(stableSubject, { before: oldestMessageId, limit: THREAD_PAGE_SIZE })
+      const messages = await apiRef.current.fetchMessages(stableSubject, { before: oldestMessageId, limit: THREAD_PAGE_SIZE })
       if (activeSubjectKey.current === requestKey) {
         dispatch({ type: 'olderLoaded', messages, hasMore: messages.length >= THREAD_PAGE_SIZE })
       }
     } catch (error) {
       if (activeSubjectKey.current === requestKey) dispatch({ type: 'failed', error: describeError(error) })
     }
-  }, [api, stableSubject, subjectType, subjectId, oldestMessageId])
+  }, [stableSubject, subjectType, subjectId, oldestMessageId])
 
-  const dispatchSend = useCallback(
-    async (clientMessageId: string, record: SentRecord): Promise<ParticipantSendOutcome> => {
-      try {
-        const result = await api.sendMessage({
-          subject: record.subject,
-          clientMessageId,
-          ...(record.draft.text ? { text: record.draft.text } : {}),
-          ...(record.draft.files?.length ? { files: record.draft.files } : {}),
-        })
-        sentRecords.current.delete(clientMessageId)
-        if (result.outcome === 'sent') dispatch({ type: 'sendConfirmed', clientMessageId, message: result.message })
-        else dispatch({ type: 'pendingRemoved', clientMessageId })
-        return result.outcome === 'sent' ? 'sent' : 'queued'
-      } catch {
-        dispatch({ type: 'pendingFailed', clientMessageId })
-        return 'failed'
-      }
-    },
-    [api],
-  )
-
-  const send = useCallback(
-    async (draft: ParticipantSendDraft): Promise<ParticipantSendOutcome> => {
-      const clientMessageId = crypto.randomUUID()
-      const record: SentRecord = { subject: stableSubject, draft }
-      sentRecords.current.set(clientMessageId, record)
-      const attachments = describeAttachments(draft.files)
-      dispatch({
-        type: 'pendingAdded',
-        pending: {
-          clientMessageId,
-          subject: stableSubject,
-          createdAt: new Date().toISOString(),
-          state: 'sending',
-          ...(draft.text ? { text: draft.text } : {}),
-          ...(attachments?.length ? { attachments } : {}),
-        },
-      })
-      return dispatchSend(clientMessageId, record)
-    },
-    [dispatchSend, stableSubject],
-  )
-
-  const retry = useCallback(
-    async (clientMessageId: string): Promise<void> => {
-      const record = sentRecords.current.get(clientMessageId)
-      if (!record) return
-      dispatch({ type: 'pendingRetrying', clientMessageId })
-      await dispatchSend(clientMessageId, record)
-    },
-    [dispatchSend],
-  )
+  const handleSentMessage = useCallback((message: ParticipantMessage) => dispatch({ type: 'sendConfirmed', message }), [])
+  const sending = useParticipantSend({ apiRef, subject: stableSubject, entries: sendEntries, dispatchSend, onSentMessage: handleSentMessage })
 
   useEffect(() => {
     activeSubjectKey.current = `${subjectType}:${subjectId}`
@@ -153,17 +104,13 @@ export function useParticipantThread(params: UseParticipantThreadParams): UsePar
     if (isForSubject(event, stableSubject)) void refresh()
   })
 
-  const messageCount = state.messages.length
   useEffect(() => {
-    const shouldMark = shouldMarkParticipantRead({
-      selected: stableSubject,
-      subject: stableSubject,
-      visibilityState: document.visibilityState,
-      unreadCount,
-    })
-    if (!shouldMark) return
-    void api.markRead(stableSubject).then(() => onMarkedRead?.(stableSubject), () => undefined)
-  }, [api, stableSubject, unreadCount, messageCount, onMarkedRead])
+    if (sendEntries.length === 0) return
+    dispatchSend({ type: 'reflected', knownClientMessageIds: collectKnownClientMessageIds({ messages: state.messages, hostPending }) })
+  }, [sendEntries, state.messages, hostPending, dispatchSend])
 
-  return { ...state, confirmsRead, refresh, loadOlder, send, retry }
+  useParticipantMarkRead({ apiRef, subject: stableSubject, unreadCount, messageCount: state.messages.length, onMarkedRead })
+
+  const localPending = useMemo(() => toLocalPending(sendEntries), [sendEntries])
+  return { ...state, localPending, confirmsRead, refresh, loadOlder, ...sending }
 }

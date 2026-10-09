@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useReducer, useRef, useState } from 'react'
 
 import { ParticipantInbox } from './ParticipantInbox'
 import type { ParticipantConversationsProps } from './ParticipantConversations'
@@ -6,6 +6,7 @@ import { ParticipantThreadScreen } from './ParticipantThreadScreen'
 import { draftKey, type ParticipantDrafts } from './participantDrafts'
 import { groupParticipantConversations } from './participantGrouping'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS } from './participantLabels'
+import { participantSendStatesReducer } from './participantSendStates'
 import { buildParticipantThemeStyle } from './participantTheme'
 import type { UseParticipantInboxResult } from './useParticipantInbox'
 
@@ -19,6 +20,7 @@ export function ParticipantConversationsScreen(props: ParticipantConversationsSc
   const { selected, inbox, subjectGroups, classNames } = props
   const [filter, setFilter] = useState(ALL_FILTER)
   const draftsRef = useRef<ParticipantDrafts>(new Map())
+  const [sendStates, dispatchSendStates] = useReducer(participantSendStatesReducer, new Map())
   const labels = useMemo(
     () => ({ ...DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS, ...props.labels }),
     [props.labels],
@@ -51,6 +53,8 @@ export function ParticipantConversationsScreen(props: ParticipantConversationsSc
             selected={selected}
             labels={labels}
             draftsRef={draftsRef}
+            sendStates={sendStates}
+            dispatchSendStates={dispatchSendStates}
           />
         </div>
       )}

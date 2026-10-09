@@ -20,6 +20,10 @@ export type ParticipantMessageBubbleProps = {
   readonly resolveAttachmentUrl: ResolveParticipantAttachmentUrl
   /** Absent means no retry button, even when the message failed. */
   readonly onRetry?: () => void
+  /** Absent means no discard button. */
+  readonly onDiscard?: () => void
+  /** Absent means no edit button. */
+  readonly onEdit?: () => void
 }
 
 type BubbleContent = {
@@ -96,6 +100,30 @@ function OwnStatus({ status, labels, onRetry }: OwnStatusProps) {
   )
 }
 
+type FailedActionsProps = {
+  readonly labels: ParticipantConversationsLabels
+  readonly onDiscard?: () => void
+  readonly onEdit?: () => void
+}
+
+function FailedActions({ labels, onDiscard, onEdit }: FailedActionsProps) {
+  if (!onDiscard && !onEdit) return null
+  return (
+    <span className="cv-p-bubble__actions">
+      {onEdit ? (
+        <button type="button" className="cv-p-bubble__action" onClick={onEdit}>
+          {labels.edit}
+        </button>
+      ) : null}
+      {onDiscard ? (
+        <button type="button" className="cv-p-bubble__action" onClick={onDiscard}>
+          {labels.discard}
+        </button>
+      ) : null}
+    </span>
+  )
+}
+
 function toTextPayload(text: string, createdAt: string, isMine: boolean) {
   return {
     id: createdAt,
@@ -113,6 +141,8 @@ export function ParticipantMessageBubble({
   confirmsRead,
   resolveAttachmentUrl,
   onRetry,
+  onDiscard,
+  onEdit,
 }: ParticipantMessageBubbleProps) {
   const content = describeItem(item)
   const { isMine } = content
@@ -147,6 +177,7 @@ export function ParticipantMessageBubble({
         </time>
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
       </span>
+      {ownStatus === 'failed' ? <FailedActions labels={labels} onDiscard={onDiscard} onEdit={onEdit} /> : null}
     </div>
   )
 }

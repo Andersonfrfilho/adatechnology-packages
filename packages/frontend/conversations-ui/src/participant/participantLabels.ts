@@ -32,6 +32,8 @@ export type ParticipantConversationsLabels = {
   readonly statusFailed: string
   readonly statusFailedShort: string
   readonly retry: string
+  readonly discard: string
+  readonly edit: string
   readonly notFound: string
 }
 
@@ -68,6 +70,8 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   statusFailed: 'Failed — tap to retry',
   statusFailedShort: 'Failed',
   retry: 'Retry',
+  discard: 'Discard',
+  edit: 'Edit',
   notFound: 'Conversation not found',
 }
 

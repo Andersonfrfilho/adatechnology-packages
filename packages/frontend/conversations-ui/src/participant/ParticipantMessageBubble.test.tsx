@@ -22,7 +22,11 @@ function renderServer(message = buildMessage({ id: 'm1' }), extra: { onRetry?: (
   )
 }
 
-function renderPending(displayState: 'sending' | 'queued' | 'failed', onRetry?: () => void): string {
+function renderPending(
+  displayState: 'sending' | 'queued' | 'failed',
+  onRetry?: () => void,
+  extra: { onDiscard?: () => void; onEdit?: () => void } = {},
+): string {
   const item: ParticipantTimelineItem = {
     kind: 'pending',
     origin: 'host',
@@ -36,7 +40,15 @@ function renderPending(displayState: 'sending' | 'queued' | 'failed', onRetry?: 
     },
   }
   return renderToStaticMarkup(
-    <ParticipantMessageBubble item={item} labels={LABELS} confirmsRead resolveAttachmentUrl={resolveAttachmentUrl} onRetry={onRetry} />,
+    <ParticipantMessageBubble
+      item={item}
+      labels={LABELS}
+      confirmsRead
+      resolveAttachmentUrl={resolveAttachmentUrl}
+      onRetry={onRetry}
+      onDiscard={extra.onDiscard}
+      onEdit={extra.onEdit}
+    />,
   )
 }
 
@@ -95,6 +107,24 @@ describe('ParticipantMessageBubble', () => {
     expect(withRetry).toContain('Failed — tap to retry')
     expect(withoutRetry).not.toContain('<button')
     expect(withoutRetry).toContain('cv-status-ticks--failed')
+  })
+
+  it('shows discard and edit on a failed pending only when the handlers exist', () => {
+    const none = renderPending('failed')
+    const both = renderPending('failed', () => undefined, { onDiscard: () => undefined, onEdit: () => undefined })
+    const notFailed = renderPending('queued', undefined, { onDiscard: () => undefined, onEdit: () => undefined })
+
+    expect(none).not.toContain('cv-p-bubble__action')
+    expect(both).toContain('>Discard<')
+    expect(both).toContain('>Edit<')
+    expect(notFailed).not.toContain('cv-p-bubble__action')
+  })
+
+  it('a failed server message shows only "Failed", with no button', () => {
+    const markup = renderServer(buildMessage({ id: 'a', direction: 'inbound', status: 'failed' }))
+
+    expect(markup).toContain('Failed')
+    expect(markup).not.toContain('<button')
   })
 
   it('renders attachments by kind: audio controls, image alt, document link', () => {

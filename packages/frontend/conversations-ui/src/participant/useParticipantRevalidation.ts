@@ -4,16 +4,22 @@ import type { ParticipantConversationEvent, ParticipantConversationsApi } from '
 
 type RevalidationHandler = (event?: ParticipantConversationEvent) => void
 
-/** Subscribes to the host when it can push events; otherwise revalidates on window focus, visibility and reconnection. */
+/** Subscribes to the host when it can push events (still revalidating on reconnection, when an event may have been lost); otherwise also on focus and visibility. */
 export function useParticipantRevalidation(api: ParticipantConversationsApi, onRevalidate: RevalidationHandler): void {
   const handlerRef = useRef(onRevalidate)
   handlerRef.current = onRevalidate
 
   useEffect(() => {
-    if (api.subscribe) return api.subscribe((event) => handlerRef.current(event))
-
     function handleFocus(): void {
       handlerRef.current()
+    }
+    if (api.subscribe) {
+      const unsubscribe = api.subscribe((event) => handlerRef.current(event))
+      window.addEventListener('online', handleFocus)
+      return () => {
+        unsubscribe()
+        window.removeEventListener('online', handleFocus)
+      }
     }
     function handleVisibilityChange(): void {
       if (document.visibilityState === 'visible') handlerRef.current()

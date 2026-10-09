@@ -1,20 +1,26 @@
-import { useEffect, useMemo, useState, type MutableRefObject } from 'react'
+import { useEffect, useMemo, useState, type Dispatch, type MutableRefObject } from 'react'
 
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import { ParticipantThread } from './ParticipantThread'
 import type { ParticipantConversationsScreenProps } from './ParticipantConversationsScreen'
-import { clearDraftIfUnchanged, getDraft, setDraft, type ParticipantDraft, type ParticipantDrafts } from './participantDrafts'
+import { bindAttachmentUrlResolver } from './bindAttachmentUrlResolver'
+import type { ParticipantDrafts } from './participantDrafts'
 import type { ParticipantConversationsLabels } from './participantLabels'
-import { mergeParticipantMessages } from './participantMessages'
 import type { ParticipantConversationsApi } from './participantApi.types'
-import { useParticipantThread } from './useParticipantThread'
+import { findFailedEntry } from './participantSendController'
+import type { ParticipantSendStates, ParticipantSendStatesAction } from './participantSendStates'
+import { useParticipantDraft } from './useParticipantDraft'
+import { useParticipantConversationView } from './useParticipantConversationView'
 
 export type ParticipantThreadScreenProps = Omit<ParticipantConversationsScreenProps, 'selected' | 'labels'> & {
   readonly selected: ParticipantSubjectRef
   readonly labels: ParticipantConversationsLabels
   /** Holds the immutable drafts of every subject; replaced, never mutated. */
   readonly draftsRef: MutableRefObject<ParticipantDrafts>
+  /** Sends of every subject; they live above the conversation so a failed message survives leaving it. */
+  readonly sendStates: ParticipantSendStates
+  readonly dispatchSendStates: Dispatch<ParticipantSendStatesAction>
 }
 
 type OpenedState = { readonly status: 'idle' | 'loading' | 'missing' } | { readonly status: 'found'; readonly conversation: ParticipantConversationSummary }
@@ -74,44 +80,25 @@ export function ParticipantThreadScreen(props: ParticipantThreadScreenProps) {
 type LoadedThreadProps = ParticipantThreadScreenProps & { readonly conversation: ParticipantConversationSummary }
 
 function LoadedThread(props: LoadedThreadProps) {
-  const { api, selected, conversation, draftsRef, inbox, pendingMessages } = props
-  const [draft, setDraftState] = useState<ParticipantDraft>(getDraft(draftsRef.current, selected))
-  const thread = useParticipantThread({
-    api,
+  const { api, selected, conversation, draftsRef, inbox } = props
+  const { draft, setText, setFiles, takeForSend, restoreFromEntry } = useParticipantDraft(draftsRef, selected)
+  const { thread, items, sendEntries, dispatchSend } = useParticipantConversationView({
+    ...props,
     subject: selected,
-    channel: props.channel,
-    unreadCount: conversation.unreadCount,
     onMarkedRead: inbox.markSubjectRead,
   })
-  const items = useMemo(
-    () =>
-      mergeParticipantMessages({
-        serverMessages: thread.messages,
-        hostPending: pendingMessages ?? [],
-        localPending: thread.localPending,
-        subject: selected,
-      }),
-    [thread.messages, thread.localPending, pendingMessages, selected],
-  )
+  const resolveAttachmentUrl = useMemo(() => bindAttachmentUrlResolver(api), [api])
 
-  function updateDraft(next: ParticipantDraft): void {
-    setDraftState(next)
-    draftsRef.current = setDraft(draftsRef.current, selected, next)
+  function handleSend(): void {
+    const content = takeForSend()
+    if (content) void thread.send(content)
   }
 
-  async function handleSend(): Promise<void> {
-    const sent = draft
-    const text = sent.text.trim()
-    const outcome = await thread.send({ ...(text ? { text } : {}), ...(sent.files.length > 0 ? { files: sent.files } : {}) })
-    if (outcome === 'failed') return
-    draftsRef.current = clearDraftIfUnchanged(draftsRef.current, selected, sent)
-    setDraftState((current) => (current === sent ? getDraft(draftsRef.current, selected) : current))
-  }
-
-  function handleRetry(clientMessageId: string): void {
-    const isHostPending = pendingMessages?.some((pending) => pending.clientMessageId === clientMessageId) ?? false
-    if (isHostPending) props.onRetryPending?.(clientMessageId)
-    else void thread.retry(clientMessageId)
+  function handleEdit(clientMessageId: string): void {
+    const entry = findFailedEntry(sendEntries, clientMessageId)
+    if (!entry) return
+    restoreFromEntry(entry)
+    dispatchSend({ type: 'discarded', clientMessageId })
   }
 
   return (
@@ -120,20 +107,20 @@ function LoadedThread(props: LoadedThreadProps) {
       items={items}
       hasMore={thread.hasMore}
       labels={props.labels}
-      resolveAttachmentUrl={api.resolveAttachmentUrl}
-      draft={{
-        value: draft.text,
-        onChange: (text) => updateDraft({ ...draft, text }),
-        files: draft.files,
-        onFilesChange: (files) => updateDraft({ ...draft, files }),
-      }}
-      onSend={() => void handleSend()}
+      resolveAttachmentUrl={resolveAttachmentUrl}
+      draft={{ value: draft.text, onChange: setText, files: draft.files, onFilesChange: setFiles }}
+      onSend={handleSend}
       channel={props.channel}
       locale={props.locale}
       onBack={props.onBack}
       onOpenSubject={props.onOpenSubject}
       onLoadOlder={() => void thread.loadOlder()}
-      onRetryPending={handleRetry}
+      pendingActions={{
+        retryLocal: (clientMessageId) => void thread.retry(clientMessageId),
+        discardLocal: (clientMessageId) => dispatchSend({ type: 'discarded', clientMessageId }),
+        editLocal: handleEdit,
+        ...(props.onRetryPending ? { retryHost: props.onRetryPending } : {}),
+      }}
       quickReplies={props.quickReplies}
       renderSubjectCard={props.renderSubjectCard}
     />

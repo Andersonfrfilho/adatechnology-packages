@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { clearDraft, clearDraftIfUnchanged, draftKey, EMPTY_PARTICIPANT_DRAFT, getDraft, setDraft } from './participantDrafts'
+import { clearDraft, takeDraftForSend, draftKey, EMPTY_PARTICIPANT_DRAFT, getDraft, setDraft } from './participantDrafts'
 
 const TRIP_A = { subjectType: 'trip', subjectId: 'a' }
 const TRIP_B = { subjectType: 'trip', subjectId: 'b' }
@@ -46,19 +46,20 @@ describe('participantDrafts', () => {
     expect(getDraft(both, TRIP_A).text).toBe('a')
   })
 
-  it('a failed send keeps the draft because only a confirmed send clears it', () => {
-    const sent = { text: 'hello', files: [] }
-    const drafts = setDraft(new Map(), TRIP_A, sent)
+  it('taking the draft for a send clears the field at once and returns trimmed text and files', () => {
+    const file = new File(['x'], 'a.png')
+    const drafts = setDraft(new Map(), TRIP_A, { text: ' hello ', files: [file] })
+    const taken = takeDraftForSend(drafts, TRIP_A)
 
-    expect(getDraft(drafts, TRIP_A)).toBe(sent)
-    expect(getDraft(clearDraftIfUnchanged(drafts, TRIP_A, sent), TRIP_A).text).toBe('')
+    expect(taken.content).toEqual({ text: 'hello', files: [file] })
+    expect(getDraft(taken.drafts, TRIP_A)).toEqual({ text: '', files: [] })
+    expect(getDraft(drafts, TRIP_A).text).toBe(' hello ')
   })
 
-  it('keeps text typed while the send was in flight', () => {
-    const sent = { text: 'hello', files: [] }
-    const typedAfter = { text: 'hello and more', files: [] }
-    const drafts = setDraft(new Map(), TRIP_A, typedAfter)
+  it('text typed after the tap belongs to the next send, never to the one in flight', () => {
+    const first = takeDraftForSend(setDraft(new Map(), TRIP_A, { text: 'one', files: [] }), TRIP_A)
+    const typed = setDraft(first.drafts, TRIP_A, { text: 'two', files: [] })
 
-    expect(getDraft(clearDraftIfUnchanged(drafts, TRIP_A, sent), TRIP_A)).toBe(typedAfter)
+    expect(takeDraftForSend(typed, TRIP_A).content).toEqual({ text: 'two' })
   })
 })

@@ -52,7 +52,7 @@ montasse a sua instância, voltar da conversa para a lista recarregaria tudo e p
 Capacidades opcionais existem **por ausência de prop**: sem `onBack` não há botão de voltar, sem
 `renderSubjectCard` não há cartão do assunto, sem `onOpenSubject` o título não é clicável, sem
 `quickReplies` não há faixa de respostas rápidas, sem `pendingMessages` não há fila do host. Sem
-`api.subscribe`, a tela revalida ao montar e em `focus`, `visibilitychange` e `online`. Sem
+`api.subscribe`, a tela revalida ao montar e em `focus`, `visibilitychange` e `online`; com `subscribe`, revalida também em `online` (um evento pode ter se perdido) e marca como lido ao voltar a ficar visível. Sem
 `api.openConversation`, uma conversa fora da primeira página da lista aparece como "não encontrada"
 (`labels.notFound`).
 
@@ -89,9 +89,16 @@ export const participantApi: ParticipantConversationsApi = {
 }
 ```
 
-`sendMessage` que lança significa falha: a bolha mostra "toque para reenviar" e o reenvio repete o **mesmo**
-`clientMessageId` (use-o como `Idempotency-Key`). Para guardar na fila offline do host, devolva
-`{ outcome: 'queued' }` e devolva a fila durável em `pendingMessages`. O pacote não conhece IndexedDB.
+Ao tocar em enviar, o campo é limpo na hora e a **bolha passa a ser a dona** do texto e dos arquivos (o segundo
+toque não envia nada). `sendMessage` que lança significa falha: a bolha mostra "reenviar" (repete o **mesmo**
+`clientMessageId`; use-o como `Idempotency-Key`), "editar" (devolve texto e arquivos ao campo e remove a bolha) e
+"descartar". Uma bolha que falhou sobrevive a sair e voltar da conversa. Para guardar na fila offline do host,
+devolva `{ outcome: 'queued' }` e devolva a fila durável em `pendingMessages`: a bolha fica como "na fila" até o host
+ou o servidor refletirem o mesmo `clientMessageId`. Falha de uma mensagem que veio do servidor mostra só "Falhou";
+falha de uma pendente do host só ganha "reenviar" se `onRetryPending` for passado. O pacote não conhece IndexedDB.
+
+`api` deve ter identidade **estável** (crie o adapter uma vez, fora do render): trocar a instância reinscreve os
+eventos de `subscribe`, mas não zera a conversa. Métodos de adapter escritos como classe funcionam, o pacote preserva o `this`.
 
 ### Aviso: `direction` é sempre na perspectiva da empresa
 
