@@ -36,6 +36,16 @@ export function filterConversationsBySearch(
   )
 }
 
+export type InboxSearchVisibilityParams = {
+  readonly conversations: readonly ParticipantConversationSummary[]
+  readonly searchQuery: string
+}
+
+/** An applied query keeps the field, so a refresh that shrinks the list cannot strand it. */
+export function isInboxSearchVisible({ conversations, searchQuery }: InboxSearchVisibilityParams): boolean {
+  return searchQuery !== '' || shouldShowInboxSearch(conversations)
+}
+
 export function shouldShowInboxSearch(conversations: readonly ParticipantConversationSummary[]): boolean {
   if (conversations.length > PROTOCOL_SEARCH_CONVERSATION_THRESHOLD) return true
   return conversations.some((conversation) => conversation.protocol !== undefined)

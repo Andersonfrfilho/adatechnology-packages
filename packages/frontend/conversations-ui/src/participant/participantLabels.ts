@@ -41,6 +41,8 @@ export type ParticipantConversationsLabels = {
   readonly searchLabel: string
   readonly searchPlaceholder: string
   readonly noResults: string
+  readonly noResultsInFilter: string
+  readonly noResultsLoadedOnly: string
   /** Spoken before the protocol code, e.g. "Protocol 261009-K7M2". */
   readonly protocolPrefix: string
   readonly copyProtocol: string
@@ -89,8 +91,10 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   searchLabel: 'Search conversations',
   searchPlaceholder: 'Search by title or protocol',
   noResults: 'No conversations found',
+  noResultsInFilter: 'No results in this filter — try All',
+  noResultsLoadedOnly: 'Nothing in the loaded conversations — load more',
   protocolPrefix: 'Protocol',
-  copyProtocol: 'Copy',
+  copyProtocol: 'Copy protocol',
   protocolCopied: 'Protocol copied',
 }
 

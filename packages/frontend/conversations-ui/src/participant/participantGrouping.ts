@@ -1,3 +1,4 @@
+import { filterConversationsBySearch } from './participantProtocol'
 import type { ParticipantConversationSummary } from '@adatechnology/conversation-contracts'
 
 import type {
@@ -56,9 +57,8 @@ function buildFilters(
 export function groupParticipantConversations(params: GroupParticipantConversationsParams): ParticipantInboxView {
   const { filter, subjectGroups } = params
   const isFiltered = filter !== undefined && filter !== ALL_FILTER
-  const visible = isFiltered
-    ? params.conversations.filter((conversation) => conversation.subjectType === filter)
-    : params.conversations
+  const searched = filterConversationsBySearch(params.conversations, params.searchQuery ?? '')
+  const visible = isFiltered ? searched.filter((conversation) => conversation.subjectType === filter) : searched
   const knownTypes = new Set(subjectGroups.map((group) => group.subjectType))
 
   const buckets = new Map<string, ParticipantConversationSummary[]>()
@@ -67,11 +67,17 @@ export function groupParticipantConversations(params: GroupParticipantConversati
     buckets.set(key, [...(buckets.get(key) ?? []), conversation])
   }
 
-  const orderedKeys = [SECTION_AWAITING, ...subjectGroups.map((group) => group.subjectType), SECTION_OTHER, SECTION_CLOSED]
+  const orderedKeys = [
+    SECTION_AWAITING,
+    ...subjectGroups.map((group) => group.subjectType),
+    SECTION_OTHER,
+    SECTION_CLOSED,
+  ]
   const sections = orderedKeys.flatMap((key) => {
     const bucket = buckets.get(key)
     return bucket === undefined ? [] : [buildSection(key, bucket)]
   })
 
-  return { sections, ...buildFilters(params) }
+  const hasMatchesOutsideFilter = isFiltered && visible.length === 0 && searched.length > 0
+  return { sections, hasMatchesOutsideFilter, ...buildFilters(params) }
 }

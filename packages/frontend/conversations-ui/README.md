@@ -86,11 +86,13 @@ export const participantApi: ParticipantConversationsApi = {
       await request(`/conversations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
     ),
   fetchMessages: async (subject, { before, limit } = {}) =>
-    z.array(participantMessageSchema).parse(
-      await request(
-        `${conversationPath(subject)}/messages?limit=${limit ?? 30}${before ? `&before=${encodeURIComponent(before)}` : ''}`,
+    z
+      .array(participantMessageSchema)
+      .parse(
+        await request(
+          `${conversationPath(subject)}/messages?limit=${limit ?? 30}${before ? `&before=${encodeURIComponent(before)}` : ''}`,
+        ),
       ),
-    ),
   sendMessage: async ({ subject, clientMessageId, text }) => {
     const message = participantMessageSchema.parse(
       await request(`${conversationPath(subject)}/messages`, {
@@ -146,15 +148,23 @@ app **não inverte nada**.
 curto para citar a conversa por telefone ou mensagem. **Quem gera é o produto, no servidor, uma vez e imutável**: o
 pacote nunca gera nem conhece o formato, só **exibe, copia e busca**. Campo ausente = nada é desenhado.
 
-- **Lista:** a linha mostra o protocolo abaixo do título (fonte mono, `aria-label` "`labels.protocolPrefix` + código").
+- **Lista:** a linha mostra o protocolo abaixo do título (fonte mono); o prefixo `labels.protocolPrefix` é um `<span>` só para
+  leitor de tela (sem `aria-label` em elemento genérico, que o ARIA 1.2 proíbe).
 - **Cabeçalho da conversa:** protocolo abaixo do título e botão de copiar (alvo de 44px) que usa
-  `navigator.clipboard.writeText`; falha de cópia é silenciosa. O aviso `labels.protocolCopied` vai numa região
-  `aria-live="polite"` que permanece na árvore (visualmente oculta) para leitores de tela.
+  `navigator.clipboard.writeText`; falha de cópia é silenciosa. Durante 3 s o texto visível do botão vira
+  `labels.protocolCopied` (o nome acessível segue "`copyProtocol` + código") e o aviso também vai numa região
+  `aria-live="polite"` sempre na árvore; copiar de novo dentro dos 3 s reinicia o prazo e reanuncia.
 - **Busca:** um campo `type="search"` acima da lista filtra por título (sem acento nem caixa) **ou** protocolo
   (parcial, sem traço, sem caixa: `k7m2` acha `261009-K7M2`). Aparece só quando alguma conversa tem `protocol` ou
   há mais de 8 conversas na lista; sem nada disso, nada é desenhado. Sem resultado: `labels.noResults`.
-- **Labels novas** (defaults em inglês): `searchLabel`, `searchPlaceholder`, `noResults`, `protocolPrefix`,
-  `copyProtocol`, `protocolCopied`.
+  - Os chips de assunto e suas contagens são sempre calculados sobre **todas** as conversas carregadas; a busca só
+    restringe as linhas. Se o chip ativo não contém o que a busca acha (mas outro assunto contém), os chips continuam
+    visíveis e o estado vazio mostra `labels.noResultsInFilter` ("tente Todas") em vez de esconder a barra.
+  - O campo permanece enquanto houver consulta, mesmo que um refresh reduza a lista abaixo do limiar.
+  - **Limitação:** a busca cobre só as conversas já carregadas. Com `hasMore` e sem resultado, o estado vazio mostra
+    `labels.noResultsLoadedOnly` e o botão "carregar mais" fica à mão. Busca no servidor fica como evolução.
+- **Labels novas** (defaults em inglês): `searchLabel`, `searchPlaceholder`, `noResults`, `noResultsInFilter`,
+  `noResultsLoadedOnly`, `protocolPrefix`, `copyProtocol` (padrão "Copy protocol"), `protocolCopied`.
 - **Classes novas:** `.cv-p-protocol`, `.cv-p-protocol__copy`, `.cv-p-search` (mesmos tokens `--cv-p-*`).
 
 ### Variáveis `--cv-p-*`
@@ -163,18 +173,18 @@ Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há també
 (`primaryColor` → `--cv-p-accent`, `backgroundColor` → `--cv-p-surface`, `textPrimary` → `--cv-p-text`,
 `textSecondary` → `--cv-p-text-muted`).
 
-| Variável | Para que serve | Padrão (claro) |
-| --- | --- | --- |
-| `--cv-p-surface` | fundo da tela | `#ffffff` |
-| `--cv-p-surface-raised` | fundo de bolhas recebidas e campos | `#f3f4f6` |
-| `--cv-p-text` | texto principal | `#111827` |
-| `--cv-p-text-muted` | texto secundário | `#5b6573` |
-| `--cv-p-border` | bordas | `#d5d9df` |
-| `--cv-p-accent` | destaque, botão primário, bolha própria | `#a85a1c` |
-| `--cv-p-accent-contrast` | texto sobre o destaque | `#ffffff` |
-| `--cv-p-highlight` | fundo de "espera sua resposta" | `#fbefe2` |
-| `--cv-p-danger` | erro e falha de envio | `#c62828` |
-| `--cv-p-radius` | raio dos cantos | `0` |
+| Variável                 | Para que serve                          | Padrão (claro) |
+| ------------------------ | --------------------------------------- | -------------- |
+| `--cv-p-surface`         | fundo da tela                           | `#ffffff`      |
+| `--cv-p-surface-raised`  | fundo de bolhas recebidas e campos      | `#f3f4f6`      |
+| `--cv-p-text`            | texto principal                         | `#111827`      |
+| `--cv-p-text-muted`      | texto secundário                        | `#5b6573`      |
+| `--cv-p-border`          | bordas                                  | `#d5d9df`      |
+| `--cv-p-accent`          | destaque, botão primário, bolha própria | `#a85a1c`      |
+| `--cv-p-accent-contrast` | texto sobre o destaque                  | `#ffffff`      |
+| `--cv-p-highlight`       | fundo de "espera sua resposta"          | `#fbefe2`      |
+| `--cv-p-danger`          | erro e falha de envio                   | `#c62828`      |
+| `--cv-p-radius`          | raio dos cantos                         | `0`            |
 
 O tema escuro segue a classe `.dark` (mesma do restante do pacote). Os nomes `.cv-p-*` e `--cv-p-*` são API
 pública e não mudam sem nova versão maior.

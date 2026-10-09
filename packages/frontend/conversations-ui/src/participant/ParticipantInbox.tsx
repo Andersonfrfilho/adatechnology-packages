@@ -25,7 +25,7 @@ export type ParticipantInboxProps = {
   readonly hasMore: boolean
   readonly loadMore: () => void
   readonly locale?: string
-  /** Absent = no search field. The host filters the conversations; the field only edits the query. */
+  /** Absent = no search field. The host narrows the view with the query; the field only edits it. */
   readonly search?: ParticipantInboxSearch
 }
 
@@ -35,6 +35,11 @@ function formatRowTime(iso: string, locale: string | undefined): string {
   const date = new Date(iso)
   if (isSameDay(date, new Date())) return formatTimestamp(iso)
   return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' })
+}
+
+function resolveNoResultsLabel({ view, hasMore, labels }: ParticipantInboxProps): string {
+  if (view.hasMatchesOutsideFilter) return labels.noResultsInFilter
+  return hasMore ? labels.noResultsLoadedOnly : labels.noResults
 }
 
 function sectionTitle(section: ParticipantInboxSection, props: ParticipantInboxProps): string {
@@ -92,11 +97,14 @@ function Row({ conversation, group, labels, locale, onSelect }: RowProps) {
         <span className="cv-p-row__kind">{kind}</span>
         <span className="cv-p-row__title">{conversation.subjectLabel}</span>
         {conversation.protocol ? (
-          <span className="cv-p-protocol" aria-label={`${labels.protocolPrefix} ${conversation.protocol}`}>
+          <span className="cv-p-protocol">
+            <span className="cv-p-sr-only">{labels.protocolPrefix} </span>
             {conversation.protocol}
           </span>
         ) : null}
-        {conversation.lastMessagePreview ? <span className="cv-p-row__preview">{conversation.lastMessagePreview}</span> : null}
+        {conversation.lastMessagePreview ? (
+          <span className="cv-p-row__preview">{conversation.lastMessagePreview}</span>
+        ) : null}
       </span>
       <span className="cv-p-row__meta">
         {conversation.lastMessageAt ? <span>{formatRowTime(conversation.lastMessageAt, locale)}</span> : null}
@@ -120,7 +128,13 @@ function SectionHeading({ title, count }: { readonly title: string; readonly cou
   )
 }
 
-function Section({ section, props }: { readonly section: ParticipantInboxSection; readonly props: ParticipantInboxProps }) {
+function Section({
+  section,
+  props,
+}: {
+  readonly section: ParticipantInboxSection
+  readonly props: ParticipantInboxProps
+}) {
   const rows = section.conversations.map((conversation) => (
     <Row
       key={`${conversation.subjectType}:${conversation.subjectId}`}
@@ -155,6 +169,7 @@ export function ParticipantInbox(props: ParticipantInboxProps) {
   const isSearching = (props.search?.value.trim() ?? '') !== ''
   const loadView = resolveLoadView({ status: props.status, hasItems: view.sections.length > 0 || isSearching })
   const hasNoResults = isSearching && view.sections.length === 0 && props.status === 'ready'
+  const noResultsLabel = resolveNoResultsLabel(props)
 
   return (
     <div className="cv-p cv-p-inbox" aria-busy={loadView.isLoading}>
@@ -166,7 +181,7 @@ export function ParticipantInbox(props: ParticipantInboxProps) {
       {loadView.isLoading ? <ParticipantLoading labels={labels} /> : null}
       {loadView.hasError ? <ParticipantLoadError labels={labels} onRetry={props.refresh} /> : null}
       {loadView.isEmpty ? <p className="cv-p-empty">{labels.emptyInbox}</p> : null}
-      {hasNoResults ? <p className="cv-p-empty">{labels.noResults}</p> : null}
+      {hasNoResults ? <p className="cv-p-empty">{noResultsLabel}</p> : null}
       {view.sections.map((section) => (
         <Section key={section.key} section={section} props={props} />
       ))}

@@ -4,6 +4,7 @@ import { buildConversation } from './participantFixtures.test-helper'
 import {
   PROTOCOL_SEARCH_CONVERSATION_THRESHOLD,
   filterConversationsBySearch,
+  isInboxSearchVisible,
   matchesProtocolQuery,
   normalizeProtocolQuery,
   shouldShowInboxSearch,
@@ -38,9 +39,9 @@ describe('matchesProtocolQuery', () => {
 
 describe('filterConversationsBySearch', () => {
   const conversations = [
-    buildConversation({ subjectId: '1', subjectLabel: 'Avaria na carga', protocol: '261009-K7M2' }),
-    buildConversation({ subjectId: '2', subjectLabel: 'Entrega atrasada' }),
-    buildConversation({ subjectId: '3', subjectLabel: 'Outro assunto', protocol: '261008-AB23' }),
+    buildConversation({ subjectId: '1', subjectLabel: 'Damaged item', protocol: '261009-K7M2' }),
+    buildConversation({ subjectId: '2', subjectLabel: 'Late item' }),
+    buildConversation({ subjectId: '3', subjectLabel: 'Other topic', protocol: '261008-AB23' }),
   ]
   const ids = (query: string) => filterConversationsBySearch(conversations, query).map((item) => item.subjectId)
 
@@ -50,8 +51,8 @@ describe('filterConversationsBySearch', () => {
   })
 
   it('matches the title without accent or case', () => {
-    expect(ids('AVARIA')).toEqual(['1'])
-    expect(ids('atrasáda')).toEqual(['2'])
+    expect(ids('DAMAGED')).toEqual(['1'])
+    expect(ids('látè')).toEqual(['2'])
   })
 
   it('matches the protocol partially, without dash and case', () => {
@@ -84,5 +85,20 @@ describe('shouldShowInboxSearch', () => {
 
   it('hides for a short list without protocols', () => {
     expect(shouldShowInboxSearch([buildConversation({ subjectId: '1' })])).toBe(false)
+  })
+})
+
+describe('isInboxSearchVisible', () => {
+  const short = [buildConversation({ subjectId: '1' })]
+  const withProtocol = [buildConversation({ subjectId: '1', protocol: '261009-K7M2' })]
+
+  it('follows the threshold rule when there is no query', () => {
+    expect(isInboxSearchVisible({ conversations: short, searchQuery: '' })).toBe(false)
+    expect(isInboxSearchVisible({ conversations: withProtocol, searchQuery: '' })).toBe(true)
+  })
+
+  it('stays visible while a query is applied, even if a refresh shrank the list', () => {
+    expect(isInboxSearchVisible({ conversations: short, searchQuery: 'k7' })).toBe(true)
+    expect(isInboxSearchVisible({ conversations: [], searchQuery: 'k7' })).toBe(true)
   })
 })

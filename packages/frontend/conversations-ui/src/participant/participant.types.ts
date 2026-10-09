@@ -27,6 +27,8 @@ export type ParticipantInboxView = {
   readonly sections: readonly ParticipantInboxSection[]
   readonly filters: readonly ParticipantInboxFilter[]
   readonly showFilters: boolean
+  /** The search finds conversations, but none under the active subject filter. */
+  readonly hasMatchesOutsideFilter: boolean
 }
 
 export type GroupParticipantConversationsParams = {
@@ -34,6 +36,8 @@ export type GroupParticipantConversationsParams = {
   readonly subjectGroups: readonly ParticipantSubjectGroup[]
   /** subjectType, or 'all'/undefined for everything. */
   readonly filter?: string
+  /** Narrows the rows only: chips and their counts always describe the whole list. */
+  readonly searchQuery?: string
 }
 
 export type ParticipantConversationsClassNames = {
