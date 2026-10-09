@@ -27,6 +27,8 @@ export type ParticipantMessageBubbleProps = {
   readonly onEdit?: () => void
   /** Opt-in slot to the left of a received bubble; null reserves the space, absent changes nothing. */
   readonly avatar?: ReactNode
+  /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
+  readonly tail?: boolean
 }
 
 type BubbleContent = {
@@ -74,6 +76,13 @@ function toTextPayload(text: string, createdAt: string, isMine: boolean) {
   }
 }
 
+function bubbleClassName(isMine: boolean, hasTail: boolean): string {
+  const classes = ['cv-p-bubble']
+  if (isMine) classes.push('cv-p-bubble--mine')
+  if (!hasTail) classes.push('cv-p-bubble--no-tail')
+  return classes.join(' ')
+}
+
 export function ParticipantMessageBubble({
   item,
   labels,
@@ -83,6 +92,7 @@ export function ParticipantMessageBubble({
   onDiscard,
   onEdit,
   avatar,
+  tail = true,
 }: ParticipantMessageBubbleProps) {
   const content = describeItem(item)
   const { isMine } = content
@@ -91,7 +101,7 @@ export function ParticipantMessageBubble({
     : undefined
 
   const bubble = (
-    <div className={isMine ? 'cv-p-bubble cv-p-bubble--mine' : 'cv-p-bubble'}>
+    <div className={bubbleClassName(isMine, tail)}>
       {isMine ? (
         <span className="cv-p-sr-only">{labels.me}</span>
       ) : content.authorName ? (

@@ -63,6 +63,8 @@ export type ParticipantThreadProps = {
   readonly avatars?: 'initials'
   /** Host slot for the author's photo; wins over 'initials' and enables avatars on its own. */
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
+  readonly tail?: boolean
 }
 
 function createdAtOf(item: ParticipantTimelineItem): string {
@@ -127,6 +129,7 @@ function Timeline({ props }: { readonly props: ParticipantThreadProps }) {
         labels={labels}
         confirmsRead={confirmsRead}
         resolveAttachmentUrl={resolveAttachmentUrl}
+        tail={props.tail}
         avatar={resolveAvatarSlot({
           isEnabled: isAvatarEnabled,
           isMine,

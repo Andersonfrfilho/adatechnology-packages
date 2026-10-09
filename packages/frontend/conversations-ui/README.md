@@ -226,6 +226,19 @@ Classes novas: `.cv-p-thread__eyebrow`, `.cv-p-thread__meta`, `.cv-p-protocol__c
 - Sem nenhuma das duas props o markup da bolha é idêntico ao anterior. Classes novas: `.cv-p-avatar`, `.cv-p-bubble-row`,
   `.cv-p-bubble-row__avatar`. Nenhum label novo.
 
+### Rabinho da bolha (`tail`)
+
+A bolha da conversa é um balão de fala: um rabinho triangular de 9px cola no canto **inferior esquerdo** da bolha recebida e
+no **inferior direito** da própria (convenção de chat). Ligado por padrão; `tail={false}` (em `ParticipantConversations`)
+remove o rabinho e devolve o canto arredondado (`.cv-p-bubble--no-tail`).
+
+- O rabo são dois triângulos de `border` (`::before` na cor da borda, `::after` na cor do fundo, 1px deslocado), então a
+  borda de 1px continua contínua. As cores saem dos mesmos tokens da bolha (`--cv-p-border`, `--cv-p-surface-raised`; na
+  própria, `--cv-p-accent` e `--cv-p-highlight`) e acompanham `.dark`.
+- Funciona com tema reto (`--cv-p-radius: 0`) e arredondado: o canto inferior correspondente fica reto para o rabo emendar.
+- É decorativo (`pointer-events: none`, pseudo-elemento): não muda área de toque, conteúdo nem altura mínima. Com avatar a
+  bolha recua 0.25rem para o rabo não encostar no quadrado. Sem animação.
+
 ### Variáveis `--cv-p-*`
 
 Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há também a prop `theme`

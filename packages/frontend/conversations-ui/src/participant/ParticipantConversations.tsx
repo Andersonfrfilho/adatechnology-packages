@@ -39,6 +39,8 @@ export type ParticipantConversationsProps = {
   avatars?: 'initials'
   /** Host slot for the author's photo; wins over 'initials' and enables avatars on its own. */
   renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
+  tail?: boolean
 }
 
 export function ParticipantConversations(props: ParticipantConversationsProps) {

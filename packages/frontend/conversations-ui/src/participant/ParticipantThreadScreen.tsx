@@ -146,6 +146,7 @@ function LoadedThread(props: LoadedThreadProps) {
       subjectGroups={props.subjectGroups}
       avatars={props.avatars}
       renderAuthorAvatar={props.renderAuthorAvatar}
+      tail={props.tail}
     />
   )
 }
