@@ -105,3 +105,35 @@ describe('participantThreadReducer', () => {
     expect(participantThreadReducer(added, { type: 'failed', error: 'boom' })).toMatchObject({ status: 'error', error: 'boom' })
   })
 })
+
+describe('resending a failed pending message', () => {
+  const FAILED_STATE: ParticipantThreadState = participantThreadReducer(
+    participantThreadReducer(INITIAL_PARTICIPANT_THREAD_STATE, { type: 'pendingAdded', pending: pending('c1') }),
+    { type: 'pendingFailed', clientMessageId: 'c1' },
+  )
+
+  it('reuses the same clientMessageId and keeps a single bubble', () => {
+    const retrying = participantThreadReducer(FAILED_STATE, { type: 'pendingRetrying', clientMessageId: 'c1' })
+
+    expect(retrying.localPending.map((item) => [item.clientMessageId, item.state])).toEqual([['c1', 'sending']])
+  })
+
+  it('does not create a second bubble when the same id is added again', () => {
+    const again = participantThreadReducer(FAILED_STATE, { type: 'pendingAdded', pending: pending('c1') })
+
+    expect(again.localPending).toHaveLength(1)
+    expect(again.localPending[0]?.state).toBe('sending')
+  })
+
+  it('a confirmed resend leaves only the server message', () => {
+    const retrying = participantThreadReducer(FAILED_STATE, { type: 'pendingRetrying', clientMessageId: 'c1' })
+    const confirmed = participantThreadReducer(retrying, {
+      type: 'sendConfirmed',
+      clientMessageId: 'c1',
+      message: message('m1', '2026-10-01T10:00:01.000Z', { clientMessageId: 'c1' }),
+    })
+
+    expect(confirmed.localPending).toHaveLength(0)
+    expect(ids(confirmed)).toEqual(['m1'])
+  })
+})

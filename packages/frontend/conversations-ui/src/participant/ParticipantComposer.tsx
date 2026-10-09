@@ -4,8 +4,9 @@ import { channelCapabilityFor } from '../channelCapability'
 import type { ConversationChannel } from '../conversationChannel'
 import { formatFileSize } from '../lib/format'
 import type { QuickReply } from '../quickReplies/quickReply.types'
-import { validateParticipantFiles, type ParticipantFileRejection } from './participantFileValidation'
+import { maxBytesForChannel, reduceFilesSelection, type ParticipantFileRejection } from './participantFileValidation'
 import type { ParticipantConversationsLabels } from './participantLabels'
+import { applyQuickReply } from './participantQuickReply'
 
 export type ParticipantComposerProps = {
   readonly value: string
@@ -100,15 +101,15 @@ function AttachControl({ labels, disabled, acceptedTypes, onChosen }: AttachCont
 
 function useFileSelection(props: ParticipantComposerProps) {
   const [rejection, setRejection] = useState<ParticipantFileRejection | undefined>(undefined)
-  const { files, onFilesChange, channel = 'app' } = props
-  const maxBytes = channelCapabilityFor(channel).attachments.maxBytes
+  const { files, onFilesChange, channel } = props
+  const maxBytes = maxBytesForChannel(channel)
 
   function handleFilesChosen(event: ChangeEvent<HTMLInputElement>): void {
     const chosen = Array.from(event.target.files ?? [])
     event.target.value = ''
-    const result = validateParticipantFiles({ files: chosen, maxBytes, acceptedTypes: props.acceptedTypes })
-    setRejection(result.rejection)
-    if (result.accepted.length > 0) onFilesChange([...files, ...result.accepted])
+    const result = reduceFilesSelection({ current: files, incoming: chosen, maxBytes, acceptedTypes: props.acceptedTypes })
+    setRejection(result.rejected[0]?.reason)
+    if (result.files.length !== files.length) onFilesChange(result.files)
   }
 
   function handleRemoveFile(file: File): void {
@@ -132,7 +133,7 @@ export function ParticipantComposer(props: ParticipantComposerProps) {
   return (
     <form className="cv-p-composer" onSubmit={handleSubmit}>
       {props.quickReplies && props.quickReplies.length > 0 ? (
-        <QuickReplyStrip quickReplies={props.quickReplies} labels={labels} onPick={onChange} />
+        <QuickReplyStrip quickReplies={props.quickReplies} labels={labels} onPick={(body) => onChange(applyQuickReply(value, body))} />
       ) : null}
       <FileList files={files} labels={labels} onRemove={handleRemoveFile} />
       {rejection ? (

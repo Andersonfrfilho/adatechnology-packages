@@ -83,7 +83,7 @@ export function participantThreadReducer(state: ParticipantThreadState, action: 
     case 'failed':
       return { ...state, status: 'error', error: action.error }
     case 'pendingAdded':
-      return { ...state, localPending: [...state.localPending, action.pending] }
+      return { ...state, localPending: [...state.localPending.filter((item) => item.clientMessageId !== action.pending.clientMessageId), action.pending] }
     case 'pendingFailed':
       return updatePending(state, action.clientMessageId, 'failed')
     case 'pendingRetrying':

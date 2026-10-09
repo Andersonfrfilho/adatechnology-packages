@@ -72,6 +72,18 @@ describe('ParticipantComposer', () => {
     expect(markup).toContain('type="button"')
   })
 
+  it('renders chips as type=button so tapping one never submits the form', () => {
+    const markup = render({ quickReplies: QUICK_REPLIES })
+    const chips = [...markup.matchAll(/<button[^>]*class="cv-p-chip"[^>]*>/g)].map((match) => match[0])
+
+    expect(chips).toHaveLength(2)
+    for (const chip of chips) {
+      expect(chip).toContain('type="button"')
+      expect(chip).not.toContain('type="submit"')
+    }
+    expect(markup.match(/type="submit"/g)).toHaveLength(1)
+  })
+
   it('has no microphone control', () => {
     expect(render({ quickReplies: QUICK_REPLIES }).toLowerCase()).not.toMatch(/microphone|record/)
   })

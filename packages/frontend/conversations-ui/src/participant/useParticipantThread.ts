@@ -29,11 +29,13 @@ export type ParticipantSendDraft = {
   readonly files?: readonly File[]
 }
 
+export type ParticipantSendOutcome = 'sent' | 'queued' | 'failed'
+
 export type UseParticipantThreadResult = ParticipantThreadState & {
   readonly confirmsRead: boolean
   readonly refresh: () => Promise<void>
   readonly loadOlder: () => Promise<void>
-  readonly send: (draft: ParticipantSendDraft) => Promise<void>
+  readonly send: (draft: ParticipantSendDraft) => Promise<ParticipantSendOutcome>
   readonly retry: (clientMessageId: string) => Promise<void>
 }
 
@@ -89,7 +91,7 @@ export function useParticipantThread(params: UseParticipantThreadParams): UsePar
   }, [api, stableSubject, subjectType, subjectId, oldestMessageId])
 
   const dispatchSend = useCallback(
-    async (clientMessageId: string, record: SentRecord): Promise<void> => {
+    async (clientMessageId: string, record: SentRecord): Promise<ParticipantSendOutcome> => {
       try {
         const result = await api.sendMessage({
           subject: record.subject,
@@ -100,15 +102,17 @@ export function useParticipantThread(params: UseParticipantThreadParams): UsePar
         sentRecords.current.delete(clientMessageId)
         if (result.outcome === 'sent') dispatch({ type: 'sendConfirmed', clientMessageId, message: result.message })
         else dispatch({ type: 'pendingRemoved', clientMessageId })
+        return result.outcome === 'sent' ? 'sent' : 'queued'
       } catch {
         dispatch({ type: 'pendingFailed', clientMessageId })
+        return 'failed'
       }
     },
     [api],
   )
 
   const send = useCallback(
-    async (draft: ParticipantSendDraft): Promise<void> => {
+    async (draft: ParticipantSendDraft): Promise<ParticipantSendOutcome> => {
       const clientMessageId = crypto.randomUUID()
       const record: SentRecord = { subject: stableSubject, draft }
       sentRecords.current.set(clientMessageId, record)
@@ -124,7 +128,7 @@ export function useParticipantThread(params: UseParticipantThreadParams): UsePar
           ...(attachments?.length ? { attachments } : {}),
         },
       })
-      await dispatchSend(clientMessageId, record)
+      return dispatchSend(clientMessageId, record)
     },
     [dispatchSend, stableSubject],
   )

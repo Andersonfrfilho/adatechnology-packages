@@ -1,3 +1,6 @@
+import { channelCapabilityFor } from '../channelCapability'
+import type { ConversationChannel } from '../conversationChannel'
+
 export type ParticipantFileRejection = 'tooLarge' | 'typeNotAccepted'
 
 export type ValidateParticipantFilesParams = {
@@ -18,7 +21,7 @@ function matchesAcceptedType(mimeType: string, acceptedTypes: readonly string[])
   )
 }
 
-function rejectionOf(file: File, params: ValidateParticipantFilesParams): ParticipantFileRejection | undefined {
+function rejectionOf(file: File, params: Omit<ValidateParticipantFilesParams, 'files'>): ParticipantFileRejection | undefined {
   if (params.acceptedTypes && !matchesAcceptedType(file.type, params.acceptedTypes)) return 'typeNotAccepted'
   if (file.size > params.maxBytes) return 'tooLarge'
   return undefined
@@ -33,4 +36,37 @@ export function validateParticipantFiles(params: ValidateParticipantFilesParams)
     else rejection = rejection ?? reason
   }
   return rejection === undefined ? { accepted } : { accepted, rejection }
+}
+
+export type RejectedParticipantFile = {
+  readonly file: File
+  readonly reason: ParticipantFileRejection
+}
+
+export type ReduceFilesSelectionParams = {
+  readonly current: readonly File[]
+  readonly incoming: readonly File[]
+  readonly maxBytes: number
+  readonly acceptedTypes?: readonly string[]
+}
+
+export type ReduceFilesSelectionResult = {
+  readonly files: readonly File[]
+  readonly rejected: readonly RejectedParticipantFile[]
+}
+
+/** A refusal never drops what was already chosen: valid files are kept, refused ones are reported. */
+export function reduceFilesSelection(params: ReduceFilesSelectionParams): ReduceFilesSelectionResult {
+  const files = [...params.current]
+  const rejected: RejectedParticipantFile[] = []
+  for (const file of params.incoming) {
+    const reason = rejectionOf(file, params)
+    if (reason === undefined) files.push(file)
+    else rejected.push({ file, reason })
+  }
+  return { files, rejected }
+}
+
+export function maxBytesForChannel(channel: ConversationChannel = 'app'): number {
+  return channelCapabilityFor(channel).attachments.maxBytes
 }

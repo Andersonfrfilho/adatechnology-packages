@@ -1,26 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type MutableRefObject } from 'react'
 
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import { ParticipantThread } from './ParticipantThread'
 import type { ParticipantConversationsScreenProps } from './ParticipantConversationsScreen'
+import { clearDraftIfUnchanged, getDraft, setDraft, type ParticipantDraft, type ParticipantDrafts } from './participantDrafts'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { mergeParticipantMessages } from './participantMessages'
 import type { ParticipantConversationsApi } from './participantApi.types'
 import { useParticipantThread } from './useParticipantThread'
 
-export type ParticipantDraft = {
-  readonly value: string
-  readonly files: readonly File[]
-}
-
-const EMPTY_DRAFT: ParticipantDraft = { value: '', files: [] }
-
 export type ParticipantThreadScreenProps = Omit<ParticipantConversationsScreenProps, 'selected' | 'labels'> & {
   readonly selected: ParticipantSubjectRef
   readonly labels: ParticipantConversationsLabels
-  readonly drafts: Map<string, ParticipantDraft>
-  readonly draftKey: string
+  /** Holds the immutable drafts of every subject; replaced, never mutated. */
+  readonly draftsRef: MutableRefObject<ParticipantDrafts>
 }
 
 type OpenedState = { readonly status: 'idle' | 'loading' | 'missing' } | { readonly status: 'found'; readonly conversation: ParticipantConversationSummary }
@@ -80,8 +74,8 @@ export function ParticipantThreadScreen(props: ParticipantThreadScreenProps) {
 type LoadedThreadProps = ParticipantThreadScreenProps & { readonly conversation: ParticipantConversationSummary }
 
 function LoadedThread(props: LoadedThreadProps) {
-  const { api, selected, conversation, drafts, draftKey, inbox, pendingMessages } = props
-  const [draft, setDraft] = useState<ParticipantDraft>(drafts.get(draftKey) ?? EMPTY_DRAFT)
+  const { api, selected, conversation, draftsRef, inbox, pendingMessages } = props
+  const [draft, setDraftState] = useState<ParticipantDraft>(getDraft(draftsRef.current, selected))
   const thread = useParticipantThread({
     api,
     subject: selected,
@@ -101,15 +95,17 @@ function LoadedThread(props: LoadedThreadProps) {
   )
 
   function updateDraft(next: ParticipantDraft): void {
-    setDraft(next)
-    drafts.set(draftKey, next)
+    setDraftState(next)
+    draftsRef.current = setDraft(draftsRef.current, selected, next)
   }
 
-  function handleSend(): void {
-    const text = draft.value.trim()
-    void thread.send({ ...(text ? { text } : {}), ...(draft.files.length > 0 ? { files: draft.files } : {}) })
-    setDraft(EMPTY_DRAFT)
-    drafts.delete(draftKey)
+  async function handleSend(): Promise<void> {
+    const sent = draft
+    const text = sent.text.trim()
+    const outcome = await thread.send({ ...(text ? { text } : {}), ...(sent.files.length > 0 ? { files: sent.files } : {}) })
+    if (outcome === 'failed') return
+    draftsRef.current = clearDraftIfUnchanged(draftsRef.current, selected, sent)
+    setDraftState((current) => (current === sent ? getDraft(draftsRef.current, selected) : current))
   }
 
   function handleRetry(clientMessageId: string): void {
@@ -126,12 +122,12 @@ function LoadedThread(props: LoadedThreadProps) {
       labels={props.labels}
       resolveAttachmentUrl={api.resolveAttachmentUrl}
       draft={{
-        value: draft.value,
-        onChange: (value) => updateDraft({ ...draft, value }),
+        value: draft.text,
+        onChange: (text) => updateDraft({ ...draft, text }),
         files: draft.files,
         onFilesChange: (files) => updateDraft({ ...draft, files }),
       }}
-      onSend={handleSend}
+      onSend={() => void handleSend()}
       channel={props.channel}
       locale={props.locale}
       onBack={props.onBack}
