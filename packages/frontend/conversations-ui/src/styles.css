@@ -1130,7 +1130,8 @@
 .cv-status-ticks--read { color: rgb(14 165 233); }
 .cv-status-ticks--failed { color: rgb(239 68 68); }
 
-.cv-message-text { font-size: 14.2px; line-height: 19px; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; user-select: all; }
+.cv-message-text { position: relative; font-size: 14.2px; line-height: 19px; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; user-select: all; }
 .cv-message-text strong { font-weight: 700; }
 .cv-message-text em { font-style: italic; }
 .cv-message-text del { text-decoration-line: line-through; }
+.cv-message-text__copied { position: absolute; top: 0; right: 0; transform: translateY(-100%); background: #3b4a54; color: #fff; font-size: 11px; padding: 0.125rem 0.375rem; border-radius: 0.25rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }

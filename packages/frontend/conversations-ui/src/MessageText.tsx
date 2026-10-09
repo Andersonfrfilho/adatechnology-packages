@@ -3,6 +3,7 @@ import { CHAT_TEXT_SECONDARY_CLASS } from './theme'
 import type { MessagePayload } from './types'
 import { useConversations } from './providers/ConversationsProvider'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
+import { MessageTextCopiedBadge } from './MessageTextCopiedBadge'
 
 export interface MessageTextProps {
   message: MessagePayload
@@ -31,11 +32,7 @@ export function MessageText({ message }: MessageTextProps) {
       className="cv-message-text"
     >
       <div>{parseWhatsAppFormatting(message.content ?? '')}</div>
-      {copied && (
-        <span className="absolute top-0 right-0 -translate-y-full bg-[#3b4a54] text-white text-[11px] px-1.5 py-0.5 rounded shadow-lg">
-          Copiado!
-        </span>
-      )}
+      {copied && <MessageTextCopiedBadge />}
     </div>
   )
 }
