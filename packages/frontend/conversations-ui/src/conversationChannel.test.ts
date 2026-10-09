@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'bun:test'
-import { CONVERSATION_CHANNEL, CHANNEL_FILTER_ALL, channelFiltersFor } from './conversationChannel'
+import { CONVERSATION_CHANNEL as CORE_CONVERSATION_CHANNEL } from '@adatechnology/conversation-contracts'
+
+import {
+  CHANNEL_CAPABILITIES,
+  CHANNEL_FILTER_ALL,
+  CONVERSATION_CHANNEL,
+  HANDLE_KIND,
+  REOPEN_MECHANISM,
+  channelFiltersFor,
+  type ConversationChannel,
+} from './conversationChannel'
 
 describe('channelFiltersFor', () => {
   // O ponto do helper: a barra oferece só o que existe. Oferecer Instagram numa conta que só tem
@@ -49,5 +59,24 @@ describe('channelFiltersFor', () => {
     ])
 
     expect(first).toEqual(second)
+  })
+})
+
+describe('canais do contrato exibidos pela UI', () => {
+  // Canal novo no contrato sem entrada aqui reprova no tsc (Record completo); este teste cobre o
+  // mesmo ponto em runtime, para o caso de o vocabulário ser alterado sem recompilar a UI.
+  it('todo canal do contrato tem entrada de exibição', () => {
+    for (const channel of CORE_CONVERSATION_CHANNEL) {
+      expect(CHANNEL_CAPABILITIES[channel as ConversationChannel]).toBeDefined()
+    }
+  })
+
+  it('app e portal existem como canais, com rótulo e sem reabertura por template ou tag', () => {
+    expect(CONVERSATION_CHANNEL.APP).toBe('app')
+    expect(CONVERSATION_CHANNEL.PORTAL).toBe('portal')
+    expect(CHANNEL_CAPABILITIES.app.reopenMechanism).toBe(REOPEN_MECHANISM.NONE)
+    expect(CHANNEL_CAPABILITIES.portal.reopenMechanism).toBe(REOPEN_MECHANISM.NONE)
+    expect(CHANNEL_CAPABILITIES.app.handleKind).toBe(HANDLE_KIND.SESSION)
+    expect(CHANNEL_CAPABILITIES.portal.handleKind).toBe(HANDLE_KIND.SESSION)
   })
 })

@@ -1,16 +1,20 @@
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Clock } from 'lucide-react'
 
 export interface StatusTicksProps {
   status: string
   title?: string
 }
 
-const STATUS_COLOR_CLASS: Record<string, string> = {
-  sent: 'text-black/40 dark:text-white/40',
-  delivered: 'text-black/40 dark:text-white/40',
-  read: 'text-sky-500',
-  failed: 'text-red-500',
+const STATUS_MODIFIER: Record<string, string> = {
+  queued: 'queued',
+  sent: 'sent',
+  delivered: 'delivered',
+  read: 'read',
+  failed: 'failed',
+  bounced: 'failed',
 }
+
+const QUEUED_LABEL = 'Queued'
 
 function Ticks({ double }: { double: boolean }) {
   return (
@@ -28,12 +32,23 @@ function Ticks({ double }: { double: boolean }) {
 
 // Paridade com financiamento-imobiliario-bot/apps/web/src/components/MessageBubble.tsx —
 // mesmo path de SVG, mesma cor por status (read → sky-500, failed → red-500 com AlertTriangle).
+function StatusIcon({ modifier }: { modifier: string }) {
+  if (modifier === 'failed') return <AlertTriangle size={11} />
+  if (modifier === 'queued') return <Clock size={11} />
+  return <Ticks double={modifier !== 'sent'} />
+}
+
 export function StatusTicks({ status, title }: StatusTicksProps) {
-  const colorClass = STATUS_COLOR_CLASS[status] ?? STATUS_COLOR_CLASS.sent
+  const modifier = STATUS_MODIFIER[status] ?? 'sent'
+  const ariaLabel = modifier === 'queued' ? QUEUED_LABEL : undefined
 
   return (
-    <span className={`cursor-help leading-none flex items-center ${colorClass}`} data-cv-tooltip={title}>
-      {status === 'failed' ? <AlertTriangle size={11} /> : <Ticks double={status !== 'sent'} />}
+    <span
+      className={`cv-status-ticks cv-status-ticks--${modifier}`}
+      data-cv-tooltip={title ?? ariaLabel}
+      aria-label={ariaLabel}
+    >
+      <StatusIcon modifier={modifier} />
     </span>
   )
 }

@@ -1,18 +1,22 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type KeyboardEvent } from 'react'
 import { CHAT_TEXT_SECONDARY_CLASS } from './theme'
 import type { MessagePayload } from './types'
-import { useConversations } from './providers/ConversationsProvider'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
+import { MessageTextCopiedBadge } from './MessageTextCopiedBadge'
 
 export interface MessageTextProps {
   message: MessagePayload
+  /** Defaults to true (tap copies the text, as in 0.3.1); false disables copying and its button semantics. */
+  copyOnClick?: boolean
+  /** Text of the badge shown after copying; absent means the package default ("Copied"). */
+  copiedLabel?: string
 }
 
-export function MessageText({ message }: MessageTextProps) {
+export function MessageText({ message, copyOnClick = true, copiedLabel }: MessageTextProps) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(async () => {
-    if (!message.content) return
+    if (!copyOnClick || !message.content) return
     try {
       await navigator.clipboard.writeText(message.content)
       setCopied(true)
@@ -20,22 +24,26 @@ export function MessageText({ message }: MessageTextProps) {
     } catch {
       // Clipboard not available
     }
-  }, [message.content])
+  }, [copyOnClick, message.content])
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    void handleCopy()
+  }
 
   if (message.type === 'template')
     return <p className={`text-sm italic ${CHAT_TEXT_SECONDARY_CLASS}`}>{message.content ?? 'Template message'}</p>
 
   return (
     <div
-      onClick={handleCopy}
-      className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words select-all [&_strong]:font-bold [&_em]:italic [&_del]:line-through"
+      className={copyOnClick ? 'cv-message-text cv-message-text--copyable' : 'cv-message-text'}
+      {...(copyOnClick
+        ? { role: 'button', tabIndex: 0, onClick: handleCopy, onKeyDown: handleKeyDown }
+        : {})}
     >
       <div>{parseWhatsAppFormatting(message.content ?? '')}</div>
-      {copied && (
-        <span className="absolute top-0 right-0 -translate-y-full bg-[#3b4a54] text-white text-[11px] px-1.5 py-0.5 rounded shadow-lg">
-          Copiado!
-        </span>
-      )}
+      {copied && <MessageTextCopiedBadge label={copiedLabel} />}
     </div>
   )
 }

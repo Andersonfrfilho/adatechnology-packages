@@ -29,6 +29,25 @@ export { advanceDeliveryStatus } from './deliveryStatus'
 export type { DeliveryStatusState, DeliveryStatusEvent, DeliveryStatusResult } from './deliveryStatus'
 
 export {
+  SUBJECT_TYPE_PATTERN,
+  PARTICIPANT_CONVERSATION_STATUS,
+  subjectRefSchema,
+  participantConversationStatusSchema,
+  participantConversationSummarySchema,
+  participantConversationPageSchema,
+  participantAttachmentSchema,
+  participantMessageSchema,
+} from './participant'
+export type {
+  ParticipantSubjectRef,
+  ParticipantConversationStatus,
+  ParticipantConversationSummary,
+  ParticipantConversationPage,
+  ParticipantAttachment,
+  ParticipantMessage,
+} from './participant'
+
+export {
   openConversationParticipantSchema,
   openConversationBodySchema,
   sendMessageBodySchema,
