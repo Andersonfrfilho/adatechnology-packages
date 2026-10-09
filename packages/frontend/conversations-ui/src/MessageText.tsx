@@ -28,7 +28,7 @@ export function MessageText({ message }: MessageTextProps) {
   return (
     <div
       onClick={handleCopy}
-      className="text-[14.2px] leading-[19px] whitespace-pre-wrap break-words select-all [&_strong]:font-bold [&_em]:italic [&_del]:line-through"
+      className="cv-message-text"
     >
       <div>{parseWhatsAppFormatting(message.content ?? '')}</div>
       {copied && (

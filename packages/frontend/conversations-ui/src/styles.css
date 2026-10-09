@@ -1119,3 +1119,18 @@
   border-top-color: rgb(51 65 85);
   background: rgb(17 24 39);
 }
+
+.cv-status-ticks { display: flex; align-items: center; line-height: 1; cursor: help; }
+.cv-status-ticks--queued,
+.cv-status-ticks--sent,
+.cv-status-ticks--delivered { color: rgb(0 0 0 / 40%); }
+.dark .cv-status-ticks--queued,
+.dark .cv-status-ticks--sent,
+.dark .cv-status-ticks--delivered { color: rgb(255 255 255 / 40%); }
+.cv-status-ticks--read { color: rgb(14 165 233); }
+.cv-status-ticks--failed { color: rgb(239 68 68); }
+
+.cv-message-text { font-size: 14.2px; line-height: 19px; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word; user-select: all; }
+.cv-message-text strong { font-weight: 700; }
+.cv-message-text em { font-style: italic; }
+.cv-message-text del { text-decoration-line: line-through; }
