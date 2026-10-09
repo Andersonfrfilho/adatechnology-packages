@@ -112,7 +112,8 @@ describe('ParticipantMessageBubble', () => {
     const withoutRetry = renderPending('failed')
 
     expect(withRetry).toContain('<button')
-    expect(withRetry).toContain('Failed — tap to retry')
+    expect(withRetry).toContain('aria-label="Failed — tap to retry"')
+    expect(withRetry).toContain('>Retry</button>')
     expect(withRetry).toContain('cv-status-ticks--failed')
     expect(findUtilityClassTokens(withRetry)).toEqual([])
     expect(withoutRetry).not.toContain('<button')

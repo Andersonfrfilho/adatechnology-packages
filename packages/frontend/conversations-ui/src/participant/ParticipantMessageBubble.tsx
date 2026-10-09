@@ -120,7 +120,7 @@ export function ParticipantMessageBubble({
         </time>
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
       </span>
-      {ownStatus === 'failed' ? <FailedActions labels={labels} onDiscard={onDiscard} onEdit={onEdit} /> : null}
+      {ownStatus === 'failed' ? <FailedActions labels={labels} onRetry={onRetry} onDiscard={onDiscard} onEdit={onEdit} /> : null}
     </div>
   )
   if (avatar === undefined || isMine) return bubble
