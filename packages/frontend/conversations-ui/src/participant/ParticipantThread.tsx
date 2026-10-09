@@ -2,27 +2,20 @@ import type { ReactNode } from 'react'
 
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
-import { channelCapabilityFor } from '../channelCapability'
 import type { ConversationChannel } from '../conversationChannel'
-import { isSameDay } from '../lib/format'
 import type { QuickReply } from '../quickReplies/quickReply.types'
+import type { ParticipantTimelineItem } from './participantMessages'
 import { ParticipantComposer } from './ParticipantComposer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
-import {
-  bindPendingActions,
-  resolveParticipantBubbleActions,
-  type ParticipantPendingActions,
-} from './participantBubbleActions'
+import type { ParticipantPendingActions } from './participantBubbleActions'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadView'
 import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
 import type { ParticipantThreadScroll } from './useStickToBottom'
-import { isOwnMessage, type ParticipantTimelineItem } from './participantMessages'
-import { ParticipantMessageBubble } from './ParticipantMessageBubble'
-import { ParticipantAuthorAvatar, type ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+import type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+import { ParticipantTimeline } from './ParticipantTimeline'
 import { ParticipantThreadHeader } from './ParticipantThreadHeader'
-import { shouldShowAvatar, type ParticipantAvatarAuthor } from './participantAvatar'
-import type { ParticipantSubjectGroup } from './participant.types'
+import type { ParticipantSubjectGroup, ParticipantSubjectIconRenderer } from './participant.types'
 
 export type ParticipantThreadDraft = {
   readonly value: string
@@ -63,85 +56,10 @@ export type ParticipantThreadProps = {
   readonly avatars?: 'initials'
   /** Host slot for the author's photo; wins over 'initials' and enables avatars on its own. */
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Host icon of the conversation avatar in the header; absent or empty falls back to the subject group icon. */
+  readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
   readonly tail?: boolean
-}
-
-function createdAtOf(item: ParticipantTimelineItem): string {
-  return item.kind === 'server' ? item.message.createdAt : item.pending.createdAt
-}
-
-function keyOf(item: ParticipantTimelineItem): string {
-  return item.kind === 'server' ? item.message.id : `pending:${item.pending.clientMessageId}`
-}
-
-type AuthorOfItem = { readonly isMine: boolean; readonly author: ParticipantAvatarAuthor }
-
-function authorOf(item: ParticipantTimelineItem): AuthorOfItem {
-  if (item.kind === 'pending') return { isMine: true, author: null }
-  return { isMine: isOwnMessage(item.message), author: item.message.authorName ?? null }
-}
-
-function resolveActions(item: ParticipantTimelineItem, pendingActions?: ParticipantPendingActions) {
-  if (!pendingActions || item.kind === 'server') return {}
-  return resolveParticipantBubbleActions(item, bindPendingActions(pendingActions, item.pending.clientMessageId))
-}
-
-type AvatarSlotParams = {
-  readonly isEnabled: boolean
-  readonly isMine: boolean
-  readonly showAvatar: boolean
-  readonly author: ParticipantAvatarAuthor
-  readonly render?: ParticipantAuthorAvatarRenderer
-}
-
-function resolveAvatarSlot({ isEnabled, isMine, showAvatar, author, render }: AvatarSlotParams): ReactNode {
-  if (!isEnabled || isMine) return undefined
-  return showAvatar ? <ParticipantAuthorAvatar name={author} render={render} /> : null
-}
-
-function Timeline({ props }: { readonly props: ParticipantThreadProps }) {
-  const { items, labels, locale, resolveAttachmentUrl, pendingActions } = props
-  const confirmsRead = channelCapabilityFor(props.channel ?? 'app').confirmsRead
-  const isAvatarEnabled = props.avatars === 'initials' || props.renderAuthorAvatar !== undefined
-  const nodes: ReactNode[] = []
-  let previousDay: Date | undefined
-  let previousAuthor: ParticipantAvatarAuthor | undefined
-
-  for (const item of items) {
-    const day = new Date(createdAtOf(item))
-    if (previousDay === undefined || !isSameDay(previousDay, day)) {
-      nodes.push(
-        <div key={`day:${keyOf(item)}`} className="cv-p-day" role="separator">
-          {day.toLocaleDateString(locale, { weekday: 'short', day: '2-digit', month: '2-digit' })}
-        </div>,
-      )
-      previousAuthor = undefined
-    }
-    previousDay = day
-    const { isMine, author } = authorOf(item)
-    const showAvatar = shouldShowAvatar({ previousAuthor, author, isMine })
-    previousAuthor = isMine ? undefined : author
-    nodes.push(
-      <ParticipantMessageBubble
-        key={keyOf(item)}
-        item={item}
-        labels={labels}
-        confirmsRead={confirmsRead}
-        resolveAttachmentUrl={resolveAttachmentUrl}
-        tail={props.tail}
-        avatar={resolveAvatarSlot({
-          isEnabled: isAvatarEnabled,
-          isMine,
-          showAvatar,
-          author,
-          render: props.renderAuthorAvatar,
-        })}
-        {...resolveActions(item, pendingActions)}
-      />,
-    )
-  }
-  return <div className="cv-p-thread__messages">{nodes}</div>
 }
 
 function Footer({ props }: { readonly props: ParticipantThreadProps }) {
@@ -177,6 +95,7 @@ export function ParticipantThread(props: ParticipantThreadProps) {
         conversation={conversation}
         labels={labels}
         subjectGroups={props.subjectGroups}
+        renderSubjectIcon={props.renderSubjectIcon}
         onBack={props.onBack}
         onOpenSubject={props.onOpenSubject}
       />
@@ -189,7 +108,7 @@ export function ParticipantThread(props: ParticipantThreadProps) {
             {labels.loadOlder}
           </button>
         ) : null}
-        <Timeline props={props} />
+        <ParticipantTimeline {...props} />
       </div>
       <div className="cv-p-thread__live" role="status" aria-live="polite">
         {props.newMessagesCount > 0 ? labels.newMessages : ''}

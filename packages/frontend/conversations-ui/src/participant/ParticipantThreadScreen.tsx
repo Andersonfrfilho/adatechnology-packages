@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type MutableRefObject } fr
 
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
+import { ParticipantBackButton } from './ParticipantBackButton'
 import { ParticipantThread } from './ParticipantThread'
 import type { ParticipantConversationsScreenProps } from './ParticipantConversationsScreen'
 import { bindAttachmentUrlResolver } from './bindAttachmentUrlResolver'
@@ -63,12 +64,7 @@ function NotFound({
   return (
     <div className="cv-p cv-p-thread">
       <header className="cv-p-thread__header">
-        {onBack ? (
-          <button type="button" className="cv-p-button cv-p-thread__back" onClick={onBack}>
-            <span aria-hidden="true">‹</span>
-            <span className="cv-p-sr-only">{labels.back}</span>
-          </button>
-        ) : null}
+        {onBack ? <ParticipantBackButton label={labels.back} onBack={onBack} /> : null}
       </header>
       <p className="cv-p-empty">{labels.notFound}</p>
     </div>
@@ -144,6 +140,7 @@ function LoadedThread(props: LoadedThreadProps) {
       quickReplies={props.quickReplies}
       renderSubjectCard={props.renderSubjectCard}
       subjectGroups={props.subjectGroups}
+      renderSubjectIcon={props.renderSubjectIcon}
       avatars={props.avatars}
       renderAuthorAvatar={props.renderAuthorAvatar}
       tail={props.tail}

@@ -28,7 +28,7 @@ describe('clickable title focus ring', () => {
 
   it('puts the only clamp on the inner span', () => {
     const text = declarationsIn('.cv-p-thread__title-text')
-    expect(text.get('-webkit-line-clamp')).toBe('2')
+    expect(text.get('-webkit-line-clamp')).toBe('1')
     expect(text.get('overflow')).toBe('hidden')
     for (const selector of ['.cv-p-thread__title', '.cv-p-thread__title-button']) {
       expect(declarationsIn(selector).has('-webkit-line-clamp')).toBe(false)

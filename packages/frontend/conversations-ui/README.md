@@ -200,16 +200,40 @@ cv-p-channel--{canal}">`, um prefixo sr-only `Channels in this conversation: ` e
   `--cv-p-channel-app` (padrão: o destaque) e `--cv-p-channel-whatsapp` (padrão `#20914f`, ≥ 3:1 sobre as superfícies claras e
   escuras; ao trocar, mantenha 3:1).
 
-### Cabeçalho da conversa
+### Conversa no desenho do WhatsApp, no nosso estilo
 
-Em coluna, ao lado do botão voltar (quando há `onBack`): (1) **eyebrow** com o `label` do grupo do assunto em
-`subjectGroups` (mono, caixa alta, como o rótulo da linha da lista; ausente se o tipo não tem grupo); (2) **título**
-(`subjectLabel`, no máximo 2 linhas com reticências, cortadas só no `span` interno `.cv-p-thread__title-text` para o anel de foco do botão não ser recortado; clicável só com `onOpenSubject`); (3) **linha meta** única
-(`.cv-p-thread__meta`, flex que só quebra se faltar espaço) com o protocolo, o botão de copiar só com ícone e os selos de
-canal inline. A área de toque do botão tem 44px de largura e 36px de altura (o glifo tem 18px); a margem negativa de cima é coberta pelo `padding-top` da linha meta, então a área nunca invade o título.
-Sem `protocol` não há protocolo nem botão; sem `channels` não há selos; sem nenhum dos dois a linha meta não existe. O título vive no
-cabeçalho; o cartão de `renderSubjectCard` (do host) deve trazer só o que o cabeçalho não diz, sem repetir o título.
-Classes novas: `.cv-p-thread__eyebrow`, `.cv-p-thread__meta`, `.cv-p-protocol__copied`.
+A conversa segue os padrões de chat do WhatsApp, mas só com os tokens `--cv-p-*` (no app do motorista: escuro, cobre, cantos
+retos, rótulos em mono). Tudo é `.cv-p-*`; nenhum componente do painel do operador é usado.
+
+**Cabeçalho** (barra única de no mínimo 4rem, fundo `--cv-p-surface-raised`, borda inferior de 1px), da esquerda para a direita:
+(1) **voltar** só com ícone (seta de 24px, sem caixa nem borda, área de toque 44x44, `aria-label` = label `back`, foco visível;
+ausente sem `onBack`); (2) **avatar da conversa**: tile de 2.5rem (`border-radius: var(--cv-p-radius)`) com o ícone do assunto, o
+mesmo da lista (`renderSubjectIcon` do host; se devolver vazio, o `icon` do grupo em `subjectGroups`; sem nenhum dos dois não há
+tile e o título recua). `ParticipantThread`/`ParticipantThreadHeader` ganharam a prop opcional `renderSubjectIcon`, repassada por
+`ParticipantConversations`; (3) **título em duas linhas**: o `subjectLabel` (uma linha com reticências, cortada só no `span` interno
+`.cv-p-thread__title-text` para o anel de foco do botão não ser recortado; clicável só com `onOpenSubject`) e a **linha meta**
+(`.cv-p-thread__meta`) com o protocolo, o botão de copiar só com ícone e os selos de canal inline. O rótulo do grupo (eyebrow) só
+aparece quando não há avatar: o tile já representa o grupo e o espaço em 320px é curto. A área de toque do copiar tem 44px de
+largura e 36px de altura; a margem negativa de cima é coberta pelo `padding-top` da linha meta, então nunca invade o título.
+Sem `protocol` não há protocolo nem botão; sem `channels` não há selos; sem nenhum dos dois a linha meta não existe. O cartão de
+`renderSubjectCard` (do host) deve trazer só o que o cabeçalho não diz.
+
+**Fundo**: a lista de mensagens tem um padrão geométrico de pontos em CSS puro, derivado de `--cv-p-border`, de contraste
+mínimo. `--cv-p-wallpaper` o substitui (qualquer valor de `background-image`, em geral um gradiente; `none` desliga),
+com `--cv-p-wallpaper-size` para o tamanho do ladrilho (padrão `24px 24px`). Some em `forced-colors: active` e na impressão.
+
+**Separador de dia**: pílula centralizada (fundo elevado, borda de 1px, texto mono pequeno, raio do token), `role="separator"`
+com um `<time datetime="AAAA-MM-DD">` do dia local.
+
+**Bolha**: hora e ticks ficam na mesma bolha, juntos ao pé e à direita (`.cv-p-bubble__meta`); se o texto cabe com folga, a
+hora fica na mesma linha dele, senão cai para a linha de baixo, à direita, sem sobrepor. Largura máxima de 85%.
+
+**Compositor**: `[anexar] [campo] [enviar]` alinhados pela base, em barra elevada com borda superior; anexar e enviar são ícones
+(clipe e avião de papel, com `aria-label`), o campo é multilinha, parte de 44px e cresce até cerca de 4 linhas (depois rola),
+enviar é o botão primário e fica desabilitado sem conteúdo. As respostas rápidas continuam como chips acima da linha.
+
+Classes novas: `.cv-p-thread__avatar`, `.cv-p-thread__eyebrow`, `.cv-p-thread__meta`, `.cv-p-protocol__copied`, `.cv-p-day__label`,
+`.cv-p-composer__attach`, `.cv-p-composer__send`.
 
 ### Avatar do autor (opt-in)
 
@@ -264,6 +288,7 @@ Defina no `.cv-p`, no wrapper (`className`) ou em qualquer ancestral. Há també
 | `--cv-p-highlight`        | fundo de "espera sua resposta"          | `#fbefe2`      |
 | `--cv-p-danger`           | erro e falha de envio                   | `#c62828`      |
 | `--cv-p-radius`           | raio dos cantos                         | `0`            |
+| `--cv-p-wallpaper`        | fundo da lista de mensagens (`none` desliga) | pontos sutis |
 | `--cv-p-channel-app`      | cor do selo do canal app                | o destaque     |
 | `--cv-p-channel-whatsapp` | cor do selo do canal WhatsApp           | `#20914f`      |
 

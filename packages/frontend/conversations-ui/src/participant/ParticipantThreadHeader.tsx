@@ -1,15 +1,19 @@
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
+import { ParticipantBackButton } from './ParticipantBackButton'
 import { ParticipantChannelBadges } from './ParticipantChannelBadges'
 import { resolveParticipantChannels } from './participantChannels'
+import { ParticipantConversationAvatar } from './ParticipantConversationAvatar'
 import { ParticipantProtocolBadge } from './ParticipantProtocolBadge'
-import type { ParticipantSubjectGroup } from './participant.types'
+import type { ParticipantSubjectGroup, ParticipantSubjectIconRenderer } from './participant.types'
 import type { ParticipantConversationsLabels } from './participantLabels'
+import { resolveConversationIcon } from './participantSubjectIcon'
 
 export type ParticipantThreadHeaderProps = {
   readonly conversation: ParticipantConversationSummary
   readonly labels: ParticipantConversationsLabels
   readonly subjectGroups?: readonly ParticipantSubjectGroup[]
+  readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
   readonly onBack?: () => void
   readonly onOpenSubject?: (subject: ParticipantSubjectRef) => void
 }
@@ -40,22 +44,20 @@ export function ParticipantThreadHeader({
   conversation,
   labels,
   subjectGroups,
+  renderSubjectIcon,
   onBack,
   onOpenSubject,
 }: ParticipantThreadHeaderProps) {
-  const groupLabel = subjectGroups?.find((group) => group.subjectType === conversation.subjectType)?.label
+  const group = subjectGroups?.find((candidate) => candidate.subjectType === conversation.subjectType)
+  const icon = resolveConversationIcon({ conversation, group, renderSubjectIcon })
   const hasChannels = resolveParticipantChannels(conversation.channels).length > 0
 
   return (
     <header className="cv-p-thread__header">
-      {onBack ? (
-        <button type="button" className="cv-p-button cv-p-thread__back" onClick={onBack}>
-          <span aria-hidden="true">‹</span>
-          <span className="cv-p-sr-only">{labels.back}</span>
-        </button>
-      ) : null}
+      {onBack ? <ParticipantBackButton label={labels.back} onBack={onBack} /> : null}
+      {icon !== undefined ? <ParticipantConversationAvatar icon={icon} /> : null}
       <div className="cv-p-thread__heading">
-        {groupLabel ? <p className="cv-p-thread__eyebrow">{groupLabel}</p> : null}
+        {icon === undefined && group ? <p className="cv-p-thread__eyebrow">{group.label}</p> : null}
         <Title conversation={conversation} labels={labels} onOpenSubject={onOpenSubject} />
         {conversation.protocol || hasChannels ? (
           <div className="cv-p-thread__meta">

@@ -154,13 +154,14 @@ describe('thread header CSS', () => {
     expect(copy.get('margin')).toMatch(/^-/)
   })
 
-  it('does not force a height on the header', () => {
+  it('sets a floor of 4rem on the header but never a fixed or maximum height', () => {
     const header = declarationsOf('.cv-p-thread__header')
-    for (const property of ['height', 'min-height', 'max-height']) expect(header.has(property)).toBe(false)
+    for (const property of ['height', 'max-height']) expect(header.has(property)).toBe(false)
+    expect(toRem(header.get('min-height'))).toBeGreaterThanOrEqual(4)
   })
 
-  it('clamps the title to two lines', () => {
-    expect(declarationsOf('.cv-p-thread__title-text').get('-webkit-line-clamp')).toBe('2')
+  it('clamps the title to one line', () => {
+    expect(declarationsOf('.cv-p-thread__title-text').get('-webkit-line-clamp')).toBe('1')
   })
 
   it('draws the eyebrow like the list row kind label', () => {
