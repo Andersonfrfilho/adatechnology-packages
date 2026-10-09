@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/conversation-module",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "license": "MIT",
   "description": "Conversation core — schema, migrations, use-cases and generic assignment behind pluggable ports (channel-agnostic, subject-agnostic)",
   "publishConfig": {
