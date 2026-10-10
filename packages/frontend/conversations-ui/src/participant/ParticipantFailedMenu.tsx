@@ -27,6 +27,7 @@ export function ParticipantFailedMenu({ labels, onEdit, onDiscard }: Participant
         aria-haspopup="menu"
         aria-expanded={menu.state.isOpen}
         aria-label={labels.messageOptions}
+        data-cv-tooltip={labels.messageOptions}
         onClick={menu.handleTriggerClick}
         onKeyDown={menu.handleTriggerKeyDown}
       >

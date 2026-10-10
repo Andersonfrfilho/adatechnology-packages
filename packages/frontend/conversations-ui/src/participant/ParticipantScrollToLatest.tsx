@@ -23,7 +23,7 @@ export function ParticipantScrollToLatest({
   if (!isVisible || onClick === undefined) return null
   return (
     <div className="cv-p-thread__latest">
-      <button type="button" className="cv-p-thread__latest-button" aria-label={label} onClick={(event) => {
+      <button type="button" className="cv-p-thread__latest-button" aria-label={label} data-cv-tooltip={label} onClick={(event) => {
           focusScrollerOf(event.currentTarget)
           onClick()
         }}

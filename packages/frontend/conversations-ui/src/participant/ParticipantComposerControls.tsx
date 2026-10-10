@@ -29,6 +29,7 @@ export function AttachControl({ labels, disabled, acceptedTypes, onChosen }: Att
         type="button"
         className="cv-p-composer__attach"
         aria-label={labels.attach}
+        data-cv-tooltip={labels.attach}
         disabled={disabled}
         onClick={() => fileInputRef.current?.click()}
       >
@@ -44,6 +45,7 @@ export function SendButton({ label, disabled }: { readonly label: string; readon
       type="submit"
       className="cv-p-button cv-p-button--primary cv-p-composer__send"
       aria-label={label}
+      data-cv-tooltip={label}
       disabled={disabled}
     >
       <Send size={20} aria-hidden="true" focusable="false" />

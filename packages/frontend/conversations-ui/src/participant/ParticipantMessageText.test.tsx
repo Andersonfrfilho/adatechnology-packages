@@ -45,7 +45,7 @@ describe('ParticipantMessageText - links', () => {
     expect(markup).toContain('target="_blank"')
     expect(markup).toContain('<span class="cv-p-sr-only"> (opens in a new tab)</span>')
     expect(markup).toContain(
-      '<button type="button" class="cv-p-text__link-copy" aria-label="Copy https://a.com/?a=1&amp;b=2">',
+      '<button type="button" class="cv-p-text__link-copy" aria-label="Copy https://a.com/?a=1&amp;b=2" data-cv-tooltip="Copy">',
     )
   })
 

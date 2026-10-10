@@ -28,7 +28,7 @@ export function OwnStatus({ status, labels, onRetry }: OwnStatusProps) {
   const isTextVisible = isVisibleText && !(status === 'failed' && onRetry)
   return (
     <span className="cv-p-bubble__status">
-      <StatusTicks status={ticksStatus} appearance="stylesheet" />
+      <StatusTicks status={ticksStatus} appearance="stylesheet" title={isTextVisible ? undefined : text} />
       <span className={isTextVisible ? 'cv-p-bubble__status-text' : 'cv-p-sr-only'}>{text}</span>
     </span>
   )
@@ -41,7 +41,7 @@ type RetryButtonProps = {
 
 export function RetryButton({ labels, onRetry }: RetryButtonProps) {
   return (
-    <button type="button" className="cv-p-bubble-row__retry" aria-label={labels.statusFailed} onClick={onRetry}>
+    <button type="button" className="cv-p-bubble-row__retry" aria-label={labels.statusFailed} data-cv-tooltip={labels.statusFailed} onClick={onRetry}>
       <span className="cv-p-bubble-row__retry-icon">
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
           <path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3" fill="none" stroke="currentColor" strokeWidth="1.5" />

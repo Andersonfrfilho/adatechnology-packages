@@ -5,6 +5,7 @@ import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@ada
 import type { ConversationChannel } from '../conversationChannel'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ParticipantTimelineItem } from './participantMessages'
+import { TooltipLayer } from '../Tooltip'
 import { ParticipantComposer } from './ParticipantComposer'
 import { ParticipantCopyAnnouncer, ParticipantThreadLive } from './ParticipantCopyAnnouncer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
@@ -138,6 +139,7 @@ export function ParticipantThread(props: ParticipantThreadProps) {
   return (
     <ParticipantCopyAnnouncer>
       <ThreadBody {...props} />
+      <TooltipLayer />
     </ParticipantCopyAnnouncer>
   )
 }
