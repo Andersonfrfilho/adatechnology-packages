@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
 import { act } from 'react'
 
 import { setupDom, pressKey, type DomHarness } from '../domHarness.test-helper'
@@ -116,7 +116,14 @@ describe('failed menu in a DOM', () => {
 })
 
 describe('failed menu placement in a DOM', () => {
-  const original = Element.prototype.getBoundingClientRect
+  let original: typeof Element.prototype.getBoundingClientRect
+
+  beforeEach(() => {
+    original = Element.prototype.getBoundingClientRect
+  })
+  afterEach(() => {
+    Element.prototype.getBoundingClientRect = original
+  })
 
   function stubLayout(bubbleTop: number): void {
     Element.prototype.getBoundingClientRect = function (this: Element) {
