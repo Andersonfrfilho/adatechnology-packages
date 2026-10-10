@@ -60,7 +60,7 @@ function FileList({ files, labels, onRemove }: FileListProps) {
         <li key={`${file.name}-${file.size}-${index}`} className="cv-p-files__item">
           <span className="cv-p-files__name">{file.name}</span>
           <span className="cv-p-files__size">{formatFileSize(file.size)}</span>
-          <button type="button" className="cv-p-files__remove" aria-label={`${labels.removeAttachment}: ${file.name}`} onClick={() => onRemove(file)}>
+          <button type="button" className="cv-p-files__remove" aria-label={`${labels.removeAttachment}: ${file.name}`} data-cv-tooltip={labels.removeAttachment} onClick={() => onRemove(file)}>
             <span aria-hidden="true">×</span>
             <span className="cv-p-sr-only">{labels.removeAttachment}</span>
           </button>

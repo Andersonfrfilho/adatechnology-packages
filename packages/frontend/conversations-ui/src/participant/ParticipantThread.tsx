@@ -1,11 +1,13 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 
 import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
 
 import type { ConversationChannel } from '../conversationChannel'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ParticipantTimelineItem } from './participantMessages'
+import { TooltipLayer } from '../Tooltip'
 import { ParticipantComposer } from './ParticipantComposer'
+import { useSuppressTouchTooltips } from './useSuppressTouchTooltips'
 import { ParticipantCopyAnnouncer, ParticipantThreadLive } from './ParticipantCopyAnnouncer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantPendingActions } from './participantBubbleActions'
@@ -93,23 +95,31 @@ function Footer({ props }: { readonly props: ParticipantThreadProps }) {
   )
 }
 
+function Header({ props }: { readonly props: ParticipantThreadProps }) {
+  return (
+    <ParticipantThreadHeader
+      conversation={props.conversation}
+      labels={props.labels}
+      subjectGroups={props.subjectGroups}
+      renderSubjectIcon={props.renderSubjectIcon}
+      onBack={props.onBack}
+      onOpenSubject={props.onOpenSubject}
+      counterpartLabel={props.counterpartLabel}
+      actions={props.headerActions}
+    />
+  )
+}
+
 function ThreadBody(props: ParticipantThreadProps) {
   const { conversation, labels, hasMore, onLoadOlder, renderSubjectCard } = props
   const subjectCard = renderSubjectCard?.(conversation)
   const loadView = resolveLoadView({ status: props.status, hasItems: props.items.length > 0 })
+  const rootRef = useRef<HTMLDivElement>(null)
+  useSuppressTouchTooltips(rootRef)
 
   return (
-    <div className="cv-p cv-p-thread" aria-busy={loadView.isLoading}>
-      <ParticipantThreadHeader
-        conversation={conversation}
-        labels={labels}
-        subjectGroups={props.subjectGroups}
-        renderSubjectIcon={props.renderSubjectIcon}
-        onBack={props.onBack}
-        onOpenSubject={props.onOpenSubject}
-        counterpartLabel={props.counterpartLabel}
-        actions={props.headerActions}
-      />
+    <div className="cv-p cv-p-thread" aria-busy={loadView.isLoading} ref={rootRef}>
+      <Header props={props} />
       {subjectCard ? <div className="cv-p-thread__subject-card">{subjectCard}</div> : null}
       <div className="cv-p-thread__scroll" ref={props.scroll.ref} onScroll={props.scroll.onScroll} tabIndex={-1}>
         {loadView.isLoading ? <ParticipantLoading labels={labels} /> : null}
@@ -138,6 +148,7 @@ export function ParticipantThread(props: ParticipantThreadProps) {
   return (
     <ParticipantCopyAnnouncer>
       <ThreadBody {...props} />
+      <TooltipLayer />
     </ParticipantCopyAnnouncer>
   )
 }

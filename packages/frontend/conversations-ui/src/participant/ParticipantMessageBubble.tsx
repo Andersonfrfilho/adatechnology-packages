@@ -1,11 +1,10 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 
 import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
-import { formatTimestamp } from '../lib/format'
-import { FailedActions, OwnStatus } from './ParticipantBubbleStatus'
-import { ParticipantMessageText } from './ParticipantMessageText'
-import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
+import { BubbleBody } from './ParticipantBubbleBody'
+import { RetryButton } from './ParticipantBubbleStatus'
+import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantPerspective } from './participantPerspective'
 import {
@@ -20,11 +19,11 @@ export type ParticipantMessageBubbleProps = {
   readonly labels: ParticipantConversationsLabels
   readonly confirmsRead: boolean
   readonly resolveAttachmentUrl: ResolveParticipantAttachmentUrl
-  /** Absent means no retry button, even when the message failed. */
+  /** Absent means no retry button beside the bubble, even when the message failed. */
   readonly onRetry?: () => void
-  /** Absent means no discard button. */
+  /** Absent means no discard item in the failed-message menu. */
   readonly onDiscard?: () => void
-  /** Absent means no edit button. */
+  /** Absent means no edit item in the failed-message menu. */
   readonly onEdit?: () => void
   /** Opt-in slot to the left of a received bubble; null reserves the space, absent changes nothing. */
   readonly avatar?: ReactNode
@@ -34,7 +33,7 @@ export type ParticipantMessageBubbleProps = {
   readonly perspective?: ParticipantPerspective
 }
 
-type BubbleContent = {
+export type BubbleContent = {
   readonly isMine: boolean
   readonly authorName?: string
   readonly text?: string
@@ -68,62 +67,31 @@ function describeItem(item: ParticipantTimelineItem, perspective?: ParticipantPe
   }
 }
 
-function bubbleClassName(isMine: boolean, hasTail: boolean): string {
+function bubbleClassName(isMine: boolean, hasTail: boolean, hasFailed: boolean): string {
   const classes = ['cv-p-bubble']
   if (isMine) classes.push('cv-p-bubble--mine')
+  if (hasFailed) classes.push('cv-p-bubble--failed')
   if (!hasTail) classes.push('cv-p-bubble--no-tail')
   return classes.join(' ')
 }
 
-export function ParticipantMessageBubble({
-  item,
-  labels,
-  confirmsRead,
-  resolveAttachmentUrl,
-  onRetry,
-  onDiscard,
-  onEdit,
-  avatar,
-  tail = true,
-  perspective,
-}: ParticipantMessageBubbleProps) {
+export function ParticipantMessageBubble(props: ParticipantMessageBubbleProps) {
+  const { item, labels, confirmsRead, onRetry, avatar, tail = true, perspective } = props
+  const textId = useId()
   const content = describeItem(item, perspective)
-  const { isMine } = content
-  const ownStatus = isMine
+  const ownStatus = content.isMine
     ? resolveOwnMessageStatus({ displayState: content.displayState, serverStatus: content.serverStatus, confirmsRead })
     : undefined
+  const isFailed = ownStatus === 'failed'
+  const canRetry = isFailed && onRetry !== undefined
 
   const bubble = (
-    <div className={bubbleClassName(isMine, tail)}>
-      {isMine ? (
-        <span className="cv-p-sr-only">{labels.me}</span>
-      ) : content.authorName ? (
-        <span className="cv-p-bubble__author">{content.authorName}</span>
-      ) : null}
-      {content.text ? <ParticipantMessageText text={content.text} labels={labels} /> : null}
-      {content.attachments.map((attachment) => (
-        <ParticipantAttachmentItem
-          key={attachment.id}
-          attachment={attachment}
-          resolveAttachmentUrl={resolveAttachmentUrl}
-          labels={labels}
-        />
-      ))}
-      {content.pendingFilenames.map((filename, index) => (
-        <span key={`${filename}-${index}`} className="cv-p-attachment cv-p-attachment--pending">
-          {filename}
-        </span>
-      ))}
-      <span className="cv-p-bubble__meta">
-        <time className="cv-p-bubble__time" dateTime={content.createdAt}>
-          {formatTimestamp(content.createdAt)}
-        </time>
-        {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
-      </span>
-      {ownStatus === 'failed' ? <FailedActions labels={labels} onDiscard={onDiscard} onEdit={onEdit} /> : null}
+    <div className={bubbleClassName(content.isMine, tail, isFailed)}>
+      {canRetry ? <RetryButton labels={labels} onRetry={onRetry} describedBy={textId} /> : null}
+      <BubbleBody {...props} content={content} ownStatus={ownStatus} textId={canRetry ? textId : undefined} />
     </div>
   )
-  if (avatar === undefined || isMine) return bubble
+  if (avatar === undefined || content.isMine) return bubble
   return (
     <div className="cv-p-bubble-row">
       <span className="cv-p-bubble-row__avatar">{avatar}</span>

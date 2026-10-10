@@ -1,3 +1,5 @@
+export const DEFAULT_MESSAGE_OPTIONS_LABEL = 'Message options'
+
 export type ParticipantConversationsLabels = {
   readonly inboxTitle: string
   readonly sectionAwaiting: string
@@ -33,9 +35,12 @@ export type ParticipantConversationsLabels = {
   readonly statusRead: string
   readonly statusFailed: string
   readonly statusFailedShort: string
+  /** @deprecated No longer rendered by the default view: the retry button is icon-only and named by `statusFailed`. */
   readonly retry: string
   readonly discard: string
   readonly edit: string
+  /** Name of the menu button on a failed message. Optional; translated hosts should fill it, otherwise the English default shows. */
+  readonly messageOptions?: string
   readonly notFound: string
   readonly loading: string
   readonly loadError: string
@@ -98,6 +103,7 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   retry: 'Retry',
   discard: 'Discard',
   edit: 'Edit',
+  messageOptions: DEFAULT_MESSAGE_OPTIONS_LABEL,
   notFound: 'Conversation not found',
   loading: 'Loading…',
   loadError: 'Could not load. Check your connection and try again.',

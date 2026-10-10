@@ -43,6 +43,7 @@ export function ParticipantLinkCopyButton({ value, labels }: ParticipantLinkCopy
       type="button"
       className="cv-p-text__link-copy"
       aria-label={`${labels.copyValue} ${value}`}
+      data-cv-tooltip={labels.copyValue}
       onClick={() => copy(value, labels.valueCopied)}
     >
       {isCopied ? <Check size={14} aria-hidden={true} /> : <Copy size={14} aria-hidden={true} />}

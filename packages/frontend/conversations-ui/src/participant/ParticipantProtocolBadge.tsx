@@ -39,6 +39,7 @@ export function ParticipantProtocolBadgeView({
           type="button"
           className="cv-p-protocol__copy"
           aria-label={`${labels.copyProtocol} ${protocol}`}
+          data-cv-tooltip={labels.copyProtocol}
           onClick={onCopy}
         >
           {isCopied ? <Check size={18} aria-hidden={true} /> : <Copy size={18} aria-hidden={true} />}

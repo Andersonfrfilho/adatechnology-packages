@@ -102,7 +102,7 @@ describe('copy button as an icon', () => {
     const button = markup.slice(markup.indexOf('<button'), markup.indexOf('</button>'))
     expect(button).toContain('<svg')
     expect(button.replace(/<[^>]+>/g, '')).toBe('')
-    expect(markup.replace(/aria-label="[^"]*"/g, '')).not.toContain('Copy protocol')
+    expect(markup.replace(/(aria-label|data-cv-tooltip)="[^"]*"/g, '')).not.toContain('Copy protocol')
   })
 
   it('shows the short confirmation next to the icon while copied', () => {

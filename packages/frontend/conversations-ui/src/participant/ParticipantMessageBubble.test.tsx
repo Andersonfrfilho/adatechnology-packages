@@ -112,22 +112,22 @@ describe('ParticipantMessageBubble', () => {
     const withoutRetry = renderPending('failed')
 
     expect(withRetry).toContain('<button')
-    expect(withRetry).toContain('Failed — tap to retry')
+    expect(withRetry).toContain('aria-label="Failed — tap to retry"')
+    expect(withRetry).toContain('cv-p-failed-retry')
     expect(withRetry).toContain('cv-status-ticks--failed')
     expect(findUtilityClassTokens(withRetry)).toEqual([])
     expect(withoutRetry).not.toContain('<button')
     expect(withoutRetry).toContain('cv-status-ticks--failed')
   })
 
-  it('shows discard and edit on a failed pending only when the handlers exist', () => {
+  it('offers edit and discard through the menu trigger only when a handler exists', () => {
     const none = renderPending('failed')
     const both = renderPending('failed', () => undefined, { onDiscard: () => undefined, onEdit: () => undefined })
     const notFailed = renderPending('queued', undefined, { onDiscard: () => undefined, onEdit: () => undefined })
 
-    expect(none).not.toContain('cv-p-bubble__action')
-    expect(both).toContain('>Discard<')
-    expect(both).toContain('>Edit<')
-    expect(notFailed).not.toContain('cv-p-bubble__action')
+    expect(none).not.toContain('cv-p-failed-menu')
+    expect(both).toContain('aria-haspopup="menu"')
+    expect(notFailed).not.toContain('cv-p-failed-menu')
   })
 
   it('a failed server message shows only "Failed", with no button', () => {

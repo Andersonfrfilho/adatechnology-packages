@@ -59,7 +59,11 @@ export function ParticipantChannelBadges({
       <span className="cv-p-channels">
         <span className="cv-p-sr-only">{`${labels.channelsGroup}: `}</span>
         {descriptors.map((descriptor, index) => (
-          <span key={descriptor.channel} className={`cv-p-channel cv-p-channel--${descriptor.channel}`}>
+          <span
+            key={descriptor.channel}
+            className={`cv-p-channel cv-p-channel--${descriptor.channel}`}
+            data-cv-tooltip={resolveParticipantChannelLabel(descriptor, labels)}
+          >
             <BadgeContent
               descriptor={descriptor}
               labels={labels}
@@ -75,7 +79,11 @@ export function ParticipantChannelBadges({
   return (
     <ul className="cv-p-channels" aria-label={labels.channelsGroup}>
       {descriptors.map((descriptor) => (
-        <li key={descriptor.channel} className={`cv-p-channel cv-p-channel--${descriptor.channel}`}>
+        <li
+          key={descriptor.channel}
+          className={`cv-p-channel cv-p-channel--${descriptor.channel}`}
+          data-cv-tooltip={resolveParticipantChannelLabel(descriptor, labels)}
+        >
           <BadgeContent descriptor={descriptor} labels={labels} separator="" iconSize={iconSize} />
         </li>
       ))}
