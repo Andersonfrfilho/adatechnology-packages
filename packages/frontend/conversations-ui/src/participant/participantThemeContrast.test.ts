@@ -90,6 +90,14 @@ describe.each(SCENARIOS.map((entry) => [entry.name, entry] as const))(
       expect(contrastRatio(ink, palette.surface)).toBeLessThanOrEqual(WALLPAPER_SUBTLETY)
     })
 
+    it('reads the failed-message menu and the retry icon', () => {
+      expect(contrastRatio(palette.text, palette.raised)).toBeGreaterThanOrEqual(TEXT_MINIMUM)
+      expect(contrastRatio(palette.danger, palette.raised)).toBeGreaterThanOrEqual(TEXT_MINIMUM)
+      expect(contrastRatio(palette.text, over(palette.highlight, palette.raised))).toBeGreaterThanOrEqual(TEXT_MINIMUM)
+      expect(contrastRatio(palette.danger, over(palette.highlight, palette.raised))).toBeGreaterThanOrEqual(TEXT_MINIMUM)
+      expect(contrastRatio(palette.danger, palette.surface)).toBeGreaterThanOrEqual(NON_TEXT_MINIMUM)
+    })
+
     it('keeps the strip above the composer and the unread badge readable', () => {
       expect(contrastRatio(palette.accent, palette.raised)).toBeGreaterThanOrEqual(TEXT_MINIMUM)
       expect(contrastRatio(palette.accentContrast, palette.accent)).toBeGreaterThanOrEqual(TEXT_MINIMUM)

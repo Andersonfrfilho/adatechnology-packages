@@ -34,46 +34,19 @@ export function OwnStatus({ status, labels, onRetry }: OwnStatusProps) {
   )
 }
 
-type FailedActionsProps = {
+type RetryButtonProps = {
   readonly labels: ParticipantConversationsLabels
-  readonly onRetry?: () => void
-  readonly onDiscard?: () => void
-  readonly onEdit?: () => void
+  readonly onRetry: () => void
 }
 
-function RetryIcon() {
+export function RetryButton({ labels, onRetry }: RetryButtonProps) {
   return (
-    <svg className="cv-p-bubble__action-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
-      <path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3" fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  )
-}
-
-export function FailedActions({ labels, onRetry, onDiscard, onEdit }: FailedActionsProps) {
-  if (!onRetry && !onDiscard && !onEdit) return null
-  return (
-    <span className="cv-p-bubble__actions">
-      {onRetry ? (
-        <button
-          type="button"
-          className="cv-p-bubble__action cv-p-bubble__action--retry"
-          aria-label={labels.statusFailed}
-          onClick={onRetry}
-        >
-          <RetryIcon />
-          {labels.retry}
-        </button>
-      ) : null}
-      {onEdit ? (
-        <button type="button" className="cv-p-bubble__action" onClick={onEdit}>
-          {labels.edit}
-        </button>
-      ) : null}
-      {onDiscard ? (
-        <button type="button" className="cv-p-bubble__action cv-p-bubble__action--discard" onClick={onDiscard}>
-          {labels.discard}
-        </button>
-      ) : null}
-    </span>
+    <button type="button" className="cv-p-bubble-row__retry" aria-label={labels.statusFailed} onClick={onRetry}>
+      <span className="cv-p-bubble-row__retry-icon">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+          <path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </span>
+    </button>
   )
 }

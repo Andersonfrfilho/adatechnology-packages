@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
 import { formatTimestamp } from '../lib/format'
-import { FailedActions, OwnStatus } from './ParticipantBubbleStatus'
+import { OwnStatus, RetryButton } from './ParticipantBubbleStatus'
+import { ParticipantFailedMenu } from './ParticipantFailedMenu'
 import { ParticipantMessageText } from './ParticipantMessageText'
 import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantConversationsLabels } from './participantLabels'
@@ -20,11 +21,11 @@ export type ParticipantMessageBubbleProps = {
   readonly labels: ParticipantConversationsLabels
   readonly confirmsRead: boolean
   readonly resolveAttachmentUrl: ResolveParticipantAttachmentUrl
-  /** Absent means no retry button, even when the message failed. */
+  /** Absent means no retry button beside the bubble, even when the message failed. */
   readonly onRetry?: () => void
-  /** Absent means no discard button. */
+  /** Absent means no discard item in the failed-message menu. */
   readonly onDiscard?: () => void
-  /** Absent means no edit button. */
+  /** Absent means no edit item in the failed-message menu. */
   readonly onEdit?: () => void
   /** Opt-in slot to the left of a received bubble; null reserves the space, absent changes nothing. */
   readonly avatar?: ReactNode
@@ -68,9 +69,10 @@ function describeItem(item: ParticipantTimelineItem, perspective?: ParticipantPe
   }
 }
 
-function bubbleClassName(isMine: boolean, hasTail: boolean): string {
+function bubbleClassName(isMine: boolean, hasTail: boolean, hasFailed: boolean): string {
   const classes = ['cv-p-bubble']
   if (isMine) classes.push('cv-p-bubble--mine')
+  if (hasFailed) classes.push('cv-p-bubble--failed')
   if (!hasTail) classes.push('cv-p-bubble--no-tail')
   return classes.join(' ')
 }
@@ -93,8 +95,10 @@ export function ParticipantMessageBubble({
     ? resolveOwnMessageStatus({ displayState: content.displayState, serverStatus: content.serverStatus, confirmsRead })
     : undefined
 
+  const isFailed = ownStatus === 'failed'
+
   const bubble = (
-    <div className={bubbleClassName(isMine, tail)}>
+    <div className={bubbleClassName(isMine, tail, isFailed)}>
       {isMine ? (
         <span className="cv-p-sr-only">{labels.me}</span>
       ) : content.authorName ? (
@@ -119,10 +123,18 @@ export function ParticipantMessageBubble({
           {formatTimestamp(content.createdAt)}
         </time>
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
+        {isFailed ? <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} /> : null}
       </span>
-      {ownStatus === 'failed' ? <FailedActions labels={labels} onRetry={onRetry} onDiscard={onDiscard} onEdit={onEdit} /> : null}
     </div>
   )
+  if (isFailed && onRetry) {
+    return (
+      <div className="cv-p-bubble-row cv-p-bubble-row--failed">
+        <RetryButton labels={labels} onRetry={onRetry} />
+        {bubble}
+      </div>
+    )
+  }
   if (avatar === undefined || isMine) return bubble
   return (
     <div className="cv-p-bubble-row">

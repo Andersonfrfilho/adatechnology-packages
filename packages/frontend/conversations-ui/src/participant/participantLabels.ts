@@ -36,6 +36,8 @@ export type ParticipantConversationsLabels = {
   readonly retry: string
   readonly discard: string
   readonly edit: string
+  /** Optional: name of the menu button on a failed message; falls back to the English default. */
+  readonly messageOptions?: string
   readonly notFound: string
   readonly loading: string
   readonly loadError: string
@@ -98,6 +100,7 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   retry: 'Retry',
   discard: 'Discard',
   edit: 'Edit',
+  messageOptions: 'Message options',
   notFound: 'Conversation not found',
   loading: 'Loading…',
   loadError: 'Could not load. Check your connection and try again.',
