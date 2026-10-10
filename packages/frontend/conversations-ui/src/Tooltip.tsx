@@ -14,6 +14,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+import { createTooltipLayerRegistry } from './tooltipLayerRegistry'
+
 /** Atributo que marca um elemento como portador de dica. */
 export const TOOLTIP_ATTRIBUTE = 'data-cv-tooltip'
 
@@ -64,25 +66,16 @@ function tooltipStateFor(target: Element, text: string): TooltipState {
 /**
  * Só uma camada desenha por vez. A camada é montada por cada superfície do pacote (inbox, fluxos,
  * documentos) para o host não precisar montá-la à mão; duas superfícies na mesma tela renderizariam
- * dois balões sobrepostos sem essa trava.
+ * dois balões sobrepostos sem essa trava. Quando a dona desmonta, a posse passa à próxima montada.
  */
-let layerOwner: object | undefined
+const layerRegistry = createTooltipLayerRegistry()
 
 export function TooltipLayer() {
   const identity = useRef({})
   const [isOwner, setIsOwner] = useState(false)
   const [tooltip, setTooltip] = useState<TooltipState | undefined>(undefined)
 
-  useEffect(() => {
-    const owned = identity.current
-    if (layerOwner && layerOwner !== owned) return undefined
-    layerOwner = owned
-    setIsOwner(true)
-
-    return () => {
-      if (layerOwner === owned) layerOwner = undefined
-    }
-  }, [])
+  useEffect(() => layerRegistry.register(identity.current, setIsOwner), [])
 
   useEffect(() => {
     if (!isOwner) return undefined

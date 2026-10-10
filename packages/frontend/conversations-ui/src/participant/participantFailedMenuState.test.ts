@@ -4,6 +4,7 @@ import {
   CLOSED_FAILED_MENU,
   failedMenuReducer,
   resolveFailedMenuKey,
+  resolveFailedMenuPlacement,
   resolveFailedMenuTriggerKey,
 } from './participantFailedMenuState'
 
@@ -41,5 +42,20 @@ describe('failed menu keyboard', () => {
     expect(resolveFailedMenuTriggerKey('ArrowDown')).toBe('first')
     expect(resolveFailedMenuTriggerKey('ArrowUp')).toBe('last')
     expect(resolveFailedMenuTriggerKey('Enter')).toBeUndefined()
+  })
+})
+
+describe('failed menu placement', () => {
+  it('opens above when the scroller leaves room for the menu', () => {
+    expect(resolveFailedMenuPlacement({ anchorTop: 300, scrollerTop: 100, menuHeight: 90 })).toBe('above')
+  })
+
+  it('flips below for the first bubble of the conversation, where the scroller would clip it', () => {
+    expect(resolveFailedMenuPlacement({ anchorTop: 112, scrollerTop: 100, menuHeight: 90 })).toBe('below')
+  })
+
+  it('needs the gap too: room for exactly the menu is not enough', () => {
+    expect(resolveFailedMenuPlacement({ anchorTop: 190, scrollerTop: 100, menuHeight: 90 })).toBe('below')
+    expect(resolveFailedMenuPlacement({ anchorTop: 198, scrollerTop: 100, menuHeight: 90 })).toBe('above')
   })
 })

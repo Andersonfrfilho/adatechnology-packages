@@ -32,6 +32,7 @@ describe('failed message: markup', () => {
 
     expect(markup).toContain('aria-haspopup="menu"')
     expect(markup).toContain('aria-expanded="false"')
+    expect(markup).toContain('data-cv-tooltip="Message options"')
     expect(markup).toContain('aria-label="Message options"')
     expect(markup).not.toContain('role="menu"')
     expect(renderToStaticMarkup(<ParticipantFailedMenu labels={LABELS} />)).toBe('')
@@ -39,16 +40,27 @@ describe('failed message: markup', () => {
 })
 
 describe('failed message: styles', () => {
-  it('keeps the retry button at 44px with a 2rem visual circle, pulled out of the row height', () => {
-    const button = declarationsIn('.cv-p-bubble-row__retry')
-    const icon = declarationsIn('.cv-p-bubble-row__retry-icon')
+  it('hangs the retry button beside the bubble: 44px target, 2rem circle, no layout space taken', () => {
+    const button = declarationsIn('.cv-p-failed-retry')
+    const icon = declarationsIn('.cv-p-failed-retry__icon')
 
+    expect(button.get('position')).toBe('absolute')
+    expect(button.get('right')).toContain('100%')
     expect(button.get('width')).toBe('var(--cv-p-i-touch)')
     expect(button.get('height')).toBe('var(--cv-p-i-touch)')
-    expect(button.get('margin-block')).toBe('-0.25rem')
     expect(icon.get('width')).toBe('2rem')
     expect(icon.get('border-radius')).toBe('50%')
     expect(button.get('color')).toBe('var(--cv-p-i-danger)')
+  })
+
+  it('keeps the bubble cap of 85% by not wrapping the bubble in a row', () => {
+    expect(declarationsIn('.cv-p-bubble-row--failed').size).toBe(0)
+    expect(declarationsIn('.cv-p-bubble').get('max-width')).toBe('85%')
+  })
+
+  it('flips the menu below the bubble with a modifier', () => {
+    expect(declarationsIn('.cv-p-failed-menu__list--below').get('top')).toContain('100%')
+    expect(declarationsIn('.cv-p-failed-menu__list--below').get('bottom')).toBe('auto')
   })
 
   it('draws the menu with square corners, text and danger tokens, 44px items', () => {

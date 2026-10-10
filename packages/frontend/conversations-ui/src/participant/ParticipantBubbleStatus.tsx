@@ -37,12 +37,21 @@ export function OwnStatus({ status, labels, onRetry }: OwnStatusProps) {
 type RetryButtonProps = {
   readonly labels: ParticipantConversationsLabels
   readonly onRetry: () => void
+  /** Id of the message text, read after the name so the button says which message it resends. */
+  readonly describedBy?: string
 }
 
-export function RetryButton({ labels, onRetry }: RetryButtonProps) {
+export function RetryButton({ labels, onRetry, describedBy }: RetryButtonProps) {
   return (
-    <button type="button" className="cv-p-bubble-row__retry" aria-label={labels.statusFailed} data-cv-tooltip={labels.statusFailed} onClick={onRetry}>
-      <span className="cv-p-bubble-row__retry-icon">
+    <button
+      type="button"
+      className="cv-p-failed-retry"
+      aria-label={labels.statusFailed}
+      aria-describedby={describedBy}
+      data-cv-tooltip={labels.statusFailed}
+      onClick={onRetry}
+    >
+      <span className="cv-p-failed-retry__icon">
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
           <path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3" fill="none" stroke="currentColor" strokeWidth="1.5" />
         </svg>

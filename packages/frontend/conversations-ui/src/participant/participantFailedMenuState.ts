@@ -38,3 +38,20 @@ export function resolveFailedMenuTriggerKey(key: string): FailedMenuFocus | unde
   if (key === 'ArrowUp') return 'last'
   return undefined
 }
+
+export type FailedMenuPlacement = 'above' | 'below'
+
+const MENU_GAP_PX = 8
+
+type MenuPlacementParams = {
+  /** Top edge of the bubble the menu hangs from. */
+  readonly anchorTop: number
+  /** Top edge of the scroller that clips the menu. */
+  readonly scrollerTop: number
+  readonly menuHeight: number
+}
+
+/** The menu opens above its bubble; it flips below when the scroller would clip it. */
+export function resolveFailedMenuPlacement({ anchorTop, scrollerTop, menuHeight }: MenuPlacementParams): FailedMenuPlacement {
+  return anchorTop - scrollerTop >= menuHeight + MENU_GAP_PX ? 'above' : 'below'
+}

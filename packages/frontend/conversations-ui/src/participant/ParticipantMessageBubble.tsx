@@ -1,12 +1,10 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 
 import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
-import { formatTimestamp } from '../lib/format'
-import { OwnStatus, RetryButton } from './ParticipantBubbleStatus'
-import { ParticipantFailedMenu } from './ParticipantFailedMenu'
-import { ParticipantMessageText } from './ParticipantMessageText'
-import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
+import { BubbleBody } from './ParticipantBubbleBody'
+import { RetryButton } from './ParticipantBubbleStatus'
+import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantPerspective } from './participantPerspective'
 import {
@@ -35,7 +33,7 @@ export type ParticipantMessageBubbleProps = {
   readonly perspective?: ParticipantPerspective
 }
 
-type BubbleContent = {
+export type BubbleContent = {
   readonly isMine: boolean
   readonly authorName?: string
   readonly text?: string
@@ -77,65 +75,23 @@ function bubbleClassName(isMine: boolean, hasTail: boolean, hasFailed: boolean):
   return classes.join(' ')
 }
 
-export function ParticipantMessageBubble({
-  item,
-  labels,
-  confirmsRead,
-  resolveAttachmentUrl,
-  onRetry,
-  onDiscard,
-  onEdit,
-  avatar,
-  tail = true,
-  perspective,
-}: ParticipantMessageBubbleProps) {
+export function ParticipantMessageBubble(props: ParticipantMessageBubbleProps) {
+  const { item, labels, confirmsRead, onRetry, avatar, tail = true, perspective } = props
+  const textId = useId()
   const content = describeItem(item, perspective)
-  const { isMine } = content
-  const ownStatus = isMine
+  const ownStatus = content.isMine
     ? resolveOwnMessageStatus({ displayState: content.displayState, serverStatus: content.serverStatus, confirmsRead })
     : undefined
-
   const isFailed = ownStatus === 'failed'
+  const canRetry = isFailed && onRetry !== undefined
 
   const bubble = (
-    <div className={bubbleClassName(isMine, tail, isFailed)}>
-      {isMine ? (
-        <span className="cv-p-sr-only">{labels.me}</span>
-      ) : content.authorName ? (
-        <span className="cv-p-bubble__author">{content.authorName}</span>
-      ) : null}
-      {content.text ? <ParticipantMessageText text={content.text} labels={labels} /> : null}
-      {content.attachments.map((attachment) => (
-        <ParticipantAttachmentItem
-          key={attachment.id}
-          attachment={attachment}
-          resolveAttachmentUrl={resolveAttachmentUrl}
-          labels={labels}
-        />
-      ))}
-      {content.pendingFilenames.map((filename, index) => (
-        <span key={`${filename}-${index}`} className="cv-p-attachment cv-p-attachment--pending">
-          {filename}
-        </span>
-      ))}
-      <span className="cv-p-bubble__meta">
-        <time className="cv-p-bubble__time" dateTime={content.createdAt}>
-          {formatTimestamp(content.createdAt)}
-        </time>
-        {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
-        {isFailed ? <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} /> : null}
-      </span>
+    <div className={bubbleClassName(content.isMine, tail, isFailed)}>
+      {canRetry ? <RetryButton labels={labels} onRetry={onRetry} describedBy={textId} /> : null}
+      <BubbleBody {...props} content={content} ownStatus={ownStatus} textId={canRetry ? textId : undefined} />
     </div>
   )
-  if (isFailed && onRetry) {
-    return (
-      <div className="cv-p-bubble-row cv-p-bubble-row--failed">
-        <RetryButton labels={labels} onRetry={onRetry} />
-        {bubble}
-      </div>
-    )
-  }
-  if (avatar === undefined || isMine) return bubble
+  if (avatar === undefined || content.isMine) return bubble
   return (
     <div className="cv-p-bubble-row">
       <span className="cv-p-bubble-row__avatar">{avatar}</span>

@@ -1,4 +1,7 @@
-import type { ParticipantConversationsLabels } from './participantLabels'
+import { useId } from 'react'
+
+import { ParticipantFailedMenuList } from './ParticipantFailedMenuList'
+import { DEFAULT_MESSAGE_OPTIONS_LABEL, type ParticipantConversationsLabels } from './participantLabels'
 import { useParticipantFailedMenu } from './useParticipantFailedMenu'
 
 type ParticipantFailedMenuProps = {
@@ -9,48 +12,28 @@ type ParticipantFailedMenuProps = {
 
 export function ParticipantFailedMenu({ labels, onEdit, onDiscard }: ParticipantFailedMenuProps) {
   const menu = useParticipantFailedMenu()
+  const triggerId = useId()
   if (!onEdit && !onDiscard) return null
-
-  function runAndClose(action: () => void): () => void {
-    return () => {
-      menu.close()
-      action()
-    }
-  }
+  const label = labels.messageOptions ?? DEFAULT_MESSAGE_OPTIONS_LABEL
 
   return (
     <span className="cv-p-failed-menu" ref={menu.containerRef} onBlur={menu.handleBlur}>
       <button
         type="button"
+        id={triggerId}
         ref={menu.triggerRef}
         className="cv-p-failed-menu__trigger"
         aria-haspopup="menu"
         aria-expanded={menu.state.isOpen}
-        aria-label={labels.messageOptions}
-        data-cv-tooltip={labels.messageOptions}
+        aria-label={label}
+        data-cv-tooltip={menu.state.isOpen ? undefined : label}
         onClick={menu.handleTriggerClick}
         onKeyDown={menu.handleTriggerKeyDown}
       >
         <span aria-hidden="true">⋯</span>
       </button>
       {menu.state.isOpen ? (
-        <div role="menu" ref={menu.menuRef} className="cv-p-failed-menu__list" onKeyDown={menu.handleMenuKeyDown}>
-          {onEdit ? (
-            <button type="button" role="menuitem" className="cv-p-failed-menu__item" onClick={runAndClose(onEdit)}>
-              {labels.edit}
-            </button>
-          ) : null}
-          {onDiscard ? (
-            <button
-              type="button"
-              role="menuitem"
-              className="cv-p-failed-menu__item cv-p-failed-menu__item--danger"
-              onClick={runAndClose(onDiscard)}
-            >
-              {labels.discard}
-            </button>
-          ) : null}
-        </div>
+        <ParticipantFailedMenuList menu={menu} labelledBy={triggerId} labels={labels} onEdit={onEdit} onDiscard={onDiscard} />
       ) : null}
     </span>
   )

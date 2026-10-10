@@ -1,15 +1,18 @@
-import { useEffect, useReducer, useRef, type FocusEvent, type KeyboardEvent, type RefObject } from 'react'
+import { useReducer, useRef, type FocusEvent, type KeyboardEvent, type RefObject } from 'react'
 
+import { handleFailedMenuKeyDown } from './failedMenuKeyboard'
 import {
   CLOSED_FAILED_MENU,
   failedMenuReducer,
-  resolveFailedMenuKey,
   resolveFailedMenuTriggerKey,
+  type FailedMenuPlacement,
   type FailedMenuState,
 } from './participantFailedMenuState'
+import { useFailedMenuInitialFocus, useFailedMenuOutsideClose, useFailedMenuPlacement } from './useFailedMenuEffects'
 
 export type ParticipantFailedMenuController = {
   readonly state: FailedMenuState
+  readonly placement: FailedMenuPlacement
   readonly containerRef: RefObject<HTMLSpanElement | null>
   readonly triggerRef: RefObject<HTMLButtonElement | null>
   readonly menuRef: RefObject<HTMLDivElement | null>
@@ -26,48 +29,15 @@ export function useParticipantFailedMenu(): ParticipantFailedMenuController {
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
 
-  function items(): HTMLElement[] {
-    return Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])
-  }
-
-  useEffect(() => {
-    if (!state.isOpen) return
-    const entries = items()
-    ;(state.initialFocus === 'last' ? entries[entries.length - 1] : entries[0])?.focus()
-  }, [state])
-
-  useEffect(() => {
-    if (!state.isOpen) return
-    function handlePointerDown(event: PointerEvent): void {
-      if (event.target instanceof Node && containerRef.current?.contains(event.target)) return
-      dispatch({ type: 'close' })
-    }
-    document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
-  }, [state.isOpen])
+  useFailedMenuInitialFocus(state, menuRef)
+  useFailedMenuOutsideClose(state.isOpen, containerRef, dispatch)
+  const placement = useFailedMenuPlacement(state.isOpen, { triggerRef, menuRef })
 
   function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>): void {
     const initialFocus = resolveFailedMenuTriggerKey(event.key)
     if (!initialFocus) return
     event.preventDefault()
     dispatch({ type: 'open', initialFocus })
-  }
-
-  function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
-    const entries = items()
-    const index = entries.findIndex((entry) => entry === document.activeElement)
-    const result = resolveFailedMenuKey({ key: event.key, index, count: entries.length })
-    if (!result) return
-    if (result.type === 'focus') {
-      event.preventDefault()
-      entries[result.index]?.focus()
-      return
-    }
-    if (result.shouldRestoreFocus) {
-      event.preventDefault()
-      triggerRef.current?.focus()
-    }
-    dispatch({ type: 'close' })
   }
 
   function handleBlur(event: FocusEvent<HTMLSpanElement>): void {
@@ -77,12 +47,13 @@ export function useParticipantFailedMenu(): ParticipantFailedMenuController {
 
   return {
     state,
+    placement,
     containerRef,
     triggerRef,
     menuRef,
     handleTriggerClick: () => dispatch({ type: 'toggle' }),
     handleTriggerKeyDown,
-    handleMenuKeyDown,
+    handleMenuKeyDown: (event) => handleFailedMenuKeyDown({ event, menuRef, triggerRef, dispatch }),
     handleBlur,
     close: () => dispatch({ type: 'close' }),
   }

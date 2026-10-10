@@ -7,6 +7,8 @@ import type { FormatBlock } from './participantMessageFormat.types'
 export type ParticipantMessageTextProps = {
   readonly text: string | null | undefined
   readonly labels: ParticipantTextLabels
+  /** Lets a control point at the text with aria-describedby; absent leaves the markup as it was. */
+  readonly id?: string
 }
 
 function renderBlock(block: FormatBlock, labels: ParticipantTextLabels, key: number) {
@@ -40,7 +42,7 @@ function renderBlock(block: FormatBlock, labels: ParticipantTextLabels, key: num
   )
 }
 
-export function ParticipantMessageText({ text, labels }: ParticipantMessageTextProps) {
+export function ParticipantMessageText({ text, labels, id }: ParticipantMessageTextProps) {
   const blocks = useMemo(() => parseParticipantMessage(text), [text])
   if (blocks.length === 0) return null
   const [only] = blocks
@@ -48,5 +50,5 @@ export function ParticipantMessageText({ text, labels }: ParticipantMessageTextP
     blocks.length === 1 && only?.kind === 'paragraph'
       ? renderInlineNodes(only.children, labels)
       : blocks.map((block, key) => renderBlock(block, labels, key))
-  return <div className="cv-p-text">{children}</div>
+  return <div className="cv-p-text" id={id}>{children}</div>
 }
