@@ -10,6 +10,7 @@ import { ParticipantThread } from './ParticipantThread'
 import { toParticipantApi, type ConversationThreadApi } from './conversationThreadApi'
 import { buildThreadSummary } from './conversationThreadSummary'
 import type { ParticipantSubjectGroup, ParticipantSubjectIconRenderer } from './participant.types'
+import type { ParticipantAudioRecordingOptions } from './participantAudio.types'
 import type { ParticipantPendingMessage } from './participantApi.types'
 import { draftKey, type ParticipantDrafts } from './participantDrafts'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS, type ParticipantConversationsLabels } from './participantLabels'
@@ -50,6 +51,8 @@ export type ConversationThreadProps = {
   readonly tail?: boolean
   readonly avatars?: 'initials'
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */
+  readonly audioRecording?: ParticipantAudioRecordingOptions
 }
 
 function useConversationThreadCore(props: ConversationThreadProps): ParticipantThreadCoreProps {
@@ -105,6 +108,7 @@ function ConversationThreadBody(props: ConversationThreadProps) {
           tail={props.tail}
           counterpartLabel={props.counterpartLabel}
           headerActions={props.headerActions}
+          audioRecording={props.audioRecording}
         />
       </div>
     </div>

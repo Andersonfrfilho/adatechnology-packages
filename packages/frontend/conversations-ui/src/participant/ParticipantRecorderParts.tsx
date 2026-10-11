@@ -9,11 +9,13 @@ export type RecordAudioButtonProps = {
   readonly isBusy: boolean
   readonly disabled: boolean
   readonly onClick?: () => void
+  readonly buttonRef?: Ref<HTMLButtonElement>
 }
 
-export function RecordAudioButton({ label, isBusy, disabled, onClick }: RecordAudioButtonProps) {
+export function RecordAudioButton({ label, isBusy, disabled, onClick, buttonRef }: RecordAudioButtonProps) {
   return (
     <button
+      ref={buttonRef}
       type="button"
       className="cv-p-button cv-p-button--primary cv-p-composer__record"
       aria-label={label}

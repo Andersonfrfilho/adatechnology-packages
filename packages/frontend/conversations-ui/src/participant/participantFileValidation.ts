@@ -15,7 +15,7 @@ export type ValidateParticipantFilesResult = {
   readonly rejection?: ParticipantFileRejection
 }
 
-function matchesAcceptedType(mimeType: string, acceptedTypes: readonly string[]): boolean {
+export function matchesAcceptedType(mimeType: string, acceptedTypes: readonly string[]): boolean {
   return acceptedTypes.some((accepted) =>
     accepted.endsWith('/*') ? mimeType.startsWith(accepted.slice(0, -1)) : mimeType === accepted,
   )

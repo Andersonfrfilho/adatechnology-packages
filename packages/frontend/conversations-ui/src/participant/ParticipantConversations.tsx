@@ -13,6 +13,7 @@ import type {
   ParticipantSubjectIconRenderer,
 } from './participant.types'
 import type { ParticipantConversationsApi, ParticipantPendingMessage } from './participantApi.types'
+import type { ParticipantAudioRecordingOptions } from './participantAudio.types'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { useParticipantInbox } from './useParticipantInbox'
 
@@ -41,6 +42,8 @@ export type ParticipantConversationsProps = {
   renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
   tail?: boolean
+  /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */
+  audioRecording?: ParticipantAudioRecordingOptions
 }
 
 export function ParticipantConversations(props: ParticipantConversationsProps) {

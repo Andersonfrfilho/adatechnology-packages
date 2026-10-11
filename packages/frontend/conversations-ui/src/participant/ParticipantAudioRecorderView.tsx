@@ -30,6 +30,10 @@ const ERROR_LABEL_BY_STATE = {
   tooLarge: 'audioTooLarge',
 } as const satisfies Partial<Record<RecorderStatus, keyof ParticipantAudioLabels>>
 
+export function resolveRecorderErrorMessage(state: RecorderStatus, labels: ParticipantAudioLabels): string | undefined {
+  return state in ERROR_LABEL_BY_STATE ? labels[ERROR_LABEL_BY_STATE[state as keyof typeof ERROR_LABEL_BY_STATE]] : undefined
+}
+
 export function ParticipantAudioRecorderView(props: ParticipantAudioRecorderViewProps) {
   const { state, elapsedMs, maxDurationMs = DEFAULT_MAX_RECORDING_MILLISECONDS, review, actions, disabled = false } = props
   const labels = resolveParticipantAudioLabels(props.labels)
@@ -41,10 +45,10 @@ export function ParticipantAudioRecorderView(props: ParticipantAudioRecorderView
   if (state === 'review') {
     return <ReviewGroup labels={labels} url={review?.url} audioRef={review?.audioRef} onSend={actions?.onSend} onDiscard={actions?.onDiscard} />
   }
-  const errorKey = state in ERROR_LABEL_BY_STATE ? ERROR_LABEL_BY_STATE[state as keyof typeof ERROR_LABEL_BY_STATE] : undefined
+  const errorMessage = resolveRecorderErrorMessage(state, labels)
   return (
     <>
-      {errorKey ? <RecorderError message={labels[errorKey]} /> : null}
+      {errorMessage ? <RecorderError message={errorMessage} /> : null}
       <RecordAudioButton label={labels.recordAudio} isBusy={state === 'requesting'} disabled={disabled} onClick={actions?.onStart} />
     </>
   )

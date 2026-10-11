@@ -183,15 +183,17 @@ describe('[T1.3] composer-audio-*: the pure recorder view (contract 2.2-2.3)', (
 
 })
 
-describe.skip('[T1.4] the microphone in the composer (contract 2.2)', () => {
+describe('[T1.4] the microphone in the composer (contract 2.2)', () => {
   it('the microphone takes the place of send only with the prop, an empty field and a recording browser', () => {
     const restore = installFakeRecordingEnvironment()
     try {
       const withProp = renderThread({
         draft: { value: '', onChange: () => undefined, files: [], onFilesChange: () => undefined },
         audioRecording: {},
+        onSendAudio: () => undefined,
       })
       expect(withProp).toContain('cv-p-composer__record')
+      expect(withProp).not.toContain('cv-p-composer__send')
     } finally {
       restore()
     }

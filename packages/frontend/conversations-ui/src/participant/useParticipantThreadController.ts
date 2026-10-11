@@ -13,6 +13,7 @@ import { findFailedEntry, hasSendingEntry, type ParticipantSendAction } from './
 import type { ParticipantSendStates, ParticipantSendStatesAction } from './participantSendStates'
 import { useParticipantConversationView } from './useParticipantConversationView'
 import { useParticipantDraft } from './useParticipantDraft'
+import { useParticipantSendAudio } from './useParticipantSendAudio'
 import { useParticipantThread, type UseParticipantThreadResult } from './useParticipantThread'
 import { useParticipantThreadScroll } from './useParticipantThreadScroll'
 
@@ -53,6 +54,7 @@ export type ParticipantThreadCoreProps = Pick<
   | 'onLoadOlder'
   | 'pendingActions'
   | 'perspective'
+  | 'onSendAudio'
 >
 
 type BuildPendingActionsParams = {
@@ -77,6 +79,7 @@ export function useParticipantThreadController(params: ParticipantThreadControll
   const { thread, items, sendEntries, dispatchSend } = useParticipantConversationView(params)
   const resolveAttachmentUrl = useMemo(() => bindAttachmentUrlResolver(api), [api])
   const { scroll, newMessagesCount } = useParticipantThreadScroll(items, params.perspective)
+  const handleSendAudio = useParticipantSendAudio(thread.send)
 
   function handleSend(): void {
     const content = takeForSend()
@@ -108,5 +111,6 @@ export function useParticipantThreadController(params: ParticipantThreadControll
     onLoadOlder: () => void thread.loadOlder(),
     pendingActions: buildPendingActions({ thread, dispatchSend, handleEdit, onRetryPending: params.onRetryPending }),
     perspective: params.perspective,
+    onSendAudio: handleSendAudio,
   }
 }
