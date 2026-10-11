@@ -60,12 +60,43 @@ export const participantConversationPageSchema = z.object({
 })
 export type ParticipantConversationPage = z.infer<typeof participantConversationPageSchema>
 
+export const PARTICIPANT_TRANSCRIPTION_STATUS = Object.freeze(['pending', 'ready', 'failed', 'disabled'] as const)
+export type ParticipantTranscriptionStatus = (typeof PARTICIPANT_TRANSCRIPTION_STATUS)[number]
+
+/** Só o motivo que muda o que o leitor vê; os demais códigos de falha ficam no servidor. */
+export const PARTICIPANT_TRANSCRIPTION_FAILURE_REASONS = Object.freeze(['too_long'] as const)
+
+/** Em unidades UTF-16, que é o que `.max` do zod conta. */
+export const PARTICIPANT_TRANSCRIPTION_TEXT_MAX_UTF16 = 40_000
+export const PARTICIPANT_AUDIO_DURATION_MAX_MS = 86_400_000
+
+/** Sem `.strict()` nem `refine`: campo fora do ramo é descartado, não recusado. */
+export const participantTranscriptionSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('pending') }),
+  z.object({
+    status: z.literal('ready'),
+    text: z.string().max(PARTICIPANT_TRANSCRIPTION_TEXT_MAX_UTF16),
+    language: z.string().regex(/^[a-z]{2,3}$/).optional(),
+    engine: z.string().min(1).max(64).optional(),
+    generatedAt: z.string().datetime(),
+  }),
+  z.object({
+    status: z.literal('failed'),
+    reason: z.enum(PARTICIPANT_TRANSCRIPTION_FAILURE_REASONS).optional(),
+    maxDurationMs: z.number().int().positive().optional(),
+  }),
+  z.object({ status: z.literal('disabled') }),
+])
+export type ParticipantTranscription = z.infer<typeof participantTranscriptionSchema>
+
 export const participantAttachmentSchema = z.object({
   id: z.string().min(1),
   kind: attachmentKindSchema,
   filename: z.string().min(1),
   mimeType: z.string().min(1),
   sizeBytes: z.number().int().min(0),
+  durationMs: z.number().int().positive().max(PARTICIPANT_AUDIO_DURATION_MAX_MS).optional(),
+  transcription: participantTranscriptionSchema.optional(),
 })
 export type ParticipantAttachment = z.infer<typeof participantAttachmentSchema>
 

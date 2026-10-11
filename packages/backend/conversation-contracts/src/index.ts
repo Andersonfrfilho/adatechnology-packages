@@ -31,10 +31,15 @@ export type { DeliveryStatusState, DeliveryStatusEvent, DeliveryStatusResult } f
 export {
   SUBJECT_TYPE_PATTERN,
   PARTICIPANT_CONVERSATION_STATUS,
+  PARTICIPANT_TRANSCRIPTION_STATUS,
+  PARTICIPANT_TRANSCRIPTION_FAILURE_REASONS,
+  PARTICIPANT_TRANSCRIPTION_TEXT_MAX_UTF16,
+  PARTICIPANT_AUDIO_DURATION_MAX_MS,
   subjectRefSchema,
   participantConversationStatusSchema,
   participantConversationSummarySchema,
   participantConversationPageSchema,
+  participantTranscriptionSchema,
   participantAttachmentSchema,
   participantMessageSchema,
 } from './participant'
@@ -43,6 +48,8 @@ export type {
   ParticipantConversationStatus,
   ParticipantConversationSummary,
   ParticipantConversationPage,
+  ParticipantTranscriptionStatus,
+  ParticipantTranscription,
   ParticipantAttachment,
   ParticipantMessage,
 } from './participant'
