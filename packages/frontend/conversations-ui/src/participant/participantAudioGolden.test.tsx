@@ -99,28 +99,38 @@ describe('empty composer stays byte-identical to origin/main a7c5c85 (contract 2
   })
 })
 
-describe('the existing goldens carry no audio and the native player is covered', () => {
+describe('the existing goldens carry no audio; the audio goldens document the player that replaced the native one', () => {
   it('none of the 9 recorded goldens has an <audio> element', () => {
     expect(PRE_EXISTING_GOLDENS).toHaveLength(9)
     for (const name of PRE_EXISTING_GOLDENS) expect(readGolden(name).match(/<audio/g)?.length ?? 0).toBe(0)
   })
 
-  it('thread-audio-native freezes exactly one native <audio controls> from the current code', () => {
+  it('thread-audio-native was regrouped by 264 T1.5: same attachment without durationMs, now the player (no native controls)', () => {
     const markup = readGolden('thread-audio-native')
     expect(markup.match(/<audio/g)).toHaveLength(1)
-    expect(markup).toContain('class="cv-p-attachment__audio" controls=""')
+    expect(markup).not.toContain('controls')
+    expect(markup).not.toContain('cv-p-attachment__audio')
+    expect(markup).toContain('0:00 / --:--')
   })
 
-  it('the helper renders both new scenarios and the 9 existing ones', () => {
+  it('the helper renders the new scenarios and the 9 existing ones', () => {
     const rendered = renderGoldenScenarios({
       ParticipantThread,
       ParticipantConversations,
       labels: DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS,
     } as unknown as GoldenComponents)
-    for (const name of [...PRE_EXISTING_GOLDENS, 'thread-empty-draft', 'thread-audio-native'])
+    for (const name of [...PRE_EXISTING_GOLDENS, 'thread-empty-draft', 'thread-audio-native', 'thread-audio-player'])
       expect(rendered[name]).toBe(readGolden(name))
   })
 })
+
+function renderThreadGoldens(): Record<string, string> {
+  return renderGoldenScenarios({
+    ParticipantThread,
+    ParticipantConversations,
+    labels: DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS,
+  } as unknown as GoldenComponents)
+}
 
 const AUDIO_ATTACHMENT = { id: 'att-1', kind: 'audio', filename: 'voice.webm', mimeType: 'audio/webm', sizeBytes: 2048, durationMs: 65_000 }
 const GENERATED_AT = '2026-10-01T12:01:00.000Z'
@@ -135,13 +145,25 @@ async function loadModule(name: string): Promise<Record<string, unknown>> {
   return (await import(`./${name}`)) as Record<string, unknown>
 }
 
-describe.skip('[T1.5] thread-audio-player: the custom player replaces <audio controls> (contract 3.1-3.2)', () => {
+describe('[T1.5] thread-audio-player: the custom player replaces <audio controls> (contract 3.1-3.2)', () => {
   it('thread-audio-player is byte-identical to its golden', () => {
     expect(renderThread({ items: audioItems() })).toBe(readGolden('thread-audio-player'))
   })
 
-  it('no other recorded golden changes', () => {
-    for (const name of PRE_EXISTING_GOLDENS) expect(readGolden(name)).not.toContain('cv-p-audio')
+  it('renders the contract 3.1 markup: group, toggle, range, time, rate and a preload="none" audio after which comes the file name', () => {
+    const markup = readGolden('thread-audio-player')
+    expect(markup).toContain('<div class="cv-p-audio" role="group" aria-label="Audio: voice.webm">')
+    expect(markup).toContain('type="range" class="cv-p-audio__seek"')
+    expect(markup).toContain('0:00 / 1:05')
+    expect(markup).toContain('<audio class="cv-p-audio__media" preload="none"></audio>')
+    expect(markup.indexOf('cv-p-audio__media')).toBeLessThan(markup.indexOf('cv-p-attachment__name'))
+  })
+
+  it('no other recorded golden changes: the 9 old ones and the empty draft stay without the player', () => {
+    for (const name of [...PRE_EXISTING_GOLDENS, 'thread-empty-draft']) expect(readGolden(name)).not.toContain('cv-p-audio')
+    expect(Object.keys(renderThreadGoldens()).sort()).toEqual(
+      [...PRE_EXISTING_GOLDENS, 'thread-empty-draft', 'thread-audio-native', 'thread-audio-player'].sort(),
+    )
   })
 })
 

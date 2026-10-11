@@ -18,7 +18,7 @@ export type ParticipantAudioRecorderViewProps = {
   readonly elapsedMs: number
   readonly labels?: Partial<ParticipantAudioLabels> | ParticipantConversationsLabels
   readonly maxDurationMs?: number
-  readonly review?: { readonly url?: string; readonly audioRef?: Ref<HTMLAudioElement> }
+  readonly review?: { readonly url?: string; readonly audioRef?: Ref<HTMLAudioElement>; readonly durationMs?: number | undefined }
   readonly actions?: ParticipantAudioRecorderActions
   readonly disabled?: boolean
 }
@@ -43,7 +43,7 @@ export function ParticipantAudioRecorderView(props: ParticipantAudioRecorderView
     return <RecordingGroup labels={labels} clockText={clockText} onStop={actions?.onStop} onDiscard={actions?.onDiscard} />
   }
   if (state === 'review') {
-    return <ReviewGroup labels={labels} url={review?.url} audioRef={review?.audioRef} onSend={actions?.onSend} onDiscard={actions?.onDiscard} />
+    return <ReviewGroup labels={labels} url={review?.url} audioRef={review?.audioRef} durationMs={review?.durationMs} onSend={actions?.onSend} onDiscard={actions?.onDiscard} />
   }
   const errorMessage = resolveRecorderErrorMessage(state, labels)
   return (

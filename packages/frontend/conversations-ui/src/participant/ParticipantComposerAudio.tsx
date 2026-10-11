@@ -53,7 +53,7 @@ function RecorderLine({ recorder, labels, onSendAudio }: RecorderLineProps) {
       elapsedMs={recorder.elapsedMs}
       labels={labels}
       maxDurationMs={recorder.limits.maxDurationMs}
-      review={{ url: recorder.recorded?.objectUrl, audioRef: recorder.audioRef }}
+      review={{ url: recorder.recorded?.objectUrl, audioRef: recorder.audioRef, durationMs: recorder.recorded?.durationMs }}
       actions={{ onStop: recorder.stop, onSend: handleSendAudio, onDiscard: recorder.discard }}
     />
   )

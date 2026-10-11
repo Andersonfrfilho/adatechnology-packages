@@ -2,6 +2,7 @@ import type { Ref } from 'react'
 
 import { Mic, Send, Square, Trash2 } from 'lucide-react'
 
+import { ParticipantAudioPlayer } from './ParticipantAudioPlayer'
 import type { ParticipantAudioLabels } from './participantAudioLabels'
 
 export type RecordAudioButtonProps = {
@@ -90,16 +91,16 @@ export function RecordingGroup({ labels, clockText, onStop, onDiscard }: Recordi
 export type ReviewGroupProps = RecorderGroupProps & {
   readonly url?: string
   readonly audioRef?: Ref<HTMLAudioElement>
+  readonly durationMs?: number | undefined
   readonly onSend?: () => void
 }
 
-/** The plain <audio controls> here is swapped for the participant player by the player task. */
-export function ReviewGroup({ labels, url, audioRef, onSend, onDiscard }: ReviewGroupProps) {
+export function ReviewGroup({ labels, url, audioRef, durationMs, onSend, onDiscard }: ReviewGroupProps) {
   return (
     <div className="cv-p-recorder cv-p-recorder--review" role="group" aria-label={labels.reviewAudio}>
       <p className="cv-p-recorder__hint">{labels.reviewAudio}</p>
       <DiscardButton labels={labels} onDiscard={onDiscard} />
-      <audio ref={audioRef} className="cv-p-recorder__audio" controls preload="metadata" src={url} />
+      <ParticipantAudioPlayer labels={labels} url={url} durationMs={durationMs} mediaRef={audioRef} />
       <button
         type="button"
         ref={focusOnMount}

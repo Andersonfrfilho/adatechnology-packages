@@ -26,6 +26,10 @@ const AUDIO_NATIVE_ITEMS = [
   { kind: 'server', message: buildMessage({ id: 'au', direction: 'inbound', text: '', attachments: [{ id: 'att-1', kind: 'audio', filename: 'voice.webm', mimeType: 'audio/webm', sizeBytes: 2048 }], createdAt: '2026-10-01T12:00:00.000Z' }) },
 ]
 
+const AUDIO_PLAYER_ITEMS = [
+  { kind: 'server', message: buildMessage({ id: 'au', direction: 'inbound', text: '', attachments: [{ id: 'att-1', kind: 'audio', filename: 'voice.webm', mimeType: 'audio/webm', sizeBytes: 2048, durationMs: 65_000 }], createdAt: '2026-10-01T12:00:00.000Z' }) },
+]
+
 export function buildThreadProps(labels: unknown): Record<string, unknown> {
   return {
     conversation: buildConversation({ subjectId: '1', subjectLabel: 'Invoice 4521', protocol: 'P-1', channels: ['app', 'whatsapp'] }),
@@ -48,6 +52,7 @@ const THREAD_VARIANTS: Record<string, Record<string, unknown>> = {
   'thread-closed': { conversation: buildConversation({ subjectId: '2', status: 'closed' }) },
   'thread-empty-draft': { draft: EMPTY_DRAFT },
   'thread-audio-native': { items: AUDIO_NATIVE_ITEMS },
+  'thread-audio-player': { items: AUDIO_PLAYER_ITEMS },
 }
 
 export function renderGoldenScenarios({ ParticipantThread, ParticipantConversations, labels }: GoldenComponents): Record<string, string> {

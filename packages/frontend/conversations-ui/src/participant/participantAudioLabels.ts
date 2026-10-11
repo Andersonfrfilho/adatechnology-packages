@@ -13,6 +13,15 @@ export type ParticipantAudioLabels = {
   readonly recordingUnsupported: string
   readonly audioEmpty: string
   readonly audioTooLarge: string
+  readonly audioPlayer: string
+  readonly playAudio: string
+  readonly pauseAudio: string
+  readonly audioPosition: string
+  /** Uses the `{position}` and `{duration}` placeholders; without a duration only the position is spoken. */
+  readonly audioPositionValue: string
+  /** Uses the `{rate}` placeholder. */
+  readonly playbackRate: string
+  readonly audioUnavailable: string
 }
 
 export const DEFAULT_PARTICIPANT_AUDIO_LABELS: ParticipantAudioLabels = {
@@ -27,6 +36,13 @@ export const DEFAULT_PARTICIPANT_AUDIO_LABELS: ParticipantAudioLabels = {
   recordingUnsupported: 'This device cannot record audio.',
   audioEmpty: 'Nothing was captured by the microphone.',
   audioTooLarge: 'Audio too large to send.',
+  audioPlayer: 'Audio',
+  playAudio: 'Play audio',
+  pauseAudio: 'Pause audio',
+  audioPosition: 'Audio position',
+  audioPositionValue: '{position} of {duration}',
+  playbackRate: 'Playback speed {rate}',
+  audioUnavailable: 'Audio unavailable',
 }
 
 export function resolveParticipantAudioLabels(
