@@ -4,6 +4,8 @@ export type { ConversationThreadApi } from './conversationThreadApi'
 export type { ParticipantPerspective } from './participantPerspective'
 export type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
 export { groupParticipantConversations } from './participantGrouping'
+export { DEFAULT_MAX_RECORDING_BYTES, type ParticipantAudioRecordingOptions } from './participantAudio.types'
+export { DEFAULT_PARTICIPANT_AUDIO_LABELS, type ParticipantAudioLabels } from './participantAudioLabels'
 export { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS, type ParticipantConversationsLabels } from './participantLabels'
 export type {
   ParticipantConversationsClassNames,

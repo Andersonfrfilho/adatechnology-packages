@@ -167,7 +167,7 @@ describe.skip('[T1.6] thread-audio-transcription-*: the block under the player (
   })
 })
 
-describe.skip('[T1.3/T1.4] composer-audio-*: the pure recorder view and the microphone (contract 2.2-2.3)', () => {
+describe('[T1.3] composer-audio-*: the pure recorder view (contract 2.2-2.3)', () => {
   const states = ['idle', 'recording', 'review', 'denied'] as const
 
   for (const state of states) {
@@ -181,6 +181,9 @@ describe.skip('[T1.3/T1.4] composer-audio-*: the pure recorder view and the micr
     })
   }
 
+})
+
+describe.skip('[T1.4] the microphone in the composer (contract 2.2)', () => {
   it('the microphone takes the place of send only with the prop, an empty field and a recording browser', () => {
     const restore = installFakeRecordingEnvironment()
     try {

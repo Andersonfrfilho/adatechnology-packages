@@ -1335,6 +1335,17 @@
 .cv-p-composer__input { flex: 1 1 auto; min-width: 0; min-height: var(--cv-p-i-touch); max-height: 6.5rem; overflow-y: auto; resize: none; padding: 0.7rem 0.75rem; font: inherit; font-size: 0.9rem; color: inherit; background: var(--cv-p-i-surface); border: 1px solid var(--cv-p-i-border); border-radius: var(--cv-p-i-radius); }
 .cv-p-composer__send { flex: 0 0 auto; padding: 0; margin-inline-start: 0.25rem; }
 .cv-p-composer__error { margin: 0; font-size: 0.8rem; color: var(--cv-p-i-danger); }
+.cv-p-composer__record { flex: 0 0 auto; padding: 0; margin-inline-start: 0.25rem; }
+.cv-p-composer__record svg, .cv-p-recorder svg { display: block; }
+.cv-p-recorder { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 0.5rem; min-width: 0; }
+.cv-p-recorder__hint { flex: 1 1 100%; margin: 0; font-size: 0.8rem; color: var(--cv-p-i-text-muted); }
+.cv-p-recorder__discard { flex: 0 0 auto; padding: 0; color: var(--cv-p-i-text-muted); }
+.cv-p-recorder__dot { flex: 0 0 auto; width: 0.625rem; height: 0.625rem; border-radius: 50%; background: var(--cv-p-i-danger); animation: cv-p-recorder-pulse 1.2s ease-in-out infinite; }
+.cv-p-recorder__elapsed { flex: 1 1 auto; font: 0.85rem 'SFMono-Regular', Consolas, monospace; font-variant-numeric: tabular-nums; color: var(--cv-p-i-text); }
+.cv-p-recorder__stop, .cv-p-recorder__send { flex: 0 0 auto; padding: 0; }
+.cv-p-recorder__audio { flex: 1 1 8rem; min-width: 0; min-height: var(--cv-p-i-touch); }
+@keyframes cv-p-recorder-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .cv-p-recorder__dot { animation: none; } }
 .cv-p-quick { --cv-p-i-fade: 0.75rem; display: flex; gap: 0.5rem; overflow-x: auto; margin: -0.25rem calc(-1 * var(--cv-p-i-fade)); padding-block: 0.25rem; }
 .cv-p-files { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; padding: 0; list-style: none; }
 .cv-p-files__item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
