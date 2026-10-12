@@ -95,7 +95,7 @@ importers:
         version: link:../logger
       '@types/bun':
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -107,7 +107,7 @@ importers:
     devDependencies:
       '@types/bun':
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -201,7 +201,7 @@ importers:
         version: 0.31.10
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -248,7 +248,7 @@ importers:
         version: 1.0.0-rc.4
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -295,7 +295,7 @@ importers:
         version: 1.0.0-rc.4
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76)
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -314,7 +314,7 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5)
     devDependencies:
       '@types/bun':
         specifier: 1.3.14
@@ -371,7 +371,7 @@ importers:
     devDependencies:
       '@types/bun':
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -534,7 +534,7 @@ importers:
         version: link:../logger
       '@types/bun':
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -546,7 +546,7 @@ importers:
     devDependencies:
       '@types/bun':
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -554,11 +554,55 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
 
+  packages/backend/infra-contracts:
+    dependencies:
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/backend/infra-module:
+    dependencies:
+      '@adatechnology/infra-contracts':
+        specifier: workspace:*
+        version: link:../infra-contracts
+      '@adatechnology/module-http':
+        specifier: workspace:*
+        version: link:../module-http
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      drizzle-kit:
+        specifier: 0.31.10
+        version: 0.31.10
+      drizzle-orm:
+        specifier: 0.45.2
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   packages/backend/keycloak-admin:
     devDependencies:
       '@types/bun':
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -586,7 +630,7 @@ importers:
     devDependencies:
       '@types/bun':
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -607,7 +651,7 @@ importers:
         version: 5.81.5
       drizzle-orm:
         specifier: ^0.30.10
-        version: 0.30.10(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(@types/react@19.3.0)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(react@19.3.0)
+        version: 0.30.10(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(@types/react@19.3.0)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(react@19.3.0)
       ffmpeg-static:
         specifier: ^5.1.0
         version: 5.3.0
@@ -641,7 +685,7 @@ importers:
         version: 2.1.28
       bun-types:
         specifier: latest
-        version: 1.4.2
+        version: 1.4.3
       eslint:
         specifier: ^8.57.0
         version: 8.57.1
@@ -723,7 +767,7 @@ importers:
         version: 1.0.0-rc.4
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -997,7 +1041,7 @@ importers:
         version: 0.31.10
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -1083,6 +1127,41 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/backend/railway-infra-contracts:
+    dependencies:
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/backend/railway-infra-module:
+    dependencies:
+      '@adatechnology/railway-infra-contracts':
+        specifier: workspace:*
+        version: link:../railway-infra-contracts
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+    devDependencies:
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   packages/backend/scheduling-contracts:
     dependencies:
       zod:
@@ -1119,7 +1198,7 @@ importers:
         version: 0.31.10
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)
+        version: 0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -1209,7 +1288,7 @@ importers:
         version: 1.0.0-rc.4
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -1398,6 +1477,43 @@ importers:
       '@types/react-dom':
         specifier: ^18 || ^19
         version: 19.3.0(@types/react@19.3.0)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/frontend/infra-ui:
+    dependencies:
+      '@adatechnology/infra-contracts':
+        specifier: workspace:*
+        version: link:../../backend/infra-contracts
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      lucide-react:
+        specifier: ^1.21.0
+        version: 1.46.0(react@19.3.0)
+    devDependencies:
+      '@tanstack/react-query':
+        specifier: ^5.62.8
+        version: 5.102.8(react@19.3.0)
+      '@types/bun':
+        specifier: 1.3.14
+        version: 1.3.14
+      '@types/react':
+        specifier: ^19
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.3.0(@types/react@19.3.0)
+      react:
+        specifier: ^19
+        version: 19.3.0
+      react-dom:
+        specifier: ^19
+        version: 19.3.0(react@19.3.0)
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(@swc/core@1.16.2(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.28)(tsx@4.23.13)(typescript@5.9.3)(yaml@2.9.1)
@@ -5498,8 +5614,8 @@ packages:
   '@types/bun@1.3.14':
     resolution: {integrity: sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw==}
 
-  '@types/bun@1.4.2':
-    resolution: {integrity: sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ==}
+  '@types/bun@1.4.3':
+    resolution: {integrity: sha512-N67Pqy8JXbAY/j0tNraS3V5mubGvc6rrrNDmDCtZLlFzccbUJPDb0tvgUBC5q4m8ybkP93Jcn1QB+RYQ6PvBhw==}
 
   '@types/bunyan@1.8.11':
     resolution: {integrity: sha512-758fRH7umIMk5qt5ELmRMff4mLDlN+xyYzC+dkPTdKwbSkJFvz6xwyScrytPU0QIBbRRwbiE8/BIg8bpajerNQ==}
@@ -6226,8 +6342,8 @@ packages:
   bun-types@1.3.14:
     resolution: {integrity: sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ==}
 
-  bun-types@1.4.2:
-    resolution: {integrity: sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w==}
+  bun-types@1.4.3:
+    resolution: {integrity: sha512-tinRJNGOmUN+tEAsn2y2e942n9JHRHR42iUYzDH75NmhJqVBokGSQkkfSFdNWwsANIdrK6ACH9t01M452YyTwg==}
 
   bundle-name@4.1.0:
     resolution: {integrity: sha512-tjwM5exMg6BGRI+kNmTntNsvdZS1X8BFYS6tnJ2hdH0kVxM6/eVZ2xy+FqStSWvYmtfFMDLIxurorHwDKfDz5Q==}
@@ -14480,9 +14596,9 @@ snapshots:
     dependencies:
       bun-types: 1.3.14
 
-  '@types/bun@1.4.2':
+  '@types/bun@1.4.3':
     dependencies:
-      bun-types: 1.4.2
+      bun-types: 1.4.3
 
   '@types/bunyan@1.8.11':
     dependencies:
@@ -14493,7 +14609,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 22.20.2
+      '@types/node': 24.13.4
 
   '@types/cors@2.8.19':
     dependencies:
@@ -14668,7 +14784,7 @@ snapshots:
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 22.20.2
+      '@types/node': 24.13.4
 
   '@types/serve-static@2.2.0':
     dependencies:
@@ -15337,9 +15453,10 @@ snapshots:
     dependencies:
       '@types/node': 24.13.4
 
-  bun-types@1.4.2:
+  bun-types@1.4.3:
     dependencies:
       '@types/node': 24.13.4
+      undici-types: 7.18.2
 
   bundle-name@4.1.0:
     dependencies:
@@ -15747,38 +15864,38 @@ snapshots:
       get-tsconfig: 4.14.3
       jiti: 2.7.0
 
-  drizzle-orm@0.30.10(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(@types/react@19.3.0)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(react@19.3.0):
+  drizzle-orm@0.30.10(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(@types/react@19.3.0)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(react@19.3.0):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.23.1
       '@types/react': 19.3.0
-      bun-types: 1.4.2
+      bun-types: 1.4.3
       pg: 8.23.0
       postgres: 3.4.9
       react: 19.3.0
 
-  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9):
+  drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.23.1
-      bun-types: 1.4.2
+      bun-types: 1.4.3
       pg: 8.23.0
       postgres: 3.4.9
 
-  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76):
+  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@3.25.76):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.23.1
-      bun-types: 1.4.2
+      bun-types: 1.4.3
       pg: 8.23.0
       postgres: 3.4.9
       zod: 3.25.76
 
-  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.2)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5):
+  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.23.1
-      bun-types: 1.4.2
+      bun-types: 1.4.3
       pg: 8.23.0
       postgres: 3.4.9
       zod: 4.6.5

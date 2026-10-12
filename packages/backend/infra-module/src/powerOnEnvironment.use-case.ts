@@ -1,0 +1,12 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+
+import { INFRA_POWER_DIRECTION } from '@adatechnology/infra-contracts'
+import { PowerEnvironmentUseCase, type PowerEnvironmentDependencies } from './powerEnvironment.use-case'
+
+export class PowerOnEnvironmentUseCase extends PowerEnvironmentUseCase {
+  constructor(dependencies: PowerEnvironmentDependencies) {
+    super({ ...dependencies, direction: INFRA_POWER_DIRECTION.ON })
+  }
+}
