@@ -490,8 +490,10 @@ própria UI.
 - **WhatsApp:** **não ative o microfone com `channel="whatsapp"` antes da validação**: o Chromium grava WebM, que o
   WhatsApp não aceita. A capacidade do canal `whatsapp` declara gravação, mas o envio de áudio de volta ao WhatsApp não foi
   validado ponta a ponta nesta branch. Não trate a gravação nessa conversa como pronta até a validação da spec 264.
-- **Safari e iPhone:** o formato gravado no Safari (`audio/mp4`) e o pedido de permissão no toque ainda precisam ser
-  conferidos em aparelho real (T7.1).
+- **Safari e iPhone:** o formato e a gravação no Safari/iPhone (`audio/mp4`) e o pedido de permissão no toque ficam a
+  conferir em aparelho real na T7.1 do consumidor.
+- **Evento `stop` ausente:** se o `stop` do `MediaRecorder` nunca chegar (a especificação o garante), a UI permanece em
+  `recording` até o usuário descartar a gravação. Um vigia opcional fica para uma versão futura.
 
 **Validação do anexo.** `transcription` e `durationMs` inválidos reprovam o anexo inteiro (só chaves desconhecidas são
 descartadas): valide por anexo com `participantTranscriptionSchema.safeParse` e descarte o campo que falhar.
