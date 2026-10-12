@@ -69,8 +69,25 @@ jobs:
       # requires logger to be a composite project, which conflicts with logger's tsup dts build
       # (TS6307). All three are pre-existing, unrelated to this branch — excluded here so that
       # defect doesn't block every other package's publish gate.
-      - name: Typecheck all packages
-        run: pnpm --filter='!@adatechnology/nestjs-http-client' --filter='!@adatechnology/nestjs-auth-keycloak' --filter='!@adatechnology/nestjs-keycloak-admin' -r --if-present run check
+      # Typecheck e testes não dependem um do outro: rodam juntos e cada um grava o próprio log, que é
+      # impresso por inteiro no fim. Falha de qualquer um reprova o passo.
+      - name: Typecheck and test all packages (parallel)
+        run: |
+          pnpm --filter='!@adatechnology/nestjs-http-client' --filter='!@adatechnology/nestjs-auth-keycloak' --filter='!@adatechnology/nestjs-keycloak-admin' -r --if-present run check > "$RUNNER_TEMP/typecheck.log" 2>&1 &
+          typecheck_pid=$!
+          pnpm -r --if-present run test > "$RUNNER_TEMP/test.log" 2>&1 &
+          test_pid=$!
 
-      - name: Test all packages
-        run: pnpm -r --if-present run test
+          typecheck_status=0
+          test_status=0
+          wait "$typecheck_pid" || typecheck_status=$?
+          wait "$test_pid" || test_status=$?
+
+          echo "::group::Typecheck (exit $typecheck_status)"
+          cat "$RUNNER_TEMP/typecheck.log"
+          echo "::endgroup::"
+          echo "::group::Tests (exit $test_status)"
+          cat "$RUNNER_TEMP/test.log"
+          echo "::endgroup::"
+
+          [ "$typecheck_status" -eq 0 ] && [ "$test_status" -eq 0 ]
