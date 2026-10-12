@@ -1,7 +1,7 @@
 import { act, useState } from 'react'
 
 import type { ParticipantAttachment } from '@adatechnology/conversation-contracts'
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it } from 'bun:test'
 
 import { wait } from '../domHarness.test-helper'
 import { ATTACHMENT_URL_RETRY_DELAY_MS } from './useStableAttachmentUrl'
@@ -12,6 +12,32 @@ import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS } from './participantLabels'
 
 const kit = setupPlayerDom()
 const { mountAttachments, audioOf, toggleOf, find, tap } = kit
+
+const realSetTimeout = globalThis.setTimeout
+const SETTLE_MS = 20
+let heldRetries: Array<() => void> = []
+
+/** Holds the retry timers (1 s) instead of sleeping: the test fires them on demand, with no wall-clock margin. */
+function holdRetryTimers(): void {
+  heldRetries = []
+  const shim = ((handler: TimerHandler, delay?: number, ...args: unknown[]) => {
+    if (delay !== ATTACHMENT_URL_RETRY_DELAY_MS) return realSetTimeout(handler, delay, ...args)
+    heldRetries.push(() => (handler as () => void)())
+    return 0
+  }) as unknown as typeof setTimeout
+  globalThis.setTimeout = shim
+}
+
+async function fireHeldRetries(): Promise<void> {
+  const pending = heldRetries
+  heldRetries = []
+  for (const retry of pending) retry()
+  await wait(SETTLE_MS)
+}
+
+afterEach(() => {
+  globalThis.setTimeout = realSetTimeout
+})
 
 describe('source: resolved at mount by id, never downloaded before the tap', () => {
   it('assigns the resolved src with preload="none" and resolves once', async () => {
@@ -43,16 +69,18 @@ describe('source: resolved at mount by id, never downloaded before the tap', () 
   })
 
   it('shows the unavailable state when the URL cannot be resolved after the second attempt', async () => {
+    holdRetryTimers()
     await mountAttachments([buildAttachment('a')], async () => {
       throw new Error('nope')
     })
-    await wait(ATTACHMENT_URL_RETRY_DELAY_MS + 100)
+    await fireHeldRetries()
     expect(kit.container.textContent).toContain(DEFAULT_PARTICIPANT_AUDIO_LABELS.audioUnavailable)
     expect(audioOf().hasAttribute('src')).toBe(false)
   })
 
   it('a transient failure of the first resolution gets one new attempt before giving up', async () => {
     {
+      holdRetryTimers()
       let attempts = 0
       await mountAttachments([buildAttachment('a')], async () => {
         attempts += 1
@@ -61,7 +89,7 @@ describe('source: resolved at mount by id, never downloaded before the tap', () 
       })
       expect(audioOf().hasAttribute('src')).toBe(false)
       expect(kit.container.querySelector('.cv-p-audio__error')).toBeNull()
-      await wait(ATTACHMENT_URL_RETRY_DELAY_MS + 100)
+      await fireHeldRetries()
       expect(attempts).toBe(2)
       expect(audioOf().getAttribute('src')).toBe('https://files.test/a-retry.webm')
       expect(kit.container.querySelector('.cv-p-audio__error')).toBeNull()
@@ -69,10 +97,11 @@ describe('source: resolved at mount by id, never downloaded before the tap', () 
   })
 
   it('says it with static text: no alert role (N failing players would be N assertive announcements) and a disabled toggle', async () => {
+    holdRetryTimers()
     await mountAttachments([buildAttachment('a'), buildAttachment('b')], async () => {
       throw new Error('nope')
     })
-    await wait(ATTACHMENT_URL_RETRY_DELAY_MS + 100)
+    await fireHeldRetries()
     const messages = kit.container.querySelectorAll('.cv-p-audio__error')
     expect(messages).toHaveLength(2)
     for (const message of Array.from(messages)) expect(message.hasAttribute('role')).toBe(false)
