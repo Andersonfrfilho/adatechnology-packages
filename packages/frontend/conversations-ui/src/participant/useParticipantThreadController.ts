@@ -13,6 +13,7 @@ import { findFailedEntry, hasSendingEntry, type ParticipantSendAction } from './
 import type { ParticipantSendStates, ParticipantSendStatesAction } from './participantSendStates'
 import { useParticipantConversationView } from './useParticipantConversationView'
 import { useParticipantDraft } from './useParticipantDraft'
+import { useParticipantSendAudio } from './useParticipantSendAudio'
 import { useParticipantThread, type UseParticipantThreadResult } from './useParticipantThread'
 import { useParticipantThreadScroll } from './useParticipantThreadScroll'
 
@@ -53,6 +54,7 @@ export type ParticipantThreadCoreProps = Pick<
   | 'onLoadOlder'
   | 'pendingActions'
   | 'perspective'
+  | 'onSendAudio'
 >
 
 type BuildPendingActionsParams = {
@@ -71,23 +73,33 @@ function buildPendingActions({ thread, dispatchSend, handleEdit, onRetryPending 
   }
 }
 
+type BuildEditHandlerParams = {
+  readonly sendEntries: Parameters<typeof findFailedEntry>[0]
+  readonly dispatchSend: (action: ParticipantSendAction) => void
+  readonly restoreFromEntry: (entry: NonNullable<ReturnType<typeof findFailedEntry>>) => void
+}
+
+function buildEditHandler({ sendEntries, dispatchSend, restoreFromEntry }: BuildEditHandlerParams): (clientMessageId: string) => void {
+  return (clientMessageId) => {
+    const entry = findFailedEntry(sendEntries, clientMessageId)
+    if (!entry) return
+    restoreFromEntry(entry)
+    dispatchSend({ type: 'discarded', clientMessageId })
+  }
+}
+
 export function useParticipantThreadController(params: ParticipantThreadControllerParams): ParticipantThreadCoreProps {
   const { api, subject, conversation, draftsRef } = params
   const { draft, setText, setFiles, takeForSend, restoreFromEntry } = useParticipantDraft(draftsRef, subject)
   const { thread, items, sendEntries, dispatchSend } = useParticipantConversationView(params)
   const resolveAttachmentUrl = useMemo(() => bindAttachmentUrlResolver(api), [api])
   const { scroll, newMessagesCount } = useParticipantThreadScroll(items, params.perspective)
+  const handleSendAudio = useParticipantSendAudio(thread.send)
+  const handleEdit = buildEditHandler({ sendEntries, dispatchSend, restoreFromEntry })
 
   function handleSend(): void {
     const content = takeForSend()
     if (content) void thread.send(content)
-  }
-
-  function handleEdit(clientMessageId: string): void {
-    const entry = findFailedEntry(sendEntries, clientMessageId)
-    if (!entry) return
-    restoreFromEntry(entry)
-    dispatchSend({ type: 'discarded', clientMessageId })
   }
 
   return {
@@ -108,5 +120,6 @@ export function useParticipantThreadController(params: ParticipantThreadControll
     onLoadOlder: () => void thread.loadOlder(),
     pendingActions: buildPendingActions({ thread, dispatchSend, handleEdit, onRetryPending: params.onRetryPending }),
     perspective: params.perspective,
+    onSendAudio: handleSendAudio,
   }
 }

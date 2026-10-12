@@ -36,6 +36,8 @@ describe('participant default markup against the recorded origin/main output', (
     'thread-closed',
     'conversations-list',
     'conversations-selected',
+    'thread-empty-draft',
+    'thread-audio-native',
   ]
 
   for (const name of scenarioNames) {

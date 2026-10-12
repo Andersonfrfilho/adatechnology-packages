@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import type { ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
 import { formatFileSize } from '../lib/format'
+import { ParticipantAudioAttachment } from './ParticipantAudioAttachment'
 import { isSafeAttachmentUrl } from './participantAttachmentUrl'
 import type { ParticipantConversationsLabels } from './participantLabels'
 
@@ -42,7 +43,12 @@ function useAttachmentUrl(
   return url
 }
 
-export function ParticipantAttachmentItem({ attachment, resolveAttachmentUrl, labels }: ParticipantAttachmentItemProps) {
+export function ParticipantAttachmentItem(props: ParticipantAttachmentItemProps) {
+  if (props.attachment.kind === 'audio') return <ParticipantAudioAttachment {...props} />
+  return <ParticipantFileAttachment {...props} />
+}
+
+function ParticipantFileAttachment({ attachment, resolveAttachmentUrl, labels }: ParticipantAttachmentItemProps) {
   const url = useAttachmentUrl(attachment, resolveAttachmentUrl)
 
   if (attachment.kind === 'image') {
@@ -51,15 +57,6 @@ export function ParticipantAttachmentItem({ attachment, resolveAttachmentUrl, la
         {url ? <img className="cv-p-attachment__image" src={url} alt={attachment.filename} /> : null}
         <figcaption className="cv-p-attachment__name">{attachment.filename}</figcaption>
       </figure>
-    )
-  }
-
-  if (attachment.kind === 'audio') {
-    return (
-      <div className="cv-p-attachment cv-p-attachment--audio">
-        <span className="cv-p-attachment__name">{attachment.filename}</span>
-        <audio className="cv-p-attachment__audio" controls preload="none" src={url} />
-      </div>
     )
   }
 

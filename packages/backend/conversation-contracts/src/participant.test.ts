@@ -10,13 +10,17 @@ import { describe, expect, it } from 'bun:test'
 
 import type { ConversationChannel } from './vocabulary'
 import {
+  PARTICIPANT_AUDIO_DURATION_MAX_MS,
   PARTICIPANT_CONVERSATION_STATUS,
+  PARTICIPANT_TRANSCRIPTION_STATUS,
+  PARTICIPANT_TRANSCRIPTION_TEXT_MAX_UTF16,
   SUBJECT_TYPE_PATTERN,
   participantAttachmentSchema,
   participantConversationPageSchema,
   participantConversationStatusSchema,
   participantConversationSummarySchema,
   participantMessageSchema,
+  participantTranscriptionSchema,
   subjectRefSchema,
   type ParticipantAttachment,
   type ParticipantConversationPage,
@@ -24,6 +28,8 @@ import {
   type ParticipantConversationSummary,
   type ParticipantMessage,
   type ParticipantSubjectRef,
+  type ParticipantTranscription,
+  type ParticipantTranscriptionStatus,
 } from './participant'
 
 type Exact<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
@@ -253,5 +259,170 @@ describe('participantMessageSchema', () => {
 
   it('recusa status de entrega fora do vocabulário', () => {
     expect(participantMessageSchema.safeParse({ ...VALID_MESSAGE, status: 'received' }).success).toBe(false)
+  })
+})
+
+const READY_TRANSCRIPTION = {
+  status: 'ready',
+  text: 'Chegamos no galpão',
+  language: 'pt',
+  engine: 'whisper-local',
+  generatedAt: '2026-10-08T12:03:00Z',
+} as const
+
+describe('participantTranscriptionSchema — estados', () => {
+  it('aceita os quatro estados', () => {
+    expect(participantTranscriptionSchema.safeParse({ status: 'pending' }).success).toBe(true)
+    expect(participantTranscriptionSchema.safeParse(READY_TRANSCRIPTION).success).toBe(true)
+    expect(participantTranscriptionSchema.safeParse({ status: 'failed' }).success).toBe(true)
+    expect(participantTranscriptionSchema.safeParse({ status: 'disabled' }).success).toBe(true)
+  })
+
+  it('fixa os status na ordem e o tipo inferido', () => {
+    expect([...PARTICIPANT_TRANSCRIPTION_STATUS]).toEqual(['pending', 'ready', 'failed', 'disabled'])
+    assertExact<Exact<ParticipantTranscriptionStatus, 'pending' | 'ready' | 'failed' | 'disabled'>>()
+    const parsed: ParticipantTranscription = participantTranscriptionSchema.parse(READY_TRANSCRIPTION)
+    expect(parsed.status).toBe('ready')
+  })
+
+  it('aceita ready com texto vazio, que é silêncio e não falha', () => {
+    expect(participantTranscriptionSchema.safeParse({ ...READY_TRANSCRIPTION, text: '' }).success).toBe(true)
+  })
+
+  it('recusa status fora do vocabulário', () => {
+    expect(participantTranscriptionSchema.safeParse({ status: 'queued' }).success).toBe(false)
+  })
+
+  it('exige text e generatedAt em ready', () => {
+    const { text, ...withoutText } = READY_TRANSCRIPTION
+    const { generatedAt, ...withoutGeneratedAt } = READY_TRANSCRIPTION
+    void text
+    void generatedAt
+    expect(participantTranscriptionSchema.safeParse(withoutText).success).toBe(false)
+    expect(participantTranscriptionSchema.safeParse(withoutGeneratedAt).success).toBe(false)
+  })
+})
+
+describe('participantTranscriptionSchema — campos fora do ramo são descartados', () => {
+  it('descarta text em pending: aceito, mas ausente do resultado', () => {
+    const parsed = participantTranscriptionSchema.parse({ status: 'pending', text: 'vazou' })
+    expect(parsed).toEqual({ status: 'pending' })
+    expect('text' in parsed).toBe(false)
+  })
+
+  it('descarta campo desconhecido em qualquer ramo', () => {
+    expect(participantTranscriptionSchema.parse({ status: 'disabled', engine: 'x', extra: 1 })).toEqual({
+      status: 'disabled',
+    })
+    expect(participantTranscriptionSchema.parse({ status: 'failed', text: 'x' })).toEqual({ status: 'failed' })
+  })
+})
+
+describe('participantTranscriptionSchema — failed', () => {
+  it('aceita too_long com teto, sem teto e teto sem motivo', () => {
+    expect(
+      participantTranscriptionSchema.safeParse({ status: 'failed', reason: 'too_long', maxDurationMs: 300_000 }).success,
+    ).toBe(true)
+    expect(participantTranscriptionSchema.safeParse({ status: 'failed', reason: 'too_long' }).success).toBe(true)
+    expect(participantTranscriptionSchema.safeParse({ status: 'failed', maxDurationMs: 300_000 }).success).toBe(true)
+  })
+
+  it('recusa motivo fora de too_long e teto que não é inteiro positivo', () => {
+    expect(participantTranscriptionSchema.safeParse({ status: 'failed', reason: 'timeout' }).success).toBe(false)
+    expect(participantTranscriptionSchema.safeParse({ status: 'failed', maxDurationMs: 0 }).success).toBe(false)
+    expect(participantTranscriptionSchema.safeParse({ status: 'failed', maxDurationMs: 1.5 }).success).toBe(false)
+  })
+})
+
+describe('participantTranscriptionSchema — campos do ramo ready', () => {
+  const parseWith = (extra: Record<string, unknown>) =>
+    participantTranscriptionSchema.safeParse({ ...READY_TRANSCRIPTION, ...extra }).success
+
+  it('aceita idioma de duas ou três letras minúsculas', () => {
+    expect(parseWith({ language: 'pt' })).toBe(true)
+    expect(parseWith({ language: 'por' })).toBe(true)
+  })
+
+  it('recusa idioma nulo, maiúsculo, regional ou vazio', () => {
+    expect(parseWith({ language: null })).toBe(false)
+    expect(parseWith({ language: 'PT' })).toBe(false)
+    expect(parseWith({ language: 'pt-BR' })).toBe(false)
+    expect(parseWith({ language: '' })).toBe(false)
+  })
+
+  it('aceita generatedAt em UTC e recusa sem fuso', () => {
+    expect(parseWith({ generatedAt: '2026-10-08T12:03:00Z' })).toBe(true)
+    expect(parseWith({ generatedAt: '2026-10-08T12:03:00' })).toBe(false)
+  })
+
+  it('recusa generatedAt com offset, porque o contrato usa z.string().datetime() sem offset', () => {
+    expect(parseWith({ generatedAt: '2026-10-08T09:03:00-03:00' })).toBe(false)
+  })
+
+  it('aceita engine ausente e recusa engine vazio', () => {
+    const { engine, ...withoutEngine } = READY_TRANSCRIPTION
+    void engine
+    expect(participantTranscriptionSchema.safeParse(withoutEngine).success).toBe(true)
+    expect(parseWith({ engine: '' })).toBe(false)
+  })
+})
+
+describe('participantTranscriptionSchema — teto do texto em unidades UTF-16', () => {
+  const parseText = (text: string) =>
+    participantTranscriptionSchema.safeParse({ ...READY_TRANSCRIPTION, text }).success
+
+  it('fixa o teto em 40 000 unidades UTF-16', () => {
+    expect(PARTICIPANT_TRANSCRIPTION_TEXT_MAX_UTF16).toBe(40_000)
+  })
+
+  it('aceita texto com emoji até 40 000 unidades UTF-16 e recusa uma a mais', () => {
+    const atLimit = '😀'.repeat(20_000)
+    expect(atLimit.length).toBe(40_000)
+    expect(parseText(atLimit)).toBe(true)
+    expect(parseText(atLimit + 'a')).toBe(false)
+  })
+})
+
+describe('durationMs e transcription no anexo', () => {
+  const AUDIO_ATTACHMENT = { ...VALID_ATTACHMENT, kind: 'audio', filename: 'audio.webm', mimeType: 'audio/webm' } as const
+
+  it('aceita duração inteira positiva até o teto e recusa fora dele', () => {
+    const parseDuration = (durationMs: unknown) =>
+      participantAttachmentSchema.safeParse({ ...AUDIO_ATTACHMENT, durationMs }).success
+    expect(parseDuration(1)).toBe(true)
+    expect(parseDuration(PARTICIPANT_AUDIO_DURATION_MAX_MS)).toBe(true)
+    expect(parseDuration(0)).toBe(false)
+    expect(parseDuration(-1)).toBe(false)
+    expect(parseDuration(1.5)).toBe(false)
+    expect(parseDuration(PARTICIPANT_AUDIO_DURATION_MAX_MS + 1)).toBe(false)
+    assertExact<Exact<ParticipantAttachment['durationMs'], number | undefined>>()
+  })
+
+  it('aceita o anexo com transcrição e a mantém no resultado', () => {
+    const parsed: ParticipantAttachment = participantAttachmentSchema.parse({
+      ...AUDIO_ATTACHMENT,
+      durationMs: 12_000,
+      transcription: READY_TRANSCRIPTION,
+    })
+    expect(parsed.transcription).toEqual(READY_TRANSCRIPTION)
+    assertExact<Exact<ParticipantAttachment['transcription'], ParticipantTranscription | undefined>>()
+  })
+
+  it('recusa o anexo inteiro quando a transcrição tem status desconhecido', () => {
+    expect(
+      participantAttachmentSchema.safeParse({ ...AUDIO_ATTACHMENT, transcription: { status: 'queued' } }).success,
+    ).toBe(false)
+  })
+
+  it('mensagem com anexo de áudio transcrito e descarta text fora de ready', () => {
+    const parsed: ParticipantMessage = participantMessageSchema.parse({
+      ...VALID_MESSAGE,
+      attachments: [{ ...AUDIO_ATTACHMENT, transcription: { status: 'pending', text: 'vazou' } }],
+    })
+    expect(parsed.attachments[0]?.transcription).toEqual({ status: 'pending' })
+  })
+
+  it('mensagem antiga, sem durationMs nem transcription, segue válida', () => {
+    expect(participantMessageSchema.safeParse({ ...VALID_MESSAGE, attachments: [AUDIO_ATTACHMENT] }).success).toBe(true)
   })
 })

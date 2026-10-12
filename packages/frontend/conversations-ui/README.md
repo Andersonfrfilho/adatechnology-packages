@@ -392,6 +392,112 @@ superfície) e nenhum texto depende dele (o erro de carga ganha painel sólido).
 decorativa (cerca de 1,4:1): quem a distingue da página é o preenchimento, e o texto passa de 4,5:1. Ao mapear o
 acento, mantenha-o a 4,5:1 contra `--cv-p-highlight`, que é onde ficam os links da bolha própria. Os contrastes só valem com `--cv-p-highlight` **opaco**: o padrão do tema escuro do pacote é translúcido (`rgb(213 138 71 / 10%)`), então o host que mapeia o token deve fornecer um valor opaco.
 
+### Gravação de áudio e transcrição (`audioRecording`)
+
+Capacidade **opt-in**: sem a prop `audioRecording`, não há microfone, e o compositor e a bolha mantêm o markup de
+antes, byte a byte. A prop existe em `ParticipantConversations` e em `ConversationThread`.
+
+```tsx
+import { ParticipantConversations } from '@adatechnology/conversations-ui/participant'
+
+;<ParticipantConversations
+  api={participantApi}
+  audioRecording={{
+    maxDurationMs: 120_000,
+    maxSizeBytes: 8 * 1024 * 1024,
+    onCaptureChange: (isCapturing) => captureRegistry.set('audio', isCapturing),
+  }}
+/>
+```
+
+Tipo `ParticipantAudioRecordingOptions`, exportado por `@adatechnology/conversations-ui/participant`:
+
+| Campo                           | Efeito                                                                                                                                    |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `maxDurationMs?`                | teto da gravação. Só baixa: acima de 5 min (padrão) é cortado para 5 min                                                                  |
+| `maxSizeBytes?`                 | teto do arquivo. Só baixa: fica no menor valor entre `DEFAULT_MAX_RECORDING_BYTES` (16 MiB, a política de áudio da API) e o teto do canal |
+| `onCaptureChange?(isCapturing)` | `true` de `requesting` até sair de `review`; `false` ao sair. Nunca recebe o áudio                                                        |
+
+Regras de exibição e envio:
+
+- O microfone só aparece com a prop **e** com o campo de texto vazio. Com texto ou anexo, o lugar dele é do botão de enviar.
+- O canal só desliga a gravação. `portal` e `webchat` não gravam; `app`, `email` e `whatsapp` gravam.
+- Sem `MediaRecorder` ou `getUserMedia` no navegador, o microfone não aparece.
+- O áudio gravado vai como mensagem própria, pelo mesmo caminho do anexo (`send({ files: [file] })` por dentro). O rascunho de texto e os anexos do rascunho não são alterados. Dois toques seguidos enviam uma mensagem só.
+- `onSendAudio` é fiação interna do controlador da thread, não prop do host. O host só passa `audioRecording`.
+
+**Estados do gravador:** `idle` → `requesting` → `recording` → `review` (ouvir, enviar ou descartar). Os caminhos de erro
+são `denied`, `unsupported`, `empty` e `tooLarge`, com mensagem no compositor. Durante a gravação, uma interrupção
+(aba oculta, `pagehide`, trilha do microfone encerrada ou muda por mais de 3 s) para a captura e vai para `review`; em
+`review`, pausa e mantém. Desmontar o componente descarta. O microfone é liberado em toda saída.
+
+**Player.** Cada anexo `audio/*` mostra o player `.cv-p-audio` (tocar e pausar, posição, velocidade 1×, 1,5× e 2×) e
+depois o nome do arquivo. Nada é baixado antes do primeiro toque (`preload="none"`); a URL é resolvida ao montar, por
+`id` do anexo. A duração aparece depois do toque quando o servidor não manda `durationMs`. Tocar um áudio pausa o que
+estava tocando em qualquer player da visão do participante na página (o player do operador e uma segunda cópia do
+pacote não são coordenados).
+
+**Bloco de transcrição** (por `transcription.status` do anexo):
+
+- `pending`: linha "Transcribing…" (default em inglês).
+- `ready`: aviso "gerada por máquina" e o texto, com expandir e recolher quando passa do espaço. Texto vazio mostra
+  "Nothing was said in the audio" (é resultado, não falha).
+- `failed` com `reason: 'too_long'` e `maxDurationMs`: aviso com o limite aplicado.
+- Qualquer outro `failed`, `disabled` ou ausência do campo: só o player.
+
+**Rótulos novos.** Todos opcionais em `ParticipantConversationsLabels`; os defaults também entraram em `DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS`. `{minutes}` é **calculado** pela UI a partir de `maxDurationMs` (piso em minutos inteiros; abaixo de 1 minuto nada é desenhado), não vem do servidor. Os defaults em inglês estão em
+`DEFAULT_PARTICIPANT_AUDIO_LABELS` (tipo `ParticipantAudioLabels`). Placeholders entre chaves são preenchidos pela
+própria UI.
+
+| Chave                   | Default                                                      | Onde aparece                                 |
+| ----------------------- | ------------------------------------------------------------ | -------------------------------------------- |
+| `recordAudio`           | Record audio                                                 | botão do microfone                           |
+| `recordingInProgress`   | Recording                                                    | grupo em `recording`                         |
+| `stopRecording`         | Stop recording                                               | parar                                        |
+| `recordingElapsed`      | {elapsed} of {limit}                                         | relógio da gravação                          |
+| `reviewAudio`           | Listen before sending                                        | dica em `review`                             |
+| `sendAudio`             | Send audio                                                   | enviar                                       |
+| `discardAudio`          | Discard audio                                                | descartar                                    |
+| `microphoneDenied`      | No permission to use the microphone.                         | `denied`                                     |
+| `recordingUnsupported`  | This device cannot record audio.                             | `unsupported`                                |
+| `audioEmpty`            | Nothing was captured by the microphone.                      | `empty`                                      |
+| `audioTooLarge`         | Audio too large to send.                                     | `tooLarge`                                   |
+| `audioPlayer`           | Audio                                                        | grupo do player                              |
+| `playAudio`             | Play audio                                                   | tocar                                        |
+| `pauseAudio`            | Pause audio                                                  | pausar                                       |
+| `audioPosition`         | Audio position                                               | nome do controle de posição                  |
+| `audioPositionValue`    | {position} of {duration}                                     | `aria-valuetext` (sem duração, só a posição) |
+| `playbackRate`          | Playback speed {rate}                                        | velocidade                                   |
+| `audioUnavailable`      | Audio unavailable                                            | falha do player                              |
+| `transcribing`          | Transcribing…                                                | `pending`                                    |
+| `transcriptionReady`    | Transcription ready                                          | região viva ao terminar                      |
+| `machineTranscription`  | Transcription generated by machine                           | aviso de `ready`                             |
+| `emptyTranscription`    | Nothing was said in the audio                                | `ready` vazio                                |
+| `transcriptionTooLong`  | Transcription only for audios shorter than {minutes} minutes | `too_long` (`{minutes}` vem do servidor)     |
+| `showFullTranscription` | Show all                                                     | expandir                                     |
+| `collapseTranscription` | Show less                                                    | recolher                                     |
+
+**Classes novas** (todas `.cv-p-*`, em `styles.css`): `.cv-p-audio`, `.cv-p-audio__toggle`, `.cv-p-audio__seek`,
+`.cv-p-audio__time`, `.cv-p-audio__rate`, `.cv-p-audio__media`, `.cv-p-audio__error`, `.cv-p-composer__record`,
+`.cv-p-recorder` (com `--review`), `.cv-p-recorder__dot`, `.cv-p-recorder__elapsed`, `.cv-p-recorder__hint`,
+`.cv-p-recorder__stop`, `.cv-p-recorder__send`, `.cv-p-recorder__discard`, `.cv-p-transcription` (com `--pending` e
+`--too-long`), `.cv-p-transcription__notice`, `.cv-p-transcription__text`, `.cv-p-transcription__empty` e
+`.cv-p-transcription__toggle`. Não há variável `--cv-p-*` nova: o áudio usa as que já existem (`--cv-p-accent`,
+`--cv-p-text-muted`, `--cv-p-danger` e as demais da tabela acima).
+
+**Limites conhecidos desta versão**
+
+- **WhatsApp:** **não ative o microfone com `channel="whatsapp"` antes da validação**: o Chromium grava WebM, que o
+  WhatsApp não aceita. A capacidade do canal `whatsapp` declara gravação, mas o envio de áudio de volta ao WhatsApp não foi
+  validado ponta a ponta nesta branch. Não trate a gravação nessa conversa como pronta até a validação da spec 264.
+- **Safari e iPhone:** o formato e a gravação no Safari/iPhone (`audio/mp4`) e o pedido de permissão no toque ficam a
+  conferir em aparelho real na T7.1 do consumidor.
+- **Evento `stop` ausente:** se o `stop` do `MediaRecorder` nunca chegar (a especificação o garante), a UI permanece em
+  `recording` até o usuário descartar a gravação. Um vigia opcional fica para uma versão futura.
+
+**Validação do anexo.** `transcription` e `durationMs` inválidos reprovam o anexo inteiro (só chaves desconhecidas são
+descartadas): valide por anexo com `participantTranscriptionSchema.safeParse` e descarte o campo que falhar.
+
 ### Limitações conhecidas
 
 - O avatar alinha pelo topo da bolha, não pelo rabinho no canto inferior.

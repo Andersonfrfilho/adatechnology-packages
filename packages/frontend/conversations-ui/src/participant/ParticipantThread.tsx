@@ -21,6 +21,7 @@ import { ParticipantScrollToLatest } from './ParticipantScrollToLatest'
 import { ParticipantTimeline } from './ParticipantTimeline'
 import { ParticipantThreadHeader } from './ParticipantThreadHeader'
 import type { ParticipantSubjectGroup, ParticipantSubjectIconRenderer } from './participant.types'
+import type { ParticipantAudioRecordingOptions } from './participantAudio.types'
 
 export type ParticipantThreadDraft = {
   readonly value: string
@@ -71,6 +72,10 @@ export type ParticipantThreadProps = {
   readonly counterpartLabel?: string
   /** Host slot at the end of the header bar (close, reopen...). */
   readonly headerActions?: ReactNode
+  /** Absent draws no microphone. Present turns it on when the field is empty and the browser and channel record. */
+  readonly audioRecording?: ParticipantAudioRecordingOptions
+  /** Receives the recorded audio; the controller sends it as a message of its own. */
+  readonly onSendAudio?: (file: File) => void
 }
 
 function Footer({ props }: { readonly props: ParticipantThreadProps }) {
@@ -91,6 +96,8 @@ function Footer({ props }: { readonly props: ParticipantThreadProps }) {
       maxLength={props.maxLength}
       acceptedTypes={props.acceptedTypes}
       quickReplies={props.quickReplies}
+      audioRecording={props.audioRecording}
+      onSendAudio={props.onSendAudio}
     />
   )
 }

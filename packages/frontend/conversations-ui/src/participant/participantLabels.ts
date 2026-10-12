@@ -1,3 +1,5 @@
+import { DEFAULT_PARTICIPANT_AUDIO_LABELS, type ParticipantAudioLabels } from './participantAudioLabels'
+
 export const DEFAULT_MESSAGE_OPTIONS_LABEL = 'Message options'
 
 export type ParticipantConversationsLabels = {
@@ -65,7 +67,7 @@ export type ParticipantConversationsLabels = {
   /** Prefix of the accessible name of the copy buttons: "Copy 529.982.247-25". */
   readonly copyValue: string
   readonly valueCopied: string
-}
+} & Readonly<Partial<ParticipantAudioLabels>>
 
 export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsLabels = {
   inboxTitle: 'Conversations',
@@ -125,6 +127,7 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   externalLinkHint: 'opens in a new tab',
   copyValue: 'Copy',
   valueCopied: 'Copied',
+  ...DEFAULT_PARTICIPANT_AUDIO_LABELS,
 }
 
 export function formatParticipantLabel(template: string, count: number): string {

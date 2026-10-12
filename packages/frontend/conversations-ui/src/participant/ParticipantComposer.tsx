@@ -4,7 +4,10 @@ import { channelCapabilityFor } from '../channelCapability'
 import type { ConversationChannel } from '../conversationChannel'
 import { formatFileSize } from '../lib/format'
 import type { QuickReply } from '../quickReplies/quickReply.types'
+import { ComposerAudioRow } from './ParticipantComposerAudio'
 import { AttachControl, MessageField, SendButton } from './ParticipantComposerControls'
+import type { ParticipantAudioRecordingOptions } from './participantAudio.types'
+import { resolveComposerAudio } from './participantAudioSupport'
 import { maxBytesForChannel, reduceFilesSelection, type ParticipantFileRejection } from './participantFileValidation'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { applyQuickReply } from './participantQuickReply'
@@ -26,6 +29,10 @@ export type ParticipantComposerProps = {
   readonly acceptedTypes?: readonly string[]
   /** Tapping a chip fills the text; it never sends. Absent or empty means no strip. */
   readonly quickReplies?: readonly QuickReply[]
+  /** Present turns the microphone on (an empty field, a browser and a channel that record); `{}` takes the defaults. */
+  readonly audioRecording?: ParticipantAudioRecordingOptions
+  /** Receives the recorded audio, already checked; sent as a message of its own, never through the draft. */
+  readonly onSendAudio?: (file: File) => void
 }
 
 type QuickReplyStripProps = {
@@ -95,8 +102,49 @@ function useFileSelection(props: ParticipantComposerProps) {
   return { rejection, handleFilesChosen, handleRemoveFile }
 }
 
+type ComposerRowProps = {
+  readonly composer: ParticipantComposerProps
+  readonly canSend: boolean
+  readonly onFilesChosen: (event: ChangeEvent<HTMLInputElement>) => void
+}
+
+function ComposerRow({ composer, canSend, onFilesChosen }: ComposerRowProps) {
+  const { value, onChange, files, labels, channel = 'app', disabled = false } = composer
+  const attach = channelCapabilityFor(channel).attachments.accepted ? (
+    <AttachControl labels={labels} disabled={disabled} acceptedTypes={composer.acceptedTypes} onChosen={onFilesChosen} />
+  ) : null
+  const field = (
+    <MessageField
+      value={value}
+      label={labels.messageInputLabel}
+      placeholder={labels.messageInputPlaceholder}
+      disabled={disabled}
+      maxLength={composer.maxLength}
+      onChange={onChange}
+    />
+  )
+  const sendButton = <SendButton label={labels.send} disabled={!canSend} />
+  const audio = resolveComposerAudio(composer)
+  if (!audio) {
+    return (
+      <div className="cv-p-composer__row">
+        {attach}
+        {field}
+        {sendButton}
+      </div>
+    )
+  }
+  const isDraftEmpty = value.trim().length === 0 && files.length === 0
+  return (
+    <ComposerAudioRow settings={audio} labels={labels} disabled={disabled} isDraftEmpty={isDraftEmpty} sendButton={sendButton}>
+      {attach}
+      {field}
+    </ComposerAudioRow>
+  )
+}
+
 export function ParticipantComposer(props: ParticipantComposerProps) {
-  const { value, onChange, files, onSend, labels, channel = 'app', disabled = false, isSending = false } = props
+  const { value, onChange, files, onSend, labels, disabled = false, isSending = false } = props
   const { rejection, handleFilesChosen, handleRemoveFile } = useFileSelection(props)
   const canSend = !disabled && !isSending && (value.trim().length > 0 || files.length > 0)
 
@@ -116,20 +164,7 @@ export function ParticipantComposer(props: ParticipantComposerProps) {
           {rejectionText(rejection, labels)}
         </p>
       ) : null}
-      <div className="cv-p-composer__row">
-        {channelCapabilityFor(channel).attachments.accepted ? (
-          <AttachControl labels={labels} disabled={disabled} acceptedTypes={props.acceptedTypes} onChosen={handleFilesChosen} />
-        ) : null}
-        <MessageField
-          value={value}
-          label={labels.messageInputLabel}
-          placeholder={labels.messageInputPlaceholder}
-          disabled={disabled}
-          maxLength={props.maxLength}
-          onChange={onChange}
-        />
-        <SendButton label={labels.send} disabled={!canSend} />
-      </div>
+      <ComposerRow composer={props} canSend={canSend} onFilesChosen={handleFilesChosen} />
     </form>
   )
 }
