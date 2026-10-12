@@ -71,6 +71,8 @@ export type PowerEnvironmentParams = {
   readonly trigger: InfraOperationTrigger
   readonly ipAddress?: string
   readonly keepOnUntil?: Date
+  /** Só estes serviços; ausente = o ambiente inteiro. */
+  readonly serviceIds?: readonly string[]
 }
 
 export type PowerEnvironmentResult = { readonly operationId: string }
@@ -85,6 +87,8 @@ export type RunOperationParams = {
   readonly environmentId: string
   readonly environmentName: string
   readonly services: readonly InfraServiceInstance[]
+  /** Todos os serviços do ambiente: `services` pode ser só a seleção, e ligar aplicação depende dos bancos que não entraram. */
+  readonly environmentServices?: readonly InfraServiceInstance[]
   readonly actor: PowerEnvironmentParams['actor']
   readonly trigger: InfraOperationTrigger
   /** Valor gravado na trava de Redis por esta operacao: so quem o tem renova ou libera a trava. */
@@ -96,6 +100,7 @@ export type RunPowerOperationParams = {
   readonly direction: InfraPowerDirection
   readonly environmentId: string
   readonly services: readonly InfraServiceInstance[]
+  readonly environmentServices?: readonly InfraServiceInstance[]
   /** Chamado a cada serviço processado e a cada consulta de espera, para renovar a trava. */
   readonly onProgress: () => Promise<void>
 }

@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
+import { assertServicesExist } from './assertServicesExist'
 import type { InfraAuditRecorderInterface } from '@adatechnology/infra-contracts'
 import type { InfraPowerDirection } from '@adatechnology/infra-contracts'
 import { InfraNotConfiguredError, InfraOperationInProgressError } from '@adatechnology/infra-contracts'
@@ -79,6 +80,7 @@ export class PowerEnvironmentUseCase {
         direction: this.dependencies.direction,
         environmentId: params.environmentId,
         services: params.services,
+        environmentServices: params.environmentServices ?? params.services,
         onProgress: () => this.lock.renew(params),
       })
       await this.outcomeRecorder.complete({
@@ -151,6 +153,7 @@ export class PowerEnvironmentUseCase {
       managedPattern,
       selfEnvironmentId,
     })
+    assertServicesExist({ environment, serviceIds: params.params.serviceIds })
     // Antes da trava e de qualquer operacao: um keepOnUntil recusado nao pode deixar rastro.
     const keepOnUntilChange = await resolveKeepOnUntil({
       params: params.params,

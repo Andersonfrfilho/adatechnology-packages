@@ -26,6 +26,7 @@ function buildWebService(overrides: Partial<InfraServiceInstance>): InfraService
 async function run(direction: InfraPowerDirection, service: InfraServiceInstance): Promise<readonly string[]> {
   const mutations: string[] = []
   const gateway = {
+    getEnvironmentServices: async () => [],
     stopDeployment: async ({ deploymentId }: { deploymentId: string }) => void mutations.push(`stop:${deploymentId}`),
     restartDeployment: async ({ deploymentId }: { deploymentId: string }) =>
       void mutations.push(`restart:${deploymentId}`),

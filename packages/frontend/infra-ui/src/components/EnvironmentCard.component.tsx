@@ -39,7 +39,7 @@ export function EnvironmentCard({ environment }: EnvironmentCardProps) {
       </header>
 
       <EnvironmentStatusLines environment={environment} />
-      <ServiceList services={environment.services} />
+      <ServiceList environment={environment} services={environment.services} />
 
       {isProtected ? (
         <p className="text-xs text-gray-600 dark:text-gray-300">{infraLocale.environments.protectedHint}</p>

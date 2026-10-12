@@ -263,8 +263,8 @@ describe('ListInfraEnvironmentsUseCase', () => {
     })
     const result = await useCase.execute()
     expect(result.projects[0]?.environments[0]?.services).toEqual([
-      { serviceName: 'api', isDatabase: false, powerState: 'running' },
-      { serviceName: 'Postgres', isDatabase: true, powerState: 'running' },
+      { serviceId: 'svc-1', serviceName: 'api', isDatabase: false, powerState: 'running' },
+      { serviceId: 'svc-1', serviceName: 'Postgres', isDatabase: true, powerState: 'running' },
     ])
   })
 

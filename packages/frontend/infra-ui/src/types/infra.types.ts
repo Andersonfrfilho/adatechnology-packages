@@ -15,6 +15,8 @@ import type {
 } from '../constants/infra.constant'
 
 export type InfraService = {
+  /** Ausente em API antiga: sem ele não há como ligar ou desligar o serviço sozinho. */
+  readonly serviceId?: string
   readonly serviceName: string
   readonly isDatabase: boolean
   readonly powerState: InfraServicePowerState
@@ -82,11 +84,16 @@ export type InfraOperation = {
 
 export type PowerEnvironmentResult = { readonly operationId: string }
 
-export type PowerOffEnvironmentParams = { readonly environmentId: string }
+export type PowerOffEnvironmentParams = {
+  readonly environmentId: string
+  /** Só estes serviços; ausente = o ambiente inteiro. */
+  readonly serviceIds?: readonly string[]
+}
 export type PowerOnEnvironmentParams = {
   readonly environmentId: string
   /** ISO 8601 com offset. */
   readonly keepOnUntil?: string
+  readonly serviceIds?: readonly string[]
 }
 export type GetInfraOperationParams = { readonly operationId: string }
 

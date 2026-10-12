@@ -27,6 +27,8 @@ type ResolveKeepOnUntilParams = {
 export async function resolveKeepOnUntil(options: ResolveKeepOnUntilParams): Promise<Date | null | undefined> {
   const { params, environmentId, direction, scheduleRepository } = options
   if (params.trigger !== INFRA_OPERATION_TRIGGER.MANUAL) return undefined
+  // Mexer em alguns serviços não é ligar nem desligar o ambiente: a janela da agenda não muda.
+  if (params.serviceIds) return undefined
   if (direction === INFRA_POWER_DIRECTION.OFF) return null
 
   const schedule = await scheduleRepository.findByEnvironmentId(environmentId)

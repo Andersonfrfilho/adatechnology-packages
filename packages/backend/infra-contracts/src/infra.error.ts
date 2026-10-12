@@ -118,3 +118,13 @@ export class InfraInvalidScheduleError extends InfraError {
     })
   }
 }
+
+export class InfraServiceNotFoundError extends InfraError {
+  constructor() {
+    super({
+      code: INFRA_ERROR_CODES.INFRA_SERVICE_NOT_FOUND,
+      message: 'Servico nao encontrado neste ambiente',
+      statusCode: NOT_FOUND,
+    })
+  }
+}
