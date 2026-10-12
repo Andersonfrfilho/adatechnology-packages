@@ -20,8 +20,30 @@ guardado cifrado. Roda em Bun e Node.
 bun add @adatechnology/infra-module @adatechnology/infra-contracts
 ```
 
-Rotas HTTP e tabelas Drizzle ficam no host: o formato de rota, a autorização e o limite de taxa são
-do produto. O app `ada-technology` é o exemplo de host (`apps/api-ada/src/infra/container.ts`).
+## Uso mínimo
+
+```ts
+import { createInfraModule, runInfraMigrations } from '@adatechnology/infra-module'
+import { migrate } from 'drizzle-orm/node-postgres/migrator'
+
+await runInfraMigrations({ db, migrate }) // schema `infra`, journal `infra_migrations`
+
+const infra = createInfraModule({
+  db, // conexão do host; o módulo não abre nenhuma
+  config: { env, environmentToken, workspaceId, environmentId, encryptionKeyBase64, managedPattern, databaseWaitSeconds },
+  providers: { cache, audit, passwordVerifier, logger, findAgentName, rateLimiter },
+})
+```
+
+- **Banco:** tabelas em `pgSchema('infra')` com migrations embarcadas. Quem já tinha as tabelas no `public`
+  copia os dados na própria migration do host (exemplo: `apps/api-ada/drizzle/0006_*.sql` do `ada-technology`).
+- **Rotas:** `infra.routes` é uma tabela declarativa (`@adatechnology/module-http`), montável pelo adaptador
+  `/fetch` ou `/uws`, ou traduzida para o router do host. A identidade chega pronta em `context.auth`
+  (`userId` = administrador, escopo `INFRA_ADMIN_SCOPE`). Cada rota declara `rateLimitProfile` (o host mapeia
+  para a regra de limite por IP) e `isNoStore`.
+- **Tarefa agendada:** `infra.useCases.runInfraSchedules.execute()` a cada minuto e
+  `recoverInterruptedOperations.execute()` no boot.
+- Exemplo completo de host: `apps/api-ada/src/infra/container.ts` e `modules/infra/adaptInfraRoutes.ts` no `ada-technology`.
 
 ## Provedores (drivers)
 
