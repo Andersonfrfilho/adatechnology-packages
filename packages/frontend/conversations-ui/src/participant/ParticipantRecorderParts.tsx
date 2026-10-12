@@ -93,12 +93,13 @@ export type ReviewGroupProps = RecorderGroupProps & {
   readonly audioRef?: Ref<HTMLAudioElement>
   readonly durationMs?: number | undefined
   readonly onSend?: () => void
+  readonly disabled?: boolean
 }
 
-export function ReviewGroup({ labels, url, audioRef, durationMs, onSend, onDiscard }: ReviewGroupProps) {
+export function ReviewGroup({ labels, url, audioRef, durationMs, onSend, onDiscard, disabled = false }: ReviewGroupProps) {
   return (
     <div className="cv-p-recorder cv-p-recorder--review" role="group" aria-label={labels.reviewAudio}>
-      <p className="cv-p-recorder__hint">{labels.reviewAudio}</p>
+      <p className="cv-p-recorder__hint" aria-hidden="true">{labels.reviewAudio}</p>
       <DiscardButton labels={labels} onDiscard={onDiscard} />
       <ParticipantAudioPlayer labels={labels} url={url} durationMs={durationMs} mediaRef={audioRef} />
       <button
@@ -107,6 +108,7 @@ export function ReviewGroup({ labels, url, audioRef, durationMs, onSend, onDisca
         className="cv-p-button cv-p-button--primary cv-p-recorder__send"
         aria-label={labels.sendAudio}
         data-cv-tooltip={labels.sendAudio}
+        disabled={disabled}
         onClick={onSend}
       >
         <Send size={20} aria-hidden="true" focusable="false" />

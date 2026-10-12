@@ -39,9 +39,10 @@ type RecorderLineProps = {
   readonly recorder: ParticipantAudioRecorder
   readonly labels: ParticipantConversationsLabels
   readonly onSendAudio: (file: File) => void
+  readonly disabled: boolean
 }
 
-function RecorderLine({ recorder, labels, onSendAudio }: RecorderLineProps) {
+function RecorderLine({ recorder, labels, onSendAudio, disabled }: RecorderLineProps) {
   function handleSendAudio(): void {
     const file = recorder.confirm()
     if (file) onSendAudio(file)
@@ -52,6 +53,7 @@ function RecorderLine({ recorder, labels, onSendAudio }: RecorderLineProps) {
       state={recorder.status}
       elapsedMs={recorder.elapsedMs}
       labels={labels}
+      disabled={disabled}
       maxDurationMs={recorder.limits.maxDurationMs}
       review={{ url: recorder.recorded?.objectUrl, audioRef: recorder.audioRef, durationMs: recorder.recorded?.durationMs }}
       actions={{ onStop: recorder.stop, onSend: handleSendAudio, onDiscard: recorder.discard }}
@@ -69,7 +71,7 @@ export function ComposerAudioRow({ settings, labels, disabled, isDraftEmpty, sen
   const errorMessage = resolveRecorderErrorMessage(recorder.status, audioLabels)
 
   if (isCapturingStatus(recorder.status)) {
-    return <RecorderLine recorder={recorder} labels={labels} onSendAudio={settings.onSendAudio} />
+    return <RecorderLine recorder={recorder} labels={labels} onSendAudio={settings.onSendAudio} disabled={disabled} />
   }
   return (
     <>

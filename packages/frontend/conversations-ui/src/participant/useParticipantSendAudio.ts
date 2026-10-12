@@ -18,6 +18,8 @@ export function useParticipantSendAudio(send: (content: ParticipantSendContent) 
     void (async () => {
       try {
         await sendRef.current({ files: [file] })
+      } catch {
+        // the send path reports its own failures; a throw before it (insecure context) must not become an unhandled rejection
       } finally {
         inFlight.delete(file)
       }

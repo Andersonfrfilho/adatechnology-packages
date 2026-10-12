@@ -1361,7 +1361,6 @@
 .cv-p-recorder__dot { flex: 0 0 auto; width: 0.625rem; height: 0.625rem; border-radius: 50%; background: var(--cv-p-i-danger); animation: cv-p-recorder-pulse 1.2s ease-in-out infinite; }
 .cv-p-recorder__elapsed { flex: 1 1 auto; font: 0.85rem 'SFMono-Regular', Consolas, monospace; font-variant-numeric: tabular-nums; color: var(--cv-p-i-text); }
 .cv-p-recorder__stop, .cv-p-recorder__send { flex: 0 0 auto; padding: 0; }
-.cv-p-recorder__audio { flex: 1 1 8rem; min-width: 0; min-height: var(--cv-p-i-touch); }
 @keyframes cv-p-recorder-pulse { 50% { opacity: 0.3; } }
 @media (prefers-reduced-motion: reduce) { .cv-p-recorder__dot { animation: none; } }
 .cv-p-quick { --cv-p-i-fade: 0.75rem; display: flex; gap: 0.5rem; overflow-x: auto; margin: -0.25rem calc(-1 * var(--cv-p-i-fade)); padding-block: 0.25rem; }

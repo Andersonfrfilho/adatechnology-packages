@@ -59,4 +59,27 @@ describe('useParticipantSendAudio', () => {
     sendAudio(first)
     expect(calls).toHaveLength(3)
   })
+
+  it('a send that throws (for example randomUUID in an insecure context) is contained and frees the file for a retry', async () => {
+    const unhandled: unknown[] = []
+    const onUnhandled = (reason: unknown): void => void unhandled.push(reason)
+    process.on('unhandledRejection', onUnhandled)
+    let attempts = 0
+    function Throwing() {
+      sendAudio = useParticipantSendAudio(async () => {
+        attempts += 1
+        throw new Error('crypto.randomUUID is not a function')
+      })
+      return null
+    }
+    harness.mount(<Throwing />)
+    const file = audio('a.ogg')
+    sendAudio(file)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    sendAudio(file)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    process.off('unhandledRejection', onUnhandled)
+    expect(unhandled).toEqual([])
+    expect(attempts).toBe(2)
+  })
 })

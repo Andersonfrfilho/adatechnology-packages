@@ -59,7 +59,7 @@ describe('review', () => {
   it('has the hint, the player over the object URL, discard and send', () => {
     const markup = render({ state: 'review', review: { url: 'blob:abc' } })
     expect(markup).toContain('cv-p-recorder--review')
-    expect(markup).toContain('<p class="cv-p-recorder__hint">Listen before sending</p>')
+    expect(markup).toContain('<p class="cv-p-recorder__hint" aria-hidden="true">Listen before sending</p>')
     expect(markup).toContain('<audio')
     expect(markup).toContain('src="blob:abc"')
     expect(markup).toContain('cv-p-recorder__discard')

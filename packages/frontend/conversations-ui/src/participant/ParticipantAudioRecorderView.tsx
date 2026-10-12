@@ -43,7 +43,7 @@ export function ParticipantAudioRecorderView(props: ParticipantAudioRecorderView
     return <RecordingGroup labels={labels} clockText={clockText} onStop={actions?.onStop} onDiscard={actions?.onDiscard} />
   }
   if (state === 'review') {
-    return <ReviewGroup labels={labels} url={review?.url} audioRef={review?.audioRef} durationMs={review?.durationMs} onSend={actions?.onSend} onDiscard={actions?.onDiscard} />
+    return <ReviewGroup labels={labels} url={review?.url} audioRef={review?.audioRef} durationMs={review?.durationMs} onSend={actions?.onSend} onDiscard={actions?.onDiscard} disabled={disabled} />
   }
   const errorMessage = resolveRecorderErrorMessage(state, labels)
   return (

@@ -29,4 +29,5 @@ export type {
   ParticipantConversationSummary,
   ParticipantMessage,
   ParticipantSubjectRef,
+  ParticipantTranscription,
 } from '@adatechnology/conversation-contracts'

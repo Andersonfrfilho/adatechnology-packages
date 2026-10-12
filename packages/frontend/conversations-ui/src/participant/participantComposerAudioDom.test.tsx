@@ -1,4 +1,4 @@
-import { act } from 'react'
+import { act, useState } from 'react'
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest, mock } from 'bun:test'
 
@@ -89,6 +89,8 @@ describe('record, review and send from the composer', () => {
     expect(container.querySelector('[role="timer"]')?.textContent).toBe('0:00 of 5:00')
   })
 
+  // Guard held here: recorder.confirm() returns the File once, because statusRef leaves 'review' synchronously
+  // (the Set<File> of useParticipantSendAudio is pinned by its own test file).
   it('turns two synchronous clicks on "Send audio" into one message', async () => {
     mountComposer()
     await recordFor(1500)
@@ -121,6 +123,33 @@ describe('record, review and send from the composer', () => {
     expect(find('.cv-p-composer__record').disabled).toBe(true)
   })
 
+  it('disables "Send audio" in review when the conversation becomes disabled, and still allows discarding', async () => {
+    let setDisabled: (next: boolean) => void = () => undefined
+    function Wrapper() {
+      const [disabled, update] = useState(false)
+      setDisabled = update
+      return (
+        <ParticipantComposer
+          value=""
+          onChange={() => undefined}
+          files={[]}
+          onFilesChange={() => undefined}
+          onSend={() => undefined}
+          labels={DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS}
+          audioRecording={{}}
+          onSendAudio={(file) => sentAudio.push(file)}
+          disabled={disabled}
+        />
+      )
+    }
+    container = harness.mount(<Wrapper />).container
+    await recordFor(1500)
+    expect(find('.cv-p-recorder__send').disabled).toBe(false)
+    act(() => setDisabled(true))
+    expect(find('.cv-p-recorder__send').disabled).toBe(true)
+    expect(find('.cv-p-recorder__discard').disabled).toBe(false)
+  })
+
   it('reports the capture to the host from the request until the audio is sent', async () => {
     mountComposer()
     await press('.cv-p-composer__record')
@@ -134,6 +163,7 @@ describe('record, review and send from the composer', () => {
 })
 
 describe('the whole thread: the audio leaves as its own message through the attachment path', () => {
+  // Same guard as above (statusRef of confirm), now observed end to end at api.sendMessage.
   it('calls api.sendMessage once with one File and no text, even on two synchronous clicks', async () => {
     const sendMessage = mock(async () => ({ outcome: 'queued' as const }))
     const api = { fetchMessages: async () => [], sendMessage, resolveAttachmentUrl: async () => 'https://files.example/a' }

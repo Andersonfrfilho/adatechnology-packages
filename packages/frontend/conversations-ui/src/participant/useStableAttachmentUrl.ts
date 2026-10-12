@@ -19,6 +19,8 @@ export type StableAttachmentUrlParams = {
 
 type ResolvedState = Pick<StableAttachmentUrl, 'status' | 'url'>
 
+export const ATTACHMENT_URL_RETRY_DELAY_MS = 1000
+
 const PENDING_STATE: ResolvedState = { status: 'pending', url: undefined }
 
 async function resolveSafely({ attachment, resolveAttachmentUrl }: StableAttachmentUrlParams): Promise<string | undefined> {
@@ -44,11 +46,17 @@ export function useStableAttachmentUrl(params: StableAttachmentUrlParams): Stabl
   useEffect(() => {
     currentId.current = id
     setState(PENDING_STATE)
-    resolveSafely(latest.current).then((url) => {
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+    const settle = (url: string | undefined): void => {
       if (currentId.current === id) setState(url ? { status: 'ready', url } : { status: 'failed', url: undefined })
+    }
+    resolveSafely(latest.current).then((url) => {
+      if (url || currentId.current !== id) return settle(url)
+      retryTimer = setTimeout(() => void resolveSafely(latest.current).then(settle), ATTACHMENT_URL_RETRY_DELAY_MS)
     })
     return () => {
       currentId.current = ''
+      clearTimeout(retryTimer)
     }
   }, [id])
 

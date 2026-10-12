@@ -4,6 +4,7 @@ import type { ParticipantAttachment } from '@adatechnology/conversation-contract
 import { describe, expect, it } from 'bun:test'
 
 import { wait } from '../domHarness.test-helper'
+import { ATTACHMENT_URL_RETRY_DELAY_MS } from './useStableAttachmentUrl'
 import { ParticipantAudioAttachment } from './ParticipantAudioAttachment'
 import { DEFAULT_PARTICIPANT_AUDIO_LABELS } from './participantAudioLabels'
 import { buildAttachment, setupPlayerDom } from './participantAudioPlayerDomKit.test-helper'
@@ -41,18 +42,37 @@ describe('source: resolved at mount by id, never downloaded before the tap', () 
     expect(kit.media.stateOf(audioOf()).paused).toBe(false)
   })
 
-  it('shows the unavailable state when the URL cannot be resolved', async () => {
+  it('shows the unavailable state when the URL cannot be resolved after the second attempt', async () => {
     await mountAttachments([buildAttachment('a')], async () => {
       throw new Error('nope')
     })
+    await wait(ATTACHMENT_URL_RETRY_DELAY_MS + 100)
     expect(kit.container.textContent).toContain(DEFAULT_PARTICIPANT_AUDIO_LABELS.audioUnavailable)
     expect(audioOf().hasAttribute('src')).toBe(false)
+  })
+
+  it('a transient failure of the first resolution gets one new attempt before giving up', async () => {
+    {
+      let attempts = 0
+      await mountAttachments([buildAttachment('a')], async () => {
+        attempts += 1
+        if (attempts === 1) throw new Error('offline for a moment')
+        return 'https://files.test/a-retry.webm'
+      })
+      expect(audioOf().hasAttribute('src')).toBe(false)
+      expect(kit.container.querySelector('.cv-p-audio__error')).toBeNull()
+      await wait(ATTACHMENT_URL_RETRY_DELAY_MS + 100)
+      expect(attempts).toBe(2)
+      expect(audioOf().getAttribute('src')).toBe('https://files.test/a-retry.webm')
+      expect(kit.container.querySelector('.cv-p-audio__error')).toBeNull()
+    }
   })
 
   it('says it with static text: no alert role (N failing players would be N assertive announcements) and a disabled toggle', async () => {
     await mountAttachments([buildAttachment('a'), buildAttachment('b')], async () => {
       throw new Error('nope')
     })
+    await wait(ATTACHMENT_URL_RETRY_DELAY_MS + 100)
     const messages = kit.container.querySelectorAll('.cv-p-audio__error')
     expect(messages).toHaveLength(2)
     for (const message of Array.from(messages)) expect(message.hasAttribute('role')).toBe(false)

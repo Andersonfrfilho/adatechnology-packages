@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'bun:test'
 
 import { declarationsIn, mediaBody, PARTICIPANT_CSS } from './participantCss.test-helper'
@@ -44,5 +47,17 @@ describe('transcription styles (.cv-p-transcription*)', () => {
       expect(PARTICIPANT_CSS).toContain(`${variable.slice(4, -1)}:`)
     }
     expect(rules.join('\n')).not.toMatch(/@apply|\btw-/)
+  })
+})
+
+describe('no dead audio selectors', () => {
+  it('every .cv-p-recorder*, .cv-p-audio* and .cv-p-transcription* class is rendered by a component', () => {
+    const sources = readdirSync(import.meta.dir)
+      .filter((name) => name.endsWith('.tsx') && !name.includes('.test'))
+      .map((name) => readFileSync(join(import.meta.dir, name), 'utf8'))
+      .join('\n')
+    const classNames = new Set(PARTICIPANT_CSS.match(/\.cv-p-(?:recorder|audio|transcription)[a-z_-]*/g) ?? [])
+    expect(classNames.size).toBeGreaterThan(10)
+    for (const selector of classNames) expect(sources).toContain(selector.slice(1))
   })
 })
