@@ -1,8 +1,7 @@
 /**
- * Suíte "vermelha da Fase 1" da spec 264 (contract.md §2.4, §3, §4): congela o que NÃO pode mudar e
- * deixa escritos os cenários de áudio que as tasks T1.3 a T1.6 ligam. Nada aqui falha no CI:
- * o que depende de componente ou prop ainda inexistente está em `describe.skip`, cada um com a task
- * que o religa (troque `describe.skip` por `describe` ao implementá-la e grave o ouro novo).
+ * Goldens of the participant thread (264, contract.md §2.4, §3): the empty composer must not change, and the
+ * audio player and transcription blocks are pinned byte for byte. The composer goldens live in
+ * `participantComposerAudioGolden.test.tsx`.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -20,6 +19,7 @@ import {
 } from './participantGoldenScenarios.test-helper'
 import { buildMessage } from './participantFixtures.test-helper'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS } from './participantLabels'
+import { installFakeRecording } from './participantRecorderFakes.test-helper'
 
 const FIXTURES_DIRECTORY = join(import.meta.dir, 'test-fixtures')
 const PRE_EXISTING_GOLDENS = [
@@ -43,23 +43,6 @@ const UntypedThread = ParticipantThread as unknown as ComponentType<Record<strin
 function renderThread(extra: Record<string, unknown>): string {
   const props = { ...buildThreadProps(DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS), ...extra }
   return renderToStaticMarkup(<UntypedThread {...props} />)
-}
-
-function installFakeRecordingEnvironment(): () => void {
-  const globals = globalThis as Record<string, unknown>
-  const previousRecorder = globals.MediaRecorder
-  const navigatorObject = globalThis.navigator as unknown as Record<string, unknown>
-  const previousMediaDevices = navigatorObject.mediaDevices
-  globals.MediaRecorder = class FakeMediaRecorder {
-    static isTypeSupported(): boolean {
-      return true
-    }
-  }
-  navigatorObject.mediaDevices = { getUserMedia: async () => ({ getTracks: () => [] }) }
-  return () => {
-    globals.MediaRecorder = previousRecorder
-    navigatorObject.mediaDevices = previousMediaDevices
-  }
 }
 
 describe('empty composer stays byte-identical to origin/main a7c5c85 (contract 2.4)', () => {
@@ -89,7 +72,7 @@ describe('empty composer stays byte-identical to origin/main a7c5c85 (contract 2
   })
 
   it('(c) with audioRecording={{}}, a fake MediaRecorder and channel portal (portal never records)', () => {
-    restoreEnvironment = installFakeRecordingEnvironment()
+    restoreEnvironment = installFakeRecording().restore
     const markup = renderThread({
       draft: { value: '', onChange: () => undefined, files: [], onFilesChange: () => undefined },
       audioRecording: {},
@@ -140,11 +123,6 @@ function audioItems(transcription?: Record<string, unknown>): Record<string, unk
   return [{ kind: 'server', message: buildMessage({ id: 'au', direction: 'inbound', text: '', attachments: attachments as never, createdAt: '2026-10-01T12:00:00.000Z' }) }]
 }
 
-/** Dynamic path on purpose: the module does not exist until the task that re-enables the suite. */
-async function loadModule(name: string): Promise<Record<string, unknown>> {
-  return (await import(`./${name}`)) as Record<string, unknown>
-}
-
 describe('[T1.5] thread-audio-player: the custom player replaces <audio controls> (contract 3.1-3.2)', () => {
   it('thread-audio-player is byte-identical to its golden', () => {
     expect(renderThread({ items: audioItems() })).toBe(readGolden('thread-audio-player'))
@@ -185,39 +163,6 @@ describe('[T1.6] thread-audio-transcription-*: the block under the player (contr
     const playerOnly = renderThread({ items: audioItems() })
     for (const transcription of [{ status: 'disabled' }, { status: 'failed' }]) {
       expect(renderThread({ items: audioItems(transcription) })).toBe(playerOnly)
-    }
-  })
-})
-
-describe('[T1.3] composer-audio-*: the pure recorder view (contract 2.2-2.3)', () => {
-  const states = ['idle', 'recording', 'review', 'denied'] as const
-
-  for (const state of states) {
-    it(`composer-audio-${state} is byte-identical to its golden`, async () => {
-      const module = await loadModule('ParticipantAudioRecorderView')
-      const View = module.ParticipantAudioRecorderView as (props: Record<string, unknown>) => React.ReactElement
-      const markup = renderToStaticMarkup(
-        <View state={state} elapsedMs={12_000} labels={DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS} />,
-      )
-      expect(markup).toBe(readGolden(`composer-audio-${state}`))
-    })
-  }
-
-})
-
-describe('[T1.4] the microphone in the composer (contract 2.2)', () => {
-  it('the microphone takes the place of send only with the prop, an empty field and a recording browser', () => {
-    const restore = installFakeRecordingEnvironment()
-    try {
-      const withProp = renderThread({
-        draft: { value: '', onChange: () => undefined, files: [], onFilesChange: () => undefined },
-        audioRecording: {},
-        onSendAudio: () => undefined,
-      })
-      expect(withProp).toContain('cv-p-composer__record')
-      expect(withProp).not.toContain('cv-p-composer__send')
-    } finally {
-      restore()
     }
   })
 })

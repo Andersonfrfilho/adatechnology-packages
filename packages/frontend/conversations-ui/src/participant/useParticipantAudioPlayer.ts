@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type Ref } from 'react'
+import { useCallback, useEffect, useRef, useState, type Ref } from 'react'
 
-import { claimAudioPlayback, releaseAudioPlayback, type AudioPlaybackHandle } from './participantAudioCoordinator'
-import { PLAYBACK_RATES, nextRateIndex, resolveSeekKeyTarget, resolveServerDurationSeconds } from './participantAudioFormat'
-import { INITIAL_PLAYER_STATE, applyPlaybackRate, type PlayerState } from './participantAudioPlayerState'
+import { releaseAudioPlayback, type AudioPlaybackHandle } from './participantAudioCoordinator'
+import { PLAYBACK_RATES, resolveServerDurationSeconds } from './participantAudioFormat'
+import { INITIAL_PLAYER_STATE, type PlayerState } from './participantAudioPlayerState'
 import { useParticipantAudioMediaEvents } from './useParticipantAudioMediaEvents'
+import { useParticipantAudioPlayerActions } from './useParticipantAudioPlayerActions'
 
 export type UseParticipantAudioPlayerParams = {
   readonly url: string | undefined
@@ -39,44 +40,13 @@ export function useParticipantAudioPlayer({ url, durationMs, onSourceError, medi
     return () => releaseAudioPlayback(handle)
   }, [])
 
-  function handleToggle(): void {
-    const audio = audioRef.current
-    if (!audio || !url) return
-    if (!audio.paused) return audio.pause()
-    claimAudioPlayback(handleRef.current)
-    applyPlaybackRate(audio, state.rateIndex)
-    Promise.resolve(audio.play()).catch(() => update({ isPlaying: false }))
-  }
-
-  function seekTo(seconds: number): void {
-    const audio = audioRef.current
-    if (!audio || !url) return
-    audio.currentTime = seconds
-    update({ position: seconds, maxSeen: Math.max(state.maxSeen, seconds) })
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    const position = audioRef.current?.currentTime ?? state.position
-    const target = resolveSeekKeyTarget({ key: event.key, position, duration })
-    if (target === undefined) return
-    event.preventDefault()
-    seekTo(target)
-  }
-
-  function handleRateClick(): void {
-    const rateIndex = nextRateIndex(state.rateIndex)
-    if (audioRef.current) applyPlaybackRate(audioRef.current, rateIndex)
-    update({ rateIndex })
-  }
+  const actions = useParticipantAudioPlayerActions({ context: { audioRef, handleRef, state, update }, url, duration })
 
   return {
     state,
     duration,
     rate: PLAYBACK_RATES[state.rateIndex] ?? 1,
     mediaProps: { ...mediaEvents, ref: setMedia },
-    handleToggle,
-    handleRateClick,
-    handleKeyDown,
-    seekTo,
+    ...actions,
   }
 }
