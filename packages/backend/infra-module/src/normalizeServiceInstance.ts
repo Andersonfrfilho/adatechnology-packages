@@ -9,11 +9,16 @@ const EXITED_INSTANCE_STATUS = 'EXITED'
 
 export function normalizeServiceInstance(node: ServiceInstanceNode): InfraServiceInstance {
   const deployment = node.latestDeployment
-  const activeDeployment = node.activeDeployments?.[0]
+  const activeDeployments = node.activeDeployments ?? []
+  const activeDeployment = activeDeployments[0]
   const instanceStatus = deployment?.instances[0]?.status
   const sourceImage = node.source?.image
   // O deployment ativo e o que de fato roda: o ultimo pode estar em build ou ter falhado.
-  const isDeploymentStopped = (activeDeployment ?? deployment)?.deploymentStopped === true
+  // Parado só quando TODO deployment ativo está parado: com dois ativos, um parado não derruba o serviço.
+  const isDeploymentStopped =
+    activeDeployments.length > 0
+      ? activeDeployments.every((candidate) => candidate.deploymentStopped === true)
+      : deployment?.deploymentStopped === true
 
   return {
     serviceId: node.serviceId,
@@ -21,6 +26,9 @@ export function normalizeServiceInstance(node: ServiceInstanceNode): InfraServic
     ...(sourceImage ? { sourceImage } : {}),
     ...(deployment ? { latestDeploymentId: deployment.id } : {}),
     ...(activeDeployment ? { activeDeploymentId: activeDeployment.id } : {}),
+    ...(activeDeployments.length > 0
+      ? { activeDeploymentIds: activeDeployments.map((candidate) => candidate.id) }
+      : {}),
     hasDeployment: Boolean(deployment),
     isStopped: isDeploymentStopped || instanceStatus === EXITED_INSTANCE_STATUS,
     ...(instanceStatus ? { instanceStatus } : {}),

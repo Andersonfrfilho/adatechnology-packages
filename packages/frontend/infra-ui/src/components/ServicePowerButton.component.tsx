@@ -21,9 +21,9 @@ type ServicePowerButtonProps = {
 const BUTTON_CLASS = `rounded px-2 py-0.5 text-xs font-medium text-brand-700 hover:underline dark:text-brand-300 ${INFRA_FOCUS_RING}`
 
 function resolveKind(service: InfraService): InfraOperationKind {
-  return service.powerState === INFRA_SERVICE_POWER_STATE.RUNNING
-    ? INFRA_OPERATION_KIND.POWER_OFF
-    : INFRA_OPERATION_KIND.POWER_ON
+  return service.powerState === INFRA_SERVICE_POWER_STATE.STOPPED
+    ? INFRA_OPERATION_KIND.POWER_ON
+    : INFRA_OPERATION_KIND.POWER_OFF
 }
 
 /** Liga ou desliga só este serviço. Sem `serviceId` na resposta da API ou durante outra operação, não desenha nada. */

@@ -41,10 +41,13 @@ describe('canPowerOff / canPowerOn', () => {
     }
   })
 
-  it('blocks both while an operation is running or the state is transitioning', () => {
+  it('blocks both while an operation is running', () => {
     expect(canPowerOff({ classification: 'managed', state: 'running', runningOperationId: 'op' })).toBe(false)
     expect(canPowerOn({ classification: 'managed', state: 'stopped', runningOperationId: 'op' })).toBe(false)
-    expect(canPowerOff({ classification: 'managed', state: 'transitioning' })).toBe(false)
+  })
+
+  it('lets power off through a stuck transitioning state but not power on', () => {
+    expect(canPowerOff({ classification: 'managed', state: 'transitioning' })).toBe(true)
     expect(canPowerOn({ classification: 'managed', state: 'transitioning' })).toBe(false)
   })
 })
@@ -85,12 +88,15 @@ describe('canPowerService', () => {
     expect(canPowerService({ environment: managed, service: { ...running, powerState: 'stopped' } })).toBe(true)
   })
 
-  it('blocks a service without id, in transition or without deploy', () => {
+  it('allows stopping a service stuck in transition', () => {
+    expect(canPowerService({ environment: managed, service: { ...running, powerState: 'transitioning' } })).toBe(true)
+  })
+
+  it('blocks a service without id or without deploy', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { serviceId: _omitted, ...withoutId } = running
 
     expect(canPowerService({ environment: managed, service: withoutId })).toBe(false)
-    expect(canPowerService({ environment: managed, service: { ...running, powerState: 'transitioning' } })).toBe(false)
     expect(canPowerService({ environment: managed, service: { ...running, powerState: 'no_deployment' } })).toBe(false)
   })
 

@@ -123,3 +123,38 @@ describe('ligar só alguns serviços', () => {
     expect(harness.repository.operations[0]?.serviceResults).toEqual([{ serviceName: 'web', outcome: 'skipped' }])
   })
 })
+
+describe('serviço com mais de um deployment ativo', () => {
+  it('para todos os deployments ativos e não deixa o serviço no ar', async () => {
+    const postgres = {
+      ...buildService({ name: 'Postgres', image: 'postgres:16' }),
+      activeDeploymentIds: ['dep-a', 'dep-b'],
+    }
+    const harness = buildHarness([postgres])
+    const useCase = new PowerOffEnvironmentUseCase(harness.dependencies)
+
+    await useCase.execute(manualParams())
+    await waitUntilFinished(harness)
+
+    expect(mutationsOf(harness)).toEqual(['stop:dep-a', 'stop:dep-b'])
+  })
+
+  it('marca como falha o serviço que segue rodando depois do comando de parar', async () => {
+    const postgres = buildService({ name: 'Postgres', image: 'postgres:16' })
+    const harness = buildPowerHarness({
+      gatewayOptions: {
+        projects: [buildProject({ environmentId: ENVIRONMENT_ID, environmentName: 'staging', services: [postgres] })],
+        environmentServices: () => [postgres],
+      },
+    })
+    const useCase = new PowerOffEnvironmentUseCase(harness.dependencies)
+
+    await useCase.execute(manualParams())
+    await waitUntilFinished(harness)
+
+    expect(harness.repository.operations[0]?.status).toBe('failed')
+    expect(harness.repository.operations[0]?.serviceResults).toEqual([
+      { serviceName: 'Postgres', outcome: 'failed', errorCode: 'INFRA_SERVICE_STILL_RUNNING' },
+    ])
+  })
+})

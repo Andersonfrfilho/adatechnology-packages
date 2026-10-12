@@ -10,6 +10,8 @@ export type InfraServiceInstance = {
   readonly sourceImage?: string
   readonly latestDeploymentId?: string
   readonly activeDeploymentId?: string
+  /** Pode haver mais de um deployment ativo ao mesmo tempo: parar só o primeiro deixa o serviço no ar. */
+  readonly activeDeploymentIds?: readonly string[]
   readonly hasDeployment: boolean
   readonly isStopped: boolean
   readonly instanceStatus?: string

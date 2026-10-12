@@ -11,6 +11,7 @@ import type { InfraServiceResult, RunPowerOperationParams } from '@adatechnology
 import type { InfraSleep } from '@adatechnology/infra-contracts'
 import type { InfraServiceInstance } from '@adatechnology/infra-contracts'
 import type { InfraGatewayInterface } from '@adatechnology/infra-contracts'
+import { verifyServicesStopped } from './verifyServicesStopped'
 import { waitForDatabases } from './waitForDatabases'
 import { INFRA_ERROR_CODES } from '@adatechnology/infra-contracts'
 
@@ -88,7 +89,37 @@ export class RunPowerOperation {
     const handler: ServiceHandler = (service) => this.stopService(service)
     const applicationResults = await this.runGroup({ services: applications, handler, onProgress: params.onProgress })
     const databaseResults = await this.runGroup({ services: databases, handler, onProgress: params.onProgress })
-    return [...applicationResults, ...databaseResults]
+    return this.confirmStopped({ results: [...applicationResults, ...databaseResults], params })
+  }
+
+  /** O comando aceito não prova serviço parado: o que seguir RUNNING depois da espera vira falha visível. */
+  private async confirmStopped(options: {
+    readonly results: readonly InfraServiceResult[]
+    readonly params: RunPowerOperationParams
+  }): Promise<readonly InfraServiceResult[]> {
+    const { results, params } = options
+    const stoppedNames = results
+      .filter((result) => result.outcome === INFRA_SERVICE_OUTCOME.OK)
+      .map((r) => r.serviceName)
+    if (stoppedNames.length === 0) return results
+
+    const stillRunning = await verifyServicesStopped({
+      gateway: this.dependencies.gateway,
+      sleep: this.dependencies.sleep,
+      environmentId: params.environmentId,
+      serviceNames: stoppedNames,
+      onProgress: params.onProgress,
+    })
+
+    return results.map((result) =>
+      stillRunning.has(result.serviceName)
+        ? {
+            serviceName: result.serviceName,
+            outcome: INFRA_SERVICE_OUTCOME.FAILED,
+            errorCode: INFRA_ERROR_CODES.INFRA_SERVICE_STILL_RUNNING,
+          }
+        : result,
+    )
   }
 
   private async powerOn(context: PowerContext): Promise<readonly InfraServiceResult[]> {
@@ -156,7 +187,11 @@ export class RunPowerOperation {
       return buildResult(service, INFRA_SERVICE_OUTCOME.SKIPPED)
     }
 
-    await this.dependencies.gateway.stopDeployment({ deploymentId })
+    // Todo deployment ativo: parar só o primeiro deixa o serviço rodando quando há dois.
+    const deploymentIds = service.activeDeploymentIds ?? [deploymentId]
+    for (const id of deploymentIds) {
+      await this.dependencies.gateway.stopDeployment({ deploymentId: id })
+    }
     return buildResult(service, INFRA_SERVICE_OUTCOME.OK)
   }
 
