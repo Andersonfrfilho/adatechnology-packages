@@ -1335,6 +1335,15 @@
 .cv-p-audio__error { flex: 1 0 100%; font-size: 0.75rem; }
 .cv-p-recorder .cv-p-audio { flex: 1 1 8rem; width: auto; min-width: 0; }
 .cv-p-attachment__name, .cv-p-attachment__size { font-size: 0.75rem; overflow-wrap: anywhere; }
+.cv-p-transcription { display: flex; flex-direction: column; gap: 0.25rem; margin: 0; font-size: 0.8rem; line-height: 1.4; color: var(--cv-p-i-text); }
+.cv-p-transcription--pending, .cv-p-transcription--too-long { font-size: 0.75rem; color: var(--cv-p-i-text-muted); }
+.cv-p-transcription__text, .cv-p-transcription__empty, .cv-p-transcription__notice { margin: 0; overflow-wrap: anywhere; }
+.cv-p-transcription__text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; -webkit-user-select: text; user-select: text; }
+.cv-p-transcription__text[data-expanded='true'] { display: block; overflow: visible; }
+.cv-p-transcription__empty { color: var(--cv-p-i-text-muted); }
+.cv-p-transcription__notice { order: 1; font-size: 0.7rem; color: var(--cv-p-i-text-muted); }
+.cv-p-transcription__toggle { order: 2; align-self: flex-start; min-width: var(--cv-p-i-touch); min-height: var(--cv-p-i-touch); padding: 0 0.5rem; background: transparent; border: 0; border-radius: var(--cv-p-i-radius); color: var(--cv-p-i-accent); font: inherit; font-size: 0.75rem; text-decoration: underline; cursor: pointer; }
+.cv-p-transcription__toggle:focus-visible { outline: 2px solid var(--cv-p-i-accent); outline-offset: 2px; }
 
 .cv-p-composer { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.5rem 0.75rem 0.75rem; background: var(--cv-p-i-surface-raised); border-top: 1px solid var(--cv-p-i-border); }
 .cv-p-composer__row { display: flex; align-items: flex-end; gap: 0.25rem; }
@@ -1448,6 +1457,7 @@
   .cv-p-thread__scroll, .cv-p-inbox, .cv-p-composer__input { scrollbar-width: auto; scrollbar-color: auto; }
   .cv-p-filters, .cv-p-quick { mask-image: none; -webkit-mask-image: none; }
   .cv-p-thread__latest-badge { border: 1px solid ButtonText; }
+  .cv-p-transcription__toggle { color: LinkText; border: 1px solid ButtonText; }
   .cv-p-bubble .cv-status-ticks, .cv-p-copyable__done { color: CanvasText; }
   .cv-p-failed-menu__list { border-color: CanvasText; }
   .cv-p-failed-menu__item:focus-visible, .cv-p-failed-menu__item:hover { outline: 2px solid Highlight; }

@@ -2,6 +2,7 @@ import type { ParticipantAttachment } from '@adatechnology/conversation-contract
 
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import { ParticipantAudioPlayer } from './ParticipantAudioPlayer'
+import { ParticipantAudioTranscription } from './ParticipantAudioTranscription'
 import { resolveParticipantAudioLabels } from './participantAudioLabels'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { useStableAttachmentUrl } from './useStableAttachmentUrl'
@@ -14,10 +15,11 @@ export type ParticipantAudioAttachmentProps = {
 
 export function ParticipantAudioAttachment({ attachment, resolveAttachmentUrl, labels }: ParticipantAudioAttachmentProps) {
   const source = useStableAttachmentUrl({ attachment, resolveAttachmentUrl })
+  const audioLabels = resolveParticipantAudioLabels(labels)
   return (
     <div className="cv-p-attachment cv-p-attachment--audio">
       <ParticipantAudioPlayer
-        labels={resolveParticipantAudioLabels(labels)}
+        labels={audioLabels}
         url={source.url}
         durationMs={attachment.durationMs}
         filename={attachment.filename}
@@ -26,6 +28,7 @@ export function ParticipantAudioAttachment({ attachment, resolveAttachmentUrl, l
         onSourceError={source.resolveAgain}
       />
       <span className="cv-p-attachment__name">{attachment.filename}</span>
+      <ParticipantAudioTranscription attachmentId={attachment.id} transcription={attachment.transcription} labels={audioLabels} />
     </div>
   )
 }

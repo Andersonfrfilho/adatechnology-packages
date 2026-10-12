@@ -61,6 +61,15 @@ describe.each(SCENARIOS.map((entry) => [entry.name, entry] as const))(
       }
     })
 
+    it('reads the transcription block (text, machine notice, see-all button) on both bubbles', () => {
+      for (const side of ['received', 'mine'] as const) {
+        const fill = fillOf(palette, side)
+        expect(contrastRatio(palette.text, fill)).toBeGreaterThanOrEqual(TEXT_MINIMUM)
+        expect(contrastRatio(palette.muted, fill)).toBeGreaterThanOrEqual(TEXT_MINIMUM)
+        expect(contrastRatio(palette.accent, fill)).toBeGreaterThanOrEqual(TEXT_MINIMUM)
+      }
+    })
+
     it('keeps every tick at 3:1 or more on both bubbles', () => {
       for (const side of ['received', 'mine'] as const) {
         const fill = fillOf(palette, side)

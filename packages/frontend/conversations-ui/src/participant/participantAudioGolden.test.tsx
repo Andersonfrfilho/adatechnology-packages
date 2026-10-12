@@ -167,7 +167,7 @@ describe('[T1.5] thread-audio-player: the custom player replaces <audio controls
   })
 })
 
-describe.skip('[T1.6] thread-audio-transcription-*: the block under the player (contract 3.3)', () => {
+describe('[T1.6] thread-audio-transcription-*: the block under the player (contract 3.3)', () => {
   const scenarios: ReadonlyArray<readonly [string, Record<string, unknown>]> = [
     ['pending', { status: 'pending' }],
     ['ready', { status: 'ready', text: 'Chego em dez minutos.', language: 'pt', engine: 'whisper-local', generatedAt: GENERATED_AT }],
