@@ -434,17 +434,18 @@ são `denied`, `unsupported`, `empty` e `tooLarge`, com mensagem no compositor. 
 **Player.** Cada anexo `audio/*` mostra o player `.cv-p-audio` (tocar e pausar, posição, velocidade 1×, 1,5× e 2×) e
 depois o nome do arquivo. Nada é baixado antes do primeiro toque (`preload="none"`); a URL é resolvida ao montar, por
 `id` do anexo. A duração aparece depois do toque quando o servidor não manda `durationMs`. Tocar um áudio pausa o que
-estava tocando, em qualquer lugar da página.
+estava tocando em qualquer player da visão do participante na página (o player do operador e uma segunda cópia do
+pacote não são coordenados).
 
 **Bloco de transcrição** (por `transcription.status` do anexo):
 
-- `pending`: linha "Transcrevendo…".
+- `pending`: linha "Transcribing…" (default em inglês).
 - `ready`: aviso "gerada por máquina" e o texto, com expandir e recolher quando passa do espaço. Texto vazio mostra
-  "nada foi dito" (é resultado, não falha).
+  "Nothing was said in the audio" (é resultado, não falha).
 - `failed` com `reason: 'too_long'` e `maxDurationMs`: aviso com o limite aplicado.
 - Qualquer outro `failed`, `disabled` ou ausência do campo: só o player.
 
-**Rótulos novos.** Todos opcionais em `ParticipantConversationsLabels`. Os defaults em inglês estão em
+**Rótulos novos.** Todos opcionais em `ParticipantConversationsLabels`; os defaults também entraram em `DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS`. `{minutes}` é **calculado** pela UI a partir de `maxDurationMs` (piso em minutos inteiros; abaixo de 1 minuto nada é desenhado), não vem do servidor. Os defaults em inglês estão em
 `DEFAULT_PARTICIPANT_AUDIO_LABELS` (tipo `ParticipantAudioLabels`). Placeholders entre chaves são preenchidos pela
 própria UI.
 
@@ -486,10 +487,14 @@ própria UI.
 
 **Limites conhecidos desta versão**
 
-- **WhatsApp:** a capacidade do canal `whatsapp` declara gravação, mas o envio de áudio de volta ao WhatsApp não foi
+- **WhatsApp:** **não ative o microfone com `channel="whatsapp"` antes da validação**: o Chromium grava WebM, que o
+  WhatsApp não aceita. A capacidade do canal `whatsapp` declara gravação, mas o envio de áudio de volta ao WhatsApp não foi
   validado ponta a ponta nesta branch. Não trate a gravação nessa conversa como pronta até a validação da spec 264.
 - **Safari e iPhone:** o formato gravado no Safari (`audio/mp4`) e o pedido de permissão no toque ainda precisam ser
   conferidos em aparelho real (T7.1).
+
+**Validação do anexo.** `transcription` e `durationMs` inválidos reprovam o anexo inteiro (só chaves desconhecidas são
+descartadas): valide por anexo com `participantTranscriptionSchema.safeParse` e descarte o campo que falhar.
 
 ### Limitações conhecidas
 
