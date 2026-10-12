@@ -10,8 +10,12 @@ let harness: DomHarness
 let api: ReturnType<typeof useParticipantAudioRecorder>
 let stream: SpecStream
 
+let probeMaxDurationMs: number | undefined
+
 function Probe() {
-  api = useParticipantAudioRecorder()
+  api = useParticipantAudioRecorder(
+    probeMaxDurationMs === undefined ? {} : { options: { maxDurationMs: probeMaxDurationMs } },
+  )
   return null
 }
 
@@ -47,6 +51,7 @@ beforeAll(async () => {
 afterAll(() => harness.teardown())
 
 beforeEach(() => {
+  probeMaxDurationMs = undefined
   jest.useFakeTimers()
   SpecMediaRecorder.instances = []
   stream = new SpecStream()
@@ -93,10 +98,11 @@ describe('a recorder that follows the MediaRecorder specification (stop is async
   })
 
   it('the duration ceiling coinciding with Stop still ends in review', async () => {
+    probeMaxDurationMs = 3000
     await startAndRecord()
     act(() => api.stop())
     await act(async () => {
-      jest.advanceTimersByTime(60 * 60 * 1000)
+      jest.advanceTimersByTime(4000)
     })
     await flush()
     expect(api.status).toBe('review')
