@@ -60,9 +60,12 @@ export function openCaptureSession({ stream, format, onInterrupt, onStopped }: O
   recorder.onstop = () => onStopped(new Blob(chunks, { type: format.uploadMimeType }), Date.now() - startedAt)
   recorder.start()
 
+  let isStopRequested = false
+  // stop() makes the state inactive at once and the real `stop` event arrives later, so only that event may finish the capture
   function requestStop(): void {
-    if (recorder.state === 'inactive') onStopped(new Blob(chunks, { type: format.uploadMimeType }), Date.now() - startedAt)
-    else recorder.stop()
+    if (isStopRequested || recorder.state === 'inactive') return
+    isStopRequested = true
+    recorder.stop()
   }
 
   function release(): void {
