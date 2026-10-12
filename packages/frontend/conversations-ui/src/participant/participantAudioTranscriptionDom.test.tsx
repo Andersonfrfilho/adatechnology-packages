@@ -190,11 +190,9 @@ describe('collapse', () => {
 describe('the transcribed text never leaves the paragraph', () => {
   it('is in no title, data-* attribute or tooltip', () => {
     mount(READY)
-    const everything = Array.from(container.querySelectorAll('*'))
-    for (const element of everything) {
-      for (const attribute of Array.from(element.attributes)) {
-        if (attribute.name === 'title' || attribute.name.startsWith('data-')) expect(attribute.value).not.toContain('dez minutos')
-      }
+    const attributes = Array.from(container.querySelectorAll('*')).flatMap((element) => Array.from(element.attributes))
+    for (const attribute of attributes) {
+      if (attribute.name === 'title' || attribute.name.startsWith('data-')) expect(attribute.value).not.toContain('dez minutos')
     }
   })
 })
