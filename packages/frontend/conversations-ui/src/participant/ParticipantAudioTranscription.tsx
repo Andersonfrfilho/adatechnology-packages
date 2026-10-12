@@ -15,19 +15,25 @@ export type ParticipantAudioTranscriptionProps = {
 }
 
 type ReadyTranscriptionBlockProps = {
-  readonly attachmentId: string
   readonly transcription: Extract<ParticipantTranscription, { status: 'ready' }>
   readonly labels: ParticipantAudioLabels
 }
 
 function resolveTooLongMinutes(transcription: ParticipantTranscription | undefined): number | undefined {
   if (transcription?.status !== 'failed' || transcription.reason !== 'too_long') return undefined
-  if (transcription.maxDurationMs === undefined) return undefined
+  if (typeof transcription.maxDurationMs !== 'number') return undefined
   const minutes = Math.floor(transcription.maxDurationMs / MILLISECONDS_PER_MINUTE)
   return minutes >= 1 ? minutes : undefined
 }
 
-export function ParticipantAudioTranscription({ attachmentId, transcription, labels }: ParticipantAudioTranscriptionProps) {
+// A host that skipped validation can hand us a ready block without a string text: treat it as absent.
+function dropUnusableTranscription(transcription: ParticipantTranscription | undefined): ParticipantTranscription | undefined {
+  if (transcription?.status === 'ready' && typeof transcription.text !== 'string') return undefined
+  return transcription
+}
+
+export function ParticipantAudioTranscription({ attachmentId, transcription: received, labels }: ParticipantAudioTranscriptionProps) {
+  const transcription = dropUnusableTranscription(received)
   useTranscriptionReadyAnnouncement({
     attachmentId,
     status: transcription?.status,
@@ -36,7 +42,7 @@ export function ParticipantAudioTranscription({ attachmentId, transcription, lab
   if (transcription?.status === 'pending') {
     return <p className="cv-p-transcription cv-p-transcription--pending">{labels.transcribing}</p>
   }
-  if (transcription?.status === 'ready') return <ReadyTranscriptionBlock attachmentId={attachmentId} transcription={transcription} labels={labels} />
+  if (transcription?.status === 'ready') return <ReadyTranscriptionBlock transcription={transcription} labels={labels} />
   const minutes = resolveTooLongMinutes(transcription)
   if (minutes === undefined) return null
   return (
@@ -46,8 +52,7 @@ export function ParticipantAudioTranscription({ attachmentId, transcription, lab
   )
 }
 
-function ReadyTranscriptionBlock({ attachmentId, transcription, labels }: ReadyTranscriptionBlockProps) {
-  const noticeId = `cv-p-transcription-notice-${attachmentId}`
+function ReadyTranscriptionBlock({ transcription, labels }: ReadyTranscriptionBlockProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const { textRef, isOverflowing } = useTranscriptionOverflow(transcription.text, isExpanded)
   const hasText = transcription.text !== ''
@@ -55,7 +60,7 @@ function ReadyTranscriptionBlock({ attachmentId, transcription, labels }: ReadyT
 
   return (
     <div className="cv-p-transcription">
-      <p className="cv-p-transcription__notice" id={noticeId}>
+      <p className="cv-p-transcription__notice">
         {labels.machineTranscription}
       </p>
       {hasText ? (
@@ -63,7 +68,6 @@ function ReadyTranscriptionBlock({ attachmentId, transcription, labels }: ReadyT
           ref={textRef}
           className="cv-p-transcription__text"
           lang={transcription.language}
-          aria-describedby={noticeId}
           data-expanded={isExpanded ? 'true' : undefined}
         >
           {transcription.text}
