@@ -22,6 +22,7 @@ import {
   infraIntegrationRemoveBodySchema,
   infraIntegrationSaveBodySchema,
   infraOperationParamsSchema,
+  infraPowerOffBodySchema,
   infraPowerOnBodySchema,
   infraScheduleBodySchema,
 } from '@adatechnology/infra-contracts'
@@ -109,7 +110,7 @@ function buildPowerRoute(params: {
     summary: params.summary,
     rateLimitProfile: INFRA_RATE_LIMIT_PROFILE.POWER,
     isNoStore: false,
-    ...(isKeepOnUntilAccepted ? { bodySchema: optionalBody(infraPowerOnBodySchema) } : {}),
+    bodySchema: optionalBody(isKeepOnUntilAccepted ? infraPowerOnBodySchema : infraPowerOffBodySchema),
     handler: async (context) => {
       const { environmentId } = infraEnvironmentParamsSchema.parse(context.params)
       const adminId = requireAdminId(context)
@@ -121,15 +122,16 @@ function buildPowerRoute(params: {
       })
       if (denied) return denied
 
-      const { keepOnUntil } = isKeepOnUntilAccepted
+      const { keepOnUntil, serviceIds } = isKeepOnUntilAccepted
         ? infraPowerOnBodySchema.parse(context.body ?? {})
-        : { keepOnUntil: undefined }
+        : { ...infraPowerOffBodySchema.parse(context.body ?? {}), keepOnUntil: undefined }
       const result = await useCase.execute({
         environmentId,
         actor: { type: INFRA_AUDIT_ACTOR_TYPE.AGENT, agentId: adminId },
         trigger: INFRA_OPERATION_TRIGGER.MANUAL,
         ipAddress: context.ip,
         ...(keepOnUntil ? { keepOnUntil: new Date(keepOnUntil) } : {}),
+        ...(serviceIds ? { serviceIds } : {}),
       })
 
       return data({ operationId: result.operationId }, ACCEPTED)

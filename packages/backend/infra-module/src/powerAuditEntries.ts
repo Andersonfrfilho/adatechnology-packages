@@ -69,6 +69,7 @@ export function buildPowerRequestedEntry(params: PowerRequestedParams): InfraAud
       trigger: params.params.trigger,
       projectName: params.projectName,
       environmentName: params.environmentName,
+      ...(params.params.serviceIds ? { serviceIds: params.params.serviceIds } : {}),
     },
   }
 }

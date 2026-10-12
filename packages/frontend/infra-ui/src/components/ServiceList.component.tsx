@@ -7,15 +7,20 @@ import { Database } from 'lucide-react'
 import { INFRA_SERVICE_POWER_STATE } from '../constants/infra.constant'
 import { useInfraMessages } from '../providers'
 import { INFRA_DISCLOSURE_SUMMARY, INFRA_FOCUS_RING } from '../constants/infraStyle.constant'
-import type { InfraService } from '../types/infra.types'
+import { ServicePowerButton } from './ServicePowerButton.component'
+import type { InfraEnvironment, InfraService } from '../types/infra.types'
+import { useInfraCapabilities } from '../providers'
 import { fillTemplate } from '../utils/zonedTime.util'
 
 type ServiceListProps = {
   readonly services: readonly InfraService[]
+  /** Com o ambiente, cada serviço ganha o botão de ligar ou desligar só ele. */
+  readonly environment?: InfraEnvironment
 }
 
-export function ServiceList({ services }: ServiceListProps) {
+export function ServiceList({ services, environment }: ServiceListProps) {
   const infraLocale = useInfraMessages()
+  const { canPower } = useInfraCapabilities()
   const runningCount = services.filter((service) => service.powerState === INFRA_SERVICE_POWER_STATE.RUNNING).length
   const summary = fillTemplate({
     template: infraLocale.services.summary,
@@ -44,8 +49,9 @@ export function ServiceList({ services }: ServiceListProps) {
               ) : null}
               <span className="truncate">{service.serviceName}</span>
             </span>
-            <span className="shrink-0 text-xs text-gray-600 dark:text-gray-300">
+            <span className="flex shrink-0 items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
               {infraLocale.services[service.powerState]}
+              {environment && canPower ? <ServicePowerButton environment={environment} service={service} /> : null}
             </span>
           </li>
         ))}

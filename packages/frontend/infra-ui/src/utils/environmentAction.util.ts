@@ -49,3 +49,18 @@ export function listServicesToStop(services: readonly InfraService[]): readonly 
 
   return [...stoppable.filter((service) => !service.isDatabase), ...stoppable.filter((service) => service.isDatabase)]
 }
+
+/** Ligar ou desligar um serviço só: ambiente gerenciável sem operação rodando, serviço com id e fora de transição. */
+export function canPowerService({
+  environment,
+  service,
+}: {
+  readonly environment: ActionEnvironment
+  readonly service: InfraService
+}): boolean {
+  if (!isManageableNow(environment) || service.serviceId === undefined) return false
+
+  return (
+    service.powerState === INFRA_SERVICE_POWER_STATE.RUNNING || service.powerState === INFRA_SERVICE_POWER_STATE.STOPPED
+  )
+}

@@ -18,6 +18,14 @@ export const infraScheduleBodySchema = z.object({
   isEnabled: z.boolean(),
 })
 
+/** Ligar ou desligar só alguns serviços do ambiente; ausente = o ambiente inteiro. */
+export const infraPowerServiceIdsSchema = z.array(z.string().min(1).max(64)).min(1).max(50)
+
+export const infraPowerOffBodySchema = z.object({
+  serviceIds: infraPowerServiceIdsSchema.optional(),
+})
+
 export const infraPowerOnBodySchema = z.object({
   keepOnUntil: z.string().datetime({ offset: true }).optional(),
+  serviceIds: infraPowerServiceIdsSchema.optional(),
 })

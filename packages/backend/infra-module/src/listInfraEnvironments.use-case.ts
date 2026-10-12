@@ -154,6 +154,7 @@ export class ListInfraEnvironmentsUseCase {
     const requiresKeepOnUntil = schedule?.isEnabled === true && !isInsideScheduleWindow({ schedule, at: now })
 
     const services = environment.services.map((service) => ({
+      serviceId: service.serviceId,
       serviceName: service.serviceName,
       isDatabase: isDatabaseService(service),
       powerState: resolveServicePowerState(service),

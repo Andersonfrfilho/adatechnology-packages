@@ -25,6 +25,8 @@ type ServiceHandler = (service: InfraServiceInstance) => Promise<InfraServiceRes
 type PowerContext = {
   readonly databases: readonly InfraServiceInstance[]
   readonly applications: readonly InfraServiceInstance[]
+  /** Bancos do ambiente que não entraram na seleção e não estão rodando: ligar aplicação sem eles sobe quebrado. */
+  readonly stoppedUnselectedDatabases: readonly InfraServiceInstance[]
   readonly params: RunPowerOperationParams
 }
 
@@ -48,6 +50,16 @@ function buildResult(service: InfraServiceInstance, outcome: InfraServiceResult[
   return { serviceName: service.serviceName, outcome }
 }
 
+function findStoppedUnselectedDatabases(params: RunPowerOperationParams): readonly InfraServiceInstance[] {
+  const selectedIds = new Set(params.services.map((service) => service.serviceId))
+  return (params.environmentServices ?? params.services).filter(
+    (service) =>
+      isDatabaseService(service) &&
+      !selectedIds.has(service.serviceId) &&
+      resolveServicePowerState(service) !== INFRA_SERVICE_POWER_STATE.RUNNING,
+  )
+}
+
 /**
  * Percorre os servicos de um ambiente na ordem segura e devolve o resultado de cada um.
  *
@@ -63,6 +75,7 @@ export class RunPowerOperation {
     const context: PowerContext = {
       databases: ordered.filter(isDatabaseService),
       applications: ordered.filter((service) => !isDatabaseService(service)),
+      stoppedUnselectedDatabases: findStoppedUnselectedDatabases(params),
       params,
     }
 
@@ -79,7 +92,7 @@ export class RunPowerOperation {
   }
 
   private async powerOn(context: PowerContext): Promise<readonly InfraServiceResult[]> {
-    const { databases, applications, params } = context
+    const { databases, applications, stoppedUnselectedDatabases, params } = context
     const handler: ServiceHandler = (service) => this.startService({ service, environmentId: params.environmentId })
     const startedDatabases = await this.runGroup({ services: databases, handler, onProgress: params.onProgress })
 
@@ -102,7 +115,9 @@ export class RunPowerOperation {
     )
 
     // Aplicacao sem banco sobe quebrada e pode gravar estado inconsistente: fica parada.
-    const isDatabaseLayerHealthy = databaseResults.every((result) => result.outcome !== INFRA_SERVICE_OUTCOME.FAILED)
+    const isDatabaseLayerHealthy =
+      stoppedUnselectedDatabases.length === 0 &&
+      databaseResults.every((result) => result.outcome !== INFRA_SERVICE_OUTCOME.FAILED)
     const applicationResults = isDatabaseLayerHealthy
       ? await this.runGroup({ services: applications, handler, onProgress: params.onProgress })
       : applications.map((service) => buildResult(service, INFRA_SERVICE_OUTCOME.SKIPPED))

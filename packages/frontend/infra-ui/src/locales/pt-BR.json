@@ -56,7 +56,16 @@
     "confirmOff": "Desligar ambiente",
     "confirmOn": "Ligar ambiente",
     "pending": "Enviando...",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "serviceOn": "Iniciar",
+    "serviceOff": "Parar",
+    "serviceTitleOn": "Iniciar {service}",
+    "serviceTitleOff": "Parar {service}",
+    "serviceDescriptionOn": "Só este serviço de {environment} será iniciado. Aplicação só sobe se os bancos do ambiente estiverem rodando.",
+    "serviceDescriptionOff": "Só este serviço de {environment} será parado. O resto do ambiente continua como está.",
+    "serviceDatabaseWarning": "Este serviço é um banco de dados: as aplicações que dependem dele deixam de funcionar enquanto ele estiver parado.",
+    "serviceConfirmOn": "Iniciar serviço",
+    "serviceConfirmOff": "Parar serviço"
   },
   "keepOn": {
     "label": "Manter ligado até",

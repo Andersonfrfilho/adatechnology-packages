@@ -11,6 +11,7 @@ import type {
 import type { InfraScheduleRecord, InfraNextScheduledActionView } from './infraSchedule.types'
 
 export type InfraServiceView = {
+  readonly serviceId: string
   readonly serviceName: string
   readonly isDatabase: boolean
   readonly powerState: InfraServicePowerState

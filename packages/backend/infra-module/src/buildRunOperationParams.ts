@@ -15,6 +15,15 @@ type BuildRunOperationParamsOptions = {
   readonly gateway: InfraGatewayInterface
 }
 
+function selectedServices(
+  services: InfraEnvironment['services'],
+  serviceIds: PowerEnvironmentParams['serviceIds'],
+): InfraEnvironment['services'] {
+  if (!serviceIds) return services
+  const wanted = new Set(serviceIds)
+  return services.filter((service) => wanted.has(service.serviceId))
+}
+
 export function buildRunOperationParams(options: BuildRunOperationParamsOptions): RunOperationParams {
   const { operationId, params, project, environment, lockOwner, gateway } = options
   return {
@@ -24,7 +33,8 @@ export function buildRunOperationParams(options: BuildRunOperationParamsOptions)
     projectName: project.name,
     environmentId: environment.id,
     environmentName: environment.name,
-    services: environment.services,
+    services: selectedServices(environment.services, params.serviceIds),
+    environmentServices: environment.services,
     actor: params.actor,
     trigger: params.trigger,
     lockOwner,
