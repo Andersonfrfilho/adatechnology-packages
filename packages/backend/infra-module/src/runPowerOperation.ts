@@ -2,7 +2,13 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { INFRA_POWER_DIRECTION, INFRA_SERVICE_OUTCOME, INFRA_SERVICE_POWER_STATE } from '@adatechnology/infra-contracts'
+import {
+  INFRA_POWER_DIRECTION,
+  INFRA_RESTART_POLICY_TYPE,
+  INFRA_SERVICE_OUTCOME,
+  INFRA_SERVICE_POWER_STATE,
+} from '@adatechnology/infra-contracts'
+import type { InfraRestartPolicyStoreInterface } from '@adatechnology/infra-contracts'
 import { isDatabaseService } from './isDatabaseService'
 import { orderServicesForPower } from './orderServicesForPower'
 import { resolveServiceErrorCode } from './resolveServiceErrorCode'
@@ -19,6 +25,8 @@ type Dependencies = {
   readonly gateway: InfraGatewayInterface
   readonly sleep: InfraSleep
   readonly databaseWaitSeconds: number
+  /** Ausente = sem segunda tentativa: o serviço que não parar falha. */
+  readonly restartPolicyStore?: InfraRestartPolicyStoreInterface
 }
 
 type ServiceHandler = (service: InfraServiceInstance) => Promise<InfraServiceResult>
@@ -113,7 +121,7 @@ export class RunPowerOperation {
       })
     const notStopped = await verify(stoppedNames)
     const stillRunning =
-      notStopped.size > 0 ? await this.removeAndVerify({ names: notStopped, params, verify }) : notStopped
+      notStopped.size > 0 ? await this.escalateStubborn({ names: notStopped, params, verify }) : notStopped
 
     return results.map((result) =>
       stillRunning.has(result.serviceName)
@@ -127,25 +135,61 @@ export class RunPowerOperation {
   }
 
   /**
-   * Parar não derrubou o serviço (o banco volta pela política de reinício, por exemplo): segunda
-   * tentativa removendo o deployment. Os dados ficam no volume e subir de novo é um redeploy.
+   * Parar não derrubou o serviço: o banco volta pela política de reinício. Segunda tentativa sem
+   * apagar nada: guarda a política original, troca por "nunca", sobe um deployment novo já com ela,
+   * espera ficar de pé e então para. O ligar devolve a política que estava antes.
    */
-  private async removeAndVerify(options: {
+  private async escalateStubborn(options: {
     readonly names: ReadonlySet<string>
     readonly params: RunPowerOperationParams
     readonly verify: (serviceNames: readonly string[]) => Promise<ReadonlySet<string>>
   }): Promise<ReadonlySet<string>> {
     const { names, params, verify } = options
+    const { gateway, restartPolicyStore } = this.dependencies
+    if (!restartPolicyStore) return names
+
     const stubborn = params.services.filter((service) => names.has(service.serviceName))
+    const prepared: InfraServiceInstance[] = []
     for (const service of stubborn) {
-      const deploymentIds = service.activeDeploymentIds ?? [resolveTargetDeploymentId(service)]
-      for (const id of deploymentIds) {
-        if (id !== undefined)
-          await this.dependencies.gateway.removeDeployment({ deploymentId: id }).catch(() => undefined)
+      const reference = { environmentId: params.environmentId, serviceId: service.serviceId }
+      try {
+        const current = await gateway.getRestartPolicy(reference)
+        if (current.type !== INFRA_RESTART_POLICY_TYPE.NEVER) {
+          await restartPolicyStore.save(reference, current)
+          await gateway.setRestartPolicy({ ...reference, policy: { type: INFRA_RESTART_POLICY_TYPE.NEVER } })
+        }
+        await gateway.redeployService(reference)
+        prepared.push(service)
+      } catch {
+        // Fica de fora: o serviço segue na lista dos que não pararam.
       }
     }
+    if (prepared.length === 0) return names
 
-    return verify([...names])
+    const notReady = await waitForDatabases({
+      ...this.dependencies,
+      environmentId: params.environmentId,
+      serviceNames: prepared.map((service) => service.serviceName),
+      onProgress: params.onProgress,
+    })
+    await this.stopFreshDeployments({ environmentId: params.environmentId, names: prepared.map((s) => s.serviceName) })
+
+    const stillRunning = await verify([...names])
+    return new Set([...stillRunning, ...notReady])
+  }
+
+  /** O redeploy criou deployments novos: os ids de antes não servem mais, então relê o ambiente. */
+  private async stopFreshDeployments(options: {
+    readonly environmentId: string
+    readonly names: readonly string[]
+  }): Promise<void> {
+    const { gateway } = this.dependencies
+    const fresh = await gateway.getEnvironmentServices({ environmentId: options.environmentId }).catch(() => [])
+    for (const service of fresh.filter((candidate) => options.names.includes(candidate.serviceName))) {
+      const deploymentId = resolveTargetDeploymentId(service)
+      const deploymentIds = service.activeDeploymentIds ?? (deploymentId ? [deploymentId] : [])
+      for (const id of deploymentIds) await gateway.stopDeployment({ deploymentId: id }).catch(() => undefined)
+    }
   }
 
   private async powerOn(context: PowerContext): Promise<readonly InfraServiceResult[]> {
@@ -221,6 +265,22 @@ export class RunPowerOperation {
     return buildResult(service, INFRA_SERVICE_OUTCOME.OK)
   }
 
+  /** Devolve a política que o desligamento trocou por "nunca". `true` = havia o que devolver. */
+  private async restoreRestartPolicy(options: {
+    readonly service: InfraServiceInstance
+    readonly environmentId: string
+  }): Promise<boolean> {
+    const { restartPolicyStore, gateway } = this.dependencies
+    if (!restartPolicyStore) return false
+    const reference = { environmentId: options.environmentId, serviceId: options.service.serviceId }
+    const saved = await restartPolicyStore.get(reference)
+    if (!saved) return false
+
+    await gateway.setRestartPolicy({ ...reference, policy: saved })
+    await restartPolicyStore.delete(reference)
+    return true
+  }
+
   private async startService(params: StartServiceParams): Promise<InfraServiceResult> {
     const { service, environmentId } = params
     const { gateway } = this.dependencies
@@ -229,6 +289,11 @@ export class RunPowerOperation {
     // Um servico que ja esta subindo nao leva segundo comando: a espera dos bancos cobre o resto.
     if (state === INFRA_SERVICE_POWER_STATE.RUNNING || state === INFRA_SERVICE_POWER_STATE.TRANSITIONING) {
       return buildResult(service, INFRA_SERVICE_OUTCOME.SKIPPED)
+    }
+    if (await this.restoreRestartPolicy({ service, environmentId })) {
+      // A política volta no deployment novo: restart reaproveitaria o antigo, ainda com "nunca".
+      await gateway.redeployService({ environmentId, serviceId: service.serviceId })
+      return buildResult(service, INFRA_SERVICE_OUTCOME.OK)
     }
     const deploymentId = resolveTargetDeploymentId(service)
     if (state === INFRA_SERVICE_POWER_STATE.STOPPED && deploymentId !== undefined && !service.isRemoved) {

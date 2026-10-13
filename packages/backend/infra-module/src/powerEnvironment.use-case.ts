@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
+import { RestartPolicyStore } from './RestartPolicyStore'
 import { assertServicesExist } from './assertServicesExist'
 import type { InfraAuditRecorderInterface } from '@adatechnology/infra-contracts'
 import type { InfraPowerDirection } from '@adatechnology/infra-contracts'
@@ -177,7 +178,12 @@ export class PowerEnvironmentUseCase {
 
   private buildRunner(gateway: InfraGatewayInterface): RunPowerOperation {
     const { sleep, databaseWaitSeconds } = this.dependencies
-    return new RunPowerOperation({ gateway, sleep, databaseWaitSeconds })
+    return new RunPowerOperation({
+      gateway,
+      sleep,
+      databaseWaitSeconds,
+      restartPolicyStore: new RestartPolicyStore(this.dependencies.cache),
+    })
   }
 
   private registerOperation(options: RegisterParams): Promise<InfraOperationRecord> {

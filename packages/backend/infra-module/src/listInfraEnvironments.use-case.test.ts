@@ -107,6 +107,10 @@ function buildHarness(params: {
     },
     async stopDeployment() {},
     async removeDeployment() {},
+    async getRestartPolicy() {
+      return { type: 'ON_FAILURE' as const }
+    },
+    async setRestartPolicy() {},
     async restartDeployment() {},
     async redeployService() {},
     async getBillingCycle() {

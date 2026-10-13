@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
+import type { InfraRestartPolicy, InfraServiceReference, SetRestartPolicyParams } from './infraRestartPolicy.types'
 import type { InfraPricing } from '../infraUsage.constant'
 import type { InfraAccessStatus } from '../infra.constant'
 import type {
@@ -29,6 +30,9 @@ export interface InfraGatewayInterface {
   stopDeployment(params: StopDeploymentParams): Promise<void>
   /** Derruba o deployment de vez. Serve de segunda tentativa quando parar não derruba o serviço (política de reinício, por exemplo). */
   removeDeployment(params: RemoveDeploymentParams): Promise<void>
+  /** Política de reinício do serviço: é ela que faz um banco voltar sozinho depois de parado. */
+  getRestartPolicy(reference: InfraServiceReference): Promise<InfraRestartPolicy>
+  setRestartPolicy(params: SetRestartPolicyParams): Promise<void>
   restartDeployment(params: RestartDeploymentParams): Promise<void>
   redeployService(params: RedeployServiceParams): Promise<void>
   getBillingCycle(): Promise<InfraBillingCycle>
