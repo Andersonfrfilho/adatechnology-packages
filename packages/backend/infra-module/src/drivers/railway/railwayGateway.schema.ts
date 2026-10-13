@@ -72,6 +72,7 @@ export const estimatedUsageResponseSchema = z.object({
 })
 
 export const deploymentStopResponseSchema = z.object({ deploymentStop: z.boolean() })
+export const deploymentRemoveResponseSchema = z.object({ deploymentRemove: z.boolean() })
 export const deploymentRestartResponseSchema = z.object({ deploymentRestart: z.boolean() })
 export const serviceInstanceRedeployResponseSchema = z.object({ serviceInstanceRedeploy: z.boolean() })
 

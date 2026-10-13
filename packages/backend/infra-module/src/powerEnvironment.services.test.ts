@@ -139,7 +139,27 @@ describe('serviço com mais de um deployment ativo', () => {
     expect(mutationsOf(harness)).toEqual(['stop:dep-a', 'stop:dep-b'])
   })
 
-  it('marca como falha o serviço que segue rodando depois do comando de parar', async () => {
+  it('remove o deployment quando parar não derruba o serviço e conclui com sucesso', async () => {
+    const postgres = buildService({ name: 'Postgres', image: 'postgres:16' })
+    const stopped = buildService({ name: 'Postgres', image: 'postgres:16', shape: 'stopped' })
+    const harness: PowerHarness = buildPowerHarness({
+      gatewayOptions: {
+        projects: [buildProject({ environmentId: ENVIRONMENT_ID, environmentName: 'staging', services: [postgres] })],
+        // O serviço só aparece parado depois do remove: o stop sozinho não adianta.
+        environmentServices: () =>
+          harness.gateway.events.some((event) => event.startsWith('remove:')) ? [stopped] : [postgres],
+      },
+    })
+    const useCase = new PowerOffEnvironmentUseCase(harness.dependencies)
+
+    await useCase.execute(manualParams())
+    await waitUntilFinished(harness)
+
+    expect(mutationsOf(harness)).toEqual(['stop:dep-Postgres', 'remove:dep-Postgres'])
+    expect(harness.repository.operations[0]?.status).toBe('succeeded')
+  })
+
+  it('marca como falha o serviço que segue rodando mesmo depois de parar e remover', async () => {
     const postgres = buildService({ name: 'Postgres', image: 'postgres:16' })
     const harness = buildPowerHarness({
       gatewayOptions: {
@@ -152,6 +172,7 @@ describe('serviço com mais de um deployment ativo', () => {
     await useCase.execute(manualParams())
     await waitUntilFinished(harness)
 
+    expect(mutationsOf(harness)).toEqual(['stop:dep-Postgres', 'remove:dep-Postgres'])
     expect(harness.repository.operations[0]?.status).toBe('failed')
     expect(harness.repository.operations[0]?.serviceResults).toEqual([
       { serviceName: 'Postgres', outcome: 'failed', errorCode: 'INFRA_SERVICE_STILL_RUNNING' },

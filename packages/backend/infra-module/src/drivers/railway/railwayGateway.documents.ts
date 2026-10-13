@@ -6,6 +6,7 @@ export const RAILWAY_OPERATION = {
   INVENTORY: 'listInventory',
   ENVIRONMENT_SERVICES: 'getEnvironmentServices',
   STOP: 'deploymentStop',
+  REMOVE: 'deploymentRemove',
   RESTART: 'deploymentRestart',
   REDEPLOY: 'serviceInstanceRedeploy',
   BILLING_CYCLE: 'getBillingCycle',
@@ -43,6 +44,7 @@ export const ENVIRONMENT_SERVICES_QUERY = `query EnvironmentServices($id: String
 }`
 
 export const STOP_MUTATION = 'mutation StopDeployment($id: String!) { deploymentStop(id: $id) }'
+export const REMOVE_MUTATION = 'mutation RemoveDeployment($id: String!) { deploymentRemove(id: $id) }'
 export const RESTART_MUTATION = 'mutation RestartDeployment($id: String!) { deploymentRestart(id: $id) }'
 export const REDEPLOY_MUTATION = `mutation RedeployService($environmentId: String!, $serviceId: String!) {
   serviceInstanceRedeploy(environmentId: $environmentId, serviceId: $serviceId)

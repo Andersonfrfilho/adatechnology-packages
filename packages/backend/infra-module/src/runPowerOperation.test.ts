@@ -27,6 +27,7 @@ async function run(direction: InfraPowerDirection, service: InfraServiceInstance
   const mutations: string[] = []
   const gateway = {
     getEnvironmentServices: async () => [],
+    removeDeployment: async () => undefined,
     stopDeployment: async ({ deploymentId }: { deploymentId: string }) => void mutations.push(`stop:${deploymentId}`),
     restartDeployment: async ({ deploymentId }: { deploymentId: string }) =>
       void mutations.push(`restart:${deploymentId}`),
@@ -71,6 +72,15 @@ describe('RunPowerOperation (deployment alvo)', () => {
     )
 
     expect(mutations).toEqual(['restart:dep-old'])
+  })
+
+  it('religar um serviço cujo deployment foi removido faz redeploy, não restart', async () => {
+    const mutations = await run(
+      INFRA_POWER_DIRECTION.ON,
+      buildWebService({ isStopped: true, isRemoved: true, instanceStatus: undefined }),
+    )
+
+    expect(mutations).toEqual(['redeploy:svc-web'])
   })
 
   it('religar sem nenhum deployment faz redeploy do servico', async () => {

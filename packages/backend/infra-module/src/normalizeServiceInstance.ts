@@ -6,6 +6,7 @@ import type { ServiceInstanceNode } from './drivers/railway/railwayGateway.schem
 import type { InfraServiceInstance } from '@adatechnology/infra-contracts'
 
 const EXITED_INSTANCE_STATUS = 'EXITED'
+const REMOVED_DEPLOYMENT_STATUSES: readonly string[] = ['REMOVED', 'REMOVING']
 
 export function normalizeServiceInstance(node: ServiceInstanceNode): InfraServiceInstance {
   const deployment = node.latestDeployment
@@ -20,6 +21,8 @@ export function normalizeServiceInstance(node: ServiceInstanceNode): InfraServic
       ? activeDeployments.every((candidate) => candidate.deploymentStopped === true)
       : deployment?.deploymentStopped === true
 
+  const isRemoved = deployment != null && REMOVED_DEPLOYMENT_STATUSES.includes(deployment.status)
+
   return {
     serviceId: node.serviceId,
     serviceName: node.serviceName,
@@ -30,7 +33,8 @@ export function normalizeServiceInstance(node: ServiceInstanceNode): InfraServic
       ? { activeDeploymentIds: activeDeployments.map((candidate) => candidate.id) }
       : {}),
     hasDeployment: Boolean(deployment),
-    isStopped: isDeploymentStopped || instanceStatus === EXITED_INSTANCE_STATUS,
+    isStopped: isDeploymentStopped || isRemoved || instanceStatus === EXITED_INSTANCE_STATUS,
+    ...(isRemoved ? { isRemoved } : {}),
     ...(instanceStatus ? { instanceStatus } : {}),
   }
 }

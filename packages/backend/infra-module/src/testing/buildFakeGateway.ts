@@ -62,6 +62,7 @@ export function buildFakeGateway(options: FakeGatewayOptions): FakeGateway {
       return provider ? provider(fake.environmentReads) : []
     },
     stopDeployment: ({ deploymentId }: { deploymentId: string }) => mutate(`stop:${deploymentId}`),
+    removeDeployment: ({ deploymentId }: { deploymentId: string }) => mutate(`remove:${deploymentId}`),
     restartDeployment: ({ deploymentId }: { deploymentId: string }) => mutate(`restart:${deploymentId}`),
     redeployService: ({ environmentId, serviceId }: { environmentId: string; serviceId: string }) =>
       mutate(`redeploy:${environmentId}/${serviceId}`),

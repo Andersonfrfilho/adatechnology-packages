@@ -15,6 +15,7 @@ import {
   INVENTORY_QUERY,
   RAILWAY_OPERATION,
   REDEPLOY_MUTATION,
+  REMOVE_MUTATION,
   RESTART_MUTATION,
   STOP_MUTATION,
   USAGE_QUERY,
@@ -22,6 +23,7 @@ import {
 } from './railwayGateway.documents'
 import {
   billingCycleResponseSchema,
+  deploymentRemoveResponseSchema,
   deploymentRestartResponseSchema,
   deploymentStopResponseSchema,
   environmentServicesResponseSchema,
@@ -39,6 +41,7 @@ import type {
 } from '@adatechnology/infra-contracts'
 import type {
   RedeployServiceParams,
+  RemoveDeploymentParams,
   RestartDeploymentParams,
   StopDeploymentParams,
 } from '@adatechnology/infra-contracts'
@@ -86,6 +89,17 @@ export class RailwayGateway implements InfraGatewayInterface {
     })
 
     return data.environment.serviceInstances.edges.map(({ node }) => normalizeServiceInstance(node))
+  }
+
+  async removeDeployment(params: RemoveDeploymentParams): Promise<void> {
+    const data = await this.client.execute({
+      operationName: RAILWAY_OPERATION.REMOVE,
+      query: REMOVE_MUTATION,
+      variables: { id: params.deploymentId },
+      schema: deploymentRemoveResponseSchema,
+    })
+
+    assertAccepted(data.deploymentRemove, RAILWAY_OPERATION.REMOVE)
   }
 
   async stopDeployment(params: StopDeploymentParams): Promise<void> {
