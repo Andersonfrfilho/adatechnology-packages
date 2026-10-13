@@ -19,6 +19,7 @@ import type { InfraServiceInstance } from '@adatechnology/infra-contracts'
 import type { InfraGatewayInterface } from '@adatechnology/infra-contracts'
 import { verifyServicesStopped } from './verifyServicesStopped'
 import { waitForDatabases } from './waitForDatabases'
+import { waitForFreshDeployments } from './waitForFreshDeployments'
 import { INFRA_ERROR_CODES } from '@adatechnology/infra-contracts'
 
 type Dependencies = {
@@ -166,13 +167,14 @@ export class RunPowerOperation {
     }
     if (prepared.length === 0) return names
 
-    const notReady = await waitForDatabases({
+    const notReady = await waitForFreshDeployments({
       ...this.dependencies,
       environmentId: params.environmentId,
-      serviceNames: prepared.map((service) => service.serviceName),
+      previousDeploymentIds: new Map(prepared.map((service) => [service.serviceName, service.latestDeploymentId])),
       onProgress: params.onProgress,
     })
-    await this.stopFreshDeployments({ environmentId: params.environmentId, names: prepared.map((s) => s.serviceName) })
+    const readyNames = prepared.map((service) => service.serviceName).filter((name) => !notReady.has(name))
+    await this.stopFreshDeployments({ environmentId: params.environmentId, names: readyNames })
 
     const stillRunning = await verify([...names])
     return new Set([...stillRunning, ...notReady])
