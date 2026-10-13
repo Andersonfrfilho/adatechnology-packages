@@ -9,6 +9,7 @@ import type {
   GetUsageParams,
   RedeployServiceParams,
   RestartDeploymentParams,
+  RemoveDeploymentParams,
   StopDeploymentParams,
 } from './infraGateway.types'
 import type {
@@ -26,6 +27,8 @@ export interface InfraGatewayInterface {
   /** Leitura de um ambiente só, sem cache: a espera dos bancos depende do estado de agora. */
   getEnvironmentServices(params: GetEnvironmentServicesParams): Promise<readonly InfraServiceInstance[]>
   stopDeployment(params: StopDeploymentParams): Promise<void>
+  /** Derruba o deployment de vez. Serve de segunda tentativa quando parar não derruba o serviço (política de reinício, por exemplo). */
+  removeDeployment(params: RemoveDeploymentParams): Promise<void>
   restartDeployment(params: RestartDeploymentParams): Promise<void>
   redeployService(params: RedeployServiceParams): Promise<void>
   getBillingCycle(): Promise<InfraBillingCycle>

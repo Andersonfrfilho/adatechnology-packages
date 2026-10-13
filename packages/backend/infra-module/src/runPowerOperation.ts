@@ -103,13 +103,17 @@ export class RunPowerOperation {
       .map((r) => r.serviceName)
     if (stoppedNames.length === 0) return results
 
-    const stillRunning = await verifyServicesStopped({
-      gateway: this.dependencies.gateway,
-      sleep: this.dependencies.sleep,
-      environmentId: params.environmentId,
-      serviceNames: stoppedNames,
-      onProgress: params.onProgress,
-    })
+    const verify = (serviceNames: readonly string[]) =>
+      verifyServicesStopped({
+        gateway: this.dependencies.gateway,
+        sleep: this.dependencies.sleep,
+        environmentId: params.environmentId,
+        serviceNames,
+        onProgress: params.onProgress,
+      })
+    const notStopped = await verify(stoppedNames)
+    const stillRunning =
+      notStopped.size > 0 ? await this.removeAndVerify({ names: notStopped, params, verify }) : notStopped
 
     return results.map((result) =>
       stillRunning.has(result.serviceName)
@@ -120,6 +124,28 @@ export class RunPowerOperation {
           }
         : result,
     )
+  }
+
+  /**
+   * Parar não derrubou o serviço (o banco volta pela política de reinício, por exemplo): segunda
+   * tentativa removendo o deployment. Os dados ficam no volume e subir de novo é um redeploy.
+   */
+  private async removeAndVerify(options: {
+    readonly names: ReadonlySet<string>
+    readonly params: RunPowerOperationParams
+    readonly verify: (serviceNames: readonly string[]) => Promise<ReadonlySet<string>>
+  }): Promise<ReadonlySet<string>> {
+    const { names, params, verify } = options
+    const stubborn = params.services.filter((service) => names.has(service.serviceName))
+    for (const service of stubborn) {
+      const deploymentIds = service.activeDeploymentIds ?? [resolveTargetDeploymentId(service)]
+      for (const id of deploymentIds) {
+        if (id !== undefined)
+          await this.dependencies.gateway.removeDeployment({ deploymentId: id }).catch(() => undefined)
+      }
+    }
+
+    return verify([...names])
   }
 
   private async powerOn(context: PowerContext): Promise<readonly InfraServiceResult[]> {
@@ -205,7 +231,7 @@ export class RunPowerOperation {
       return buildResult(service, INFRA_SERVICE_OUTCOME.SKIPPED)
     }
     const deploymentId = resolveTargetDeploymentId(service)
-    if (state === INFRA_SERVICE_POWER_STATE.STOPPED && deploymentId !== undefined) {
+    if (state === INFRA_SERVICE_POWER_STATE.STOPPED && deploymentId !== undefined && !service.isRemoved) {
       await gateway.restartDeployment({ deploymentId })
       return buildResult(service, INFRA_SERVICE_OUTCOME.OK)
     }

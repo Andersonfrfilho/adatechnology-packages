@@ -106,6 +106,7 @@ function buildHarness(params: {
       return []
     },
     async stopDeployment() {},
+    async removeDeployment() {},
     async restartDeployment() {},
     async redeployService() {},
     async getBillingCycle() {

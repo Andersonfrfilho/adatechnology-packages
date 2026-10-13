@@ -297,6 +297,16 @@ describe('RailwayGateway', () => {
       expect(body.query).not.toContain(DEPLOYMENT_ID)
     })
 
+    it('removeDeployment envia o id por variables e aceita true', async () => {
+      const { gateway, calls } = buildGateway(() => ok({ deploymentRemove: true }))
+
+      await gateway.removeDeployment({ deploymentId: DEPLOYMENT_ID })
+
+      const body = JSON.parse(String(calls[0]?.init.body)) as { query: string; variables: Record<string, unknown> }
+      expect(body.variables).toEqual({ id: DEPLOYMENT_ID })
+      expect(body.query).toContain('deploymentRemove')
+    })
+
     it('restartDeployment envia o id por variables', async () => {
       const { gateway, calls } = buildGateway(() => ok({ deploymentRestart: true }))
 

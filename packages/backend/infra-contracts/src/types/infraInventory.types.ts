@@ -14,6 +14,8 @@ export type InfraServiceInstance = {
   readonly activeDeploymentIds?: readonly string[]
   readonly hasDeployment: boolean
   readonly isStopped: boolean
+  /** Deployment removido: subir de novo exige redeploy, e não restart. */
+  readonly isRemoved?: boolean
   readonly instanceStatus?: string
 }
 

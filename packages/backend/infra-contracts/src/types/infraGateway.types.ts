@@ -11,6 +11,8 @@ export type GetEnvironmentServicesParams = { readonly environmentId: string }
 
 export type StopDeploymentParams = { readonly deploymentId: string }
 
+export type RemoveDeploymentParams = { readonly deploymentId: string }
+
 export type RestartDeploymentParams = { readonly deploymentId: string }
 
 export type RedeployServiceParams = { readonly environmentId: string; readonly serviceId: string }
