@@ -7,6 +7,8 @@ export const RAILWAY_OPERATION = {
   ENVIRONMENT_SERVICES: 'getEnvironmentServices',
   STOP: 'deploymentStop',
   REMOVE: 'deploymentRemove',
+  GET_RESTART_POLICY: 'getRestartPolicy',
+  SET_RESTART_POLICY: 'setRestartPolicy',
   RESTART: 'deploymentRestart',
   REDEPLOY: 'serviceInstanceRedeploy',
   BILLING_CYCLE: 'getBillingCycle',
@@ -44,6 +46,12 @@ export const ENVIRONMENT_SERVICES_QUERY = `query EnvironmentServices($id: String
 }`
 
 export const STOP_MUTATION = 'mutation StopDeployment($id: String!) { deploymentStop(id: $id) }'
+export const RESTART_POLICY_QUERY = `query RestartPolicy($environmentId: String!, $serviceId: String!) {
+  serviceInstance(environmentId: $environmentId, serviceId: $serviceId) { restartPolicyType restartPolicyMaxRetries }
+}`
+export const SET_RESTART_POLICY_MUTATION = `mutation SetRestartPolicy($environmentId: String!, $serviceId: String!, $input: ServiceInstanceUpdateInput!) {
+  serviceInstanceUpdate(environmentId: $environmentId, serviceId: $serviceId, input: $input)
+}`
 export const REMOVE_MUTATION = 'mutation RemoveDeployment($id: String!) { deploymentRemove(id: $id) }'
 export const RESTART_MUTATION = 'mutation RestartDeployment($id: String!) { deploymentRestart(id: $id) }'
 export const REDEPLOY_MUTATION = `mutation RedeployService($environmentId: String!, $serviceId: String!) {

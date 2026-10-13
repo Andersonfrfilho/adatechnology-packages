@@ -16,6 +16,8 @@ import {
   RAILWAY_OPERATION,
   REDEPLOY_MUTATION,
   REMOVE_MUTATION,
+  RESTART_POLICY_QUERY,
+  SET_RESTART_POLICY_MUTATION,
   RESTART_MUTATION,
   STOP_MUTATION,
   USAGE_QUERY,
@@ -25,6 +27,8 @@ import {
   billingCycleResponseSchema,
   deploymentRemoveResponseSchema,
   deploymentRestartResponseSchema,
+  restartPolicyResponseSchema,
+  setRestartPolicyResponseSchema,
   deploymentStopResponseSchema,
   environmentServicesResponseSchema,
   estimatedUsageResponseSchema,
@@ -34,6 +38,13 @@ import {
   workspaceResponseSchema,
 } from './railwayGateway.schema'
 import type { InfraGatewayInterface } from '@adatechnology/infra-contracts'
+import {
+  INFRA_RESTART_POLICY_TYPE,
+  type InfraRestartPolicy,
+  type InfraRestartPolicyType,
+  type InfraServiceReference,
+  type SetRestartPolicyParams,
+} from '@adatechnology/infra-contracts'
 import type {
   GetEnvironmentServicesParams,
   GetUsageParams,
@@ -54,6 +65,13 @@ import type { InfraServiceInstance, InfraUsageRow } from '@adatechnology/infra-c
  * Toda resposta e entrada nao confiavel: passa por zod, e `errors` conta como falha mesmo com HTTP 200.
  * O token so vai no header; nunca entra em mensagem, contexto de erro ou log.
  */
+// Valor desconhecido do provedor vira ON_FAILURE, o padrão dele: o desligamento só altera o que reconhece.
+function toRestartPolicyType(value: string): InfraRestartPolicyType {
+  return (Object.values(INFRA_RESTART_POLICY_TYPE) as readonly string[]).includes(value)
+    ? (value as InfraRestartPolicyType)
+    : INFRA_RESTART_POLICY_TYPE.ON_FAILURE
+}
+
 export class RailwayGateway implements InfraGatewayInterface {
   readonly pricing = RAILWAY_INFRA_PRICING
   private readonly client: RailwayGraphqlClient
@@ -89,6 +107,40 @@ export class RailwayGateway implements InfraGatewayInterface {
     })
 
     return data.environment.serviceInstances.edges.map(({ node }) => normalizeServiceInstance(node))
+  }
+
+  async getRestartPolicy(reference: InfraServiceReference): Promise<InfraRestartPolicy> {
+    const data = await this.client.execute({
+      operationName: RAILWAY_OPERATION.GET_RESTART_POLICY,
+      query: RESTART_POLICY_QUERY,
+      variables: { environmentId: reference.environmentId, serviceId: reference.serviceId },
+      schema: restartPolicyResponseSchema,
+    })
+    const { restartPolicyType, restartPolicyMaxRetries } = data.serviceInstance
+
+    return {
+      type: toRestartPolicyType(restartPolicyType),
+      ...(typeof restartPolicyMaxRetries === 'number' ? { maxRetries: restartPolicyMaxRetries } : {}),
+    }
+  }
+
+  async setRestartPolicy(params: SetRestartPolicyParams): Promise<void> {
+    const { environmentId, serviceId, policy } = params
+    const data = await this.client.execute({
+      operationName: RAILWAY_OPERATION.SET_RESTART_POLICY,
+      query: SET_RESTART_POLICY_MUTATION,
+      variables: {
+        environmentId,
+        serviceId,
+        input: {
+          restartPolicyType: policy.type,
+          ...(policy.maxRetries !== undefined ? { restartPolicyMaxRetries: policy.maxRetries } : {}),
+        },
+      },
+      schema: setRestartPolicyResponseSchema,
+    })
+
+    assertAccepted(data.serviceInstanceUpdate, RAILWAY_OPERATION.SET_RESTART_POLICY)
   }
 
   async removeDeployment(params: RemoveDeploymentParams): Promise<void> {

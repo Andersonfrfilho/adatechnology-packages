@@ -28,6 +28,8 @@ async function run(direction: InfraPowerDirection, service: InfraServiceInstance
   const gateway = {
     getEnvironmentServices: async () => [],
     removeDeployment: async () => undefined,
+    getRestartPolicy: async () => ({ type: 'ON_FAILURE' }),
+    setRestartPolicy: async () => undefined,
     stopDeployment: async ({ deploymentId }: { deploymentId: string }) => void mutations.push(`stop:${deploymentId}`),
     restartDeployment: async ({ deploymentId }: { deploymentId: string }) =>
       void mutations.push(`restart:${deploymentId}`),

@@ -307,6 +307,32 @@ describe('RailwayGateway', () => {
       expect(body.query).toContain('deploymentRemove')
     })
 
+    it('getRestartPolicy le o tipo e as tentativas do servico', async () => {
+      const { gateway, calls } = buildGateway(() =>
+        ok({ serviceInstance: { restartPolicyType: 'ON_FAILURE', restartPolicyMaxRetries: 10 } }),
+      )
+
+      const policy = await gateway.getRestartPolicy({ environmentId: 'env-1', serviceId: 'svc-1' })
+
+      expect(policy).toEqual({ type: 'ON_FAILURE', maxRetries: 10 })
+      const body = JSON.parse(String(calls[0]?.init.body)) as { query: string; variables: Record<string, unknown> }
+      expect(body.variables).toEqual({ environmentId: 'env-1', serviceId: 'svc-1' })
+    })
+
+    it('setRestartPolicy envia o tipo por variables e aceita true', async () => {
+      const { gateway, calls } = buildGateway(() => ok({ serviceInstanceUpdate: true }))
+
+      await gateway.setRestartPolicy({ environmentId: 'env-1', serviceId: 'svc-1', policy: { type: 'NEVER' } })
+
+      const body = JSON.parse(String(calls[0]?.init.body)) as { query: string; variables: Record<string, unknown> }
+      expect(body.variables).toEqual({
+        environmentId: 'env-1',
+        serviceId: 'svc-1',
+        input: { restartPolicyType: 'NEVER' },
+      })
+      expect(body.query).toContain('serviceInstanceUpdate')
+    })
+
     it('restartDeployment envia o id por variables', async () => {
       const { gateway, calls } = buildGateway(() => ok({ deploymentRestart: true }))
 

@@ -139,15 +139,20 @@ describe('serviço com mais de um deployment ativo', () => {
     expect(mutationsOf(harness)).toEqual(['stop:dep-a', 'stop:dep-b'])
   })
 
-  it('remove o deployment quando parar não derruba o serviço e conclui com sucesso', async () => {
+  it('troca a política por nunca, sobe um deployment novo e para quando parar sozinho não derruba', async () => {
     const postgres = buildService({ name: 'Postgres', image: 'postgres:16' })
     const stopped = buildService({ name: 'Postgres', image: 'postgres:16', shape: 'stopped' })
     const harness: PowerHarness = buildPowerHarness({
       gatewayOptions: {
         projects: [buildProject({ environmentId: ENVIRONMENT_ID, environmentName: 'staging', services: [postgres] })],
-        // O serviço só aparece parado depois do remove: o stop sozinho não adianta.
-        environmentServices: () =>
-          harness.gateway.events.some((event) => event.startsWith('remove:')) ? [stopped] : [postgres],
+        // Só fica parado se o stop veio depois do redeploy com a política nova.
+        environmentServices: () => {
+          const { events } = harness.gateway
+          const redeployedAt = events.findIndex((event) => event.startsWith('redeploy:'))
+          const stoppedAfterRedeploy =
+            redeployedAt >= 0 && events.slice(redeployedAt).some((event) => event.startsWith('stop:'))
+          return stoppedAfterRedeploy ? [stopped] : [postgres]
+        },
       },
     })
     const useCase = new PowerOffEnvironmentUseCase(harness.dependencies)
@@ -155,11 +160,17 @@ describe('serviço com mais de um deployment ativo', () => {
     await useCase.execute(manualParams())
     await waitUntilFinished(harness)
 
-    expect(mutationsOf(harness)).toEqual(['stop:dep-Postgres', 'remove:dep-Postgres'])
+    expect(mutationsOf(harness)).toEqual([
+      'stop:dep-Postgres',
+      'policy:NEVER',
+      `redeploy:${ENVIRONMENT_ID}/svc-Postgres`,
+      'stop:dep-Postgres',
+    ])
     expect(harness.repository.operations[0]?.status).toBe('succeeded')
+    expect(await harness.cache.get(`infra:restart-policy:${ENVIRONMENT_ID}:svc-Postgres`)).toContain('ON_FAILURE')
   })
 
-  it('marca como falha o serviço que segue rodando mesmo depois de parar e remover', async () => {
+  it('marca como falha o serviço que segue rodando mesmo depois da política nova', async () => {
     const postgres = buildService({ name: 'Postgres', image: 'postgres:16' })
     const harness = buildPowerHarness({
       gatewayOptions: {
@@ -172,10 +183,36 @@ describe('serviço com mais de um deployment ativo', () => {
     await useCase.execute(manualParams())
     await waitUntilFinished(harness)
 
-    expect(mutationsOf(harness)).toEqual(['stop:dep-Postgres', 'remove:dep-Postgres'])
     expect(harness.repository.operations[0]?.status).toBe('failed')
     expect(harness.repository.operations[0]?.serviceResults).toEqual([
       { serviceName: 'Postgres', outcome: 'failed', errorCode: 'INFRA_SERVICE_STILL_RUNNING' },
     ])
+  })
+})
+
+describe('ligar devolve a política de reinício', () => {
+  it('restaura a política guardada e sobe por redeploy', async () => {
+    const harness = buildHarness([buildService({ name: 'Postgres', image: 'postgres:16', shape: 'stopped' })])
+    await harness.cache.set(
+      `infra:restart-policy:${ENVIRONMENT_ID}:svc-Postgres`,
+      JSON.stringify({ type: 'ON_FAILURE', maxRetries: 10 }),
+    )
+    const useCase = new PowerOnEnvironmentUseCase(harness.dependencies)
+
+    await useCase.execute(manualParams())
+    await waitUntilFinished(harness)
+
+    expect(mutationsOf(harness)).toEqual(['policy:ON_FAILURE', `redeploy:${ENVIRONMENT_ID}/svc-Postgres`])
+    expect(await harness.cache.get(`infra:restart-policy:${ENVIRONMENT_ID}:svc-Postgres`)).toBeNull()
+  })
+
+  it('sem política guardada, religa do jeito de sempre', async () => {
+    const harness = buildHarness([buildService({ name: 'Postgres', image: 'postgres:16', shape: 'stopped' })])
+    const useCase = new PowerOnEnvironmentUseCase(harness.dependencies)
+
+    await useCase.execute(manualParams())
+    await waitUntilFinished(harness)
+
+    expect(mutationsOf(harness)).toEqual(['restart:dep-Postgres'])
   })
 })
