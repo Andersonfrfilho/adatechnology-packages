@@ -55,6 +55,7 @@ jobs:
         run: pnpm changeset version
 
       - name: Commit version bump
+        id: bump
         env:
           HUSKY: 0
         run: |
@@ -66,6 +67,7 @@ jobs:
             git add -A
             git commit -m "chore(release): version packages"
             git push origin HEAD:main
+            echo "released=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish packages
@@ -89,18 +91,21 @@ jobs:
       # As tentativas com espera existem porque o registry leva alguns segundos para servir o
       # que acabou de receber; sem elas o passo acusaria falta do que estava só a caminho.
       - name: Verificar que os pacotes publicados estão acessíveis publicamente
+        if: steps.bump.outputs.released == 'true'
         run: |
-          faltando=""
+          # Só o que este release publicou: é o commit de versão que diz quais manifests mudaram.
+          # Conferir os ~50 pacotes do monorepo em sequência custava ~2 min por release.
+          mkdir -p "$RUNNER_TEMP/verify"
+          rm -f "$RUNNER_TEMP/verify"/*
 
-          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
-            [ -f "$manifest" ] || continue
-
+          verificar() {
+            manifest="$1"
             nome=$(jq -r '.name' "$manifest")
             versao=$(jq -r '.version' "$manifest")
             privado=$(jq -r '.private // false' "$manifest")
 
-            case "$nome" in @adatechnology/*) ;; *) continue ;; esac
-            [ "$privado" = "true" ] && continue
+            case "$nome" in @adatechnology/*) ;; *) return 0 ;; esac
+            [ "$privado" = "true" ] && return 0
 
             npm access set status=public "$nome" >/dev/null 2>&1 || true
 
@@ -108,32 +113,30 @@ jobs:
             # token do CI enxerga pacote privado e diria que está tudo bem.
             url="https://registry.npmjs.org/$(printf '%s' "$nome" | sed 's|/|%2f|')/$versao"
 
-            # Espera crescente, e não três tentativas de 10s: no release de 02/09/2026 o
-            # `identity-reconciliation` e o `product-vision-provider` levaram **minutos** para
-            # aparecer, o job ficou vermelho, e os dois estavam publicos quando se olhou depois. Um
-            # release correto reportado como falha e pior que nenhum relatorio: ensina a ignorar o CI.
-            #
-            # O orcamento (5+10+20+40+60+60 = ~3min por pacote) e o que separa as duas causas que o
-            # 404 esconde: propagacao passa sozinha, restricao de acesso nao passa nunca. Quem lag
-            # cedo tambem paga pelos seguintes — o laco e sequencial, entao o tempo gasto esperando o
-            # primeiro ja propagou os outros.
-            publico=""
+            # Espera crescente (5+10+20+40+60+60 = ~3min por pacote): propagação passa sozinha,
+            # restrição de acesso nunca passa. Os pacotes esperam em paralelo, então o pior caso
+            # é o de um pacote só, e não a soma de todos.
             for espera in 0 5 10 20 40 60 60; do
               [ "$espera" -gt 0 ] && sleep "$espera"
-              if curl -fsS -o /dev/null "$url"; then publico=1; break; fi
+              if curl -fsS -o /dev/null "$url"; then
+                echo "ok       $nome@$versao"
+                return 0
+              fi
             done
+            echo "FALTANDO $nome@$versao"
+            echo "$nome@$versao" >> "$RUNNER_TEMP/verify/faltando"
+          }
 
-            if [ -n "$publico" ]; then
-              echo "ok       $nome@$versao"
-            else
-              echo "FALTANDO $nome@$versao"
-              faltando="$faltando $nome@$versao"
-            fi
+          for manifest in $(git diff --name-only HEAD~1 HEAD -- 'packages/backend/*/package.json' 'packages/frontend/*/package.json'); do
+            [ -f "$manifest" ] || continue
+            verificar "$manifest" &
           done
+          wait
 
-          if [ -n "$faltando" ]; then
+          if [ -s "$RUNNER_TEMP/verify/faltando" ]; then
+            faltando=$(paste -sd " " "$RUNNER_TEMP/verify/faltando")
             echo
-            echo "::error::Publicado com sucesso mas inacessível para quem instala:$faltando"
+            echo "::error::Publicado com sucesso mas inacessível para quem instala: $faltando"
             echo "Torne o pacote público no registry (npm access set status=public) com uma conta"
             echo "que administre o escopo @adatechnology, ou dê essa permissão ao token do CI."
             exit 1
@@ -214,26 +217,35 @@ jobs:
       # sem tag — o oposto do que este passo existe para consertar.
       - name: Tirar o latest do 0.0.0 de andaime
         run: |
-          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
-            [ -f "$manifest" ] || continue
-
+          corrigir() {
+            manifest="$1"
             nome=$(jq -r '.name' "$manifest")
             versao=$(jq -r '.version' "$manifest")
             privado=$(jq -r '.private // false' "$manifest")
 
-            case "$nome" in @adatechnology/*) ;; *) continue ;; esac
-            [ "$privado" = "true" ] && continue
+            case "$nome" in @adatechnology/*) ;; *) return 0 ;; esac
+            [ "$privado" = "true" ] && return 0
 
             atual=$(npm view "$nome" dist-tags.latest 2>/dev/null || true)
-            [ "$atual" = "0.0.0" ] || continue
-            [ "$versao" = "0.0.0" ] && continue
+            [ "$atual" = "0.0.0" ] || return 0
+            [ "$versao" = "0.0.0" ] && return 0
 
             if npm dist-tag add "$nome@$versao" latest >/dev/null 2>&1; then
               echo "latest  $nome: 0.0.0 -> $versao"
             else
               echo "::warning::Nao consegui mover latest de $nome para $versao"
             fi
+          }
+
+          # Uma consulta ao registry por pacote: em paralelo (lotes de 8) em vez de uma atrás da outra.
+          contador=0
+          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
+            [ -f "$manifest" ] || continue
+            corrigir "$manifest" &
+            contador=$((contador + 1))
+            if [ $((contador % 8)) -eq 0 ]; then wait; fi
           done
+          wait
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
