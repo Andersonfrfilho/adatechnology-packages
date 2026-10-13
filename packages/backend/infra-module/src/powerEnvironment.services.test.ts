@@ -139,19 +139,24 @@ describe('serviço com mais de um deployment ativo', () => {
     expect(mutationsOf(harness)).toEqual(['stop:dep-a', 'stop:dep-b'])
   })
 
-  it('troca a política por nunca, sobe um deployment novo e para quando parar sozinho não derruba', async () => {
+  it('troca a política por nunca, espera o deployment NOVO e para esse quando parar sozinho não derruba', async () => {
     const postgres = buildService({ name: 'Postgres', image: 'postgres:16' })
-    const stopped = buildService({ name: 'Postgres', image: 'postgres:16', shape: 'stopped' })
+    const fresh = {
+      ...postgres,
+      latestDeploymentId: 'dep-new',
+      activeDeploymentId: 'dep-new',
+      activeDeploymentIds: ['dep-new'],
+    }
+    const stopped = { ...fresh, isStopped: true, instanceStatus: 'EXITED' }
     const harness: PowerHarness = buildPowerHarness({
       gatewayOptions: {
         projects: [buildProject({ environmentId: ENVIRONMENT_ID, environmentName: 'staging', services: [postgres] })],
-        // Só fica parado se o stop veio depois do redeploy com a política nova.
+        // Antes do redeploy o deployment antigo ainda roda; depois vem o novo; só o stop no novo derruba.
         environmentServices: () => {
           const { events } = harness.gateway
           const redeployedAt = events.findIndex((event) => event.startsWith('redeploy:'))
-          const stoppedAfterRedeploy =
-            redeployedAt >= 0 && events.slice(redeployedAt).some((event) => event.startsWith('stop:'))
-          return stoppedAfterRedeploy ? [stopped] : [postgres]
+          if (redeployedAt < 0) return [postgres]
+          return events.slice(redeployedAt).includes('stop:dep-new') ? [stopped] : [fresh]
         },
       },
     })
@@ -164,10 +169,33 @@ describe('serviço com mais de um deployment ativo', () => {
       'stop:dep-Postgres',
       'policy:NEVER',
       `redeploy:${ENVIRONMENT_ID}/svc-Postgres`,
-      'stop:dep-Postgres',
+      'stop:dep-new',
     ])
     expect(harness.repository.operations[0]?.status).toBe('succeeded')
     expect(await harness.cache.get(`infra:restart-policy:${ENVIRONMENT_ID}:svc-Postgres`)).toContain('ON_FAILURE')
+  })
+
+  it('não para o deployment antigo quando o novo não aparece no prazo, e falha', async () => {
+    const postgres = buildService({ name: 'Postgres', image: 'postgres:16' })
+    const harness = buildPowerHarness({
+      gatewayOptions: {
+        projects: [buildProject({ environmentId: ENVIRONMENT_ID, environmentName: 'staging', services: [postgres] })],
+        environmentServices: () => [postgres],
+      },
+    })
+    const useCase = new PowerOffEnvironmentUseCase(harness.dependencies)
+
+    await useCase.execute(manualParams())
+    await waitUntilFinished(harness)
+
+    expect(mutationsOf(harness)).toEqual([
+      'stop:dep-Postgres',
+      'policy:NEVER',
+      `redeploy:${ENVIRONMENT_ID}/svc-Postgres`,
+    ])
+    expect(harness.repository.operations[0]?.serviceResults).toEqual([
+      { serviceName: 'Postgres', outcome: 'failed', errorCode: 'INFRA_SERVICE_STILL_RUNNING' },
+    ])
   })
 
   it('marca como falha o serviço que segue rodando mesmo depois da política nova', async () => {
