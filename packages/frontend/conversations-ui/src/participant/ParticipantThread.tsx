@@ -76,12 +76,22 @@ export type ParticipantThreadProps = {
   readonly audioRecording?: ParticipantAudioRecordingOptions
   /** Receives the recorded audio; the controller sends it as a message of its own. */
   readonly onSendAudio?: (file: File) => void
+  /** Return a node to replace the composer for this conversation (notice + host actions); undefined keeps the composer. Evaluated every render. */
+  readonly renderComposerLock?: (conversation: ParticipantConversationSummary) => ReactNode | undefined
 }
 
 function Footer({ props }: { readonly props: ParticipantThreadProps }) {
   const { conversation, labels, draft } = props
   if (conversation.status === 'closed') {
     return <p className="cv-p-thread__closed">{labels.closedNotice}</p>
+  }
+  const lock = props.renderComposerLock?.(conversation)
+  if (lock !== undefined && lock !== null) {
+    return (
+      <div className="cv-p-thread__lock" role="region" aria-live="polite">
+        {lock}
+      </div>
+    )
   }
   return (
     <ParticipantComposer

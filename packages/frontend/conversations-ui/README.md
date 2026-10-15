@@ -334,6 +334,7 @@ import { ConversationThread } from '@adatechnology/conversations-ui/participant'
 | `status?` | `'open' \| 'closed'` | `closed` tira o compositor e mostra `labels.closedNotice` |
 | `counterpartLabel?` | `string` | linha curta sob o título, montada pelo host |
 | `headerActions?` | `ReactNode` | slot à direita do cabeçalho; ausente não desenha nada. Espera botões curtos ou só ícone, cada um com `aria-label`: com ações, a barra quebra de linha e o título mantém no mínimo `6rem` |
+| `renderComposerLock?` | `(conversation) => ReactNode \| undefined` | devolver um nó troca o compositor por ele (aviso + ações do host), dentro de `cv-p-thread__lock`; `undefined` mantém o compositor. `closed` continua tendo prioridade. Avaliado a cada render; o rascunho fica no controlador e volta ao destravar. Também existe em `ParticipantConversations` |
 | `onBack?` | `() => void` | ausente = sem seta (o diálogo do host já tem o próprio fechar) |
 | `quickReplies?` | `QuickReply[]` | chips acima do campo; tocar **preenche**, nunca envia |
 | `renderSubjectIcon?`, `subjectGroups?` | | ícone do assunto no cabeçalho, como na lista |
