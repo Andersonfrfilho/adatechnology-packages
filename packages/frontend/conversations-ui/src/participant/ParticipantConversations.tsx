@@ -44,6 +44,8 @@ export type ParticipantConversationsProps = {
   tail?: boolean
   /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */
   audioRecording?: ParticipantAudioRecordingOptions
+  /** Return a node to replace the composer for this conversation (notice + host actions); undefined keeps the composer. `closed` still wins. Evaluated every render. */
+  renderComposerLock?: (conversation: ParticipantConversationSummary) => ReactNode | undefined
 }
 
 export function ParticipantConversations(props: ParticipantConversationsProps) {

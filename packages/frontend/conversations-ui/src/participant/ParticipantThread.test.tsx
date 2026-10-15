@@ -128,6 +128,52 @@ describe('ParticipantThread', () => {
     expect(markup).not.toContain('<textarea')
   })
 
+  it('replaces the composer with the lock node inside the lock region', () => {
+    const markup = render({ renderComposerLock: () => <p>Assumed by Ana</p> })
+
+    expect(markup).toContain(
+      '<div class="cv-p-thread__lock" role="region" aria-live="polite"><p>Assumed by Ana</p></div>',
+    )
+    expect(markup).not.toContain('<form')
+    expect(markup).not.toContain('<textarea')
+  })
+
+  it('keeps the composer when renderComposerLock returns undefined or null', () => {
+    expect(render({ renderComposerLock: () => undefined })).toContain('<form')
+    expect(render({ renderComposerLock: () => null })).toContain('<form')
+    expect(render({ renderComposerLock: () => undefined })).not.toContain('cv-p-thread__lock')
+  })
+
+  it('lets the closed notice win over the lock', () => {
+    const markup = render({
+      conversation: buildConversation({ subjectId: '1', status: 'closed' }),
+      renderComposerLock: () => <p>Assumed by Ana</p>,
+    })
+
+    expect(markup).toContain('This conversation is closed')
+    expect(markup).not.toContain('Assumed by Ana')
+  })
+
+  it('passes the conversation to renderComposerLock and brings the draft back when it unlocks', () => {
+    const draft = { value: 'half typed', onChange: () => undefined, files: [], onFilesChange: () => undefined }
+    const conversation = buildConversation({ subjectId: '7' })
+    const seen: string[] = []
+
+    const locked = render({
+      draft,
+      conversation,
+      renderComposerLock: (received) => {
+        seen.push(received.subjectId)
+        return <p>Locked</p>
+      },
+    })
+    const unlocked = render({ draft, conversation, renderComposerLock: () => undefined })
+
+    expect(seen).toEqual(['7'])
+    expect(locked).not.toContain('half typed')
+    expect(unlocked).toContain('half typed')
+  })
+
   it('shows the composer when the conversation is open', () => {
     const markup = render()
 
