@@ -53,8 +53,17 @@ describe('acoplamento', () => {
     // nao acoplamento.
     const moduleLines = index.split('\n').filter((line) => /^\s*(import|export)\b.*\bfrom\b/.test(line))
 
-    expect(moduleLines.join('\n')).not.toContain('./barcode')
-    expect(moduleLines.join('\n')).not.toContain('./clip-local')
+    // Os subpaths saem do package.json, nunca de uma lista escrita aqui: lista fixa nao conhece o
+    // engine adicionado ontem, e o teste passaria verde sem cobrir o que interessa.
+    const manifest = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')) as {
+      exports: Record<string, unknown>
+    }
+    const subpaths = Object.keys(manifest.exports).filter((chave) => chave !== '.')
+
+    expect(subpaths.length).toBeGreaterThan(0)
+    for (const subpath of subpaths) {
+      expect(moduleLines.join('\n')).not.toContain(subpath)
+    }
     expect(moduleLines.length).toBeGreaterThan(0)
   })
 

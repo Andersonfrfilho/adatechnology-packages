@@ -204,3 +204,53 @@ describe('o evento de não-casado não carrega a foto', () => {
     expect(Object.keys(event as object).sort()).toEqual(['barcode', 'candidateCount', 'companyId', 'occurredAt'])
   })
 })
+
+describe('quando o desempate nao vale o tempo dele', () => {
+  it('vencedor folgado dispensa a inferencia', async () => {
+    // O desempate custa ~4s medidos, com alguem olhando o "digitando". Um vizinho quase identico
+    // nao precisa de segunda opiniao.
+    let desempatou = false
+    const useCase = buildUseCase({
+      vision: {
+        read: async () => ({ embedding: [0.1], engine: 'clip' }),
+        rank: async () => {
+          desempatou = true
+          return { productId: 'b', engine: 'vlm' }
+        },
+      },
+      nearest: [
+        { productId: 'a', name: 'A', imageUrl: null, score: 0.97 },
+        { productId: 'b', name: 'B', imageUrl: null, score: 0.7 },
+      ],
+    })
+
+    expect(await useCase.execute({ companyId: COMPANY, ...JPEG })).toEqual({
+      outcome: 'matched',
+      productId: 'a',
+      score: 0.97,
+    })
+    expect(desempatou).toBe(false)
+  })
+
+  it('score alto com segundo colado ainda desempata', async () => {
+    // Itens irmaos — mesmo produto, sabores diferentes — pontuam alto E parecido. E exatamente o
+    // caso em que a segunda opiniao ganha o tempo dela de volta.
+    let desempatou = false
+    const useCase = buildUseCase({
+      vision: {
+        read: async () => ({ embedding: [0.1], engine: 'clip' }),
+        rank: async () => {
+          desempatou = true
+          return { productId: 'b', engine: 'vlm' }
+        },
+      },
+      nearest: [
+        { productId: 'a', name: 'Iogurte Morango', imageUrl: null, score: 0.96 },
+        { productId: 'b', name: 'Iogurte Coco', imageUrl: null, score: 0.95 },
+      ],
+    })
+
+    expect((await useCase.execute({ companyId: COMPANY, ...JPEG })).outcome).toBe('matched')
+    expect(desempatou).toBe(true)
+  })
+})
