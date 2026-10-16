@@ -1,0 +1,34 @@
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+apply plugin: "com.facebook.react"
+
+def readRootExt(String name, int fallback) {
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : fallback
+}
+
+android {
+    namespace "br.com.adatechnology.stonepos"
+
+    compileSdk readRootExt("compileSdkVersion", 36)
+
+    defaultConfig {
+        minSdk readRootExt("minSdkVersion", 24)
+        targetSdk readRootExt("targetSdkVersion", 36)
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+react {
+    jsRootDir = file("../src/")
+    libraryName = "NativeStonePosSpec"
+    codegenJavaPackageName = "br.com.adatechnology.stonepos"
+}
+
+dependencies {
+    implementation "com.facebook.react:react-android"
+    testImplementation "junit:junit:4.13.2"
+}
