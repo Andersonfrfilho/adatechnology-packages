@@ -61,6 +61,11 @@ import { createDeviceRegistration } from '@adatechnology/notification-client'
 Registra o token de push e **remove no logout** — device que continua registrado depois da saída
 manda notificação da conta antiga para o aparelho.
 
+## Restaurar modelo padrão
+
+`restoreDefault(id)` (no cliente HTTP) → `POST /notification-templates/:id/restore-default`; devolve o
+`NotificationTemplate` (a versão nova). `400` se o id não é do modelo padrão, `409` se recusada.
+
 ## Licença
 
 MIT © Ada Technology

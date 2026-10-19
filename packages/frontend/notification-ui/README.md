@@ -49,6 +49,14 @@ Tudo por TanStack Query — nunca `useEffect` + `useState` para carregar da API.
 invalida as queries em vez de escrever no cache na mão: a origem da verdade continua sendo a API,
 e a tela não diverge se um evento se perder na reconexão.
 
+## Modelo padrão de e-mail na tela de modelos
+
+O `NotificationSettingsWorkspace` trata `notification.standard-email` à parte: selo "Modelo do
+sistema", **sem "Remover"**, botão "Restaurar padrão" (`useRestoreTemplateDefault`), **sem campo de
+assunto** (é o da conversa) e prévia com as variáveis de exemplo. Variáveis obrigatórias faltando e
+HTML inseguro aparecem listados antes de salvar (`standardEmail.util.ts`, reusa `assess` do contracts).
+Textos em `settings.system*`/`settings.standard*` (pt-BR e en).
+
 ## Licença
 
 MIT © Ada Technology
