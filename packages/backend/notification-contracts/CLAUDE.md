@@ -53,3 +53,11 @@ const whatsappDriver = createWhatsAppDriverFromChannel(whatsapp.channel)
 Erros da Graph API viram `invalid_target` (131026, 131051), `permanent` (131047 janela de 24 h,
 131031, 368) ou `retriable` (429, 5xx, 613). Erro sem código é tratado como retriável — quase
 sempre é rede, e o retry é finito.
+
+## Modelo padrão de e-mail
+
+`emailHtml.ts` (regras genéricas, sem conhecer o padrão) e `standardEmail.ts` (a chave
+`notification.standard-email`, variáveis, `assess`/`render`). O HTML embutido nasce de
+`templates/standard-email.pt-BR.html` via `scripts/generate-standard-email.ts` →
+`standardEmailTemplate.generated.ts`: edite o `.html` e regenere, nunca o `.generated.ts`.
+Invariante: nenhuma variável em atributo/`style`; HTML do sistema só pelo nome, texto sempre escapado.

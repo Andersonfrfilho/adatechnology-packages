@@ -7,6 +7,8 @@
 import {
   DuplicateWebhookDeliveryError,
   InvalidWebhookSignatureError,
+  STANDARD_EMAIL_TEMPLATE_KEY,
+  TemplateIdNotFoundError,
   deliveryWebhookSchema,
   registerDeviceSchema,
   sendNotificationSchema,
@@ -213,6 +215,24 @@ export function buildManagementRoutes(params: { module: NotificationModule; webh
           id: context.params.id ?? '',
         })
         return { kind: 'empty', status: 204 }
+      },
+    },
+
+    {
+      method: 'POST',
+      path: '/notification-templates/:id/restore-default',
+      scope: 'admin',
+      operationId: 'restoreDefaultNotificationTemplate',
+      summary: 'Restaura o modelo padrão de e-mail (grava uma versão nova com o conteúdo original)',
+      async handler(context) {
+        const { companyId } = requireCompany(context)
+        const row = await params.module.useCases.listTemplates
+          .execute({ companyId })
+          .then((all) => all.find((template) => template.id === context.params.id))
+        // Só a chave padrão tem "padrão" a restaurar; qualquer outra id é "não encontrado".
+        if (!row || row.key !== STANDARD_EMAIL_TEMPLATE_KEY) throw new TemplateIdNotFoundError(context.params.id ?? '')
+        const template = await params.module.standardEmail.restoreDefault({ companyId, locale: row.locale })
+        return { kind: 'json', status: 201, body: { data: template } }
       },
     },
 

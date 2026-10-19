@@ -97,6 +97,11 @@ export type NotificationClient = {
    * linhas, porque entrega já enviada precisa continuar auditável com o texto que usou.
    */
   deactivateTemplate(id: string): Promise<void>
+  /**
+   * "Restaurar padrão": o servidor grava uma versão nova com o conteúdo embutido do modelo padrão
+   * (`notification.standard-email`). 400 se o id não é dele; 409 se a restauração é recusada.
+   */
+  restoreDefault(id: string): Promise<NotificationTemplate>
   /** O catálogo de variáveis por chave — é o que a tela mostra como lista clicável. */
   listTemplateVariables(): Promise<TemplateVariableCatalog>
   /** Base + headers, para o assinante de SSE reaproveitar a mesma configuração. */
@@ -236,6 +241,15 @@ export function createNotificationClient(config: NotificationClientConfig): Noti
 
     async deactivateTemplate(id): Promise<void> {
       await request({ method: 'DELETE', path: `/notification-templates/${encodeURIComponent(id)}` })
+    },
+
+    async restoreDefault(id): Promise<NotificationTemplate> {
+      const payload = await request<{ data: NotificationTemplate }>({
+        method: 'POST',
+        path: `/notification-templates/${encodeURIComponent(id)}/restore-default`,
+      })
+      if (!payload?.data) throw new Error('notification-client: restoreDefault não devolveu o template')
+      return payload.data
     },
 
     async listTemplateVariables(): Promise<TemplateVariableCatalog> {

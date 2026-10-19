@@ -44,6 +44,23 @@ export class TemplateRepository {
     return row
   }
 
+  /** Existe alguma linha da identidade, ativa ou não? A semente só grava quando não há nenhuma. */
+  async existsIdentity(params: { companyId: string; key: string; channel: string; locale: string }): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: templates.id })
+      .from(templates)
+      .where(
+        and(
+          eq(templates.companyId, params.companyId),
+          eq(templates.key, params.key),
+          eq(templates.channel, params.channel),
+          eq(templates.locale, params.locale),
+        ),
+      )
+      .limit(1)
+    return row !== undefined
+  }
+
   async findById(params: { companyId: string; id: string }): Promise<TemplateRow | undefined> {
     const [row] = await this.db
       .select()

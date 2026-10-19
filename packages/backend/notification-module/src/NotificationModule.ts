@@ -10,6 +10,8 @@
 import {
   ChannelNotConfiguredError,
   ConfigMissingError,
+  STANDARD_EMAIL_TEMPLATE_KEY,
+  STANDARD_EMAIL_VARIABLES,
   type ChannelDrivers,
   type NotificationHooks,
 } from '@adatechnology/notification-contracts'
@@ -33,6 +35,7 @@ import { PreferenceRepository } from './repositories/PreferenceRepository'
 import { SuppressionRepository } from './repositories/SuppressionRepository'
 import { CategoryPolicyRepository } from './repositories/CategoryPolicyRepository'
 import { TemplateRepository } from './repositories/TemplateRepository'
+import { StandardEmailService } from './use-cases/StandardEmail.use-cases'
 import { createDefaultTemplateRenderer } from './shared/DefaultTemplateRenderer'
 import { createInProcessQueue } from './shared/InProcessQueue'
 import { createInProcessRealtimeNotifier } from './shared/InProcessRealtimeNotifier'
@@ -136,7 +139,9 @@ export type NotificationModule = {
     readonly updateCategoryPolicies: UpdateCategoryPoliciesUseCase
     readonly seedDefaultTemplates: SeedDefaultTemplatesUseCase
   }
-  /** Reexposto para a rota entregar o catálogo à tela sem o host repetir a config. */
+  /** O modelo padrão de e-mail: cadastro (semente), resolução, renderização e restauração. */
+  readonly standardEmail: StandardEmailService
+  /** Catálogo do host + o do modelo padrão (o do SDK vence); é o que a rota entrega à tela. */
   readonly templateVariables: TemplateVariableCatalog
 }
 
@@ -202,7 +207,12 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     templateVariables: params.config.templateVariables ?? {},
   })
 
-  const upsertTemplate = new UpsertTemplateUseCase(templates, params.config.templateVariables)
+  // O catálogo do modelo padrão é do SDK: o host não o sobrescreve (a validação do `upsert` e a tela o conhecem).
+  const templateVariables: TemplateVariableCatalog = {
+    ...params.config.templateVariables,
+    [STANDARD_EMAIL_TEMPLATE_KEY]: STANDARD_EMAIL_VARIABLES,
+  }
+  const upsertTemplate = new UpsertTemplateUseCase(templates, templateVariables)
 
   return {
     realtime,
@@ -248,6 +258,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
       updateCategoryPolicies: new UpdateCategoryPoliciesUseCase(categoryPolicies),
       seedDefaultTemplates: new SeedDefaultTemplatesUseCase(upsertTemplate),
     },
-    templateVariables: params.config.templateVariables ?? {},
+    standardEmail: new StandardEmailService(templates, params.providers.logger),
+    templateVariables,
   }
 }

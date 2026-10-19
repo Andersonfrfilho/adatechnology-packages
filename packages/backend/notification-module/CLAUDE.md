@@ -145,3 +145,11 @@ broker entrega na hora, e o backoff de retry e o reagendamento por quiet hours p
 Dublês de driver (`createInMemoryPushDriver` e afins, com `outcome` fixo para forçar retry ou
 token morto), `createControllableQueue` (o teste decide QUANDO o job roda, sem timer) e
 `createInMemoryCache`. O host testa o próprio wiring sem rede, banco nem broker.
+
+## Modelo padrão de e-mail
+
+`use-cases/StandardEmail.use-cases.ts`. O padrão não pode ser removido nem desativado
+(`Template.use-cases.ts` recusa com 409) e não grava HTML inutilizável (400). O fallback embutido
+garante que o envio nunca fica sem modelo; o log do fallback nunca leva o HTML. `ensureTemplate`
+roda no pré-deploy do host, não no caminho de envio. Testes: `StandardEmail.use-cases.test.ts`,
+`http/standardEmailRoutes.test.ts`.

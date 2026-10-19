@@ -90,3 +90,15 @@ export function useDeactivateTemplate() {
     },
   })
 }
+
+export function useRestoreTemplateDefault() {
+  const { client } = useNotificationContext()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => client.restoreDefault(id),
+    onSuccess() {
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEYS.templates() })
+    },
+  })
+}

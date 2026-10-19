@@ -3,8 +3,10 @@
  */
 
 import {
+  STANDARD_EMAIL_TEMPLATE_KEY,
   TemplateIdNotFoundError,
   UnknownTemplateVariablesError,
+  assessStandardEmailTemplate,
   diffTemplateVariables,
 } from '@adatechnology/notification-contracts'
 import type {
@@ -14,8 +16,9 @@ import type {
 } from '@adatechnology/notification-contracts'
 import type { TemplateRepository, UpsertTemplateInput } from '../repositories/TemplateRepository'
 import type { TemplateRow } from '../schema/schema'
+import { StandardEmailTemplateInvalidError, StandardEmailTemplateRequiredError } from './StandardEmail.errors'
 
-function toNotificationTemplate(row: TemplateRow): NotificationTemplate {
+export function toNotificationTemplate(row: TemplateRow): NotificationTemplate {
   return {
     id: row.id,
     key: row.key,
@@ -48,6 +51,15 @@ export class UpsertTemplateUseCase {
     })
     if (diff.unknown.length > 0) throw new UnknownTemplateVariablesError(params.key, diff.unknown)
 
+    if (params.key === STANDARD_EMAIL_TEMPLATE_KEY) {
+      // Desativar por aqui seria "Remover" por outro caminho; o modelo padrão não some.
+      if (!params.active) throw new StandardEmailTemplateRequiredError()
+      const assessment = assessStandardEmailTemplate(params.body)
+      if (!assessment.usable) {
+        throw new StandardEmailTemplateInvalidError(assessment.missing, assessment.unsafe)
+      }
+    }
+
     const row = await this.templates.upsert(params)
     return toNotificationTemplate(row)
   }
@@ -63,6 +75,7 @@ export class DeactivateTemplateUseCase {
   async execute(params: { companyId: string; id: string }): Promise<void> {
     const row = await this.templates.findById(params)
     if (!row) throw new TemplateIdNotFoundError(params.id)
+    if (row.key === STANDARD_EMAIL_TEMPLATE_KEY) throw new StandardEmailTemplateRequiredError()
 
     // Idempotente: a linha já inativa cai no update que não afeta nenhuma e responde igual.
     await this.templates.deactivateIdentity({

@@ -153,3 +153,35 @@ export type {
   TemplateConstraintField,
   TemplateConstraintLimits,
 } from './previewViewport'
+
+export {
+  STANDARD_EMAIL_THEME,
+  buildInitials,
+  escapeEmailHtml,
+  findUnsafeEmailHtml,
+  htmlToPlainText,
+  interpolateEmailHtml,
+  renderEmailLogoHtml,
+  renderEmailMarksHtml,
+} from './emailHtml'
+export type { EmailLogo, InterpolateEmailHtmlParams, UnsafeEmailHtmlRule } from './emailHtml'
+
+export {
+  STANDARD_EMAIL_BUILTIN_TEMPLATE,
+  STANDARD_EMAIL_CHANNEL,
+  STANDARD_EMAIL_HTML_MAX_BYTES,
+  STANDARD_EMAIL_LOCALE,
+  STANDARD_EMAIL_REQUIRED_VARIABLES,
+  STANDARD_EMAIL_SYSTEM_HTML_VARIABLES,
+  STANDARD_EMAIL_TEMPLATE_KEY,
+  STANDARD_EMAIL_VARIABLES,
+  assessStandardEmailTemplate,
+  renderStandardEmail,
+} from './standardEmail'
+export type {
+  RenderedStandardEmail,
+  StandardEmailAssessment,
+  StandardEmailInput,
+  StandardEmailSystemHtmlVariable,
+  StandardEmailTemplate,
+} from './standardEmail'

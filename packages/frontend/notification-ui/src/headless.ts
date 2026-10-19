@@ -31,6 +31,7 @@ export {
   useUpsertTemplate,
   useTemplateVariables,
   useDeactivateTemplate,
+  useRestoreTemplateDefault,
 } from './hooks/usePreferences'
 
 export { NOTIFICATION_QUERY_KEYS } from './hooks/queryKeys'

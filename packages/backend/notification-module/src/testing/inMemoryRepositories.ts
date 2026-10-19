@@ -185,7 +185,29 @@ export function createInMemoryTemplates(seed: TemplateRow[] = []) {
     async listByCompany(params: { companyId: string }): Promise<TemplateRow[]> {
       return seed.filter((row) => row.companyId === params.companyId)
     },
-    async upsert(params: { companyId: string; key: string; channel: string; locale: string }): Promise<TemplateRow> {
+    async existsIdentity(params: {
+      companyId: string
+      key: string
+      channel: string
+      locale: string
+    }): Promise<boolean> {
+      return seed.some(
+        (row) =>
+          row.companyId === params.companyId &&
+          row.key === params.key &&
+          row.channel === params.channel &&
+          row.locale === params.locale,
+      )
+    },
+    async upsert(params: {
+      companyId: string
+      key: string
+      channel: string
+      locale: string
+      body?: string
+      subject?: string
+      active?: boolean
+    }): Promise<TemplateRow> {
       const previous = seed.filter(
         (row) =>
           row.companyId === params.companyId &&
@@ -198,6 +220,9 @@ export function createInMemoryTemplates(seed: TemplateRow[] = []) {
         key: params.key,
         channel: params.channel,
         locale: params.locale,
+        ...(params.body === undefined ? {} : { body: params.body }),
+        ...(params.subject === undefined ? {} : { subject: params.subject }),
+        ...(params.active === undefined ? {} : { active: params.active }),
         version: Math.max(0, ...previous.map((each) => each.version)) + 1,
       })
       seed.push(row)
@@ -209,14 +234,16 @@ export function createInMemoryTemplates(seed: TemplateRow[] = []) {
       channel: string
       locale: string
     }): Promise<TemplateRow | undefined> {
-      return seed.find(
-        (row) =>
-          row.companyId === params.companyId &&
-          row.key === params.key &&
-          row.channel === params.channel &&
-          row.locale === params.locale &&
-          row.active,
-      )
+      return seed
+        .filter(
+          (row) =>
+            row.companyId === params.companyId &&
+            row.key === params.key &&
+            row.channel === params.channel &&
+            row.locale === params.locale &&
+            row.active,
+        )
+        .sort((a, b) => b.version - a.version)[0]
     },
   }
 }
