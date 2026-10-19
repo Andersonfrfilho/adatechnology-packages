@@ -1,9 +1,21 @@
 import { User } from 'lucide-react'
+import type { ParticipantAttachment } from '@adatechnology/conversation-contracts'
 import type { ReactNode } from 'react'
 
 import { authorInitials } from './participantAvatar'
 
 export type ParticipantAuthorAvatarRenderer = (author: { name: string | null }) => ReactNode
+
+/** What the host receives to draw per-message actions (copy, forward...); only messages the server already holds. */
+export type ParticipantMessageActionsTarget = {
+  readonly id: string
+  readonly text: string | null
+  readonly authorName: string | null
+  readonly isMine: boolean
+  readonly attachments: readonly ParticipantAttachment[]
+}
+
+export type ParticipantMessageActionsRenderer = (message: ParticipantMessageActionsTarget) => ReactNode
 
 export type ParticipantAuthorAvatarProps = {
   readonly name: string | null

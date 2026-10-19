@@ -103,6 +103,7 @@ function LoadedThread(props: LoadedThreadProps) {
       renderSubjectIcon={props.renderSubjectIcon}
       avatars={props.avatars}
       renderAuthorAvatar={props.renderAuthorAvatar}
+      renderMessageActions={props.renderMessageActions}
       tail={props.tail}
       audioRecording={props.audioRecording}
       renderComposerLock={props.renderComposerLock}

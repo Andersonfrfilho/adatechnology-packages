@@ -1302,6 +1302,7 @@
 .cv-p-bubble__author { display: block; flex: 1 0 100%; margin-bottom: 0.15rem; font: 0.65rem 'SFMono-Regular', Consolas, monospace; text-transform: uppercase; color: var(--cv-p-i-accent); }
 .cv-p-bubble > .cv-p-text { flex: 0 1 auto; min-width: 0; margin-inline-end: auto; }
 .cv-p-bubble > .cv-p-attachment { flex: 1 0 100%; }
+.cv-p-bubble__host-actions { display: inline-flex; align-items: center; gap: 0.25rem; }
 .cv-p-bubble__meta { display: flex; flex: 0 0 auto; justify-content: flex-end; align-items: center; gap: 0.35rem; margin-inline-start: auto; margin-top: 0.25rem; font: 0.65rem 'SFMono-Regular', Consolas, monospace; color: var(--cv-p-i-text-muted); }
 .cv-p-bubble__status { display: inline-flex; align-items: center; gap: 0.25rem; }
 .cv-p-bubble .cv-status-ticks--queued, .cv-p-bubble .cv-status-ticks--sent, .cv-p-bubble .cv-status-ticks--delivered { color: var(--cv-p-i-tick); }

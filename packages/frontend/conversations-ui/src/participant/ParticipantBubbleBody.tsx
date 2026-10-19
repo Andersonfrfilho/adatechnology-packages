@@ -2,6 +2,7 @@ import { formatTimestamp } from '../lib/format'
 import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import { OwnStatus } from './ParticipantBubbleStatus'
 import { ParticipantFailedMenu } from './ParticipantFailedMenu'
+import type { ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import type { BubbleContent } from './ParticipantMessageBubble'
 import { ParticipantMessageText } from './ParticipantMessageText'
 import type { ParticipantConversationsLabels } from './participantLabels'
@@ -16,6 +17,7 @@ type BubbleBodyProps = {
   readonly onRetry?: () => void
   readonly onDiscard?: () => void
   readonly onEdit?: () => void
+  readonly renderMessageActions?: ParticipantMessageActionsRenderer
 }
 
 function BubbleHeading({ content, labels }: Pick<BubbleBodyProps, 'content' | 'labels'>) {
@@ -24,7 +26,19 @@ function BubbleHeading({ content, labels }: Pick<BubbleBodyProps, 'content' | 'l
   return <span className="cv-p-bubble__author">{content.authorName}</span>
 }
 
-export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachmentUrl, onRetry, onDiscard, onEdit }: BubbleBodyProps) {
+function hostActions(content: BubbleContent, render?: ParticipantMessageActionsRenderer) {
+  if (!render || content.messageId === undefined) return null
+  return render({
+    id: content.messageId,
+    text: content.text ?? null,
+    authorName: content.authorName ?? null,
+    isMine: content.isMine,
+    attachments: content.attachments,
+  })
+}
+
+export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachmentUrl, onRetry, onDiscard, onEdit, renderMessageActions }: BubbleBodyProps) {
+  const actions = hostActions(content, renderMessageActions)
   return (
     <>
       <BubbleHeading content={content} labels={labels} />
@@ -48,6 +62,7 @@ export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachme
         </time>
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
         {ownStatus === 'failed' ? <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} /> : null}
+        {actions ? <span className="cv-p-bubble__host-actions">{actions}</span> : null}
       </span>
     </>
   )
