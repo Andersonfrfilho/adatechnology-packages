@@ -153,3 +153,15 @@ export type {
   TemplateConstraintField,
   TemplateConstraintLimits,
 } from './previewViewport'
+
+export {
+  STANDARD_EMAIL_THEME,
+  buildInitials,
+  escapeEmailHtml,
+  findUnsafeEmailHtml,
+  htmlToPlainText,
+  interpolateEmailHtml,
+  renderEmailLogoHtml,
+  renderEmailMarksHtml,
+} from './emailHtml'
+export type { EmailLogo, InterpolateEmailHtmlParams, UnsafeEmailHtmlRule } from './emailHtml'
