@@ -52,8 +52,15 @@ const SCHEME_REGEX = /(?:javascript|vbscript):/iu
 /**
  * `{{` dentro de uma tag aberta: atributos entre aspas podem conter `>` e o `{{` pode estar dentro do valor entre
  * aspas. Fora disso, `{{` dentro de `<style>…</style>` (CSS injetável).
+ *
+ * O que vem depois do `<` e conta como abertura: letra ASCII (tag), `/` (tag de fechamento), `!` (declaração) e `?`
+ * (comentário "bogus"), todos tratados pelo navegador como marcação; `%` (resíduo de `<% %>`, não é tag no HTML5, mas
+ * parsers legados o tratam como tal) e `{{` colado ou depois de espaço — se o valor substituído começar com uma letra,
+ * `<{{x}}>` vira tag (`name = "img src=x onerror=…"`). `< x` seguido de espaço é texto no navegador, mas bloquear é
+ * barato: quem quer um `<` literal usa `&lt;`.
  */
-const PLACEHOLDER_IN_TAG_REGEX = /<[a-zA-Z/!](?:[^>"']|"[^"]*"|'[^']*')*(?:\{\{|"[^"]*\{\{|'[^']*\{\{)/u
+const PLACEHOLDER_IN_TAG_REGEX =
+  /<(?:[a-zA-Z/!?%]|(?=\s*\{\{))(?:[^>"']|"[^"]*"|'[^']*')*(?:\{\{|"[^"]*\{\{|'[^']*\{\{)/u
 const PLACEHOLDER_IN_STYLE_REGEX = /<style\b(?:(?!<\/style\b)[\s\S])*?\{\{/iu
 // eslint-disable-next-line no-control-regex -- exatamente `[\u0000- ]` (controles e espaço)
 const CONTROL_AND_SPACE_REGEX = /[\u0000- ]/gu

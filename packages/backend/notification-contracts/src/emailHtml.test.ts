@@ -220,6 +220,30 @@ export const UNSAFE_EMAIL_HTML_CASES: readonly UnsafeEmailHtmlCase[] = [
     worker: 'bloqueia',
   },
   {
+    html: '<{{x}}>',
+    name: 'placeholder em tag: placeholder colado ao <',
+    rules: ['placeholder_in_tag'],
+    worker: 'bloqueia',
+  },
+  {
+    html: '< {{x}}>',
+    name: 'placeholder em tag: placeholder depois de < e espaço',
+    rules: ['placeholder_in_tag'],
+    worker: 'bloqueia',
+  },
+  {
+    html: '<?{{x}}>',
+    name: 'placeholder em tag: placeholder depois de <? (comentário bogus)',
+    rules: ['placeholder_in_tag'],
+    worker: 'bloqueia',
+  },
+  {
+    html: '<%{{x}}>',
+    name: 'placeholder em tag: placeholder depois de <%',
+    rules: ['placeholder_in_tag'],
+    worker: 'bloqueia',
+  },
+  {
     html: '<style>p{color:{{cor}}}</style>',
     name: 'placeholder em tag: dentro de style',
     rules: ['placeholder_in_tag'],
@@ -270,7 +294,7 @@ describe('findUnsafeEmailHtml: tabela de casos da 272', () => {
 
     expect([...rules].sort()).toEqual(['event', 'placeholder_in_tag', 'scheme', 'tag'])
     expect(UNSAFE_EMAIL_HTML_CASES.some((row) => row.rules.length === 0)).toBe(true)
-    expect(UNSAFE_EMAIL_HTML_CASES.length).toBe(42)
+    expect(UNSAFE_EMAIL_HTML_CASES.length).toBe(46)
   })
 
   for (const row of UNSAFE_EMAIL_HTML_CASES) {

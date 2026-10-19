@@ -25,8 +25,12 @@ import { toNotificationTemplate } from './Template.use-cases'
 
 /** Violação da unicidade `(empresa, chave, canal, locale, versão)` — outro processo gravou a v1 antes. */
 function isUniqueViolation(error: unknown): boolean {
-  const candidate = error as { code?: unknown; cause?: { code?: unknown } } | null
-  return candidate?.code === '23505' || candidate?.cause?.code === '23505'
+  const isUnique = (candidate: unknown): boolean => {
+    const { code, errno } = (candidate ?? {}) as { code?: unknown; errno?: unknown }
+    // No driver do Bun o SQLSTATE vem em `errno`; o `code` é `ERR_POSTGRES_SERVER_ERROR`.
+    return code === '23505' || errno === '23505'
+  }
+  return isUnique(error) || isUnique((error as { cause?: unknown } | null)?.cause)
 }
 
 export class StandardEmailService {

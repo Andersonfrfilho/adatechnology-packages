@@ -357,6 +357,7 @@ describe('assessStandardEmailTemplate', () => {
       ['<a href="#" onclick="x()">a</a>', 'event'],
       ['<a href="javascript:x">a</a>', 'scheme'],
       ['<p style="color:{{nomeEmpresa}}">a</p>', 'placeholder_in_tag'],
+      ['<{{nomeAssinante}}>', 'placeholder_in_tag'],
     ]
     for (const [extra, rule] of cases) {
       const assessment = assessStandardEmailTemplate(`${BUILTIN.html}${extra}`)
