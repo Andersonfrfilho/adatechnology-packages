@@ -22,6 +22,7 @@
   "scripts": {
     "build": "tsup",
     "check": "tsc -p tsconfig.json --noEmit",
+    "generate:standard-email": "bun scripts/generate-standard-email.ts && eslint --fix src/templates/standardEmailTemplate.generated.ts",
     "test": "bun test"
   },
   "dependencies": {
