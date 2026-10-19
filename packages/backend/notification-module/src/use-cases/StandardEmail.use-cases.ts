@@ -49,7 +49,13 @@ export class StandardEmailService {
     if (await this.templates.existsIdentity(identity)) return false
 
     try {
-      await this.templates.upsert({ ...identity, body: STANDARD_EMAIL_BUILTIN_TEMPLATE.html, active: true })
+      // Versão 1 explícita (sem max+1): a corrida colide no índice único em vez de gravar a v2.
+      await this.templates.insertVersion({
+        ...identity,
+        version: 1,
+        body: STANDARD_EMAIL_BUILTIN_TEMPLATE.html,
+        active: true,
+      })
       return true
     } catch (error) {
       if (isUniqueViolation(error)) return false
