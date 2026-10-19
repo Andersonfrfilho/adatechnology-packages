@@ -68,12 +68,21 @@ describe('POST /notification-templates/:id/restore-default', () => {
     const response = await router.handle(
       new Request(`http://localhost/v1/notification-templates/${edited.id}/restore-default`, { method: 'POST' }),
     )
-    const payload = (await response.json()) as { data: { version: number; body: string } }
+    const payload = (await response.json()) as { data: { version: number; body: string } & Record<string, unknown> }
 
     expect(response.status).toBe(201)
     expect(payload.data.version).toBe(2)
     expect(payload.data.body).toBe(STANDARD_EMAIL_BUILTIN_TEMPLATE.html)
     expect(store.rows).toHaveLength(2)
+    // Forma que o `notification-client.restoreDefault` espera: `{ data: NotificationTemplate }`, sem outras chaves.
+    expect(Object.keys(payload)).toEqual(['data'])
+    expect(payload.data).toMatchObject({
+      id: store.rows[1]?.id,
+      key: STANDARD_EMAIL_TEMPLATE_KEY,
+      channel: 'email',
+      locale: 'pt-BR',
+      active: true,
+    })
   })
 
   it('id de outra chave ou de outra empresa é 404 e não grava nada', async () => {
