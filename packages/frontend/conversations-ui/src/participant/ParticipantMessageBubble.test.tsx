@@ -247,6 +247,7 @@ describe('renderMessageActions', () => {
             subject: { subjectType: 'invoice', subjectId: '1' },
             text: 'oi',
             createdAt: '2026-01-01T10:00:00.000Z',
+            state: 'queued',
           },
         }}
         labels={LABELS}

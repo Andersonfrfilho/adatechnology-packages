@@ -5,7 +5,7 @@ import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@ada
 import type { ConversationChannel } from '../conversationChannel'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ConversationsTheme } from '../types'
-import type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+import type { ParticipantAuthorAvatarRenderer, ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import { ParticipantConversationsScreen } from './ParticipantConversationsScreen'
 import type {
   ParticipantConversationsClassNames,
@@ -40,6 +40,8 @@ export type ParticipantConversationsProps = {
   avatars?: 'initials'
   /** Host slot for the author's photo; wins over 'initials' and enables avatars on its own. */
   renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Host slot at the end of each message's meta line (copy, forward...). The package knows no action. */
+  renderMessageActions?: ParticipantMessageActionsRenderer
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
   tail?: boolean
   /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */
