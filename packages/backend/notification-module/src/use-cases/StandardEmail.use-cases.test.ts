@@ -141,6 +141,23 @@ describe('standardEmail.ensureTemplate', () => {
     expect(await new StandardEmailService(repository).ensureTemplate({ companyId: COMPANY })).toBe(false)
   })
 
+  it('o 23505 no formato do driver do Bun (SQLSTATE em `errno`, `code` genérico) também é "já existe"', async () => {
+    const bunError = (): Error =>
+      Object.assign(new Error('duplicate key'), { code: 'ERR_POSTGRES_SERVER_ERROR', errno: '23505' })
+    for (const thrown of [bunError(), Object.assign(new Error('Failed query'), { cause: bunError() })]) {
+      const repository = {
+        async existsIdentity() {
+          return false
+        },
+        async upsert() {
+          throw thrown
+        },
+      } as unknown as TemplateRepository
+
+      expect(await new StandardEmailService(repository).ensureTemplate({ companyId: COMPANY })).toBe(false)
+    }
+  })
+
   it('outro erro do banco sobe', async () => {
     const repository = {
       async existsIdentity() {
