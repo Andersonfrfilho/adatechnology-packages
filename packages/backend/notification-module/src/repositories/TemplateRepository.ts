@@ -104,6 +104,29 @@ export class TemplateRepository {
   }
 
   /**
+   * INSERT direto da versão informada, sem `max(version)+1`: duas chamadas para a mesma versão
+   * colidem no índice único `idx_templates_identity` (23505) em vez de gravar versões diferentes.
+   */
+  async insertVersion(params: { companyId: string; version: number } & UpsertTemplateInput): Promise<TemplateRow> {
+    const [row] = await this.db
+      .insert(templates)
+      .values({
+        companyId: params.companyId,
+        key: params.key,
+        channel: params.channel,
+        locale: params.locale,
+        subject: params.subject,
+        body: params.body,
+        whatsappTemplateName: params.whatsappTemplateName,
+        active: params.active,
+        version: params.version,
+      })
+      .returning()
+    if (!row) throw new Error('notification-module: insert em templates não retornou linha')
+    return row
+  }
+
+  /**
    * Cada chamada cria uma **versão nova** — templates são histórico imutável, nunca sobrescreve
    * o corpo de uma versão já publicada (uma notificação enviada precisa continuar auditável com
    * o texto que ela realmente usou).

@@ -199,6 +199,34 @@ export function createInMemoryTemplates(seed: TemplateRow[] = []) {
           row.locale === params.locale,
       )
     },
+    async insertVersion(params: {
+      companyId: string
+      key: string
+      channel: string
+      locale: string
+      version: number
+      body: string
+      active: boolean
+    }): Promise<TemplateRow> {
+      // Como o índice único `idx_templates_identity`: mesma (empresa, chave, canal, locale, versão) é 23505.
+      if (
+        seed.some(
+          (row) =>
+            row.companyId === params.companyId &&
+            row.key === params.key &&
+            row.channel === params.channel &&
+            row.locale === params.locale &&
+            row.version === params.version,
+        )
+      ) {
+        throw Object.assign(new Error('duplicate key value violates unique constraint "idx_templates_identity"'), {
+          code: '23505',
+        })
+      }
+      const row = buildTemplateRow({ ...params })
+      seed.push(row)
+      return row
+    },
     async upsert(params: {
       companyId: string
       key: string

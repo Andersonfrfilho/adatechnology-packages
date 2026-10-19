@@ -99,22 +99,15 @@ describe('standardEmail.ensureTemplate', () => {
     expect(store.rows).toHaveLength(2)
   })
 
-  it('duas chamadas concorrentes: uma grava, a outra perde a corrida (23505) e conta 0 sem erro', async () => {
-    const rows: TemplateRow[] = []
+  it('duas chamadas concorrentes entre o existsIdentity e a gravação: uma grava a v1, a outra conta false (nunca v2)', async () => {
+    const store = createInMemoryTemplates()
     const racing = {
-      async existsIdentity() {
+      ...store,
+      async existsIdentity(params: { companyId: string; key: string; channel: string; locale: string }) {
+        const exists = await store.existsIdentity(params)
+        await Promise.resolve() // as duas chamadas leem "não existe" antes de qualquer gravação
         await Promise.resolve()
-        return rows.length > 0
-      },
-      async upsert(params: { companyId: string; key: string; channel: string; locale: string; body: string }) {
-        const version = Math.max(0, ...rows.map((each) => each.version)) + 1
-        await Promise.resolve() // a janela entre o select da versão e o insert
-        if (rows.some((each) => each.version === version)) {
-          throw Object.assign(new Error('duplicate key value violates unique constraint'), { code: '23505' })
-        }
-        const created = buildTemplateRow({ ...params, version })
-        rows.push(created)
-        return created
+        return exists
       },
     } as unknown as TemplateRepository
     const service = new StandardEmailService(racing)
@@ -125,7 +118,17 @@ describe('standardEmail.ensureTemplate', () => {
     ])
 
     expect(results.filter(Boolean)).toHaveLength(1)
-    expect(rows).toHaveLength(1)
+    expect(store.rows).toHaveLength(1)
+    expect(store.rows[0]?.version).toBe(1)
+  })
+
+  it('o índice único (empresa, chave, canal, locale, versão): inserir a mesma versão duas vezes dá 23505', async () => {
+    const store = createInMemoryTemplates()
+    const input = { companyId: COMPANY, ...IDENTITY, body: 'x', active: true, version: 1 }
+    await store.insertVersion(input)
+
+    await expect(store.insertVersion(input)).rejects.toMatchObject({ code: '23505' })
+    expect(store.rows).toHaveLength(1)
   })
 
   it('o 23505 embrulhado em `cause` (erro do driver pelo Drizzle) também é "já existe"', async () => {
@@ -133,7 +136,7 @@ describe('standardEmail.ensureTemplate', () => {
       async existsIdentity() {
         return false
       },
-      async upsert() {
+      async insertVersion() {
         throw Object.assign(new Error('Failed query'), { cause: { code: '23505' } })
       },
     } as unknown as TemplateRepository
@@ -149,7 +152,7 @@ describe('standardEmail.ensureTemplate', () => {
         async existsIdentity() {
           return false
         },
-        async upsert() {
+        async insertVersion() {
           throw thrown
         },
       } as unknown as TemplateRepository
@@ -163,7 +166,7 @@ describe('standardEmail.ensureTemplate', () => {
       async existsIdentity() {
         return false
       },
-      async upsert() {
+      async insertVersion() {
         throw new Error('connection lost')
       },
     } as unknown as TemplateRepository
