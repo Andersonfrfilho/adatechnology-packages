@@ -33,6 +33,28 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator'
 await runNotificationMigrations({ db, migrate })
 ```
 
+### Migrations e versões do drizzle
+
+O pacote publica as mesmas migrations em **dois formatos** (a faixa de peer `>=0.36 <2` cobre dois
+migrators incompatíveis):
+
+| Pasta               | Formato                                  | Migrator                                      |
+| ------------------- | ---------------------------------------- | --------------------------------------------- |
+| `migrations/`       | `meta/_journal.json` (drizzle-kit 0.31)  | drizzle-orm 0.x — decide pelo timestamp       |
+| `migrations-v1/`    | `<timestamp>_<nome>/migration.sql`       | drizzle-orm 1.x — decide pelo NOME da pasta   |
+
+Host com drizzle-orm 1.x passa `layout: 'v1'` (e `notificationMigrationsFolder({ layout: 'v1' })`
+se chama o próprio migrator). Sem `layout`, tenta o journal e cai para o v1 se o migrator responder
+`old drizzle-kit migration folders` (a recusa vem antes de qualquer SQL).
+
+`migrations-v1/` mantém os três nomes da `0.1.0-rc.3` (`20260802053704_melodic_selene`,
+`20260802130118_jittery_raider`, `20260802131549_bizarre_dagger`), que a TransportAdA já aplicou:
+1.x trata pasta de mesmo nome como aplicada. Os dois primeiros são idempotentes e o terceiro é
+no-op. As duas migrations seguintes são cópias byte a byte de `0000`/`0001`, com o timestamp do
+journal. **Ao gerar migration nova com `db:generate`, crie a pasta v1 correspondente**
+(`<when em UTC>_<nome sem índice>/migration.sql`, SQL idêntico) — o `migrations.test.ts` cobra.
+Prova contra Postgres dos cenários de upgrade: `scripts/prove-migrations.ts`.
+
 ## Isolamento multiempresa — como é garantido
 
 Toda condição de leitura/escrita alcançável por uma requisição de usuário é uma função **pura e
