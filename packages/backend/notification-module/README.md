@@ -17,6 +17,17 @@ bun add @adatechnology/notification-module @adatechnology/notification-contracts
 
 `drizzle-orm` é peer.
 
+## Migrations e versões do drizzle
+
+As migrations vêm em dois formatos: journal (drizzle-orm 0.x) e `migrations-v1` (drizzle-orm 1.x,
+que recusa pasta com `meta/_journal.json`). Host com drizzle-orm 1.x deve passar `layout: 'v1'`:
+
+```ts
+await runNotificationMigrations({ db, migrate, layout: 'v1' })
+```
+
+Sem `layout`, o módulo tenta o journal e, se o migrator recusar, usa o v1.
+
 ## Uso mínimo
 
 ```ts

@@ -120,7 +120,7 @@ export type {
 } from './schema/schema'
 
 export { runNotificationMigrations, notificationMigrationsFolder, NOTIFICATION_MIGRATIONS_TABLE } from './runMigrations'
-export type { RunNotificationMigrationsParams } from './runMigrations'
+export type { RunNotificationMigrationsParams, NotificationMigrationsLayout } from './runMigrations'
 
 export { encodeNotificationCursor, decodeNotificationCursor } from './repositories/cursor'
 export type { NotificationCursor } from './repositories/cursor'
