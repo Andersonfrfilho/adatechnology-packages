@@ -1,7 +1,8 @@
 import { ChevronDown } from 'lucide-react'
-import { useId } from 'react'
+import { useCallback, useId, useState } from 'react'
 
 import type { ParticipantMessageActionsTarget } from './ParticipantAuthorAvatar'
+import { ParticipantMessageInfo } from './ParticipantMessageInfo'
 import type { ParticipantMessageMenuState } from './ParticipantMessageMenuContext'
 import { DEFAULT_MESSAGE_OPTIONS_LABEL, DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS as DEFAULTS } from './participantLabels'
 import { copyableText, type ParticipantMessageMenuItem } from './participantMessageMenuModel'
@@ -19,7 +20,7 @@ type ParticipantMessageMenuProps = {
 
 type Entry = ParticipantMessageMenuItem & { readonly run?: () => void }
 
-function entriesFor(props: ParticipantMessageMenuProps, copy: (value: string) => void): readonly Entry[] {
+function entriesFor(props: ParticipantMessageMenuProps, copy: (value: string) => void, showInfo: () => void): readonly Entry[] {
   const { state, message, selectedText } = props
   const { labels } = state
   const text = copyableText(message)
@@ -29,16 +30,19 @@ function entriesFor(props: ParticipantMessageMenuProps, copy: (value: string) =>
   }
   if (text !== null) own.push({ id: 'copy', label: labels.copyMessage ?? DEFAULTS.copyMessage ?? '', run: () => copy(text) })
   own.push({ id: 'select', label: labels.selectMessages ?? DEFAULTS.selectMessages ?? '', run: () => state.start(message.id) })
+  own.push({ id: 'info', label: labels.messageInfo ?? DEFAULTS.messageInfo ?? '', run: showInfo })
   return [...own, ...(state.options.items?.(message) ?? []).map((item) => ({ ...item, run: item.onSelect }))]
 }
 
-/** The chevron that shows on hover or focus, and the menu it opens: the package's entries, then the host's. */
+/** The chevron that shows on hover or focus, and the menu it opens: the package's entries (copy, select, info), then the host's. */
 export function ParticipantMessageMenu(props: ParticipantMessageMenuProps) {
   const { menu, state } = props
   const triggerId = useId()
   const { copy } = useParticipantCopyFeedback()
   const label = state.labels.messageOptions ?? DEFAULT_MESSAGE_OPTIONS_LABEL
-  const entries = entriesFor(props, (value) => copy(value, state.labels.valueCopied))
+  const [isInfoOpen, setInfoOpen] = useState(false)
+  const closeInfo = useCallback(() => setInfoOpen(false), [])
+  const entries = entriesFor(props, (value) => copy(value, state.labels.valueCopied), () => setInfoOpen(true))
   const listClass = `cv-p-failed-menu__list cv-p-message-menu__list${menu.placement === 'below' ? ' cv-p-failed-menu__list--below' : ''}`
 
   function choose(entry: Entry): void {
@@ -49,7 +53,7 @@ export function ParticipantMessageMenu(props: ParticipantMessageMenuProps) {
   return (
     <span
       className="cv-p-message-menu"
-      data-open={menu.state.isOpen ? 'true' : undefined}
+      data-open={menu.state.isOpen || isInfoOpen ? 'true' : undefined}
       ref={menu.containerRef}
       onBlur={menu.handleBlur}
     >
@@ -101,6 +105,7 @@ export function ParticipantMessageMenu(props: ParticipantMessageMenuProps) {
           )}
         </div>
       ) : null}
+      {isInfoOpen ? <ParticipantMessageInfo state={state} message={props.message} onClose={closeInfo} /> : null}
     </span>
   )
 }

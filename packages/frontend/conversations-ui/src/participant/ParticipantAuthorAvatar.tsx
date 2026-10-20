@@ -1,5 +1,5 @@
 import { User } from 'lucide-react'
-import type { ParticipantAttachment } from '@adatechnology/conversation-contracts'
+import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 import type { ReactNode } from 'react'
 
 import { authorInitials } from './participantAvatar'
@@ -15,6 +15,10 @@ export type ParticipantMessageActionsTarget = {
   readonly attachments: readonly ParticipantAttachment[]
   /** When the message was written (ISO 8601). */
   readonly createdAt: string
+  /** Delivery state of a message this side sent, when the channel reports one. */
+  readonly status?: MessageDeliveryStatus | undefined
+  /** When the other side read it (ISO 8601), when known. */
+  readonly readAt?: string | null
 }
 
 export type ParticipantMessageActionsRenderer = (message: ParticipantMessageActionsTarget) => ReactNode

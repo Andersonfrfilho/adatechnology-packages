@@ -7,6 +7,7 @@ import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ParticipantTimelineItem } from './participantMessages'
 import { TooltipLayer } from '../Tooltip'
 import { ParticipantComposer } from './ParticipantComposer'
+import { ParticipantConversationMenu } from './ParticipantConversationMenu'
 import { useSuppressTouchTooltips } from './useSuppressTouchTooltips'
 import { ParticipantCopyAnnouncer, ParticipantThreadLive } from './ParticipantCopyAnnouncer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
@@ -122,6 +123,13 @@ function Footer({ props }: { readonly props: ParticipantThreadProps }) {
 }
 
 function Header({ props }: { readonly props: ParticipantThreadProps }) {
+  const menu = useParticipantMessageMenu()
+  const actions = menu ? (
+    <>
+      {props.headerActions}
+      <ParticipantConversationMenu state={menu} title={props.conversation.subjectLabel} />
+    </>
+  ) : props.headerActions
   return (
     <ParticipantThreadHeader
       conversation={props.conversation}
@@ -131,7 +139,7 @@ function Header({ props }: { readonly props: ParticipantThreadProps }) {
       onBack={props.onBack}
       onOpenSubject={props.onOpenSubject}
       counterpartLabel={props.counterpartLabel}
-      actions={props.headerActions}
+      actions={actions}
     />
   )
 }

@@ -1,4 +1,5 @@
 import type { ParticipantMessageActionsTarget } from './ParticipantAuthorAvatar'
+import { formatMessageMoment } from './participantMessageMoment'
 
 /** One entry the host adds to a message's menu, after the package's own (copy, select). */
 export type ParticipantMessageMenuItem = {
@@ -54,19 +55,12 @@ export function copyableText(message: Pick<ParticipantMessageActionsTarget, 'tex
 
 type CopyFormat = { readonly locale?: string; readonly meLabel: string }
 
-function stamp(iso: string, locale?: string): string {
-  const date = new Date(iso)
-  const day = date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
-  const time = date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-  return `${day} ${time}`
-}
-
 /** Several messages as text: one line each, `[date time] author: text [file]`, like a chat export. */
 export function formatMessagesForCopy(messages: readonly ParticipantMessageActionsTarget[], format: CopyFormat): string {
   return messages
     .map((message) => {
       const author = message.isMine ? format.meLabel : (message.authorName ?? '')
-      const head = `[${stamp(message.createdAt, format.locale)}]${author === '' ? '' : ` ${author}:`}`
+      const head = `[${formatMessageMoment(message.createdAt, format.locale)}]${author === '' ? '' : ` ${author}:`}`
       const files = message.attachments.map((attachment) => `[${attachment.filename}]`)
       return [head, copyableText(message) ?? '', ...files].filter((part) => part !== '').join(' ')
     })

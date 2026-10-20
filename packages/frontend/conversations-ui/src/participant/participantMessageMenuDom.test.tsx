@@ -60,14 +60,14 @@ describe('message menu in a DOM', () => {
     const trigger = container.querySelector<HTMLButtonElement>('.cv-p-message-menu__trigger')!
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
     fire(trigger, 'click')
-    expect(menuLabels(container)).toEqual(['Copy', 'Select messages', 'Forward'])
+    expect(menuLabels(container)).toEqual(['Copy', 'Select messages', 'Message info', 'Forward'])
     unmount()
   })
 
   it('opens from a right-click on the bubble', () => {
     const { container, unmount } = mount({})
     fire(container.querySelector('.cv-p-bubble')!, 'contextmenu')
-    expect(menuLabels(container)).toEqual(['Copy', 'Select messages'])
+    expect(menuLabels(container)).toEqual(['Copy', 'Select messages', 'Message info'])
     unmount()
   })
 

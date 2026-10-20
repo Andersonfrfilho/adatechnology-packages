@@ -14,8 +14,8 @@ export type ParticipantMessageMenuState = {
   readonly messages: readonly ParticipantMessageActionsTarget[]
   readonly selectedIds: readonly string[]
   readonly isSelecting: boolean
-  /** Enters selection mode with this message already checked. */
-  readonly start: (id: string) => void
+  /** Enters selection mode, with this message already checked when one is given. */
+  readonly start: (id?: string) => void
   readonly toggle: (id: string) => void
   readonly clear: () => void
 }
@@ -41,6 +41,8 @@ export function toMessageTargets(
             isMine: isOwnMessage(item.message, perspective),
             attachments: item.message.attachments,
             createdAt: item.message.createdAt,
+            status: item.message.status,
+            readAt: item.message.readAt ?? null,
           },
         ]
       : [],
@@ -63,7 +65,7 @@ export function ParticipantMessageMenuProvider({ options, labels, locale, items,
     ids: [],
   })
   const clear = useCallback(() => setSelection({ isSelecting: false, ids: [] }), [])
-  const start = useCallback((id: string) => setSelection({ isSelecting: true, ids: [id] }), [])
+  const start = useCallback((id?: string) => setSelection({ isSelecting: true, ids: id ? [id] : [] }), [])
   const toggle = useCallback(
     (id: string) => setSelection((current) => ({ ...current, ids: toggleSelectedId(current.ids, id) })),
     [],
