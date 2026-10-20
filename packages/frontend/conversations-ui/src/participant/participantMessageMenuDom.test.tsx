@@ -74,19 +74,36 @@ describe('message menu in a DOM', () => {
   it('selects messages with a check box per row, a bar with the count, and Escape leaves', () => {
     let received: readonly string[] = []
     const { container, unmount } = mount({
-      selectionActions: () => [{ id: 'fw', label: 'Forward all', onSelect: (messages) => (received = messages.map((m) => m.id)) }],
+      selectionActions: () => [
+        { id: 'fw', label: 'Forward all', onSelect: (messages) => (received = messages.map((m) => m.id)) },
+      ],
     })
     fire(container.querySelectorAll('.cv-p-message-menu__trigger')[1]!, 'click')
-    fire(Array.from(container.querySelectorAll('[role="menuitem"]')).find((item) => item.textContent === 'Select messages')!, 'click')
+    fire(
+      Array.from(container.querySelectorAll('[role="menuitem"]')).find(
+        (item) => item.textContent === 'Select messages',
+      )!,
+      'click',
+    )
     expect(container.querySelectorAll('.cv-p-select-row').length).toBe(2)
     expect(container.querySelector('.cv-p-selection-bar__count')?.textContent).toBe('1 selected')
     fire(container.querySelectorAll('.cv-p-select-row')[0]!, 'click')
     expect(container.querySelector('.cv-p-selection-bar__count')?.textContent).toBe('2 selected')
-    fire(Array.from(container.querySelectorAll('.cv-p-selection-bar__action')).find((b) => b.textContent === 'Forward all')!, 'click')
+    fire(
+      Array.from(container.querySelectorAll('.cv-p-selection-bar__action')).find(
+        (b) => b.textContent === 'Forward all',
+      )!,
+      'click',
+    )
     expect(received).toEqual(['m1', 'm2'])
     expect(container.querySelector('.cv-p-selection-bar')).toBeNull()
     fire(container.querySelector('.cv-p-message-menu__trigger')!, 'click')
-    fire(Array.from(container.querySelectorAll('[role="menuitem"]')).find((item) => item.textContent === 'Select messages')!, 'click')
+    fire(
+      Array.from(container.querySelectorAll('[role="menuitem"]')).find(
+        (item) => item.textContent === 'Select messages',
+      )!,
+      'click',
+    )
     pressKey(document.body, 'Escape')
     expect(container.querySelector('.cv-p-select-row')).toBeNull()
     unmount()

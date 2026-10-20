@@ -56,7 +56,10 @@ export function copyableText(message: Pick<ParticipantMessageActionsTarget, 'tex
 type CopyFormat = { readonly locale?: string; readonly meLabel: string }
 
 /** Several messages as text: one line each, `[date time] author: text [file]`, like a chat export. */
-export function formatMessagesForCopy(messages: readonly ParticipantMessageActionsTarget[], format: CopyFormat): string {
+export function formatMessagesForCopy(
+  messages: readonly ParticipantMessageActionsTarget[],
+  format: CopyFormat,
+): string {
   return messages
     .map((message) => {
       const author = message.isMine ? format.meLabel : (message.authorName ?? '')

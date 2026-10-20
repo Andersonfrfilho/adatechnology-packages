@@ -2,7 +2,11 @@ import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNod
 
 import { ParticipantMessageMenu } from './ParticipantMessageMenu'
 import type { ParticipantMessageMenuState } from './ParticipantMessageMenuContext'
-import { renderParticipantBubble, type BubbleContent, type ParticipantMessageBubbleProps } from './ParticipantMessageBubble'
+import {
+  renderParticipantBubble,
+  type BubbleContent,
+  type ParticipantMessageBubbleProps,
+} from './ParticipantMessageBubble'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS as DEFAULTS } from './participantLabels'
 import { selectedTextWithin } from './participantMessageMenuModel'
 import { useParticipantFailedMenu } from './useParticipantFailedMenu'
@@ -38,7 +42,12 @@ export function ParticipantMenuBubble({ props, content, textId, state }: Partici
     clearTimeout(pressTimer.current)
   }
 
-  if (state.isSelecting) return <SelectRow state={state} id={id}>{renderParticipantBubble({ props, content, textId })}</SelectRow>
+  if (state.isSelecting)
+    return (
+      <SelectRow state={state} id={id}>
+        {renderParticipantBubble({ props, content, textId })}
+      </SelectRow>
+    )
   if (!message) return renderParticipantBubble({ props, content, textId })
 
   return renderParticipantBubble({

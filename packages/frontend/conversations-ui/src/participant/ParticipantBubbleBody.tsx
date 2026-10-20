@@ -44,13 +44,25 @@ function OriginalText({ content, labels }: Pick<BubbleBodyProps, 'content' | 'la
   if (!original || original === content.text?.trim()) return null
   return (
     <details className="cv-p-bubble__original">
-      <summary className="cv-p-bubble__original-toggle">{labels.showOriginalText ?? DEFAULT_SHOW_ORIGINAL_TEXT_LABEL}</summary>
+      <summary className="cv-p-bubble__original-toggle">
+        {labels.showOriginalText ?? DEFAULT_SHOW_ORIGINAL_TEXT_LABEL}
+      </summary>
       <div className="cv-p-bubble__original-text">{original}</div>
     </details>
   )
 }
 
-export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachmentUrl, onRetry, onDiscard, onEdit, renderMessageActions }: BubbleBodyProps) {
+export function BubbleBody({
+  content,
+  labels,
+  ownStatus,
+  textId,
+  resolveAttachmentUrl,
+  onRetry,
+  onDiscard,
+  onEdit,
+  renderMessageActions,
+}: BubbleBodyProps) {
   const actions = hostActions(content, renderMessageActions)
   return (
     <>
@@ -74,7 +86,9 @@ export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachme
           {formatTimestamp(content.createdAt)}
         </time>
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
-        {ownStatus === 'failed' ? <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} /> : null}
+        {ownStatus === 'failed' ? (
+          <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} />
+        ) : null}
         {actions ? <span className="cv-p-bubble__host-actions">{actions}</span> : null}
       </span>
       {/* Last child so the ids React derives for the siblings above stay as they were; CSS keeps the meta after it. */}

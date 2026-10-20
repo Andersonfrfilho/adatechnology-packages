@@ -1,10 +1,11 @@
 import { X } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 import type { ParticipantMessageActionsTarget } from './ParticipantAuthorAvatar'
 import type { ParticipantMessageMenuState } from './ParticipantMessageMenuContext'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS as DEFAULTS } from './participantLabels'
 import { messageInfoRows } from './participantMessageInfoModel'
+import { useOpenUpwards } from './useOpenUpwards'
 
 type ParticipantMessageInfoProps = {
   readonly state: ParticipantMessageMenuState
@@ -19,14 +20,7 @@ export function ParticipantMessageInfo({ state, message, onClose }: ParticipantM
   const { labels } = state
   const title = labels.messageInfo ?? DEFAULTS.messageInfo ?? ''
   const rows = messageInfoRows(message, labels, state.locale)
-  const [isAbove, setAbove] = useState(false)
-
-  useLayoutEffect(() => {
-    const panel = panelRef.current
-    const scroller = panel?.closest('.cv-p-thread__scroll')
-    if (!panel || !scroller) return
-    setAbove(panel.getBoundingClientRect().bottom > scroller.getBoundingClientRect().bottom)
-  }, [])
+  const isUpwards = useOpenUpwards(true, panelRef)
 
   useEffect(() => {
     closeRef.current?.focus()
@@ -49,7 +43,7 @@ export function ParticipantMessageInfo({ state, message, onClose }: ParticipantM
       ref={panelRef}
       role="dialog"
       aria-label={title}
-      className={`cv-p-failed-menu__list cv-p-message-menu__list cv-p-message-info${isAbove ? ' cv-p-message-info--above' : ''}`}
+      className={`cv-p-failed-menu__list cv-p-message-menu__list cv-p-message-info${isUpwards ? ' cv-p-message-menu__list--up' : ''}`}
     >
       <div className="cv-p-message-info__head">
         <span className="cv-p-message-info__title">{title}</span>

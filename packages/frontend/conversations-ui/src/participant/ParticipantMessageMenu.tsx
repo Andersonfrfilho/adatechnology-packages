@@ -4,9 +4,13 @@ import { useCallback, useId, useState } from 'react'
 import type { ParticipantMessageActionsTarget } from './ParticipantAuthorAvatar'
 import { ParticipantMessageInfo } from './ParticipantMessageInfo'
 import type { ParticipantMessageMenuState } from './ParticipantMessageMenuContext'
-import { DEFAULT_MESSAGE_OPTIONS_LABEL, DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS as DEFAULTS } from './participantLabels'
+import {
+  DEFAULT_MESSAGE_OPTIONS_LABEL,
+  DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS as DEFAULTS,
+} from './participantLabels'
 import { copyableText, type ParticipantMessageMenuItem } from './participantMessageMenuModel'
 import type { ParticipantFailedMenuController } from './useParticipantFailedMenu'
+import { useOpenUpwards } from './useOpenUpwards'
 import { useParticipantCopyFeedback } from './useParticipantCopyFeedback'
 
 type ParticipantMessageMenuProps = {
@@ -20,16 +24,29 @@ type ParticipantMessageMenuProps = {
 
 type Entry = ParticipantMessageMenuItem & { readonly run?: () => void }
 
-function entriesFor(props: ParticipantMessageMenuProps, copy: (value: string) => void, showInfo: () => void): readonly Entry[] {
+function entriesFor(
+  props: ParticipantMessageMenuProps,
+  copy: (value: string) => void,
+  showInfo: () => void,
+): readonly Entry[] {
   const { state, message, selectedText } = props
   const { labels } = state
   const text = copyableText(message)
   const own: Entry[] = []
   if (selectedText !== '' && selectedText !== text) {
-    own.push({ id: 'copy-selection', label: labels.copySelection ?? DEFAULTS.copySelection ?? '', run: () => copy(selectedText) })
+    own.push({
+      id: 'copy-selection',
+      label: labels.copySelection ?? DEFAULTS.copySelection ?? '',
+      run: () => copy(selectedText),
+    })
   }
-  if (text !== null) own.push({ id: 'copy', label: labels.copyMessage ?? DEFAULTS.copyMessage ?? '', run: () => copy(text) })
-  own.push({ id: 'select', label: labels.selectMessages ?? DEFAULTS.selectMessages ?? '', run: () => state.start(message.id) })
+  if (text !== null)
+    own.push({ id: 'copy', label: labels.copyMessage ?? DEFAULTS.copyMessage ?? '', run: () => copy(text) })
+  own.push({
+    id: 'select',
+    label: labels.selectMessages ?? DEFAULTS.selectMessages ?? '',
+    run: () => state.start(message.id),
+  })
   own.push({ id: 'info', label: labels.messageInfo ?? DEFAULTS.messageInfo ?? '', run: showInfo })
   return [...own, ...(state.options.items?.(message) ?? []).map((item) => ({ ...item, run: item.onSelect }))]
 }
@@ -42,8 +59,13 @@ export function ParticipantMessageMenu(props: ParticipantMessageMenuProps) {
   const label = state.labels.messageOptions ?? DEFAULT_MESSAGE_OPTIONS_LABEL
   const [isInfoOpen, setInfoOpen] = useState(false)
   const closeInfo = useCallback(() => setInfoOpen(false), [])
-  const entries = entriesFor(props, (value) => copy(value, state.labels.valueCopied), () => setInfoOpen(true))
-  const listClass = `cv-p-failed-menu__list cv-p-message-menu__list${menu.placement === 'below' ? ' cv-p-failed-menu__list--below' : ''}`
+  const entries = entriesFor(
+    props,
+    (value) => copy(value, state.labels.valueCopied),
+    () => setInfoOpen(true),
+  )
+  const isUpwards = useOpenUpwards(menu.state.isOpen, menu.menuRef)
+  const listClass = `cv-p-failed-menu__list cv-p-message-menu__list${isUpwards ? ' cv-p-message-menu__list--up' : ''}`
 
   function choose(entry: Entry): void {
     menu.close()
@@ -72,7 +94,13 @@ export function ParticipantMessageMenu(props: ParticipantMessageMenuProps) {
         <ChevronDown size={16} aria-hidden={true} />
       </button>
       {menu.state.isOpen ? (
-        <div role="menu" aria-labelledby={triggerId} ref={menu.menuRef} className={listClass} onKeyDown={menu.handleMenuKeyDown}>
+        <div
+          role="menu"
+          aria-labelledby={triggerId}
+          ref={menu.menuRef}
+          className={listClass}
+          onKeyDown={menu.handleMenuKeyDown}
+        >
           {entries.map((entry) =>
             entry.href ? (
               <a

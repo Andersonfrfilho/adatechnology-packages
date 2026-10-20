@@ -59,7 +59,14 @@ type ProviderProps = {
 }
 
 /** Holds the selection of one thread; Escape leaves selection mode, as in any system selection. */
-export function ParticipantMessageMenuProvider({ options, labels, locale, items, perspective, children }: ProviderProps) {
+export function ParticipantMessageMenuProvider({
+  options,
+  labels,
+  locale,
+  items,
+  perspective,
+  children,
+}: ProviderProps) {
   const [selection, setSelection] = useState<{ readonly isSelecting: boolean; readonly ids: readonly string[] }>({
     isSelecting: false,
     ids: [],

@@ -129,7 +129,9 @@ function Header({ props }: { readonly props: ParticipantThreadProps }) {
       {props.headerActions}
       <ParticipantConversationMenu state={menu} title={props.conversation.subjectLabel} />
     </>
-  ) : props.headerActions
+  ) : (
+    props.headerActions
+  )
   return (
     <ParticipantThreadHeader
       conversation={props.conversation}
