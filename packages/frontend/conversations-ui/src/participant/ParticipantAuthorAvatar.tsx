@@ -13,6 +13,8 @@ export type ParticipantMessageActionsTarget = {
   readonly authorName: string | null
   readonly isMine: boolean
   readonly attachments: readonly ParticipantAttachment[]
+  /** When the message was written (ISO 8601). */
+  readonly createdAt: string
 }
 
 export type ParticipantMessageActionsRenderer = (message: ParticipantMessageActionsTarget) => ReactNode

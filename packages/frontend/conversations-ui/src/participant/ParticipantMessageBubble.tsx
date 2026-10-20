@@ -1,8 +1,10 @@
-import { useId, type ReactNode } from 'react'
+import { useId, type HTMLAttributes, type ReactNode, type Ref } from 'react'
 
 import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
 import { BubbleBody } from './ParticipantBubbleBody'
+import { ParticipantMenuBubble } from './ParticipantMenuBubble'
+import { useParticipantMessageMenu } from './ParticipantMessageMenuContext'
 import type { ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import { RetryButton } from './ParticipantBubbleStatus'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
@@ -82,20 +84,35 @@ function bubbleClassName(isMine: boolean, hasTail: boolean, hasFailed: boolean):
   return classes.join(' ')
 }
 
-export function ParticipantMessageBubble(props: ParticipantMessageBubbleProps) {
-  const { item, labels, confirmsRead, onRetry, avatar, tail = true, perspective } = props
-  const textId = useId()
-  const content = describeItem(item, perspective)
+/** What the message menu adds to a bubble: its ref and handlers, a corner slot and a state class. */
+export type ParticipantBubbleFrame = {
+  readonly ref?: Ref<HTMLDivElement>
+  readonly handlers?: HTMLAttributes<HTMLDivElement>
+  readonly corner?: ReactNode
+  readonly className?: string
+}
+
+type RenderBubbleParams = {
+  readonly props: ParticipantMessageBubbleProps
+  readonly content: BubbleContent
+  readonly textId: string
+  readonly frame?: ParticipantBubbleFrame
+}
+
+export function renderParticipantBubble({ props, content, textId, frame }: RenderBubbleParams): ReactNode {
+  const { confirmsRead, onRetry, avatar, tail = true } = props
   const ownStatus = content.isMine
     ? resolveOwnMessageStatus({ displayState: content.displayState, serverStatus: content.serverStatus, confirmsRead })
     : undefined
   const isFailed = ownStatus === 'failed'
   const canRetry = isFailed && onRetry !== undefined
+  const className = [bubbleClassName(content.isMine, tail, isFailed), frame?.className].filter(Boolean).join(' ')
 
   const bubble = (
-    <div className={bubbleClassName(content.isMine, tail, isFailed)}>
-      {canRetry ? <RetryButton labels={labels} onRetry={onRetry} describedBy={textId} /> : null}
+    <div className={className} ref={frame?.ref} {...frame?.handlers}>
+      {canRetry ? <RetryButton labels={props.labels} onRetry={onRetry} describedBy={textId} /> : null}
       <BubbleBody {...props} content={content} ownStatus={ownStatus} textId={canRetry ? textId : undefined} />
+      {frame?.corner}
     </div>
   )
   if (avatar === undefined || content.isMine) return bubble
@@ -105,4 +122,14 @@ export function ParticipantMessageBubble(props: ParticipantMessageBubbleProps) {
       {bubble}
     </div>
   )
+}
+
+export function ParticipantMessageBubble(props: ParticipantMessageBubbleProps) {
+  const textId = useId()
+  const menu = useParticipantMessageMenu()
+  const content = describeItem(props.item, props.perspective)
+  if (menu && content.messageId !== undefined) {
+    return <ParticipantMenuBubble props={props} content={content} textId={textId} state={menu} />
+  }
+  return renderParticipantBubble({ props, content, textId })
 }

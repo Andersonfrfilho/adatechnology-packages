@@ -34,6 +34,7 @@ function hostActions(content: BubbleContent, render?: ParticipantMessageActionsR
     authorName: content.authorName ?? null,
     isMine: content.isMine,
     attachments: content.attachments,
+    createdAt: content.createdAt,
   })
 }
 

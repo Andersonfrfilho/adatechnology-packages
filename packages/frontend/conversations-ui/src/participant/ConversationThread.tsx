@@ -18,6 +18,7 @@ import type { ParticipantPerspective } from './participantPerspective'
 import { participantSendStatesReducer } from './participantSendStates'
 import { buildParticipantThemeStyle } from './participantTheme'
 import { useParticipantThreadController, type ParticipantThreadCoreProps } from './useParticipantThreadController'
+import type { ParticipantMessageMenuOptions } from './participantMessageMenuModel'
 
 export type ConversationThreadProps = {
   readonly api: ConversationThreadApi
@@ -53,6 +54,8 @@ export type ConversationThreadProps = {
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
   /** Host slot at the end of each message's meta line (copy, forward...). The package knows no action. */
   readonly renderMessageActions?: ParticipantMessageActionsRenderer
+  /** Opt-in message menu as in common chat apps: copy, select messages, plus the host's entries. */
+  readonly messageMenu?: ParticipantMessageMenuOptions
   /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */
   readonly audioRecording?: ParticipantAudioRecordingOptions
   /** Return a node to replace the composer (notice + host actions); undefined keeps the composer. `closed` still wins. Evaluated every render. */
@@ -110,6 +113,7 @@ function ConversationThreadBody(props: ConversationThreadProps) {
           avatars={props.avatars}
           renderAuthorAvatar={props.renderAuthorAvatar}
           renderMessageActions={props.renderMessageActions}
+          messageMenu={props.messageMenu}
           tail={props.tail}
           counterpartLabel={props.counterpartLabel}
           headerActions={props.headerActions}

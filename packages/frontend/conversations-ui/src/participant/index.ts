@@ -35,3 +35,9 @@ export type {
   ParticipantSubjectRef,
   ParticipantTranscription,
 } from '@adatechnology/conversation-contracts'
+export type {
+  ParticipantMessageMenuItem,
+  ParticipantMessageMenuOptions,
+  ParticipantSelectionAction,
+} from './participantMessageMenuModel'
+export { formatMessagesForCopy } from './participantMessageMenuModel'

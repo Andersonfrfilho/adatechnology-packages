@@ -16,6 +16,7 @@ import type { ParticipantConversationsApi, ParticipantPendingMessage } from './p
 import type { ParticipantAudioRecordingOptions } from './participantAudio.types'
 import type { ParticipantConversationsLabels } from './participantLabels'
 import { useParticipantInbox } from './useParticipantInbox'
+import type { ParticipantMessageMenuOptions } from './participantMessageMenuModel'
 
 export type ParticipantConversationsProps = {
   api: ParticipantConversationsApi
@@ -42,6 +43,8 @@ export type ParticipantConversationsProps = {
   renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
   /** Host slot at the end of each message's meta line (copy, forward...). The package knows no action. */
   renderMessageActions?: ParticipantMessageActionsRenderer
+  /** Opt-in message menu as in common chat apps: copy, select messages, plus the host's entries. */
+  messageMenu?: ParticipantMessageMenuOptions
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
   tail?: boolean
   /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */

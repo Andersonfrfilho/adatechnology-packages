@@ -1328,6 +1328,30 @@
 .cv-p-failed-menu__list--below { bottom: auto; top: calc(100% + 0.25rem); }
 .cv-p-failed-menu__item--danger { color: var(--cv-p-i-danger); }
 .cv-p-failed-menu__item:hover, .cv-p-failed-menu__item:focus-visible { background: var(--cv-p-i-highlight); }
+/* Menu da mensagem (opt-in `messageMenu`): seta discreta no canto do balão, à vista só com o ponteiro em cima, com
+   foco ou com o menu aberto; no toque abre por toque longo e a seta não ocupa o balão. */
+.cv-p-message-menu { position: absolute; top: 0.2rem; right: 0.2rem; display: inline-flex; }
+.cv-p-message-menu__trigger { display: inline-grid; place-items: center; width: 1.5rem; height: 1.25rem; padding: 0; border: 0; border-radius: var(--cv-p-i-radius); color: var(--cv-p-i-text-muted); background: var(--cv-p-tail-fill, var(--cv-p-i-surface-raised)); box-shadow: -0.5rem 0 0.5rem var(--cv-p-tail-fill, var(--cv-p-i-surface-raised)); cursor: pointer; opacity: 0; }
+.cv-p-bubble:hover .cv-p-message-menu__trigger, .cv-p-message-menu__trigger:focus-visible, .cv-p-message-menu[data-open] .cv-p-message-menu__trigger { opacity: 1; }
+.cv-p-message-menu__trigger:hover { color: var(--cv-p-i-text); }
+@media (hover: none) { .cv-p-message-menu__trigger:not(:focus-visible) { pointer-events: none; } }
+.cv-p-message-menu__list { min-width: 11rem; }
+.cv-p-message-menu__list:not(.cv-p-failed-menu__list--below) { bottom: auto; top: calc(100% + 0.25rem); }
+.cv-p-message-menu__item { display: flex; align-items: center; font: inherit; font-size: 0.85rem; text-transform: none; letter-spacing: normal; text-decoration: none; white-space: nowrap; }
+.cv-p-message-menu__item:disabled, .cv-p-message-menu__item[aria-disabled='true'] { color: var(--cv-p-i-text-muted); cursor: default; }
+.cv-p-bubble--menu-open { z-index: 3; }
+/* Modo de seleção: caixa à esquerda de cada mensagem; a linha inteira marca e desmarca. */
+.cv-p-select-row { display: flex; align-items: center; gap: 0.6rem; width: 100%; cursor: pointer; border-radius: var(--cv-p-i-radius); }
+.cv-p-select-row[data-selected] { background: var(--cv-p-i-highlight); }
+.cv-p-select-row > .cv-p-bubble--mine { margin-inline-start: auto; }
+.cv-p-select-row > .cv-p-bubble-row { max-width: 92%; }
+.cv-p-select-row__check { flex: 0 0 auto; width: 1.1rem; height: 1.1rem; margin: 0 0 0 0.25rem; accent-color: var(--cv-p-i-accent); cursor: pointer; }
+.cv-p-selection-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem; border-top: 1px solid var(--cv-p-i-border); background: var(--cv-p-i-surface-raised); }
+.cv-p-selection-bar__count { margin-inline-end: auto; font-weight: 600; color: var(--cv-p-i-text); }
+.cv-p-selection-bar__close, .cv-p-selection-bar__action { min-height: var(--cv-p-i-touch); padding: 0 0.75rem; border: 1px solid var(--cv-p-i-border); border-radius: var(--cv-p-i-radius); color: var(--cv-p-i-text); background: transparent; font: inherit; font-size: 0.85rem; cursor: pointer; }
+.cv-p-selection-bar__close { display: inline-grid; place-items: center; min-width: var(--cv-p-i-touch); padding: 0; border-color: transparent; }
+.cv-p-selection-bar__action:disabled { color: var(--cv-p-i-text-muted); cursor: default; }
+.cv-p-selection-bar__close:hover, .cv-p-selection-bar__action:hover:not(:disabled), .cv-p-selection-bar__close:focus-visible, .cv-p-selection-bar__action:focus-visible { background: var(--cv-p-i-highlight); }
 .cv-p-attachment { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.35rem; color: inherit; }
 .cv-p-attachment--document { flex-direction: row; justify-content: space-between; min-height: var(--cv-p-i-touch); align-items: center; text-decoration: underline; }
 .cv-p-attachment__image { display: block; max-width: 100%; max-height: 16rem; object-fit: contain; }
@@ -1390,6 +1414,7 @@
   .cv-p-thread__latest-button { animation: cv-p-latest-in 0.16s ease-out; }
   .cv-p-protocol__copy, .cv-p-search__input { transition: border-color 0.12s, background-color 0.12s; }
   .cv-p-row, .cv-p-button, .cv-p-chip, .cv-p-thread__back, .cv-p-composer__attach { transition: background-color 0.12s, border-color 0.12s; }
+  .cv-p-message-menu__trigger { transition: opacity 0.12s; }
 }
 
 /* Scrolls. Verticais: barra fina no tema. Faixas horizontais: sem barra, com esmaecimento nas bordas. O
