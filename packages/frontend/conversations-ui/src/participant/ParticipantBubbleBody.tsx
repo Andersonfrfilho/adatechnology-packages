@@ -4,7 +4,7 @@ import { OwnStatus } from './ParticipantBubbleStatus'
 import { ParticipantFailedMenu } from './ParticipantFailedMenu'
 import type { BubbleContent } from './ParticipantMessageBubble'
 import { ParticipantMessageText } from './ParticipantMessageText'
-import type { ParticipantConversationsLabels } from './participantLabels'
+import { DEFAULT_SHOW_ORIGINAL_TEXT_LABEL, type ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantOwnMessageStatus } from './participantMessages'
 
 type BubbleBodyProps = {
@@ -22,6 +22,18 @@ function BubbleHeading({ content, labels }: Pick<BubbleBodyProps, 'content' | 'l
   if (content.isMine) return <span className="cv-p-sr-only">{labels.me}</span>
   if (!content.authorName) return null
   return <span className="cv-p-bubble__author">{content.authorName}</span>
+}
+
+/** Collapsed by default: the trimmed text is what the reader needs, the original is there on demand. */
+function OriginalText({ content, labels }: Pick<BubbleBodyProps, 'content' | 'labels'>) {
+  const original = content.originalText?.trim()
+  if (!original || original === content.text?.trim()) return null
+  return (
+    <details className="cv-p-bubble__original">
+      <summary className="cv-p-bubble__original-toggle">{labels.showOriginalText ?? DEFAULT_SHOW_ORIGINAL_TEXT_LABEL}</summary>
+      <div className="cv-p-bubble__original-text">{original}</div>
+    </details>
+  )
 }
 
 export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachmentUrl, onRetry, onDiscard, onEdit }: BubbleBodyProps) {
@@ -49,6 +61,8 @@ export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachme
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
         {ownStatus === 'failed' ? <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} /> : null}
       </span>
+      {/* Last child so the ids React derives for the siblings above stay as they were; CSS keeps the meta after it. */}
+      <OriginalText content={content} labels={labels} />
     </>
   )
 }
