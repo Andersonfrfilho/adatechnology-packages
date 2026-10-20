@@ -26,6 +26,7 @@ import {
   type ParticipantConversationPage,
   type ParticipantConversationStatus,
   type ParticipantConversationSummary,
+  PARTICIPANT_ORIGINAL_TEXT_MAX_UTF16,
   type ParticipantMessage,
   type ParticipantSubjectRef,
   type ParticipantTranscription,
@@ -202,6 +203,13 @@ describe('participantConversationSummarySchema', () => {
     expect(participantConversationSummarySchema.safeParse({ ...VALID_SUMMARY, unreadCount: -1 }).success).toBe(false)
   })
 
+  it('aceita o texto original até o limite e recusa acima dele', () => {
+    const atLimit = 'a'.repeat(PARTICIPANT_ORIGINAL_TEXT_MAX_UTF16)
+    expect(participantMessageSchema.parse({ ...VALID_MESSAGE, originalText: atLimit }).originalText).toBe(atLimit)
+    expect(participantMessageSchema.safeParse({ ...VALID_MESSAGE, originalText: null }).success).toBe(true)
+    expect(participantMessageSchema.safeParse({ ...VALID_MESSAGE, originalText: `${atLimit}a` }).success).toBe(false)
+  })
+
   it('recusa direção fora do vocabulário', () => {
     expect(
       participantConversationSummarySchema.safeParse({ ...VALID_SUMMARY, lastMessageDirection: 'internal' }).success,
@@ -321,7 +329,8 @@ describe('participantTranscriptionSchema — campos fora do ramo são descartado
 describe('participantTranscriptionSchema — failed', () => {
   it('aceita too_long com teto, sem teto e teto sem motivo', () => {
     expect(
-      participantTranscriptionSchema.safeParse({ status: 'failed', reason: 'too_long', maxDurationMs: 300_000 }).success,
+      participantTranscriptionSchema.safeParse({ status: 'failed', reason: 'too_long', maxDurationMs: 300_000 })
+        .success,
     ).toBe(true)
     expect(participantTranscriptionSchema.safeParse({ status: 'failed', reason: 'too_long' }).success).toBe(true)
     expect(participantTranscriptionSchema.safeParse({ status: 'failed', maxDurationMs: 300_000 }).success).toBe(true)
@@ -368,8 +377,7 @@ describe('participantTranscriptionSchema — campos do ramo ready', () => {
 })
 
 describe('participantTranscriptionSchema — teto do texto em unidades UTF-16', () => {
-  const parseText = (text: string) =>
-    participantTranscriptionSchema.safeParse({ ...READY_TRANSCRIPTION, text }).success
+  const parseText = (text: string) => participantTranscriptionSchema.safeParse({ ...READY_TRANSCRIPTION, text }).success
 
   it('fixa o teto em 40 000 unidades UTF-16', () => {
     expect(PARTICIPANT_TRANSCRIPTION_TEXT_MAX_UTF16).toBe(40_000)
@@ -384,7 +392,12 @@ describe('participantTranscriptionSchema — teto do texto em unidades UTF-16', 
 })
 
 describe('durationMs e transcription no anexo', () => {
-  const AUDIO_ATTACHMENT = { ...VALID_ATTACHMENT, kind: 'audio', filename: 'audio.webm', mimeType: 'audio/webm' } as const
+  const AUDIO_ATTACHMENT = {
+    ...VALID_ATTACHMENT,
+    kind: 'audio',
+    filename: 'audio.webm',
+    mimeType: 'audio/webm',
+  } as const
 
   it('aceita duração inteira positiva até o teto e recusa fora dele', () => {
     const parseDuration = (durationMs: unknown) =>
