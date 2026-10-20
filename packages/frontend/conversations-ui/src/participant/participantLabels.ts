@@ -1,6 +1,7 @@
 import { DEFAULT_PARTICIPANT_AUDIO_LABELS, type ParticipantAudioLabels } from './participantAudioLabels'
 
 export const DEFAULT_MESSAGE_OPTIONS_LABEL = 'Message options'
+export const DEFAULT_SHOW_ORIGINAL_TEXT_LABEL = 'Show original'
 
 export type ParticipantConversationsLabels = {
   readonly inboxTitle: string
@@ -43,6 +44,8 @@ export type ParticipantConversationsLabels = {
   readonly edit: string
   /** Name of the menu button on a failed message. Optional; translated hosts should fill it, otherwise the English default shows. */
   readonly messageOptions?: string
+  /** Toggle that opens the message as received (e.g. the whole email). Optional; the English default shows otherwise. */
+  readonly showOriginalText?: string
   readonly notFound: string
   readonly loading: string
   readonly loadError: string
@@ -106,6 +109,7 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   discard: 'Discard',
   edit: 'Edit',
   messageOptions: DEFAULT_MESSAGE_OPTIONS_LABEL,
+  showOriginalText: DEFAULT_SHOW_ORIGINAL_TEXT_LABEL,
   notFound: 'Conversation not found',
   loading: 'Loading…',
   loadError: 'Could not load. Check your connection and try again.',

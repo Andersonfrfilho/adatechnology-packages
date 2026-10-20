@@ -40,6 +40,7 @@ export type BubbleContent = {
   readonly isMine: boolean
   readonly authorName?: string
   readonly text?: string
+  readonly originalText?: string
   readonly createdAt: string
   readonly attachments: readonly ParticipantAttachment[]
   readonly pendingFilenames: readonly string[]
@@ -55,6 +56,7 @@ function describeItem(item: ParticipantTimelineItem, perspective?: ParticipantPe
       isMine: isOwnMessage(message, perspective),
       authorName: message.authorName ?? undefined,
       text: message.text ?? undefined,
+      originalText: message.originalText ?? undefined,
       createdAt: message.createdAt,
       attachments: message.attachments,
       pendingFilenames: [],

@@ -76,7 +76,10 @@ export const participantTranscriptionSchema = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('ready'),
     text: z.string().max(PARTICIPANT_TRANSCRIPTION_TEXT_MAX_UTF16),
-    language: z.string().regex(/^[a-z]{2,3}$/).optional(),
+    language: z
+      .string()
+      .regex(/^[a-z]{2,3}$/)
+      .optional(),
     engine: z.string().min(1).max(64).optional(),
     generatedAt: z.string().datetime(),
   }),
@@ -100,12 +103,20 @@ export const participantAttachmentSchema = z.object({
 })
 export type ParticipantAttachment = z.infer<typeof participantAttachmentSchema>
 
+/** Em unidades UTF-16, que é o que `.max` do zod conta. */
+export const PARTICIPANT_ORIGINAL_TEXT_MAX_UTF16 = 20_000
+
 export const participantMessageSchema = z.object({
   id: z.string().min(1),
   clientMessageId: z.string().min(1).optional(),
   direction: messageDirectionSchema,
   authorName: z.string().nullable().optional(),
   text: z.string().nullable().optional(),
+  /**
+   * A mensagem como chegou, antes de o host aparar (ex.: o e-mail inteiro, com o histórico citado).
+   * Aparece recolhida dentro do balão; ausente ou igual a `text` não mostra nada.
+   */
+  originalText: z.string().max(PARTICIPANT_ORIGINAL_TEXT_MAX_UTF16).nullable().optional(),
   attachments: z.array(participantAttachmentSchema),
   createdAt: z.string().datetime(),
   status: messageDeliveryStatusSchema.optional(),

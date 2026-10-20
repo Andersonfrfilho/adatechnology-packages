@@ -5,7 +5,7 @@ import { ParticipantFailedMenu } from './ParticipantFailedMenu'
 import type { ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import type { BubbleContent } from './ParticipantMessageBubble'
 import { ParticipantMessageText } from './ParticipantMessageText'
-import type { ParticipantConversationsLabels } from './participantLabels'
+import { DEFAULT_SHOW_ORIGINAL_TEXT_LABEL, type ParticipantConversationsLabels } from './participantLabels'
 import type { ParticipantOwnMessageStatus } from './participantMessages'
 
 type BubbleBodyProps = {
@@ -37,6 +37,18 @@ function hostActions(content: BubbleContent, render?: ParticipantMessageActionsR
   })
 }
 
+/** Collapsed by default: the trimmed text is what the reader needs, the original is there on demand. */
+function OriginalText({ content, labels }: Pick<BubbleBodyProps, 'content' | 'labels'>) {
+  const original = content.originalText?.trim()
+  if (!original || original === content.text?.trim()) return null
+  return (
+    <details className="cv-p-bubble__original">
+      <summary className="cv-p-bubble__original-toggle">{labels.showOriginalText ?? DEFAULT_SHOW_ORIGINAL_TEXT_LABEL}</summary>
+      <div className="cv-p-bubble__original-text">{original}</div>
+    </details>
+  )
+}
+
 export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachmentUrl, onRetry, onDiscard, onEdit, renderMessageActions }: BubbleBodyProps) {
   const actions = hostActions(content, renderMessageActions)
   return (
@@ -64,6 +76,8 @@ export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachme
         {ownStatus === 'failed' ? <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} /> : null}
         {actions ? <span className="cv-p-bubble__host-actions">{actions}</span> : null}
       </span>
+      {/* Last child so the ids React derives for the siblings above stay as they were; CSS keeps the meta after it. */}
+      <OriginalText content={content} labels={labels} />
     </>
   )
 }

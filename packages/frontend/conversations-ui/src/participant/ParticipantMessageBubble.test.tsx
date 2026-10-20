@@ -70,6 +70,41 @@ describe('ParticipantMessageBubble', () => {
     expect(mine).not.toContain('Marina')
   })
 
+  it('keeps the original text collapsed behind a discreet toggle inside the bubble', () => {
+    const original = 'Pode descarregar.\n\nEm ter., 20 de out. de 2026, Equipe escreveu:\n> Autorizam?'
+    const markup = renderServer(buildMessage({ id: 'a', text: 'Pode descarregar.', originalText: original }))
+
+    expect(markup).toContain('<details class="cv-p-bubble__original">')
+    expect(markup).not.toContain('<details class="cv-p-bubble__original" open')
+    expect(markup).toContain('<summary class="cv-p-bubble__original-toggle">Show original</summary>')
+    expect(markup).toContain('Em ter., 20 de out. de 2026, Equipe escreveu:')
+    expect(findUtilityClassTokens(markup)).toEqual([])
+  })
+
+  it('uses the host label for the original-text toggle', () => {
+    const item: ParticipantTimelineItem = {
+      kind: 'server',
+      message: buildMessage({ id: 'a', text: 'Ok', originalText: 'Ok\n> antes' }),
+    }
+    const markup = renderToStaticMarkup(
+      <ParticipantMessageBubble
+        item={item}
+        labels={{ ...LABELS, showOriginalText: 'ver histórico' }}
+        confirmsRead
+        resolveAttachmentUrl={resolveAttachmentUrl}
+      />,
+    )
+
+    expect(markup).toContain('>ver histórico</summary>')
+  })
+
+  it('shows no toggle when the original is absent, blank or the same as the text', () => {
+    expect(renderServer(buildMessage({ id: 'a', text: 'Ok' }))).not.toContain('<details')
+    expect(renderServer(buildMessage({ id: 'b', text: 'Ok', originalText: null }))).not.toContain('<details')
+    expect(renderServer(buildMessage({ id: 'c', text: 'Ok', originalText: '  ' }))).not.toContain('<details')
+    expect(renderServer(buildMessage({ id: 'd', text: 'Ok', originalText: ' Ok\n' }))).not.toContain('<details')
+  })
+
   it('renders a time element with the ISO dateTime', () => {
     expect(renderServer()).toMatch(/<time[^>]*dateTime="2026-10-01T10:00:00.000Z"/)
   })
