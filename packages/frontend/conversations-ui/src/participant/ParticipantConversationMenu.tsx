@@ -3,7 +3,8 @@ import { useId } from 'react'
 
 import type { ParticipantMessageMenuState } from './ParticipantMessageMenuContext'
 import { DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS as DEFAULTS } from './participantLabels'
-import { conversationExportFileName, conversationExportText, downloadTextFile } from './participantMessageInfoModel'
+import { downloadTextFile } from '../conversationTranscript'
+import { conversationExportFileName, conversationExportText } from './participantMessageInfoModel'
 import { useParticipantFailedMenu } from './useParticipantFailedMenu'
 
 type ParticipantConversationMenuProps = {
@@ -14,7 +15,8 @@ type ParticipantConversationMenuProps = {
 
 /**
  * The header's menu of a thread with `messageMenu`, as in common chat apps: enter selection mode with nothing
- * checked yet, or download the loaded messages as text (`[date time] author: text`, one per line).
+ * checked yet, or download the loaded messages as text (`[date time] author: text`, one per line), through the
+ * same download the WhatsApp workspace uses.
  */
 export function ParticipantConversationMenu({ state, title }: ParticipantConversationMenuProps) {
   const menu = useParticipantFailedMenu()

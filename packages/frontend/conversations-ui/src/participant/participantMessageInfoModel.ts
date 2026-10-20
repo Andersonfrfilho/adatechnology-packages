@@ -77,17 +77,3 @@ export function conversationExportFileName(title: string): string {
     .trim()
   return `${safe === '' ? 'conversation' : safe}.txt`
 }
-
-/** Saves text as a file through a temporary link; does nothing where the browser cannot. */
-export function downloadTextFile(fileName: string, text: string): void {
-  if (typeof document === 'undefined' || typeof URL.createObjectURL !== 'function') return
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  link.rel = 'noopener'
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
-}
