@@ -5,7 +5,7 @@ import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@ada
 import type { ConversationChannel } from '../conversationChannel'
 import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ConversationsTheme } from '../types'
-import type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+import type { ParticipantAuthorAvatarRenderer, ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import { ParticipantThread } from './ParticipantThread'
 import { toParticipantApi, type ConversationThreadApi } from './conversationThreadApi'
 import { buildThreadSummary } from './conversationThreadSummary'
@@ -51,6 +51,8 @@ export type ConversationThreadProps = {
   readonly tail?: boolean
   readonly avatars?: 'initials'
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Host slot at the end of each message's meta line (copy, forward...). The package knows no action. */
+  readonly renderMessageActions?: ParticipantMessageActionsRenderer
   /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */
   readonly audioRecording?: ParticipantAudioRecordingOptions
   /** Return a node to replace the composer (notice + host actions); undefined keeps the composer. `closed` still wins. Evaluated every render. */
@@ -107,6 +109,7 @@ function ConversationThreadBody(props: ConversationThreadProps) {
           renderSubjectIcon={props.renderSubjectIcon}
           avatars={props.avatars}
           renderAuthorAvatar={props.renderAuthorAvatar}
+          renderMessageActions={props.renderMessageActions}
           tail={props.tail}
           counterpartLabel={props.counterpartLabel}
           headerActions={props.headerActions}

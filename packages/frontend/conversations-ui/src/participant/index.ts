@@ -2,7 +2,11 @@ export { ParticipantConversations, type ParticipantConversationsProps } from './
 export { ConversationThread, type ConversationThreadProps } from './ConversationThread'
 export type { ConversationThreadApi } from './conversationThreadApi'
 export type { ParticipantPerspective } from './participantPerspective'
-export type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+export type {
+  ParticipantAuthorAvatarRenderer,
+  ParticipantMessageActionsRenderer,
+  ParticipantMessageActionsTarget,
+} from './ParticipantAuthorAvatar'
 export { groupParticipantConversations } from './participantGrouping'
 export { DEFAULT_MAX_RECORDING_BYTES, type ParticipantAudioRecordingOptions } from './participantAudio.types'
 export { DEFAULT_PARTICIPANT_AUDIO_LABELS, type ParticipantAudioLabels } from './participantAudioLabels'

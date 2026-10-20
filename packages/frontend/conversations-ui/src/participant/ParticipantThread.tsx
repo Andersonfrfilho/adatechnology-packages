@@ -16,7 +16,7 @@ import { resolveLoadView, type ParticipantLoadStatus } from './participantLoadVi
 import { ParticipantLoadError, ParticipantLoading } from './ParticipantLoadState'
 import type { ParticipantPerspective } from './participantPerspective'
 import type { ParticipantThreadScroll } from './useStickToBottom'
-import type { ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+import type { ParticipantAuthorAvatarRenderer, ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import { ParticipantScrollToLatest } from './ParticipantScrollToLatest'
 import { ParticipantTimeline } from './ParticipantTimeline'
 import { ParticipantThreadHeader } from './ParticipantThreadHeader'
@@ -62,6 +62,8 @@ export type ParticipantThreadProps = {
   readonly avatars?: 'initials'
   /** Host slot for the author's photo; wins over 'initials' and enables avatars on its own. */
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Host slot at the end of each message's meta line (copy, forward...). The package knows no action. */
+  readonly renderMessageActions?: ParticipantMessageActionsRenderer
   /** Host icon of the conversation avatar in the header; absent or empty falls back to the subject group icon. */
   readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */

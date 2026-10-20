@@ -4,7 +4,11 @@ import { channelCapabilityFor } from '../channelCapability'
 import type { ConversationChannel } from '../conversationChannel'
 import { isSameDay } from '../lib/format'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
-import { ParticipantAuthorAvatar, type ParticipantAuthorAvatarRenderer } from './ParticipantAuthorAvatar'
+import {
+  ParticipantAuthorAvatar,
+  type ParticipantAuthorAvatarRenderer,
+  type ParticipantMessageActionsRenderer,
+} from './ParticipantAuthorAvatar'
 import { ParticipantDayDivider } from './ParticipantDayDivider'
 import { ParticipantMessageBubble } from './ParticipantMessageBubble'
 import { shouldShowAvatar, type ParticipantAvatarAuthor } from './participantAvatar'
@@ -26,6 +30,7 @@ export type ParticipantTimelineProps = {
   readonly pendingActions?: ParticipantPendingActions
   readonly avatars?: 'initials'
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  readonly renderMessageActions?: ParticipantMessageActionsRenderer
   readonly tail?: boolean
   readonly perspective?: ParticipantPerspective
 }
@@ -98,6 +103,7 @@ export function ParticipantTimeline(props: ParticipantTimelineProps) {
         tail={props.tail}
         perspective={props.perspective}
         avatar={avatar}
+        renderMessageActions={props.renderMessageActions}
         {...resolveActions(item, pendingActions)}
       />,
     )

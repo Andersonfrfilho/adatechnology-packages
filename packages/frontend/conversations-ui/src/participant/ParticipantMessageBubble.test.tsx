@@ -247,3 +247,54 @@ describe('ParticipantMessageBubble avatar slot', () => {
     expect(own).not.toContain('cv-p-bubble-row')
   })
 })
+
+describe('renderMessageActions', () => {
+  const message = buildMessage({ id: 'm-actions' })
+
+  it('draws the host actions at the end of a server message and hands over the message', () => {
+    const received: string[] = []
+    const markup = renderToStaticMarkup(
+      <ParticipantMessageBubble
+        item={{ kind: 'server', message }}
+        labels={LABELS}
+        confirmsRead
+        resolveAttachmentUrl={resolveAttachmentUrl}
+        renderMessageActions={(target) => {
+          received.push(target.id)
+          return <button type="button">copy</button>
+        }}
+      />,
+    )
+    expect(received).toEqual(['m-actions'])
+    expect(markup).toContain('cv-p-bubble__host-actions')
+    expect(markup).toContain('>copy<')
+  })
+
+  it('draws nothing for a message the server does not hold yet', () => {
+    const markup = renderToStaticMarkup(
+      <ParticipantMessageBubble
+        item={{
+          kind: 'pending',
+          origin: 'host',
+          displayState: 'sending',
+          pending: {
+            clientMessageId: 'c1',
+            subject: { subjectType: 'invoice', subjectId: '1' },
+            text: 'oi',
+            createdAt: '2026-01-01T10:00:00.000Z',
+            state: 'queued',
+          },
+        }}
+        labels={LABELS}
+        confirmsRead
+        resolveAttachmentUrl={resolveAttachmentUrl}
+        renderMessageActions={() => <button type="button">copy</button>}
+      />,
+    )
+    expect(markup).not.toContain('cv-p-bubble__host-actions')
+  })
+
+  it('stays as before when the host gives no slot', () => {
+    expect(renderServer(message)).not.toContain('cv-p-bubble__host-actions')
+  })
+})

@@ -3,6 +3,7 @@ import { useId, type ReactNode } from 'react'
 import type { MessageDeliveryStatus, ParticipantAttachment } from '@adatechnology/conversation-contracts'
 
 import { BubbleBody } from './ParticipantBubbleBody'
+import type { ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import { RetryButton } from './ParticipantBubbleStatus'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import type { ParticipantConversationsLabels } from './participantLabels'
@@ -31,6 +32,8 @@ export type ParticipantMessageBubbleProps = {
   readonly tail?: boolean
   /** Who is looking; absent is the participant. The operator owns the outbound messages. */
   readonly perspective?: ParticipantPerspective
+  /** Host actions at the end of the meta line of a server message; pending ones have nothing to act on yet. */
+  readonly renderMessageActions?: ParticipantMessageActionsRenderer
 }
 
 export type BubbleContent = {
@@ -43,6 +46,7 @@ export type BubbleContent = {
   readonly pendingFilenames: readonly string[]
   readonly displayState?: ParticipantPendingDisplayState
   readonly serverStatus?: MessageDeliveryStatus
+  readonly messageId?: string
 }
 
 function describeItem(item: ParticipantTimelineItem, perspective?: ParticipantPerspective): BubbleContent {
@@ -57,6 +61,7 @@ function describeItem(item: ParticipantTimelineItem, perspective?: ParticipantPe
       attachments: message.attachments,
       pendingFilenames: [],
       serverStatus: message.status,
+      messageId: message.id,
     }
   }
   return {

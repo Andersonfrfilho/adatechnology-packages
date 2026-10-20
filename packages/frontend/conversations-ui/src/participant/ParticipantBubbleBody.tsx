@@ -2,6 +2,7 @@ import { formatTimestamp } from '../lib/format'
 import { ParticipantAttachmentItem, type ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
 import { OwnStatus } from './ParticipantBubbleStatus'
 import { ParticipantFailedMenu } from './ParticipantFailedMenu'
+import type { ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import type { BubbleContent } from './ParticipantMessageBubble'
 import { ParticipantMessageText } from './ParticipantMessageText'
 import { DEFAULT_SHOW_ORIGINAL_TEXT_LABEL, type ParticipantConversationsLabels } from './participantLabels'
@@ -16,12 +17,24 @@ type BubbleBodyProps = {
   readonly onRetry?: () => void
   readonly onDiscard?: () => void
   readonly onEdit?: () => void
+  readonly renderMessageActions?: ParticipantMessageActionsRenderer
 }
 
 function BubbleHeading({ content, labels }: Pick<BubbleBodyProps, 'content' | 'labels'>) {
   if (content.isMine) return <span className="cv-p-sr-only">{labels.me}</span>
   if (!content.authorName) return null
   return <span className="cv-p-bubble__author">{content.authorName}</span>
+}
+
+function hostActions(content: BubbleContent, render?: ParticipantMessageActionsRenderer) {
+  if (!render || content.messageId === undefined) return null
+  return render({
+    id: content.messageId,
+    text: content.text ?? null,
+    authorName: content.authorName ?? null,
+    isMine: content.isMine,
+    attachments: content.attachments,
+  })
 }
 
 /** Collapsed by default: the trimmed text is what the reader needs, the original is there on demand. */
@@ -36,7 +49,8 @@ function OriginalText({ content, labels }: Pick<BubbleBodyProps, 'content' | 'la
   )
 }
 
-export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachmentUrl, onRetry, onDiscard, onEdit }: BubbleBodyProps) {
+export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachmentUrl, onRetry, onDiscard, onEdit, renderMessageActions }: BubbleBodyProps) {
+  const actions = hostActions(content, renderMessageActions)
   return (
     <>
       <BubbleHeading content={content} labels={labels} />
@@ -60,6 +74,7 @@ export function BubbleBody({ content, labels, ownStatus, textId, resolveAttachme
         </time>
         {ownStatus ? <OwnStatus status={ownStatus} labels={labels} onRetry={onRetry} /> : null}
         {ownStatus === 'failed' ? <ParticipantFailedMenu labels={labels} onEdit={onEdit} onDiscard={onDiscard} /> : null}
+        {actions ? <span className="cv-p-bubble__host-actions">{actions}</span> : null}
       </span>
       {/* Last child so the ids React derives for the siblings above stay as they were; CSS keeps the meta after it. */}
       <OriginalText content={content} labels={labels} />
