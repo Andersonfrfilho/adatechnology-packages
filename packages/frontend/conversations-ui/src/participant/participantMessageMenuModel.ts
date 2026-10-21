@@ -1,5 +1,6 @@
 import type { ParticipantMessageActionsTarget } from './ParticipantAuthorAvatar'
 import { formatMessageMoment } from './participantMessageMoment'
+import { attachmentForCopy } from './participantTranscriptionText'
 
 /** One entry the host adds to a message's menu, after the package's own (copy, select). */
 export type ParticipantMessageMenuItem = {
@@ -53,9 +54,17 @@ export function copyableText(message: Pick<ParticipantMessageActionsTarget, 'tex
   return text === '' ? null : text
 }
 
-type CopyFormat = { readonly locale?: string; readonly meLabel: string }
+type CopyFormat = {
+  readonly locale?: string
+  readonly meLabel: string
+  /** Precedes what was said in a transcribed audio. */
+  readonly transcriptionLabel?: string
+}
 
-/** Several messages as text: one line each, `[date time] author: text [file]`, like a chat export. */
+/**
+ * Several messages as text: one line each, `[date time] author: text [file]`, like a chat export. A transcribed
+ * audio carries what was said, so the text stands on its own outside the thread.
+ */
 export function formatMessagesForCopy(
   messages: readonly ParticipantMessageActionsTarget[],
   format: CopyFormat,
@@ -64,7 +73,9 @@ export function formatMessagesForCopy(
     .map((message) => {
       const author = message.isMine ? format.meLabel : (message.authorName ?? '')
       const head = `[${formatMessageMoment(message.createdAt, format.locale)}]${author === '' ? '' : ` ${author}:`}`
-      const files = message.attachments.map((attachment) => `[${attachment.filename}]`)
+      const files = message.attachments.map((attachment) =>
+        attachmentForCopy(attachment, format.transcriptionLabel ?? 'Transcription'),
+      )
       return [head, copyableText(message) ?? '', ...files].filter((part) => part !== '').join(' ')
     })
     .join('\n')

@@ -18,7 +18,14 @@ export function ParticipantSelectionBar({ state }: { readonly state: Participant
   const isEmpty = selected.length === 0
 
   function copySelected(): void {
-    copy(formatMessagesForCopy(selected, { locale: state.locale, meLabel: labels.me }), labels.valueCopied)
+    copy(
+      formatMessagesForCopy(selected, {
+        locale: state.locale,
+        meLabel: labels.me,
+        transcriptionLabel: labels.transcriptionPrefix ?? DEFAULTS.transcriptionPrefix,
+      }),
+      labels.valueCopied,
+    )
     state.clear()
   }
 

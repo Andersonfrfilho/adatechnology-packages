@@ -32,7 +32,13 @@ export function ParticipantConversationMenu({ state, title }: ParticipantConvers
       run: () =>
         downloadTextFile(
           conversationExportFileName(title),
-          conversationExportText({ title, messages: state.messages, locale: state.locale, meLabel: labels.me }),
+          conversationExportText({
+            title,
+            messages: state.messages,
+            locale: state.locale,
+            meLabel: labels.me,
+            transcriptionLabel: labels.transcriptionPrefix ?? DEFAULTS.transcriptionPrefix,
+          }),
         ),
     },
   ]

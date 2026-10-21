@@ -27,6 +27,25 @@ const ITEMS: readonly ParticipantTimelineItem[] = [
       readAt: '2026-10-01T10:30:00.000Z',
     }),
   },
+  {
+    kind: 'server',
+    message: buildMessage({
+      id: 'm2',
+      text: null,
+      direction: 'outbound',
+      authorName: 'Bruno',
+      attachments: [
+        {
+          id: 'a1',
+          kind: 'audio',
+          filename: 'voz.ogg',
+          mimeType: 'audio/ogg',
+          sizeBytes: 10,
+          transcription: { status: 'ready', text: 'Cheguei na doca.', generatedAt: '2026-10-01T10:31:00.000Z' },
+        },
+      ],
+    }),
+  },
 ]
 
 function HeaderMenu() {
@@ -111,6 +130,32 @@ describe('message info and conversation menu in a DOM', () => {
       const text = await saved.blob!.text()
       expect(text.startsWith('Order 12\n\n[')).toBe(true)
       expect(text).toContain(`${LABELS.me}: Mine`)
+      expect(text).toContain('Bruno: [voz.ogg] Transcription: Cheguei na doca.')
+      unmount()
+    } finally {
+      URL.createObjectURL = originalCreate
+      URL.revokeObjectURL = originalRevoke
+      HTMLAnchorElement.prototype.click = originalClick
+    }
+  })
+
+  it('offers to copy and to download what was said in a transcribed audio', () => {
+    let savedName = ''
+    const originalCreate = URL.createObjectURL
+    const originalRevoke = URL.revokeObjectURL
+    const originalClick = HTMLAnchorElement.prototype.click
+    URL.createObjectURL = () => 'blob:test'
+    URL.revokeObjectURL = () => undefined
+    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement) {
+      savedName = this.download
+    }
+    try {
+      const { container, unmount } = mount()
+      fire(container.querySelectorAll('.cv-p-message-menu__trigger')[1]!, 'click')
+      const labels = Array.from(container.querySelectorAll('[role="menuitem"]')).map((entry) => entry.textContent)
+      expect(labels).toEqual(['Select messages', 'Copy transcription', 'Download transcription', 'Message info'])
+      fire(item(container, 'Download transcription'), 'click')
+      expect(savedName).toBe('voz Transcription.txt')
       unmount()
     } finally {
       URL.createObjectURL = originalCreate

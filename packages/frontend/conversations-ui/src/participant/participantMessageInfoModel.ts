@@ -62,11 +62,12 @@ type ConversationExport = {
   readonly messages: readonly ParticipantMessageActionsTarget[]
   readonly locale?: string
   readonly meLabel: string
+  readonly transcriptionLabel?: string
 }
 
 /** The conversation as a text file: the title, a blank line, then one `[date time] author: text` line each. */
-export function conversationExportText({ title, messages, locale, meLabel }: ConversationExport): string {
-  return `${title}\n\n${formatMessagesForCopy(messages, { locale, meLabel })}\n`
+export function conversationExportText({ title, messages, ...format }: ConversationExport): string {
+  return `${title}\n\n${formatMessagesForCopy(messages, format)}\n`
 }
 
 /** A file name any system accepts, from the conversation title. */

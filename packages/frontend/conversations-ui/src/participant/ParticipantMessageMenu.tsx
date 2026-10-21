@@ -2,7 +2,10 @@ import { ChevronDown } from 'lucide-react'
 import { useCallback, useId, useState } from 'react'
 
 import type { ParticipantMessageActionsTarget } from './ParticipantAuthorAvatar'
+import { downloadTextFile } from '../conversationTranscript'
 import { ParticipantMessageInfo } from './ParticipantMessageInfo'
+import { formatMessageMoment } from './participantMessageMoment'
+import { readyTranscriptions, transcriptionFileName } from './participantTranscriptionText'
 import type { ParticipantMessageMenuState } from './ParticipantMessageMenuContext'
 import {
   DEFAULT_MESSAGE_OPTIONS_LABEL,
@@ -23,6 +26,31 @@ type ParticipantMessageMenuProps = {
 }
 
 type Entry = ParticipantMessageMenuItem & { readonly run?: () => void }
+
+/** A transcribed audio: copy what was said, or save it as a text file named after the audio. */
+function transcriptionEntries(props: ParticipantMessageMenuProps, copy: (value: string) => void): readonly Entry[] {
+  const { state, message } = props
+  const { labels } = state
+  const ready = readyTranscriptions(message.attachments)
+  const [first] = ready
+  if (!first) return []
+  const prefix = labels.transcriptionPrefix ?? DEFAULTS.transcriptionPrefix ?? ''
+  const text = ready.map((entry) => entry.text).join('\n\n')
+  const author = message.isMine ? labels.me : (message.authorName ?? '')
+  const head = `[${formatMessageMoment(message.createdAt, state.locale)}]${author === '' ? '' : ` ${author}`}`
+  return [
+    {
+      id: 'copy-transcription',
+      label: labels.copyTranscription ?? DEFAULTS.copyTranscription ?? '',
+      run: () => copy(text),
+    },
+    {
+      id: 'download-transcription',
+      label: labels.downloadTranscription ?? DEFAULTS.downloadTranscription ?? '',
+      run: () => downloadTextFile(transcriptionFileName(first.filename, prefix), `${head}\n\n${text}\n`),
+    },
+  ]
+}
 
 function entriesFor(
   props: ParticipantMessageMenuProps,
@@ -47,6 +75,7 @@ function entriesFor(
     label: labels.selectMessages ?? DEFAULTS.selectMessages ?? '',
     run: () => state.start(message.id),
   })
+  own.push(...transcriptionEntries(props, copy))
   own.push({ id: 'info', label: labels.messageInfo ?? DEFAULTS.messageInfo ?? '', run: showInfo })
   return [...own, ...(state.options.items?.(message) ?? []).map((item) => ({ ...item, run: item.onSelect }))]
 }
