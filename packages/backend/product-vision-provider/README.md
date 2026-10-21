@@ -73,10 +73,64 @@ createBarcodeReader({}, { decodeImage: async (input, maxPixels) => /* sharp, jim
 
 ## Desempate por modelo de visão
 
-Ainda não incluído. A `ProductVisionPort` prevê `rank`, e a cascata do `catalog-module` funciona sem
-ele — sem `rank`, os candidatos voltam para a pessoa escolher na conversa. É o único degrau com
-custo real de infraestrutura (RAM e latência de CPU), e entra quando a métrica de acerto do vetorial
-mostrar que vale a máquina.
+O terceiro degrau: só roda quando o código de barras não decidiu e o vetor trouxe **mais de um**
+candidato plausível. Servido por um Ollama local — o pacote fala HTTP e não carrega runtime de
+modelo, então a RAM e o ciclo de vida são do host.
+
+```ts
+import { createOllamaRanker } from '@adatechnology/product-vision-provider/vlm-ollama'
+
+const vision = createVisionChain([createBarcodeReader(), createClipEmbedder()], {
+  ranker: createOllamaRanker(),   // sem isto, a cadeia não expõe `rank`
+})
+```
+
+```bash
+ollama pull qwen2.5vl:3b
+```
+
+**O modelo escolhe um número, nunca o id do produto.** Pedir o UUID convida a alucinação: o modelo
+inventa um id parecido, o consumidor não acha na lista e a escolha se perde. Um número de 0 a N é
+verificável em uma linha, e o `0` é "nenhum destes" — a resposta que impede o desempate de escolher
+o menos improvável quando o cliente fotografou algo que a loja não vende.
+
+**Um candidato só dispensa o desempate**: gastar a inferência para "confirmar" o único item
+transformaria o degrau mais caro da cascata no mais frequente.
+
+### O custo, medido — e onde ele está
+
+Medições em CPU (Apple Silicon, `qwen2.5vl:3b`), imagem sempre nova para não pegar cache de prompt:
+
+| Situação | Tempo | Tokens de visão |
+|---|---|---|
+| Modelo **frio** (primeira chamada) | **16,3s** | 1104 |
+| Quente, foto 1280px | 6,6s | 1632 |
+| Quente, foto 896px | 4,6s | 1104 |
+| Quente, foto 640px | 4,2s | 1104 |
+| Quente, foto 224px | 4,2s | 1104 |
+
+**Quase todo o tempo é prefill da imagem** — a geração da resposta leva ~22ms, porque a resposta são
+dois tokens. Daí decorre tudo:
+
+- **`keep_alive` é a maior economia**: 16,3s contra 4,2s. O default do Ollama são 5 minutos, e o
+  desempate é esporádico por natureza — sem isto quase toda foto paga o carregamento. O pacote pede
+  30 minutos.
+- **Encolher a foto para 896px corta ~36%** (6,6s → 4,2s), e é onde o ganho acaba: abaixo disso o
+  modelo normaliza para os mesmos 1104 tokens, então 224px leva o mesmo tempo que 640px. Plugue
+  `prepareImage` para ativar — o pacote não carrega decodificador de imagem por ninguém.
+- **Limitar a saída (`num_predict`) não adianta nada**: ela já são 2 tokens.
+
+**O piso é ~4,2s** nessa classe de máquina com esse modelo. Para ir abaixo: GPU, modelo menor, ou
+**não chamar o desempate** — que é a única economia que corta o custo a zero, e por isso o
+`catalog-module` pula o desempate quando o vizinho mais próximo vence com folga.
+
+Sem `ranker`, os candidatos voltam para a pessoa escolher, o que é instantâneo.
+
+### Sobre a escolha do modelo
+
+O default é `qwen2.5vl:3b` por ter sido o que respondeu. O `moondream` é menor (1,7GB) e seria a
+escolha óbvia, mas devolve **string vazia** no Ollama 0.32 — até com prompt só de texto — e o
+sintoma é indistinguível de "o modelo não soube responder".
 
 ## Licença
 
