@@ -21,6 +21,8 @@ export type ParticipantFailedMenuController = {
   readonly handleMenuKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
   readonly handleBlur: (event: FocusEvent<HTMLSpanElement>) => void
   readonly close: () => void
+  /** Opens with the first item focused, as a right-click or a long press does. */
+  readonly open: () => void
 }
 
 export function useParticipantFailedMenu(): ParticipantFailedMenuController {
@@ -56,5 +58,6 @@ export function useParticipantFailedMenu(): ParticipantFailedMenuController {
     handleMenuKeyDown: (event) => handleFailedMenuKeyDown({ event, menuRef, triggerRef, dispatch }),
     handleBlur,
     close: () => dispatch({ type: 'close' }),
+    open: () => dispatch({ type: 'open', initialFocus: 'first' }),
   }
 }

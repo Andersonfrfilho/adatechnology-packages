@@ -44,6 +44,29 @@ export type ParticipantConversationsLabels = {
   readonly edit: string
   /** Name of the menu button on a failed message. Optional; translated hosts should fill it, otherwise the English default shows. */
   readonly messageOptions?: string
+  /** Message menu (opt-in `messageMenu`). Optional; translated hosts should fill them, otherwise English shows. */
+  readonly copyMessage?: string
+  readonly copySelection?: string
+  readonly selectMessages?: string
+  /** Name of the check box beside each message in selection mode. */
+  readonly selectMessage?: string
+  readonly cancelSelection?: string
+  /** Selection bar count; `{count}` is replaced. */
+  readonly selectedCount?: string
+  /** Message info panel: when it was sent, its delivery state and when it was read. */
+  readonly messageInfo?: string
+  readonly infoAuthor?: string
+  readonly infoSentAt?: string
+  readonly infoStatus?: string
+  readonly infoReadAt?: string
+  readonly closeMessageInfo?: string
+  /** Header menu of a thread with `messageMenu`: select messages and download the conversation as text. */
+  readonly conversationOptions?: string
+  readonly downloadConversation?: string
+  /** Transcribed audio: the word before what was said in copies and exports, and its two menu entries. */
+  readonly transcriptionPrefix?: string
+  readonly copyTranscription?: string
+  readonly downloadTranscription?: string
   /** Toggle that opens the message as received (e.g. the whole email). Optional; the English default shows otherwise. */
   readonly showOriginalText?: string
   readonly notFound: string
@@ -110,6 +133,23 @@ export const DEFAULT_PARTICIPANT_CONVERSATIONS_LABELS: ParticipantConversationsL
   edit: 'Edit',
   messageOptions: DEFAULT_MESSAGE_OPTIONS_LABEL,
   showOriginalText: DEFAULT_SHOW_ORIGINAL_TEXT_LABEL,
+  copyMessage: 'Copy',
+  copySelection: 'Copy selection',
+  selectMessages: 'Select messages',
+  selectMessage: 'Select message',
+  cancelSelection: 'Cancel selection',
+  selectedCount: '{count} selected',
+  messageInfo: 'Message info',
+  infoAuthor: 'From',
+  infoSentAt: 'Sent',
+  infoStatus: 'Status',
+  infoReadAt: 'Read',
+  closeMessageInfo: 'Close',
+  conversationOptions: 'Conversation options',
+  downloadConversation: 'Download conversation',
+  transcriptionPrefix: 'Transcription',
+  copyTranscription: 'Copy transcription',
+  downloadTranscription: 'Download transcription',
   notFound: 'Conversation not found',
   loading: 'Loading…',
   loadError: 'Could not load. Check your connection and try again.',

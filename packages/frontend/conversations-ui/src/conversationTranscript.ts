@@ -75,7 +75,8 @@ export function buildTranscriptFilename(whatsappNumber: string, generatedAt: Dat
 
 /**
  * Dispara o download no navegador. `revokeObjectURL` no fim não é higiene opcional: sem ele cada
- * export retém o blob inteiro em memória até a aba fechar.
+ * export retém o blob inteiro em memória até a aba fechar. O link entra no documento enquanto é clicado,
+ * como o Firefox exige, e a revogação vai para o tique seguinte, depois de o download começar.
  */
 export function downloadTextFile(filename: string, content: string): void {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
@@ -84,6 +85,9 @@ export function downloadTextFile(filename: string, content: string): void {
 
   anchor.href = url
   anchor.download = filename
+  anchor.rel = 'noopener'
+  document.body.appendChild(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
 }

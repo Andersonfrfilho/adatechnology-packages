@@ -7,6 +7,7 @@ import type { QuickReply } from '../quickReplies/quickReply.types'
 import type { ParticipantTimelineItem } from './participantMessages'
 import { TooltipLayer } from '../Tooltip'
 import { ParticipantComposer } from './ParticipantComposer'
+import { ParticipantConversationMenu } from './ParticipantConversationMenu'
 import { useSuppressTouchTooltips } from './useSuppressTouchTooltips'
 import { ParticipantCopyAnnouncer, ParticipantThreadLive } from './ParticipantCopyAnnouncer'
 import type { ResolveParticipantAttachmentUrl } from './ParticipantAttachmentItem'
@@ -19,6 +20,9 @@ import type { ParticipantThreadScroll } from './useStickToBottom'
 import type { ParticipantAuthorAvatarRenderer, ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
 import { ParticipantScrollToLatest } from './ParticipantScrollToLatest'
 import { ParticipantTimeline } from './ParticipantTimeline'
+import { ParticipantMessageMenuProvider, useParticipantMessageMenu } from './ParticipantMessageMenuContext'
+import type { ParticipantMessageMenuOptions } from './participantMessageMenuModel'
+import { ParticipantSelectionBar } from './ParticipantSelectionBar'
 import { ParticipantThreadHeader } from './ParticipantThreadHeader'
 import type { ParticipantSubjectGroup, ParticipantSubjectIconRenderer } from './participant.types'
 import type { ParticipantAudioRecordingOptions } from './participantAudio.types'
@@ -64,6 +68,8 @@ export type ParticipantThreadProps = {
   readonly renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
   /** Host slot at the end of each message's meta line (copy, forward...). The package knows no action. */
   readonly renderMessageActions?: ParticipantMessageActionsRenderer
+  /** Opt-in message menu (copy, select messages, host entries); absent leaves the bubbles as they were. */
+  readonly messageMenu?: ParticipantMessageMenuOptions
   /** Host icon of the conversation avatar in the header; absent or empty falls back to the subject group icon. */
   readonly renderSubjectIcon?: ParticipantSubjectIconRenderer
   /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
@@ -84,6 +90,8 @@ export type ParticipantThreadProps = {
 
 function Footer({ props }: { readonly props: ParticipantThreadProps }) {
   const { conversation, labels, draft } = props
+  const menu = useParticipantMessageMenu()
+  if (menu?.isSelecting) return <ParticipantSelectionBar state={menu} />
   if (conversation.status === 'closed') {
     return <p className="cv-p-thread__closed">{labels.closedNotice}</p>
   }
@@ -115,6 +123,15 @@ function Footer({ props }: { readonly props: ParticipantThreadProps }) {
 }
 
 function Header({ props }: { readonly props: ParticipantThreadProps }) {
+  const menu = useParticipantMessageMenu()
+  const actions = menu ? (
+    <>
+      {props.headerActions}
+      <ParticipantConversationMenu state={menu} title={props.conversation.subjectLabel} />
+    </>
+  ) : (
+    props.headerActions
+  )
   return (
     <ParticipantThreadHeader
       conversation={props.conversation}
@@ -124,7 +141,7 @@ function Header({ props }: { readonly props: ParticipantThreadProps }) {
       onBack={props.onBack}
       onOpenSubject={props.onOpenSubject}
       counterpartLabel={props.counterpartLabel}
-      actions={props.headerActions}
+      actions={actions}
     />
   )
 }
@@ -166,7 +183,15 @@ function ThreadBody(props: ParticipantThreadProps) {
 export function ParticipantThread(props: ParticipantThreadProps) {
   return (
     <ParticipantCopyAnnouncer>
-      <ThreadBody {...props} />
+      <ParticipantMessageMenuProvider
+        options={props.messageMenu}
+        labels={props.labels}
+        locale={props.locale}
+        items={props.items}
+        perspective={props.perspective}
+      >
+        <ThreadBody {...props} />
+      </ParticipantMessageMenuProvider>
       <TooltipLayer />
     </ParticipantCopyAnnouncer>
   )
