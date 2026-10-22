@@ -1,17 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Stone's filters declare a host, so a scheme-only query does not make them visible on Android 11+. -->
     <queries>
+        <package android:name="br.com.stone.posandroid.acquirerapp" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="payment-app" />
+            <data android:scheme="payment-app" android:host="pay" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="cancel-app" />
+            <data android:scheme="cancel-app" android:host="cancel" />
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="printer-app" />
+            <data android:scheme="printer-app" android:host="print" />
         </intent>
     </queries>
 </manifest>
