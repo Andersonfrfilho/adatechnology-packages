@@ -191,6 +191,7 @@ class StonePosModule(
             operation.promise.reject(ERROR_BUSY, "Another Stone operation is pending")
             return false
         }
+        if (operation.kind != OperationKind.PRINT) StonePendingService.start(reactApplicationContext)
         try {
             launch(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
         } catch (error: ActivityNotFoundException) {
@@ -229,9 +230,11 @@ class StonePosModule(
         return released
     }
 
+    // Every operation ends through here (return, timeout, abandon), so the foreground service stops here too.
     private fun cancelTimeout(operation: PendingOperation) {
         operation.timeoutTask?.let { mainHandler.removeCallbacks(it) }
         operation.timeoutTask = null
+        if (operation.kind != OperationKind.PRINT) StonePendingService.stop(reactApplicationContext)
     }
 
     private fun handleReturn(uri: Uri) {

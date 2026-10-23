@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <!-- Stone's filters declare a host, so a scheme-only query does not make them visible on Android 11+. -->
     <queries>
         <package android:name="br.com.stone.posandroid.acquirerapp" />
@@ -16,4 +18,11 @@
             <data android:scheme="printer-app" android:host="print" />
         </intent>
     </queries>
+
+    <application>
+        <service
+            android:name=".StonePendingService"
+            android:exported="false"
+            android:foregroundServiceType="shortService" />
+    </application>
 </manifest>
