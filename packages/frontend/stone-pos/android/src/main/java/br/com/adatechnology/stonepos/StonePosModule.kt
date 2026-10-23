@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.WindowManager
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -113,7 +114,8 @@ class StonePosModule(
         val timeoutMs: Long
         try {
             val options = JSONObject(optionsJson.ifBlank { "{}" })
-            uri = StoneDeeplink.buildPrintUri(config.returnScheme, contentJson, options.optBoolean("showFeedback", false))
+            val printable = printableContent(contentJson, options.optBoolean("renderAsImage", false))
+            uri = StoneDeeplink.buildPrintUri(config.returnScheme, printable, options.optBoolean("showFeedback", false))
             timeoutMs = options.optLong("timeoutMs", DEFAULT_PRINT_TIMEOUT_MS)
         } catch (error: Exception) {
             promise.reject(ERROR_INVALID_PARAMS, error.message, error)
@@ -127,6 +129,22 @@ class StonePosModule(
         }
         operation.timeoutTask = task
         mainHandler.postDelayed(task, timeoutMs)
+    }
+
+    // Image mode prints dark; when drawing fails the receipt still goes out as text, and the log says why.
+    private fun printableContent(contentJson: String, renderAsImage: Boolean): String {
+        if (!renderAsImage) {
+            Log.i(LOG_TAG, "IMPRESSAO FRACA (texto): modo imagem desligado")
+            return contentJson
+        }
+        return try {
+            StonePrintRenderer.renderToContentJson(contentJson).also {
+                Log.i(LOG_TAG, "IMPRESSAO FORTE (imagem): ${it.length} bytes")
+            }
+        } catch (error: Exception) {
+            Log.w(LOG_TAG, "IMPRESSAO FRACA (texto): falha ao desenhar a imagem: ${error.javaClass.simpleName}")
+            contentJson
+        }
     }
 
     override fun consumeOrphanReturns(promise: Promise) {
@@ -284,6 +302,7 @@ class StonePosModule(
 
     companion object {
         const val NAME = "StonePos"
+        const val LOG_TAG = "StonePosPrint"
         const val ERROR_BUSY = "STONE_BUSY"
         const val ERROR_UNAVAILABLE = "STONE_UNAVAILABLE"
         const val ERROR_INVALID_PARAMS = "STONE_INVALID_PARAMS"

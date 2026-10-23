@@ -59,6 +59,8 @@ export type PrintStatus =
 export type PrintOptions = {
   readonly showFeedback?: boolean
   readonly timeoutMs?: number
+  // Draws the receipt as one black-and-white image: the Stone text fonts print faint.
+  readonly renderAsImage?: boolean
 }
 
 export type DeviceInfo = {

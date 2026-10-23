@@ -168,6 +168,7 @@ function toPrintOptions(options: PrintOptions | undefined): string {
   return JSON.stringify({
     ...(options?.showFeedback !== undefined && { showFeedback: options.showFeedback }),
     ...(options?.timeoutMs !== undefined && { timeoutMs: options.timeoutMs }),
+    ...(options?.renderAsImage !== undefined && { renderAsImage: options.renderAsImage }),
   })
 }
 
