@@ -26,7 +26,15 @@ object StonePrintRenderer {
     private const val MARGIN_PX = 4
 
     private val monospaceBold: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+    private val monospaceRegular: Typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     private val sansBold: Typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+
+    // The Stone text renderer does not know the bold key: drop it before sending text.
+    fun withoutImageOnlyKeys(contentJson: String): String {
+        val lines = JSONArray(contentJson)
+        for (index in 0 until lines.length()) lines.getJSONObject(index).remove("bold")
+        return lines.toString()
+    }
 
     // Returns the PRINTABLE_CONTENT JSON with a single image item.
     fun renderToContentJson(contentJson: String): String {
@@ -91,7 +99,8 @@ object StonePrintRenderer {
 
     private fun textBlock(line: JSONObject): Block {
         val isBig = line.optString("size") == "big"
-        val paint = if (isBig) textPaint(sansBold, BIG_TEXT_PX) else textPaint(monospaceBold, BODY_TEXT_PX)
+        val bodyFace = if (line.optBoolean("bold", true)) monospaceBold else monospaceRegular
+        val paint = if (isBig) textPaint(sansBold, BIG_TEXT_PX) else textPaint(bodyFace, BODY_TEXT_PX)
         return TextBlock(line.optString("content"), paint, line.optString("align", "left"))
     }
 

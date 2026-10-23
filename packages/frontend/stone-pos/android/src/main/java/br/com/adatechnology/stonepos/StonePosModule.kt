@@ -135,7 +135,7 @@ class StonePosModule(
     private fun printableContent(contentJson: String, renderAsImage: Boolean): String {
         if (!renderAsImage) {
             Log.i(LOG_TAG, "IMPRESSAO FRACA (texto): modo imagem desligado")
-            return contentJson
+            return StonePrintRenderer.withoutImageOnlyKeys(contentJson)
         }
         return try {
             StonePrintRenderer.renderToContentJson(contentJson).also {
@@ -143,7 +143,7 @@ class StonePosModule(
             }
         } catch (error: Exception) {
             Log.w(LOG_TAG, "IMPRESSAO FRACA (texto): falha ao desenhar a imagem: ${error.javaClass.simpleName}")
-            contentJson
+            StonePrintRenderer.withoutImageOnlyKeys(contentJson)
         }
     }
 

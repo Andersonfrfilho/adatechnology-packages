@@ -94,6 +94,8 @@ export type PrintLine =
       readonly content: string
       readonly align?: 'left' | 'center' | 'right'
       readonly size?: 'small' | 'medium' | 'big'
+      // Image mode only (renderAsImage): false draws the regular weight. The Stone text fonts ignore it.
+      readonly bold?: boolean
     }
   | { readonly type: 'line'; readonly content: string }
   | { readonly type: 'image'; readonly imagePath: string }
