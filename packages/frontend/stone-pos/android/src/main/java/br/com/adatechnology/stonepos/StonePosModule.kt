@@ -191,7 +191,7 @@ class StonePosModule(
             operation.promise.reject(ERROR_BUSY, "Another Stone operation is pending")
             return false
         }
-        if (operation.kind != OperationKind.PRINT) StonePendingService.start(reactApplicationContext)
+        StonePendingService.start(reactApplicationContext)
         try {
             launch(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
         } catch (error: ActivityNotFoundException) {
@@ -234,7 +234,7 @@ class StonePosModule(
     private fun cancelTimeout(operation: PendingOperation) {
         operation.timeoutTask?.let { mainHandler.removeCallbacks(it) }
         operation.timeoutTask = null
-        if (operation.kind != OperationKind.PRINT) StonePendingService.stop(reactApplicationContext)
+        StonePendingService.stop(reactApplicationContext)
     }
 
     private fun handleReturn(uri: Uri) {

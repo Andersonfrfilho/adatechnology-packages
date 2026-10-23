@@ -15,7 +15,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 
-// Keeps the host process at foreground priority while the Stone app charges or cancels. On a 1 GB
+// Keeps the host process at foreground priority while the Stone app charges, cancels or prints. On a 1 GB
 // terminal the low memory killer otherwise takes the waiting app first and the approved return lands
 // on a cold start.
 class StonePendingService : Service() {
