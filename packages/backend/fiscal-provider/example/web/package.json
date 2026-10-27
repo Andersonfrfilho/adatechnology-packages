@@ -1,7 +1,7 @@
 {
   "name": "fiscal-example-frontend",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "description": "Frontend example consuming @adatechnology/fiscal-provider API",
   "scripts": {

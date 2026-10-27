@@ -1,0 +1,296 @@
+{
+  "environments": {
+    "title": "Ambientes",
+    "subtitle": "Ligue e desligue os ambientes de homologação para economizar. Produção nunca aparece como desligável.",
+    "loading": "Carregando ambientes...",
+    "empty": "Nenhum ambiente encontrado.",
+    "loadFailed": "Não foi possível carregar os ambientes.",
+    "retry": "Tentar de novo",
+    "environmentsCount": "ambientes",
+    "protectedHint": "Protegido: não pode ser ligado nem desligado pelo painel."
+  },
+  "notConfigured": {
+    "title": "Módulo de infraestrutura não configurado",
+    "description": "O servidor não tem o token do provedor configurado, então não há como listar ambientes nem custos. Peça a quem administra o servidor para configurar a integração."
+  },
+  "access": {
+    "ok": "Conexão com o provedor ativa.",
+    "token_invalid": "Sem acesso ao provedor: o token é inválido ou foi revogado. Atualize-o na configuração do servidor.",
+    "billing_unavailable": "Cobrança ilegível: o token não consegue ler a cobrança. Ambientes e agendas funcionam; os custos podem aparecer sem o total oficial.",
+    "unavailable": "Não foi possível falar com o provedor agora. Tente de novo em instantes."
+  },
+  "state": {
+    "running": "Ligado",
+    "stopped": "Desligado",
+    "partial": "Parcial",
+    "transitioning": "Em transição"
+  },
+  "classification": {
+    "managed": "Gerenciável",
+    "protected": "Protegido",
+    "unmanaged": "Não gerenciado"
+  },
+  "services": {
+    "title": "Serviços",
+    "summary": "{running} de {total} rodando",
+    "database": "Banco de dados",
+    "running": "Rodando",
+    "stopped": "Parado",
+    "no_deployment": "Sem deploy",
+    "transitioning": "Mudando"
+  },
+  "power": {
+    "on": "Ligar",
+    "off": "Desligar",
+    "running": "Operação em andamento...",
+    "operationRunning": "Operação em andamento neste ambiente.",
+    "started": "Operação iniciada.",
+    "confirmTitleOff": "Desligar {environment}",
+    "confirmTitleOn": "Ligar {environment}",
+    "confirmDescriptionOff": "Os serviços abaixo serão parados. Aplicações primeiro e bancos por último. Volumes, variáveis e backups continuam intactos.",
+    "confirmDescriptionOn": "Os bancos sobem primeiro e as aplicações depois que eles respondem.",
+    "willStop": "Serviços que serão parados",
+    "databasesLast": "Bancos de dados por último.",
+    "typeToConfirm": "Digite {environment} para confirmar",
+    "confirmPlaceholder": "Nome do ambiente",
+    "confirmOff": "Desligar ambiente",
+    "confirmOn": "Ligar ambiente",
+    "pending": "Enviando...",
+    "cancel": "Cancelar",
+    "serviceOn": "Iniciar",
+    "serviceOff": "Parar",
+    "serviceTitleOn": "Iniciar {service}",
+    "serviceTitleOff": "Parar {service}",
+    "serviceDescriptionOn": "Só este serviço de {environment} será iniciado. Aplicação só sobe se os bancos do ambiente estiverem rodando.",
+    "serviceDescriptionOff": "Só este serviço de {environment} será parado. O resto do ambiente continua como está.",
+    "serviceDatabaseWarning": "Este serviço é um banco de dados: as aplicações que dependem dele deixam de funcionar enquanto ele estiver parado.",
+    "serviceConfirmOn": "Iniciar serviço",
+    "serviceConfirmOff": "Parar serviço"
+  },
+  "keepOn": {
+    "label": "Manter ligado até",
+    "hint": "Fora do horário da agenda, o ambiente desliga sozinho depois deste horário (máximo 24 h).",
+    "plusOneHour": "+1 h",
+    "plusTwoHours": "+2 h",
+    "plusFourHours": "+4 h",
+    "endOfDay": "Fim do dia",
+    "until": "Até {moment}",
+    "activeUntil": "Mantido ligado até {moment}"
+  },
+  "moment": {
+    "today": "hoje às {time}",
+    "tomorrow": "amanhã às {time}",
+    "weekday": "{weekday} {time}"
+  },
+  "schedule": {
+    "title": "Agenda",
+    "none": "Sem agenda",
+    "enabled": "Ativa",
+    "paused": "Pausada",
+    "weekdays": "Dias da semana",
+    "powerOnTime": "Hora de ligar",
+    "powerOffTime": "Hora de desligar",
+    "businessHours": "Usar horário comercial",
+    "businessHoursHint": "Segunda a sexta, 08:00 às 20:00",
+    "isEnabled": "Agenda ativa",
+    "isEnabledHint": "Pausar mantém a agenda salva, mas ela deixa de ligar e desligar.",
+    "timezoneNote": "Horários no fuso de Brasília (America/Sao_Paulo).",
+    "save": "Salvar agenda",
+    "saving": "Salvando...",
+    "saved": "Agenda salva.",
+    "next": "Próxima ação",
+    "nextPowerOn": "Liga",
+    "nextPowerOff": "Desliga",
+    "weekdayNames": ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"],
+    "weekdayLetters": ["D", "S", "T", "Q", "Q", "S", "S"],
+    "weekdayFullNames": ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"],
+    "validation": {
+      "no_weekdays": "Escolha ao menos um dia da semana.",
+      "invalid_time": "Informe os dois horários.",
+      "crosses_midnight": "A janela não pode cruzar a meia-noite: a hora de ligar precisa ser antes da hora de desligar.",
+      "empty_window": "A hora de ligar e a de desligar não podem ser iguais."
+    }
+  },
+  "operation": {
+    "running": "Em andamento",
+    "succeeded": "Concluída",
+    "partially_failed": "Concluída com falhas",
+    "failed": "Falhou"
+  },
+  "costs": {
+    "title": "Custos",
+    "subtitle": "Consumo do provedor no ciclo de cobrança atual, em dólar.",
+    "loading": "Carregando custos...",
+    "loadFailed": "Não foi possível carregar os custos.",
+    "retry": "Tentar de novo",
+    "empty": "Sem consumo no período.",
+    "period": "Ciclo de cobrança",
+    "total": "Acumulado no ciclo",
+    "projection": "Projeção até o fim do ciclo",
+    "projectionMethod": "Estimativa linear",
+    "projectionExplanation": "Mantém o ritmo de consumo até agora pelos dias restantes do ciclo. Não prevê mudanças.",
+    "officialTotal": "Total oficial do provedor",
+    "officialTotalMissing": "Indisponível",
+    "divergence": "Divergência em relação ao total oficial",
+    "divergenceWarning": "Nosso cálculo difere do total oficial em {percent}. Confira a tabela de preços.",
+    "stagingShare": "Homologação (staging) representa {percent} do custo do ciclo.",
+    "stagingShareUnavailable": "Ainda não há custo no ciclo para calcular a parcela de homologação.",
+    "stale": "Dados de uma consulta anterior: não foi possível atualizar agora.",
+    "calendarMonth": "Cobrança ilegível: mostrando o mês-calendário, que pode não coincidir com o ciclo do provedor.",
+    "pricingCheckedAt": "Preços conferidos em",
+    "pricingSource": "Fonte dos preços",
+    "chartTitle": "Custo por projeto",
+    "chartAriaLabel": "Gráfico de barras empilhadas: custo por projeto, homologação e produção. {summary}",
+    "chartAriaItem": "{project}: {total}, sendo {staging} em homologação e {production} em produção",
+    "chartTableHint": "Os mesmos valores estão na tabela abaixo.",
+    "legend": "Legenda",
+    "tableTitle": "Detalhe por projeto e ambiente",
+    "tableCaption": "Custo do ciclo por projeto e ambiente, do maior para o menor",
+    "columnProject": "Projeto / ambiente",
+    "columnStaging": "Homologação",
+    "columnProduction": "Produção",
+    "columnCost": "Custo",
+    "columnShare": "% do total",
+    "columnTotal": "Total",
+    "columnProjected": "Projeção",
+    "kindStaging": "Homologação",
+    "kindProduction": "Produção",
+    "measurement": {
+      "CPU_USAGE": "CPU",
+      "MEMORY_USAGE_GB": "Memória",
+      "NETWORK_TX_GB": "Rede",
+      "DISK_USAGE_GB": "Disco"
+    }
+  },
+  "integration": {
+    "title": "Integração",
+    "subtitle": "Token do provedor que o painel usa para listar, ligar e desligar ambientes e ler custos.",
+    "loading": "Carregando integração...",
+    "loadFailed": "Não foi possível carregar a integração.",
+    "retry": "Tentar de novo",
+    "status": {
+      "title": "Situação atual",
+      "source": "Origem do token",
+      "state": "Estado",
+      "token": "Token",
+      "tokenHint": "terminado em ••••{hint}",
+      "workspace": "Workspace",
+      "workspaceNone": "Não informado",
+      "lastChange": "Última alteração",
+      "updated": "Alterado por {name} em {moment} (horário de Brasília)",
+      "updatedAnonymous": "Alterado em {moment} (horário de Brasília)",
+      "access": "Acesso ao provedor",
+      "accessUnknown": "Ainda não verificado",
+      "verify": "Verificar acesso",
+      "verifying": "Verificando...",
+      "verifyCooldown": "Muitas verificações seguidas. Aguarde um pouco antes de tentar de novo."
+    },
+    "sources": {
+      "panel": "Painel",
+      "environment": "Variável de ambiente do servidor",
+      "none": "Nenhuma"
+    },
+    "states": {
+      "not_configured": {
+        "title": "Nenhum token configurado",
+        "action": "Informe um token de workspace do provedor para ativar o módulo de infraestrutura."
+      },
+      "configured": {
+        "title": "Token configurado",
+        "action": "Use Verificar acesso para confirmar que o provedor ainda o aceita."
+      },
+      "key_missing": {
+        "title": "Chave de cifra ausente",
+        "action": "A chave de cifra não está configurada no servidor. Peça a quem administra o servidor para defini-la; até lá o token salvo não pode ser usado."
+      },
+      "key_mismatch": {
+        "title": "A chave de cifra mudou",
+        "action": "A chave de cifra mudou depois que o token foi salvo. Informe o token de novo."
+      },
+      "secret_unreadable": {
+        "title": "Token salvo ilegível",
+        "action": "O token salvo não pôde ser lido (dado corrompido ou alterado). Informe o token de novo."
+      },
+      "workspace_mismatch": {
+        "title": "Workspace diferente",
+        "action": "O token salvo pertence a outro workspace que o configurado no servidor. Informe o token do workspace correto."
+      },
+      "store_unavailable": {
+        "title": "Armazenamento indisponível",
+        "action": "Não foi possível ler o token salvo agora. Tente de novo em instantes; se persistir, avise quem administra o servidor."
+      }
+    },
+    "access": {
+      "ok": "Acesso confirmado",
+      "token_invalid": "Token inválido",
+      "billing_unavailable": "Cobrança ilegível",
+      "unavailable": "Provedor indisponível"
+    },
+    "notices": {
+      "revokePrefix": "Trocar ou remover o token aqui não revoga o token no provedor. Revogue o antigo em",
+      "revokeSuffix": ".",
+      "revokeGeneric": "Trocar ou remover o token aqui não revoga o token no provedor. Revogue o antigo diretamente no provedor.",
+      "externalLink": "(abre em outra aba)",
+      "environmentManaged": "O token vem de uma variável de ambiente do servidor, que tem prioridade; o painel não pode alterá-lo.",
+      "environmentAlsoPresent": "Há também um token salvo no painel que está sendo ignorado."
+    },
+    "form": {
+      "titleNew": "Informar token",
+      "titleReplace": "Trocar token",
+      "description": "Use um token de workspace do provedor. Tokens de conta são recusados. O token só é salvo depois que o provedor o aceitar.",
+      "workspaceLabel": "Workspace",
+      "workspaceHint": "Definido na configuração do servidor; não pode ser alterado aqui.",
+      "tokenLabel": "Token do provedor",
+      "tokenHint": "De 16 a 128 caracteres: letras, números, hífen e sublinhado.",
+      "showToken": "Mostrar token",
+      "hideToken": "Ocultar token",
+      "passwordLabel": "Sua senha do painel",
+      "passwordHint": "Confirma que é você. Erros seguidos bloqueiam esta função por 15 minutos.",
+      "submit": "Testar e salvar",
+      "submitting": "Testando e salvando...",
+      "saved": "Token testado e salvo. Os campos foram limpos.",
+      "tokenIssues": {
+        "empty": "Informe o token.",
+        "tooShort": "O token é curto demais.",
+        "tooLong": "O token é longo demais.",
+        "invalidCharacters": "O token tem caracteres ou espaços que não são aceitos."
+      }
+    },
+    "remove": {
+      "open": "Remover token",
+      "title": "Remover o token do painel",
+      "description": "O módulo de infraestrutura volta a ficar sem credencial e as agendas deixam de agir. Remover aqui não revoga o token no provedor: revogue-o em",
+      "descriptionSuffix": ".",
+      "descriptionGeneric": "O módulo de infraestrutura volta a ficar sem credencial e as agendas deixam de agir. Remover aqui não revoga o token no provedor: revogue-o diretamente nele.",
+      "passwordLabel": "Sua senha do painel",
+      "confirm": "Remover token",
+      "confirming": "Removendo...",
+      "cancel": "Cancelar",
+      "removed": "Token removido."
+    },
+    "errors": {
+      "INFRA_SECRET_KEY_MISSING": "A chave de cifra não está configurada no servidor, então o token não pode ser salvo. Peça a quem administra o servidor para configurá-la.",
+      "INFRA_INTEGRATION_PRODUCTION_ONLY": "A configuração do token pelo painel só existe em produção. Neste ambiente, o token vem da configuração do servidor.",
+      "INFRA_INTEGRATION_PASSWORD_INVALID": "Senha incorreta. Confira e tente de novo; erros seguidos bloqueiam esta função por 15 minutos.",
+      "INFRA_INTEGRATION_LOCKED": "Esta função foi bloqueada por 15 minutos depois de senhas incorretas. Por segurança, suas sessões foram encerradas: você precisará entrar de novo.",
+      "INFRA_INTEGRATION_TOKEN_REJECTED": "O provedor recusou este token. Confira se ele foi copiado inteiro e se não foi revogado.",
+      "INFRA_INTEGRATION_TOKEN_TOO_BROAD": "Este é um token de conta, com acesso amplo demais. Crie um token de workspace e informe-o aqui.",
+      "INFRA_INTEGRATION_WORKSPACE_NOT_FOUND": "O token não alcança o workspace configurado no servidor. Use um token criado nesse workspace.",
+      "INFRA_INTEGRATION_ENVIRONMENT_MANAGED": "O token vem de uma variável de ambiente do servidor e não pode ser alterado pelo painel.",
+      "INFRA_NOT_CONFIGURED": "O módulo de infraestrutura ainda não tem token configurado.",
+      "VALIDATION_FAILED": "Os dados enviados não foram aceitos. Confira o token e a senha.",
+      "NETWORK_UNREACHABLE": "Sem conexão com o servidor. Verifique sua internet e tente de novo."
+    }
+  },
+  "errors": {
+    "INFRA_NOT_CONFIGURED": "A integração com o provedor não está configurada neste servidor.",
+    "INFRA_ENVIRONMENT_PROTECTED": "Este ambiente é protegido e não pode ser ligado ou desligado pelo painel.",
+    "INFRA_OPERATION_IN_PROGRESS": "Já existe uma operação em andamento neste ambiente. Aguarde terminar.",
+    "INFRA_KEEP_ON_UNTIL_REQUIRED": "Fora do horário da agenda, informe até quando manter o ambiente ligado (máximo 24 h).",
+    "INFRA_INVALID_SCHEDULE": "Agenda inválida. Confira os dias e os horários (a janela não pode cruzar a meia-noite).",
+    "INFRA_PROVIDER_REQUEST_FAILED": "O provedor de infraestrutura não respondeu como esperado. Tente de novo em instantes.",
+    "INFRA_PROVIDER_RATE_LIMITED": "O provedor de infraestrutura limitou as chamadas. Aguarde um pouco e tente de novo.",
+    "RATE_LIMITED": "Muitas tentativas seguidas. Aguarde um pouco e tente de novo.",
+    "UNKNOWN": "Algo deu errado. Tente de novo."
+  }
+}

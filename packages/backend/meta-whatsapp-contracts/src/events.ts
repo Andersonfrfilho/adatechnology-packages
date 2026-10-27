@@ -16,8 +16,22 @@ export type MessageHookOutcome = { outcome: 'handled' } | { outcome: 'continue' 
 //   processamento padrão (ex.: não encaminha para o interpretador de fluxo).
 // 'continue': o host apenas observou — o módulo segue com o fluxo normal (motor de fluxo, se
 //   `features.flowEngine` estiver ligado).
+/** O que se sabe de quem mandou a mensagem, além do número. */
+export type InboundContact = {
+  /** Nome que a pessoa escolheu no WhatsApp dela. Ausente quando ela não definiu um. */
+  readonly profileName?: string
+}
+
 export interface MetaWhatsAppHooks {
-  onMessageReceived?: (message: WhatsAppMessage, session: ConversationSession) => Promise<MessageHookOutcome>
+  /**
+   * `contact` traz o nome de perfil de quem mandou, quando a Meta o envia. Terceiro parâmetro e
+   * opcional para não quebrar host que já implementa o hook com dois — quem não usa, ignora.
+   */
+  onMessageReceived?: (
+    message: WhatsAppMessage,
+    session: ConversationSession,
+    contact?: InboundContact,
+  ) => Promise<MessageHookOutcome>
   onStatusUpdate?: (status: WhatsAppStatus, session: ConversationSession | null) => Promise<void>
   onSessionExpired?: (session: ConversationSession) => Promise<void>
   // Disparado quando um handoff humano é solicitado (cliente pediu atendente, ou o fluxo decidiu
@@ -87,6 +101,21 @@ export interface MetaWhatsAppHooks {
    * alguém procurar. Observar aqui é do host; o módulo não decide que é erro.
    */
   onUnhandledWebhookEvent?: (details: UnhandledWebhookEventDescriptor) => Promise<void> | void
+  /**
+   * A Meta recusou um envio que o módulo tentou fazer **reagindo a este webhook** — resposta do bot,
+   * mídia de um nó, template. Recusa determinística: token sem escopo, conta barrada de mandar para
+   * o país, payload inválido.
+   *
+   * É hook, e não exceção propagada, porque a exceção viraria resposta não-2xx no webhook e a Meta
+   * reentregaria o evento. Numa recusa assim a reentrega falha idêntica, indefinidamente — e webhook
+   * que falha com frequência a Meta desativa, derrubando o canal inteiro por uma causa que
+   * retentativa nenhuma corrige. Falha de rede e timeout continuam subindo: aquelas a reentrega
+   * resolve.
+   *
+   * A mensagem do cliente já está gravada quando isto dispara; o que se perdeu foi a reação a ela.
+   * Sem implementar, a recusa fica só no `payload` da mensagem e ninguém é avisado na hora.
+   */
+  onInboundEffectRejected?: (details: InboundEffectRejectedDescriptor) => Promise<void> | void
 }
 
 export type UnhandledWebhookEventDescriptor = {
@@ -118,4 +147,15 @@ export type InboundMediaDescriptor = {
   readonly sourceMediaId: string
   readonly mimeType: string
   readonly filename?: string
+}
+
+export type InboundEffectRejectedDescriptor = {
+  readonly companyId: string
+  /** Se a recusa veio reagindo a uma mensagem do cliente ou a um status de entrega. */
+  readonly kind: 'message' | 'status'
+  /** Número do cliente. É PII: serve para agir sobre a conversa, não para ir ao log cru. */
+  readonly whatsappNumber: string | undefined
+  /** Código da recusa (`WHATSAPP_NETWORK_ERROR` e `WHATSAPP_TIMEOUT` nunca aparecem: são retriáveis). */
+  readonly code: string
+  readonly error: unknown
 }

@@ -28,6 +28,13 @@ type InboundEnvelopeParams = {
   readonly phoneNumberId?: string
   readonly displayPhoneNumber?: string
   readonly wabaId?: string
+  /**
+   * Nome de perfil de quem manda, como a Meta o entrega em `contacts`.
+   *
+   * Ausente = webhook sem `contacts`, que é payload legítimo e precisa continuar sendo testável:
+   * um builder que sempre injetasse contato esconderia o caminho em que o nome não vem.
+   */
+  readonly profileName?: string
 }
 
 // `globalThis.crypto` em vez de `node:crypto`: é o que existe tanto no navegador quanto no Node
@@ -62,6 +69,9 @@ function buildEnvelope(params: BuildEnvelopeParams): WhatsAppWebhookPayload {
                 phone_number_id: params.phoneNumberId ?? PREVIEW_PHONE_NUMBER_ID,
               },
               messages: [params.message],
+              ...(params.profileName
+                ? { contacts: [{ wa_id: params.from, profile: { name: params.profileName } }] }
+                : {}),
             },
           },
         ],
@@ -173,6 +183,33 @@ export function buildInboundMediaPayload(params: BuildInboundMediaPayloadParams)
         ...(mimeType ? { mime_type: mimeType } : {}),
         ...(filename ? { filename } : {}),
         ...(caption ? { caption } : {}),
+      },
+      timestamp: currentTimestamp(),
+    },
+  })
+}
+
+export type BuildInboundLocationPayloadParams = InboundEnvelopeParams & {
+  readonly latitude: number
+  readonly longitude: number
+  readonly name?: string
+  readonly address?: string
+}
+
+export function buildInboundLocationPayload(params: BuildInboundLocationPayloadParams): WhatsAppWebhookPayload {
+  const { latitude, longitude, name, address, ...envelope } = params
+
+  return buildEnvelope({
+    ...envelope,
+    message: {
+      id: generateWamid(),
+      from: params.from,
+      type: 'location',
+      location: {
+        latitude,
+        longitude,
+        ...(name ? { name } : {}),
+        ...(address ? { address } : {}),
       },
       timestamp: currentTimestamp(),
     },

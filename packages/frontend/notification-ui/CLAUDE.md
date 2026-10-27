@@ -69,3 +69,9 @@ pnpm --filter @adatechnology/notification-ui run check   # tsc --noEmit
 pnpm --filter @adatechnology/notification-ui run test    # bun test
 pnpm --filter @adatechnology/notification-ui run build   # tsup (esm + dts + css)
 ```
+
+## Modelo padrão de e-mail
+
+Regras de tela em `standardEmail.util.ts` (puras, testadas): o padrão nunca mostra "Remover" nem
+assunto, e o salvamento é bloqueado com a lista de variáveis faltantes/HTML inseguro. A validação
+é a do contracts, não uma cópia local.

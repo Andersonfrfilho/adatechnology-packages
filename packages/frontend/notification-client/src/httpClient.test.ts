@@ -33,6 +33,28 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe('createNotificationClient', () => {
+  it('restoreDefault faz POST em /restore-default e devolve o modelo', async () => {
+    const template = { id: 'tpl 1', key: 'notification.standard-email', version: 4 }
+    const { client, captured } = buildClient(() => jsonResponse(201, { data: template }))
+
+    const restored = await client.restoreDefault('tpl 1')
+
+    expect(captured[0]?.method).toBe('POST')
+    expect(captured[0]?.url).toBe('https://api.exemplo.com/v1/notification-templates/tpl%201/restore-default')
+    expect(captured[0]?.body).toBeUndefined()
+    expect(restored).toEqual(template as never)
+  })
+
+  it('restoreDefault propaga 409 (modelo obrigatório) com o código do servidor', async () => {
+    const { client } = buildClient(() =>
+      jsonResponse(409, { error: { code: 'STANDARD_EMAIL_TEMPLATE_REQUIRED', message: 'obrigatório' } }),
+    )
+
+    const error = (await client.restoreDefault('x').catch((e: unknown) => e)) as NotificationApiError
+    expect(error.status).toBe(409)
+    expect(error.code).toBe('STANDARD_EMAIL_TEMPLATE_REQUIRED')
+  })
+
   it('monta query string só com os filtros informados', async () => {
     const { client, captured } = buildClient(() =>
       jsonResponse(200, { data: [], pagination: {}, meta: { unreadCount: 0 } }),

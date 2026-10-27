@@ -39,6 +39,7 @@ import {
 } from '@adatechnology/notification-contracts'
 import type {
   NotificationChannel,
+  StandardEmailAssessment,
   NotificationTemplate,
   PreviewViewportSpec,
   RenderedTemplatePreview,
@@ -47,7 +48,14 @@ import type {
   UpsertTemplateBody,
 } from '@adatechnology/notification-contracts'
 
-import { useDeactivateTemplate, useTemplateVariables, useTemplates, useUpsertTemplate } from './usePreferences'
+import { assessStandardEmailDraft, buildStandardEmailPreviewHtml, isStandardEmailKey } from '../standardEmail.util'
+import {
+  useDeactivateTemplate,
+  useRestoreTemplateDefault,
+  useTemplateVariables,
+  useTemplates,
+  useUpsertTemplate,
+} from './usePreferences'
 
 export type TemplateDraft = {
   readonly key: string
@@ -167,6 +175,13 @@ export type UseTemplateEditorResult = {
   readonly isLoading: boolean
   readonly isSaving: boolean
   readonly isDeactivating: boolean
+  readonly isRestoring: boolean
+  /** `true` quando o rascunho é o modelo padrão do sistema: sem assunto, sem remover, validado à parte. */
+  readonly isStandardEmail: boolean
+  /** O laudo do modelo padrão (faltantes e inseguros); `undefined` nos demais modelos. */
+  readonly standardAssessment: StandardEmailAssessment | undefined
+  /** O modelo padrão renderizado com os exemplos do catálogo; `undefined` nos demais. */
+  readonly standardPreviewHtml: string | undefined
   readonly error: string | undefined
   readonly selected: NotificationTemplate | undefined
   readonly draft: TemplateDraft | undefined
@@ -192,6 +207,8 @@ export type UseTemplateEditorResult = {
   insertVariable: (params: { name: string; field: TemplateDraftField; cursorIndex: number; channel: string }) => void
   save: () => void
   deactivate: (id: string) => void
+  /** "Restaurar padrão": versão nova com o modelo embutido no SDK. */
+  restoreDefault: (id: string) => void
   clear: () => void
 }
 
@@ -200,6 +217,7 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
   const variablesQuery = useTemplateVariables()
   const upsert = useUpsertTemplate()
   const deactivateMutation = useDeactivateTemplate()
+  const restoreMutation = useRestoreTemplateDefault()
 
   const [search, setSearch] = useState('')
   const [channelFilter, setChannelFilter] = useState<readonly string[]>([])
@@ -309,6 +327,20 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
     })
   }, [draft, variables, params.previewPayload])
 
+  const isStandardEmail = draft !== undefined && isStandardEmailKey(draft.key)
+  const standardHtml = isStandardEmail ? (draft?.byChannel[draft.channels[0] ?? '']?.body ?? '') : undefined
+  const standardAssessment = useMemo(
+    () => (standardHtml === undefined ? undefined : assessStandardEmailDraft(standardHtml)),
+    [standardHtml],
+  )
+  const standardPreviewHtml = useMemo(
+    () =>
+      standardHtml === undefined || !standardAssessment?.usable
+        ? undefined
+        : buildStandardEmailPreviewHtml(standardHtml),
+    [standardHtml, standardAssessment],
+  )
+
   const isDirty = useMemo(() => {
     if (!draft) return false
     const temTexto = draft.channels.some((channel) => (draft.byChannel[channel]?.body ?? '').length > 0)
@@ -334,7 +366,11 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
     isLoading: templatesQuery.isLoading,
     isSaving: upsert.isPending,
     isDeactivating: deactivateMutation.isPending,
-    error: upsert.error?.message ?? deactivateMutation.error?.message,
+    isRestoring: restoreMutation.isPending,
+    isStandardEmail,
+    standardAssessment,
+    standardPreviewHtml,
+    error: upsert.error?.message ?? deactivateMutation.error?.message ?? restoreMutation.error?.message,
     selected,
     draft,
     isNew,
@@ -350,7 +386,9 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
       Boolean(draft?.key) &&
       (draft?.channels.length ?? 0) > 0 &&
       (draft?.channels.every((channel) => (draft.byChannel[channel]?.body ?? '').length > 0) ?? false) &&
-      variableDiff.unknown.length === 0,
+      variableDiff.unknown.length === 0 &&
+      // O modelo padrão inutilizável nunca é gravado: o servidor recusa (400) e o envio o ignoraria.
+      (standardAssessment?.usable ?? true),
 
     setSearch,
 
@@ -449,7 +487,8 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
           locale: draft.locale,
           active: true,
           body: content.body,
-          ...(content.subject ? { subject: content.subject } : {}),
+          // Modelo padrão não tem assunto: ele é dado do envio, e um assunto aqui se acumularia.
+          ...(content.subject && !isStandardEmail ? { subject: content.subject } : {}),
           ...(content.whatsappTemplateName ? { whatsappTemplateName: content.whatsappTemplateName } : {}),
         }
       })
@@ -469,6 +508,16 @@ export function useTemplateEditor(params: UseTemplateEditorParams = {}): UseTemp
 
     deactivate(id) {
       deactivateMutation.mutate(id, {
+        onSuccess: () => {
+          if (selectedId !== id) return
+          setSelectedId(undefined)
+          setDraft(undefined)
+        },
+      })
+    },
+
+    restoreDefault(id) {
+      restoreMutation.mutate(id, {
         onSuccess: () => {
           if (selectedId !== id) return
           setSelectedId(undefined)

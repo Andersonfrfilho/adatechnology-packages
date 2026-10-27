@@ -14,6 +14,8 @@ import type {
   FetchMediaResult,
   SendInteractiveButtonsParams,
   SendInteractiveListParams,
+  SendLocationParams,
+  SendTextOptions,
   SendCatalogMessageParams,
   SendProductMessageParams,
   SendProductListMessageParams,
@@ -67,13 +69,18 @@ export class WhatsAppMessageProvider {
     }
   }
 
-  async sendText(to: string, body: string): Promise<SendMessageResult> {
+  /**
+   * `previewUrl` é o que faz a Meta renderizar o card do primeiro link do corpo. Opt-in, e só aqui:
+   * a API não aceita preview em mensagem `interactive`, então um link que precisa de card não pode
+   * viajar dentro de um resumo com botões.
+   */
+  async sendText(to: string, body: string, options?: SendTextOptions): Promise<SendMessageResult> {
     return this.postMessage({
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
       type: 'text',
-      text: { body },
+      text: { body, ...(options?.previewUrl ? { preview_url: true } : {}) },
     })
   }
 
@@ -186,6 +193,35 @@ export class WhatsAppMessageProvider {
         action: {
           buttons: buttons.map((button) => ({ type: 'reply', reply: { id: button.id, title: button.title } })),
         },
+      },
+    })
+  }
+
+  /**
+   * Manda o ponto no mapa — a mensagem que o WhatsApp desenha como quadradinho com pino.
+   *
+   * Valida a faixa das coordenadas aqui porque a Graph API aceita o corpo e devolve um pino em outro
+   * continente: latitude e longitude trocadas de lugar é o erro clássico, e passa silenciosamente.
+   */
+  async sendLocation(params: SendLocationParams): Promise<SendMessageResult> {
+    const { to, latitude, longitude, name, address } = params
+
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      throw new WhatsAppRejectionError('WHATSAPP_INVALID_INPUT', 'latitude must be between -90 and 90', null)
+    }
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      throw new WhatsAppRejectionError('WHATSAPP_INVALID_INPUT', 'longitude must be between -180 and 180', null)
+    }
+
+    return this.postMessage({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'location',
+      location: {
+        latitude,
+        longitude,
+        ...(name ? { name } : {}),
+        ...(address ? { address } : {}),
       },
     })
   }

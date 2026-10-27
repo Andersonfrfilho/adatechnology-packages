@@ -14,6 +14,12 @@ type BuildNfeXmlParams = {
   readonly issuerCnpj?: string
   readonly recipientCnpj?: string
   readonly carrierCnpj?: string
+  /** Conteúdo literal de dest/email. Ausente omite a tag. */
+  readonly recipientEmail?: string
+  /** Valor literal de det/prod/cEAN. `null` omite a tag. Default: "SEM GTIN". */
+  readonly productGtin?: string | null
+  /** Valor literal de det/prod/cEANTrib. `null` omite a tag. Default: "SEM GTIN". */
+  readonly productTaxableUnitGtin?: string | null
 }
 
 type BuildAuthorizedNfeXmlParams = BuildNfeXmlParams & {
@@ -24,6 +30,10 @@ type BuildNfeEventXmlParams = {
   readonly returnAccessKey?: string
   readonly returnSequence?: string
   readonly returnType?: string
+}
+
+type BuildNfeCorrectionEventXmlParams = {
+  readonly correctionText?: string
 }
 
 export function buildAuthorizedNfeXml(params: BuildAuthorizedNfeXmlParams = {}): string {
@@ -81,11 +91,47 @@ export function buildNfeEventXml(params: BuildNfeEventXmlParams = {}): string {
   ].join('')
 }
 
+export function buildNfeCorrectionEventXml(params: BuildNfeCorrectionEventXmlParams = {}): string {
+  const detEvento = [
+    '<detEvento versao="1.00"><descEvento>Carta de Correcao</descEvento>',
+    params.correctionText === undefined ? '' : `<xCorrecao>${params.correctionText}</xCorrecao>`,
+    '<xCondUso>A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.</xCondUso>',
+    '</detEvento>',
+  ].join('')
+
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">',
+    '<evento versao="1.00"><infEvento Id="ID110110',
+    NFE_ACCESS_KEY,
+    '01">',
+    '<cOrgao>35</cOrgao><tpAmb>2</tpAmb>',
+    `<CNPJ>${ISSUER_CNPJ}</CNPJ><chNFe>${NFE_ACCESS_KEY}</chNFe>`,
+    '<dhEvento>2026-07-20T13:00:00-03:00</dhEvento>',
+    '<tpEvento>110110</tpEvento><nSeqEvento>1</nSeqEvento>',
+    '<verEvento>1.00</verEvento>',
+    detEvento,
+    '</infEvento></evento>',
+    '<retEvento versao="1.00"><infEvento>',
+    '<tpAmb>2</tpAmb><verAplic>TEST-1.0</verAplic><cOrgao>35</cOrgao>',
+    '<cStat>135</cStat><xMotivo>Evento registrado e vinculado a NF-e</xMotivo>',
+    `<chNFe>${NFE_ACCESS_KEY}</chNFe><tpEvento>110110</tpEvento>`,
+    '<xEvento>Carta de Correcao registrada</xEvento><nSeqEvento>1</nSeqEvento>',
+    '<dhRegEvento>2026-07-20T13:00:01-03:00</dhRegEvento>',
+    '<nProt>135260000000003</nProt>',
+    '</infEvento></retEvento>',
+    '</procEventoNFe>',
+  ].join('')
+}
+
 function buildNfeNode(params: BuildNfeXmlParams): string {
   const accessKey = params.accessKey ?? NFE_ACCESS_KEY
   const issuerCnpj = params.issuerCnpj ?? ISSUER_CNPJ
   const recipientCnpj = params.recipientCnpj ?? RECIPIENT_CNPJ
   const carrierCnpj = params.carrierCnpj ?? CARRIER_CNPJ
+  const productGtin = params.productGtin === undefined ? 'SEM GTIN' : params.productGtin
+  const productTaxableUnitGtin =
+    params.productTaxableUnitGtin === undefined ? 'SEM GTIN' : params.productTaxableUnitGtin
 
   return [
     '<NFe xmlns="http://www.portalfiscal.inf.br/nfe">',
@@ -117,13 +163,16 @@ function buildNfeNode(params: BuildNfeXmlParams): string {
     '<UF>RJ</UF><CEP>20040002</CEP><cPais>1058</cPais><xPais>BRASIL</xPais>',
     '<fone>2133334444</fone></enderDest>',
     '<indIEDest>1</indIEDest><IE>222222222222</IE>',
+    params.recipientEmail === undefined ? '' : `<email>${params.recipientEmail}</email>`,
     '</dest>',
     '<det nItem="1"><prod>',
-    '<cProd>SKU-001</cProd><cEAN>SEM GTIN</cEAN>',
+    '<cProd>SKU-001</cProd>',
+    productGtin === null ? '' : `<cEAN>${productGtin}</cEAN>`,
     '<xProd>PRODUTO SINTETICO PARA TESTE</xProd>',
     '<NCM>84713012</NCM><CFOP>6101</CFOP><uCom>UN</uCom>',
     '<qCom>2.5000</qCom><vUnCom>100.1234</vUnCom><vProd>250.3085</vProd>',
-    '<cEANTrib>SEM GTIN</cEANTrib><uTrib>UN</uTrib>',
+    productTaxableUnitGtin === null ? '' : `<cEANTrib>${productTaxableUnitGtin}</cEANTrib>`,
+    '<uTrib>UN</uTrib>',
     '<qTrib>2.5000</qTrib><vUnTrib>100.1234</vUnTrib>',
     '<indTot>1</indTot>',
     '</prod><imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST>',

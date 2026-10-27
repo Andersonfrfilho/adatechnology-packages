@@ -11,8 +11,20 @@
  * do host, a mecânica é daqui.
  */
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type KeyboardEvent, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
-import { Bold, Italic, Strikethrough, Code, Paperclip, SendHorizonal, Braces, Type } from 'lucide-react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+} from 'react'
+import { Bold, Italic, Strikethrough, Code, Paperclip, SendHorizonal, Braces, Type, Zap } from 'lucide-react'
 
 import { cn } from './lib/cn'
 import {
@@ -38,7 +50,12 @@ import {
 } from './lib/composer-formatting'
 import { htmlToWA, waToHTML } from './lib/whatsapp-formatting'
 import { SimpleEmojiPicker } from './SimpleEmojiPicker'
-import { DEFAULT_ACCEPTED_FILE_TYPES } from './MessageComposer'
+import { DEFAULT_ACCEPTED_FILE_TYPES, applyQuickReplyVariables } from './MessageComposer'
+import { QuickRepliesPicker } from './quickReplies/QuickRepliesPicker'
+import { useQuickRepliesPicker } from './quickReplies/useQuickRepliesPicker'
+import { detectQuickReplyShortcut } from './quickReplies/quickReplyShortcut'
+import type { QuickReply as SavedQuickReply } from './quickReplies/quickReply.types'
+import type { QuickRepliesPickerLabels } from './quickReplies/labels'
 
 /** Cada ação que a barra sabe oferecer. `toolbar` decide quais delas aparecem. */
 export const RICH_COMPOSER_ACTION = {
@@ -49,6 +66,7 @@ export const RICH_COMPOSER_ACTION = {
   EMOJI: 'emoji',
   ATTACH: 'attach',
   VARIABLES: 'variables',
+  QUICK_REPLIES: 'quickReplies',
 } as const
 export type RichComposerAction = (typeof RICH_COMPOSER_ACTION)[keyof typeof RICH_COMPOSER_ACTION]
 
@@ -64,6 +82,7 @@ export interface RichComposerTooltips {
   variables: string
   /** Botão que abre a formatação recolhida, quando a barra está estreita demais para os quatro. */
   formatting: string
+  quickReplies: string
 }
 
 export const DEFAULT_RICH_COMPOSER_TOOLTIPS: RichComposerTooltips = {
@@ -76,6 +95,26 @@ export const DEFAULT_RICH_COMPOSER_TOOLTIPS: RichComposerTooltips = {
   send: 'Enviar',
   variables: 'Variáveis disponíveis',
   formatting: 'Formatação',
+  quickReplies: 'Mensagens prontas',
+}
+
+/**
+ * Mensagens prontas do produto. **Opcional por capacidade:** sem esta prop o botão de raio e o
+ * atalho `/` não existem — não um botão que abre uma lista vazia.
+ */
+export interface RichComposerSavedQuickReplies {
+  readonly listQuickReplies: (params?: { search?: string }) => Promise<SavedQuickReply[]>
+  /** Chave do cache do picker — troca de conversa não deve reconsultar o que já carregou. */
+  readonly conversationId: string
+  readonly variables?: Readonly<Record<string, string>>
+  readonly labels?: Partial<QuickRepliesPickerLabels>
+  /**
+   * Avisada antes de inserir o texto, para o host empurrar os anexos da mensagem escolhida na fila
+   * do composer (QR-32). Sem esta prop nada muda — o texto continua sendo inserido do mesmo jeito.
+   */
+  readonly onSelect?: (quickReply: SavedQuickReply) => void
+  /** Sem `sendStoredAttachments` no host, a linha com anexo avisa em vez de prometer envio (QR-33). */
+  readonly hasAttachmentsCapability?: boolean
 }
 
 /**
@@ -128,6 +167,8 @@ export interface RichMessageComposerProps {
   quickReplies?: RichComposerQuickReply[]
   /** Variáveis que o operador pode inserir no texto. Vazio ou ausente, o botão não aparece. */
   variables?: RichComposerVariable[]
+  /** Botão de raio + atalho `/` para as mensagens prontas cadastradas. Ausente, nenhum dos dois aparece. */
+  savedQuickReplies?: RichComposerSavedQuickReplies
   /**
    * Quais ações aparecem. Ausente, todas aparecem — menos as que não têm como funcionar (anexo sem
    * `onAttachFiles` some sozinho, porque botão que não faz nada é pior que botão nenhum).
@@ -151,401 +192,664 @@ export interface RichMessageComposerProps {
   className?: string
 }
 
-export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMessageComposerProps>(function RichMessageComposer({
-  value,
-  onChange,
-  onSend,
-  onAttachFiles,
-  quickReplies,
-  variables,
-  toolbar,
-  tooltips,
-  placeholder,
-  disabled = false,
-  isSending = false,
-  idleAction,
-  attachmentsPreview,
-  hasQueuedAttachments = false,
-  acceptedFileTypes = DEFAULT_ACCEPTED_FILE_TYPES,
-  className,
-}, ref) {
-  const editorRef = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const variablesRef = useRef<HTMLDivElement>(null)
-  const formattingRef = useRef<HTMLDivElement>(null)
-  const barRef = useRef<HTMLDivElement>(null)
-  const [isVariablesOpen, setIsVariablesOpen] = useState(false)
-  const [isFormattingOpen, setIsFormattingOpen] = useState(false)
-  const [activeFormatting, setActiveFormatting] = useState('')
-
-  const barWidth = useContainerWidth(barRef)
-  const isCompact = barWidth !== undefined && barWidth < COMPOSER_COMPACT_WIDTH
-
-  /**
-   * O último texto que este campo emitiu. É o que distingue o eco do próprio `onChange` — que deve
-   * ser ignorado, senão o cursor volta ao início a cada tecla — de um `value` vindo de fora, que
-   * precisa ser escrito no campo. Sem essa distinção o texto continuava na tela depois de enviado.
-   */
-  const lastEmittedRef = useRef('')
-
-  const emitChange = useCallback((html: string) => {
-    const text = htmlToWA(html)
-    lastEmittedRef.current = text
-    onChange(text)
-  }, [onChange])
-
-  useEffect(() => {
-    const editor = editorRef.current
-    if (!editor || value === lastEmittedRef.current) return
-    lastEmittedRef.current = value
-    editor.innerHTML = waToHTML(value)
-  }, [value])
-
-  const refreshActiveFormatting = useCallback(() => {
-    const editor = editorRef.current
-    if (editor) setActiveFormatting(activeFormattingIn(editor))
-  }, [])
-
-  // `selectionchange` é do documento: não existe evento de "o cursor andou" no próprio campo.
-  useEffect(() => {
-    document.addEventListener('selectionchange', refreshActiveFormatting)
-    return () => document.removeEventListener('selectionchange', refreshActiveFormatting)
-  }, [refreshActiveFormatting])
-
-  useEffect(() => {
-    if (!isVariablesOpen) return
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!variablesRef.current?.contains(event.target as Node)) setIsVariablesOpen(false)
-    }
-    document.addEventListener('mousedown', closeOnOutsideClick)
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick)
-  }, [isVariablesOpen])
-
-  useEffect(() => {
-    if (!isFormattingOpen) return
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      if (!formattingRef.current?.contains(event.target as Node)) setIsFormattingOpen(false)
-    }
-    document.addEventListener('mousedown', closeOnOutsideClick)
-    return () => document.removeEventListener('mousedown', closeOnOutsideClick)
-  }, [isFormattingOpen])
-
-  // A barra voltou a ser larga (a prévia fechou): os botões reaparecem na linha e o popover ficaria
-  // aberto ancorado num botão que não existe mais.
-  useEffect(() => {
-    if (!isCompact) setIsFormattingOpen(false)
-  }, [isCompact])
-
-  const tooltipOf = (action: keyof RichComposerTooltips): string =>
-    tooltips?.[action] ?? DEFAULT_RICH_COMPOSER_TOOLTIPS[action]
-  const shows = (action: RichComposerAction): boolean => toolbar?.[action] !== false
-
-  /** Escreve no campo sem passar pelo React: `contentEditable` controlado perde o cursor a cada tecla. */
-  const replaceContent = useCallback((text: string) => {
-    const editor = editorRef.current
-    if (!editor) return
-    editor.innerHTML = waToHTML(text)
-    emitChange(editor.innerHTML)
-    editor.focus()
-  }, [emitChange])
-
-  useImperativeHandle(ref, () => ({
-    setContent: replaceContent,
-    clear: () => {
-      const editor = editorRef.current
-      if (!editor) return
-      editor.innerHTML = ''
-      emitChange('')
+export const RichMessageComposer = forwardRef<RichMessageComposerHandle, RichMessageComposerProps>(
+  function RichMessageComposer(
+    {
+      value,
+      onChange,
+      onSend,
+      onAttachFiles,
+      quickReplies,
+      variables,
+      savedQuickReplies,
+      toolbar,
+      tooltips,
+      placeholder,
+      disabled = false,
+      isSending = false,
+      idleAction,
+      attachmentsPreview,
+      hasQueuedAttachments = false,
+      acceptedFileTypes = DEFAULT_ACCEPTED_FILE_TYPES,
+      className,
     },
-    focus: () => editorRef.current?.focus(),
-  }), [emitChange, replaceContent])
+    ref,
+  ) {
+    const editorRef = useRef<HTMLDivElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const variablesRef = useRef<HTMLDivElement>(null)
+    const formattingRef = useRef<HTMLDivElement>(null)
+    const barRef = useRef<HTMLDivElement>(null)
+    const [isVariablesOpen, setIsVariablesOpen] = useState(false)
+    const [isFormattingOpen, setIsFormattingOpen] = useState(false)
+    const [activeFormatting, setActiveFormatting] = useState('')
+    const quickRepliesListboxId = useId()
+    const showQuickRepliesButton = Boolean(savedQuickReplies)
+    const [isQuickRepliesOpen, setIsQuickRepliesOpen] = useState(false)
+    const [quickRepliesTerm, setQuickRepliesTerm] = useState('')
+    /** `shortcut`: a busca vem do `/termo` digitado no campo. `button`: busca própria do picker —
+     * o raio nunca insere `/` no campo (QR-04). */
+    const [quickRepliesMode, setQuickRepliesMode] = useState<'shortcut' | 'button'>('shortcut')
+    const quickRepliesPopoverRef = useRef<HTMLDivElement>(null)
+    const quickRepliesTriggerRef = useRef<HTMLButtonElement>(null)
+    /** Cursor guardado ao abrir pelo botão — o foco vai para a busca própria, e é a ele que a
+     * inserção volta antes de escrever o corpo resolvido. */
+    const savedRangeRef = useRef<Range | undefined>(undefined)
 
-  /** Range vivo dentro do campo, ou `undefined` se o cursor está em outro lugar da página. */
-  const currentRange = useCallback((): Range | undefined => {
-    const editor = editorRef.current
-    if (!editor) return undefined
-    editor.focus()
-    const selection = window.getSelection()
-    if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return undefined
-    return selection.getRangeAt(0)
-  }, [])
+    const barWidth = useContainerWidth(barRef)
+    const isCompact = barWidth !== undefined && barWidth < COMPOSER_COMPACT_WIDTH
 
-  const commitRange = useCallback((range: Range, node: Node) => {
-    const selection = window.getSelection()
-    range.setStartAfter(node)
-    range.collapse(true)
-    selection?.removeAllRanges()
-    selection?.addRange(range)
-    emitChange(editorRef.current?.innerHTML ?? '')
-  }, [emitChange])
+    /**
+     * O último texto que este campo emitiu. É o que distingue o eco do próprio `onChange` — que deve
+     * ser ignorado, senão o cursor volta ao início a cada tecla — de um `value` vindo de fora, que
+     * precisa ser escrito no campo. Sem essa distinção o texto continuava na tela depois de enviado.
+     */
+    const lastEmittedRef = useRef('')
 
-  const insertAtCursor = useCallback((fragment: string) => {
-    const range = currentRange()
-    if (!range) return
-    range.deleteContents()
-    const textNode = document.createTextNode(fragment)
-    range.insertNode(textNode)
-    commitRange(range, textNode)
-  }, [commitRange, currentRange])
+    const emitChange = useCallback(
+      (html: string) => {
+        const text = htmlToWA(html)
+        lastEmittedRef.current = text
+        onChange(text)
+      },
+      [onChange],
+    )
 
-  /**
-   * Envolve a seleção no elemento da formatação. Sem seleção não faz nada: abrir a marcação e
-   * esperar que o operador digite dentro dela é o caminho que sai com marcador sobrando quando ele
-   * clica noutro lugar antes.
-   */
-  const wrapSelection = useCallback((action: keyof typeof FORMATTING_ELEMENT) => {
-    const range = currentRange()
-    const selectedText = range?.toString()
-    if (!range || !selectedText) return
-    range.deleteContents()
-    const wrapper = document.createElement(FORMATTING_ELEMENT[action])
-    if (action === 'monospace') wrapper.className = COMPOSER_MONOSPACE_CLASS
-    wrapper.textContent = selectedText
-    range.insertNode(wrapper)
-    commitRange(range, wrapper)
-  }, [commitRange, currentRange])
+    useEffect(() => {
+      const editor = editorRef.current
+      if (!editor || value === lastEmittedRef.current) return
+      lastEmittedRef.current = value
+      editor.innerHTML = waToHTML(value)
+    }, [value])
 
-  /**
-   * Uma regra só para os quatro botões, a mesma dos editores de texto:
-   *
-   * - cursor vago — liga ou desliga daqui para a frente, sem tocar no que já está escrito;
-   * - com seleção — aplica na seleção, ou tira dela se ela já estiver toda formatada.
-   *
-   * `execCommand` faz isso sozinho para negrito, itálico e tachado. Monoespaçado não tem comando
-   * nativo e é feito à mão, com a mesma regra. Onde nem o comando existe (ambiente sem editor de
-   * verdade), sobra o wrap da seleção — que era tudo o que a barra fazia antes.
-   */
-  const applyFormatting = useCallback((action: FormattingAction) => {
-    const editor = editorRef.current
-    const range = currentRange()
-    if (!editor || !range) return
+    const refreshActiveFormatting = useCallback(() => {
+      const editor = editorRef.current
+      if (editor) setActiveFormatting(activeFormattingIn(editor))
+    }, [])
 
-    if (action === FORMATTING_ACTION.MONOSPACE) {
-      const code = codeAncestorOf({ node: range.startContainer, editor })
-      if (range.collapsed) {
-        if (code) exitMonospaceAfter(code)
-        else startMonospaceAt(range)
-      } else if (code) {
-        unwrapMonospace(code)
-      } else {
-        wrapSelection(action)
+    // `selectionchange` é do documento: não existe evento de "o cursor andou" no próprio campo.
+    useEffect(() => {
+      document.addEventListener('selectionchange', refreshActiveFormatting)
+      return () => document.removeEventListener('selectionchange', refreshActiveFormatting)
+    }, [refreshActiveFormatting])
+
+    useEffect(() => {
+      if (!isVariablesOpen) return
+      const closeOnOutsideClick = (event: MouseEvent) => {
+        if (!variablesRef.current?.contains(event.target as Node)) setIsVariablesOpen(false)
       }
-      emitChange(editor.innerHTML)
-      refreshActiveFormatting()
-      return
-    }
+      document.addEventListener('mousedown', closeOnOutsideClick)
+      return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+    }, [isVariablesOpen])
 
-    if (toggleFormattingCommand(action)) emitChange(editor.innerHTML)
-    else wrapSelection(action)
-    refreshActiveFormatting()
-  }, [currentRange, emitChange, refreshActiveFormatting, wrapSelection])
+    useEffect(() => {
+      if (!isFormattingOpen) return
+      const closeOnOutsideClick = (event: MouseEvent) => {
+        if (!formattingRef.current?.contains(event.target as Node)) setIsFormattingOpen(false)
+      }
+      document.addEventListener('mousedown', closeOnOutsideClick)
+      return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+    }, [isFormattingOpen])
 
-  const handleInput = useCallback((event: FormEvent<HTMLDivElement>) => {
-    emitChange(event.currentTarget.innerHTML)
-    refreshActiveFormatting()
-  }, [emitChange, refreshActiveFormatting])
+    // A barra voltou a ser larga (a prévia fechou): os botões reaparecem na linha e o popover ficaria
+    // aberto ancorado num botão que não existe mais.
+    useEffect(() => {
+      if (!isCompact) setIsFormattingOpen(false)
+    }, [isCompact])
 
-  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault()
-      // Sem esta guarda, cada Enter durante o upload dispara outro envio — foi o que duplicou a imagem.
-      if (!disabled && !isSending) onSend()
-    }
-  }, [disabled, isSending, onSend])
+    const tooltipOf = (action: keyof RichComposerTooltips): string =>
+      tooltips?.[action] ?? DEFAULT_RICH_COMPOSER_TOOLTIPS[action]
+    const shows = (action: RichComposerAction): boolean => toolbar?.[action] !== false
 
-  const handleFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files?.length) onAttachFiles?.(event.target.files)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }, [onAttachFiles])
+    /** Escreve no campo sem passar pelo React: `contentEditable` controlado perde o cursor a cada tecla. */
+    const replaceContent = useCallback(
+      (text: string) => {
+        const editor = editorRef.current
+        if (!editor) return
+        editor.innerHTML = waToHTML(text)
+        emitChange(editor.innerHTML)
+        editor.focus()
+      },
+      [emitChange],
+    )
 
-  const canSend = value.trim().length > 0 || hasQueuedAttachments
+    useImperativeHandle(
+      ref,
+      () => ({
+        setContent: replaceContent,
+        clear: () => {
+          const editor = editorRef.current
+          if (!editor) return
+          editor.innerHTML = ''
+          emitChange('')
+        },
+        focus: () => editorRef.current?.focus(),
+      }),
+      [emitChange, replaceContent],
+    )
 
-  // Os mesmos botões servem à linha e ao popover: duas listas separadas divergiriam na primeira
-  // formatação nova.
-  const formattingButtons = ([
-    [RICH_COMPOSER_ACTION.BOLD, Bold],
-    [RICH_COMPOSER_ACTION.ITALIC, Italic],
-    [RICH_COMPOSER_ACTION.STRIKETHROUGH, Strikethrough],
-    [RICH_COMPOSER_ACTION.MONOSPACE, Code],
-  ] as const)
-    .filter(([action]) => shows(action))
-    .map(([action, Icon]) => {
-      const isActive = isFormattingActive({ active: activeFormatting, action })
-      return (
-        <button
-          key={action}
-          type="button"
-          // O clique tira o foco do campo antes do `onClick`, e com ele a seleção que a
-          // formatação precisa — segurar o mousedown é o que mantém o cursor onde está.
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => applyFormatting(action)}
-          data-cv-tooltip={tooltipOf(action)}
-          aria-label={tooltipOf(action)}
-          aria-pressed={isActive}
-          className={cn(
-            COMPOSER_TOOL_BUTTON_CLASS,
-            isActive ? COMPOSER_TOOL_BUTTON_ACTIVE_CLASS : COMPOSER_TOOL_BUTTON_IDLE_CLASS,
-          )}
-        >
-          <Icon size={18} />
-        </button>
-      )
+    /** Range vivo dentro do campo, ou `undefined` se o cursor está em outro lugar da página. */
+    const currentRange = useCallback((): Range | undefined => {
+      const editor = editorRef.current
+      if (!editor) return undefined
+      editor.focus()
+      const selection = window.getSelection()
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return undefined
+      return selection.getRangeAt(0)
+    }, [])
+
+    /**
+     * Como `currentRange`, mas sem forçar foco no campo — usada para detectar o atalho a cada
+     * mudança de `value`, inclusive quando o campo não é o elemento focado (ex.: `value` trocado
+     * de fora). Forçar foco ali roubaria o foco de quem estava digitando em outro lugar.
+     */
+    const rangeIfFocused = useCallback((): Range | undefined => {
+      const editor = editorRef.current
+      if (!editor || document.activeElement !== editor) return undefined
+      const selection = window.getSelection()
+      if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return undefined
+      return selection.getRangeAt(0)
+    }, [])
+
+    /**
+     * Texto plano do início do campo até o cursor, direto da árvore do DOM — nunca do `value`
+     * emitido (que já passou pelo `htmlToWA` e carrega `&nbsp;`/marcação, não o texto que o
+     * operador vê antes do cursor).
+     */
+    const textBeforeCaret = useCallback((range: Range): string => {
+      const editor = editorRef.current
+      if (!editor) return ''
+      const preRange = document.createRange()
+      preRange.selectNodeContents(editor)
+      preRange.setEnd(range.startContainer, range.startOffset)
+      return preRange.toString()
+    }, [])
+
+    // Deriva o picker do texto plano até o cursor, lido do DOM (não do `value` com HTML emitido):
+    // digitar "/doc" abre, apagar a "/" ou mover o cursor para antes dela fecha.
+    useEffect(() => {
+      if (!showQuickRepliesButton) {
+        setIsQuickRepliesOpen(false)
+        return
+      }
+      if (quickRepliesMode === 'button') return
+      const range = rangeIfFocused()
+      const textToCaret = range ? textBeforeCaret(range) : ''
+      const match = detectQuickReplyShortcut(textToCaret)
+      setIsQuickRepliesOpen(Boolean(match))
+      setQuickRepliesTerm(match?.term ?? '')
+    }, [value, showQuickRepliesButton, quickRepliesMode, rangeIfFocused, textBeforeCaret])
+
+    const commitRange = useCallback(
+      (range: Range, node: Node) => {
+        const selection = window.getSelection()
+        range.setStartAfter(node)
+        range.collapse(true)
+        selection?.removeAllRanges()
+        selection?.addRange(range)
+        emitChange(editorRef.current?.innerHTML ?? '')
+      },
+      [emitChange],
+    )
+
+    const insertAtCursor = useCallback(
+      (fragment: string) => {
+        const range = currentRange()
+        if (!range) return
+        range.deleteContents()
+        const textNode = document.createTextNode(fragment)
+        range.insertNode(textNode)
+        commitRange(range, textNode)
+      },
+      [commitRange, currentRange],
+    )
+
+    const closeQuickReplies = useCallback(() => {
+      setIsQuickRepliesOpen(false)
+      setQuickRepliesTerm('')
+      setQuickRepliesMode('shortcut')
+    }, [])
+
+    const closeQuickRepliesAndRefocus = useCallback(() => {
+      closeQuickReplies()
+      editorRef.current?.focus()
+    }, [closeQuickReplies])
+
+    /**
+     * Troca o `/termo` pelo corpo resolvido (modo atalho) ou insere o corpo na posição guardada ao
+     * abrir pelo botão (modo botão — nunca houve `/` para trocar). No modo atalho, assume que o
+     * atalho inteiro está no mesmo nó de texto do cursor — verdadeiro no caso comum, o operador
+     * acabou de digitá-lo; fora desse caso, não insere nada em vez de arriscar deixar o "/termo"
+     * literal no meio do texto.
+     */
+    const insertSavedQuickReply = useCallback(
+      (quickReply: SavedQuickReply) => {
+        savedQuickReplies?.onSelect?.(quickReply)
+        const resolvedBody = applyQuickReplyVariables(quickReply.body, savedQuickReplies?.variables)
+
+        if (quickRepliesMode === 'button') {
+          const editor = editorRef.current
+          const savedRange = savedRangeRef.current
+          if (editor && savedRange) {
+            editor.focus()
+            const selection = window.getSelection()
+            selection?.removeAllRanges()
+            selection?.addRange(savedRange)
+          }
+          insertAtCursor(resolvedBody)
+          closeQuickReplies()
+          // Rede de segurança: fechar o picker desmonta a busca própria, que tinha o foco do
+          // navegador — sem isto o foco cai para `document.body` em vez de voltar ao campo com o
+          // cursor logo depois do texto inserido.
+          requestAnimationFrame(() => editor?.focus())
+          return
+        }
+
+        const range = currentRange()
+        if (!range) return
+        const match = detectQuickReplyShortcut(textBeforeCaret(range))
+        if (!match) {
+          closeQuickReplies()
+          return
+        }
+        const shortcutLength = match.term.length + 1
+        if (range.startContainer.nodeType === Node.TEXT_NODE && range.startOffset >= shortcutLength) {
+          range.setStart(range.startContainer, range.startOffset - shortcutLength)
+          range.deleteContents()
+          const textNode = document.createTextNode(resolvedBody)
+          range.insertNode(textNode)
+          commitRange(range, textNode)
+        }
+        closeQuickReplies()
+      },
+      [
+        quickRepliesMode,
+        currentRange,
+        textBeforeCaret,
+        commitRange,
+        insertAtCursor,
+        savedQuickReplies,
+        closeQuickReplies,
+      ],
+    )
+
+    const quickRepliesPicker = useQuickRepliesPicker({
+      isOpen: isQuickRepliesOpen,
+      search: quickRepliesTerm,
+      listQuickReplies: savedQuickReplies?.listQuickReplies,
+      quickReplyVariables: savedQuickReplies?.variables,
+      onSelect: insertSavedQuickReply,
+      onClose: closeQuickRepliesAndRefocus,
     })
 
-  return (
-    <div className={cn(COMPOSER_BAR_CLASS, 'flex flex-col', className)}>
-      {attachmentsPreview}
+    // Botão de raio: guarda o cursor e abre o picker com busca própria — o campo não é tocado
+    // (QR-04). O cursor guardado é para onde a seleção volta ao inserir o corpo escolhido.
+    // Clicar de novo com o picker já aberto nesse modo fecha — o raio é um toggle.
+    const openQuickRepliesViaButton = useCallback(() => {
+      if (isQuickRepliesOpen && quickRepliesMode === 'button') {
+        closeQuickRepliesAndRefocus()
+        return
+      }
+      savedRangeRef.current = currentRange()
+      setQuickRepliesMode('button')
+      setQuickRepliesTerm('')
+      setIsQuickRepliesOpen(true)
+    }, [isQuickRepliesOpen, quickRepliesMode, currentRange, closeQuickRepliesAndRefocus])
 
-      {quickReplies?.length ? (
-        /* Uma linha só, rolando na horizontal. Deixar quebrar em várias linhas faz a barra crescer
+    // Clique fora do popover em modo botão fecha e devolve o foco ao campo. O próprio botão de
+    // raio é ignorado: seu `mousedown` já é tratado como toggle por `openQuickRepliesViaButton`,
+    // e sem essa exclusão o outside-click fechava primeiro e o `onClick` reabria em seguida.
+    useEffect(() => {
+      if (!isQuickRepliesOpen || quickRepliesMode !== 'button') return
+      const handleOutsideClick = (event: MouseEvent) => {
+        const target = event.target as Node
+        if (quickRepliesPopoverRef.current?.contains(target)) return
+        if (quickRepliesTriggerRef.current?.contains(target)) return
+        closeQuickRepliesAndRefocus()
+      }
+      document.addEventListener('mousedown', handleOutsideClick)
+      return () => document.removeEventListener('mousedown', handleOutsideClick)
+    }, [isQuickRepliesOpen, quickRepliesMode, closeQuickRepliesAndRefocus])
+
+    /**
+     * Envolve a seleção no elemento da formatação. Sem seleção não faz nada: abrir a marcação e
+     * esperar que o operador digite dentro dela é o caminho que sai com marcador sobrando quando ele
+     * clica noutro lugar antes.
+     */
+    const wrapSelection = useCallback(
+      (action: keyof typeof FORMATTING_ELEMENT) => {
+        const range = currentRange()
+        const selectedText = range?.toString()
+        if (!range || !selectedText) return
+        range.deleteContents()
+        const wrapper = document.createElement(FORMATTING_ELEMENT[action])
+        if (action === 'monospace') wrapper.className = COMPOSER_MONOSPACE_CLASS
+        wrapper.textContent = selectedText
+        range.insertNode(wrapper)
+        commitRange(range, wrapper)
+      },
+      [commitRange, currentRange],
+    )
+
+    /**
+     * Uma regra só para os quatro botões, a mesma dos editores de texto:
+     *
+     * - cursor vago — liga ou desliga daqui para a frente, sem tocar no que já está escrito;
+     * - com seleção — aplica na seleção, ou tira dela se ela já estiver toda formatada.
+     *
+     * `execCommand` faz isso sozinho para negrito, itálico e tachado. Monoespaçado não tem comando
+     * nativo e é feito à mão, com a mesma regra. Onde nem o comando existe (ambiente sem editor de
+     * verdade), sobra o wrap da seleção — que era tudo o que a barra fazia antes.
+     */
+    const applyFormatting = useCallback(
+      (action: FormattingAction) => {
+        const editor = editorRef.current
+        const range = currentRange()
+        if (!editor || !range) return
+
+        if (action === FORMATTING_ACTION.MONOSPACE) {
+          const code = codeAncestorOf({ node: range.startContainer, editor })
+          if (range.collapsed) {
+            if (code) exitMonospaceAfter(code)
+            else startMonospaceAt(range)
+          } else if (code) {
+            unwrapMonospace(code)
+          } else {
+            wrapSelection(action)
+          }
+          emitChange(editor.innerHTML)
+          refreshActiveFormatting()
+          return
+        }
+
+        if (toggleFormattingCommand(action)) emitChange(editor.innerHTML)
+        else wrapSelection(action)
+        refreshActiveFormatting()
+      },
+      [currentRange, emitChange, refreshActiveFormatting, wrapSelection],
+    )
+
+    const handleInput = useCallback(
+      (event: FormEvent<HTMLDivElement>) => {
+        emitChange(event.currentTarget.innerHTML)
+        refreshActiveFormatting()
+      },
+      [emitChange, refreshActiveFormatting],
+    )
+
+    const handleKeyDown = useCallback(
+      (event: KeyboardEvent<HTMLDivElement>) => {
+        // Em modo botão quem recebe as teclas é a busca própria do picker, não o campo.
+        if (isQuickRepliesOpen && quickRepliesMode === 'shortcut') {
+          quickRepliesPicker.handleKeyDown(event)
+          return
+        }
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault()
+          // Sem esta guarda, cada Enter durante o upload dispara outro envio — foi o que duplicou a imagem.
+          if (!disabled && !isSending) onSend()
+        }
+      },
+      [disabled, isSending, onSend, isQuickRepliesOpen, quickRepliesMode, quickRepliesPicker],
+    )
+
+    const handleFileChange = useCallback(
+      (event: ChangeEvent<HTMLInputElement>) => {
+        if (event.target.files?.length) onAttachFiles?.(event.target.files)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      },
+      [onAttachFiles],
+    )
+
+    const canSend = value.trim().length > 0 || hasQueuedAttachments
+
+    // Os mesmos botões servem à linha e ao popover: duas listas separadas divergiriam na primeira
+    // formatação nova.
+    const formattingButtons = (
+      [
+        [RICH_COMPOSER_ACTION.BOLD, Bold],
+        [RICH_COMPOSER_ACTION.ITALIC, Italic],
+        [RICH_COMPOSER_ACTION.STRIKETHROUGH, Strikethrough],
+        [RICH_COMPOSER_ACTION.MONOSPACE, Code],
+      ] as const
+    )
+      .filter(([action]) => shows(action))
+      .map(([action, Icon]) => {
+        const isActive = isFormattingActive({ active: activeFormatting, action })
+        return (
+          <button
+            key={action}
+            type="button"
+            // O clique tira o foco do campo antes do `onClick`, e com ele a seleção que a
+            // formatação precisa — segurar o mousedown é o que mantém o cursor onde está.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => applyFormatting(action)}
+            data-cv-tooltip={tooltipOf(action)}
+            aria-label={tooltipOf(action)}
+            aria-pressed={isActive}
+            className={cn(
+              COMPOSER_TOOL_BUTTON_CLASS,
+              isActive ? COMPOSER_TOOL_BUTTON_ACTIVE_CLASS : COMPOSER_TOOL_BUTTON_IDLE_CLASS,
+            )}
+          >
+            <Icon size={18} />
+          </button>
+        )
+      })
+
+    return (
+      <div className={cn(COMPOSER_BAR_CLASS, 'flex flex-col', className)}>
+        {attachmentsPreview}
+
+        {quickReplies?.length ? (
+          /* Uma linha só, rolando na horizontal. Deixar quebrar em várias linhas faz a barra crescer
            conforme o número de respostas rápidas e empurrar a conversa para cima — o composer
            precisa ter altura previsível, independente de quantos atalhos o host configurou. */
-        <div className="mb-2 flex flex-nowrap gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {quickReplies.map((quickReply) => (
-            <button
-              key={quickReply.id}
-              type="button"
-              data-cv-tooltip={quickReply.tooltip} aria-label={quickReply.tooltip}
-              onClick={() => replaceContent(quickReply.text)}
-              className={cn(QUICK_REPLY_PILL_CLASS, 'flex-shrink-0')}
-            >
-              {quickReply.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+          <div className="mb-2 flex flex-nowrap gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {quickReplies.map((quickReply) => (
+              <button
+                key={quickReply.id}
+                type="button"
+                data-cv-tooltip={quickReply.tooltip}
+                aria-label={quickReply.tooltip}
+                onClick={() => replaceContent(quickReply.text)}
+                className={cn(QUICK_REPLY_PILL_CLASS, 'flex-shrink-0')}
+              >
+                {quickReply.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
-      {/* Uma escala só para a barra inteira: todo botão é 36px com ícone de 18, o mesmo gap entre
+        {/* Uma escala só para a barra inteira: todo botão é 36px com ícone de 18, o mesmo gap entre
           todos e nenhuma margem própria. Com tamanhos e espaçamentos diferentes por grupo, o
           `items-end` alinhava as bases mas os ícones ficavam em alturas e ritmos distintos. */}
-      {/* Uma linha só, e ela não quebra: `flex-nowrap` com o campo em `min-w-0` faz o texto ceder
+        {/* Uma linha só, e ela não quebra: `flex-nowrap` com o campo em `min-w-0` faz o texto ceder
           espaço quando a coluna estreita — que é o que ligar a prévia faz — em vez de empurrar
           botão para uma segunda faixa. */}
-      <div ref={barRef} className="flex flex-nowrap items-end gap-1">
-        {/* Formatação só no desktop: no celular não há como selecionar texto e tocar no botão sem
+        <div ref={barRef} className="flex flex-nowrap items-end gap-1">
+          {/* Formatação só no desktop: no celular não há como selecionar texto e tocar no botão sem
             perder a seleção, e a formatação sai digitada à mão de qualquer jeito.
 
             Com a barra estreita os quatro recolhem num botão só. Ceder a largura ao campo é a
             escolha certa aqui: escrever é a ação da barra, formatar é o acessório — e é o campo,
             não o botão, que fica inutilizável quando encolhe. */}
-        {formattingButtons.length > 0 ? (
-          isCompact ? (
-            <div ref={formattingRef} className="relative hidden flex-shrink-0 sm:block">
+          {formattingButtons.length > 0 ? (
+            isCompact ? (
+              <div ref={formattingRef} className="relative hidden flex-shrink-0 sm:block">
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => setIsFormattingOpen((open) => !open)}
+                  data-cv-tooltip={tooltipOf('formatting')}
+                  aria-label={tooltipOf('formatting')}
+                  aria-expanded={isFormattingOpen}
+                  className={cn(
+                    COMPOSER_TOOL_BUTTON_CLASS,
+                    activeFormatting || isFormattingOpen
+                      ? COMPOSER_TOOL_BUTTON_ACTIVE_CLASS
+                      : COMPOSER_TOOL_BUTTON_IDLE_CLASS,
+                  )}
+                >
+                  <Type size={18} />
+                </button>
+                {isFormattingOpen ? (
+                  <div className="absolute bottom-full left-0 z-20 mb-2 flex items-center gap-1 rounded-full border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    {formattingButtons}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="hidden flex-shrink-0 items-center gap-1 sm:flex">{formattingButtons}</div>
+            )
+          ) : null}
+
+          {shows(RICH_COMPOSER_ACTION.EMOJI) ? (
+            <SimpleEmojiPicker onSelect={insertAtCursor} label={tooltipOf('emoji')} />
+          ) : null}
+
+          {variables?.length && shows(RICH_COMPOSER_ACTION.VARIABLES) ? (
+            <div ref={variablesRef} className="relative">
               <button
                 type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => setIsFormattingOpen((open) => !open)}
-                data-cv-tooltip={tooltipOf('formatting')}
-                aria-label={tooltipOf('formatting')}
-                aria-expanded={isFormattingOpen}
-                className={cn(
-                  COMPOSER_TOOL_BUTTON_CLASS,
-                  activeFormatting || isFormattingOpen
-                    ? COMPOSER_TOOL_BUTTON_ACTIVE_CLASS
-                    : COMPOSER_TOOL_BUTTON_IDLE_CLASS,
-                )}
+                onClick={() => setIsVariablesOpen((open) => !open)}
+                data-cv-tooltip={tooltipOf('variables')}
+                aria-label={tooltipOf('variables')}
+                aria-expanded={isVariablesOpen}
+                className={cn(COMPOSER_TOOL_BUTTON_CLASS, COMPOSER_TOOL_BUTTON_IDLE_CLASS)}
               >
-                <Type size={18} />
+                <Braces size={18} />
               </button>
-              {isFormattingOpen ? (
-                <div className="absolute bottom-full left-0 z-20 mb-2 flex items-center gap-1 rounded-full border border-gray-200 bg-white px-1 py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                  {formattingButtons}
+              {isVariablesOpen ? (
+                <div className="absolute bottom-full left-0 z-20 mb-2 max-h-56 w-64 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  {variables.map((variable) => (
+                    <button
+                      key={variable.id}
+                      type="button"
+                      data-cv-tooltip={variable.tooltip ?? variable.value}
+                      aria-label={variable.tooltip ?? variable.value}
+                      onClick={() => {
+                        insertAtCursor(variable.value)
+                        setIsVariablesOpen(false)
+                      }}
+                      className="flex w-full flex-col items-start px-3 py-1.5 text-left hover:bg-teal-50 dark:hover:bg-teal-950/40"
+                    >
+                      <span className="text-sm text-gray-800 dark:text-gray-100">{variable.label}</span>
+                      <span className="font-mono text-xs text-gray-400 dark:text-gray-500">{variable.value}</span>
+                    </button>
+                  ))}
                 </div>
               ) : null}
             </div>
+          ) : null}
+
+          {showQuickRepliesButton && shows(RICH_COMPOSER_ACTION.QUICK_REPLIES) ? (
+            <div className="relative">
+              <button
+                ref={quickRepliesTriggerRef}
+                type="button"
+                onClick={openQuickRepliesViaButton}
+                data-cv-tooltip={tooltipOf('quickReplies')}
+                aria-label={tooltipOf('quickReplies')}
+                aria-haspopup="listbox"
+                aria-expanded={isQuickRepliesOpen}
+                aria-controls={quickRepliesListboxId}
+                className={cn(COMPOSER_TOOL_BUTTON_CLASS, COMPOSER_TOOL_BUTTON_IDLE_CLASS)}
+              >
+                <Zap size={18} />
+              </button>
+              {isQuickRepliesOpen ? (
+                <div ref={quickRepliesPopoverRef} className="absolute bottom-full left-0 z-20 mb-2">
+                  <QuickRepliesPicker
+                    key={quickRepliesMode}
+                    id={quickRepliesListboxId}
+                    items={quickRepliesPicker.items}
+                    search={quickRepliesTerm}
+                    highlightedIndex={quickRepliesPicker.highlightedIndex}
+                    isLoading={quickRepliesPicker.isLoading}
+                    hasError={quickRepliesPicker.hasError}
+                    onHover={quickRepliesPicker.setHighlightedIndex}
+                    onSelect={insertSavedQuickReply}
+                    labels={savedQuickReplies?.labels}
+                    variables={savedQuickReplies?.variables}
+                    hasAttachmentsCapability={savedQuickReplies?.hasAttachmentsCapability}
+                    ownSearch={
+                      quickRepliesMode === 'button'
+                        ? {
+                            value: quickRepliesTerm,
+                            onChange: setQuickRepliesTerm,
+                            onKeyDown: quickRepliesPicker.handleKeyDown,
+                            label: tooltipOf('quickReplies'),
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {onAttachFiles && shows(RICH_COMPOSER_ACTION.ATTACH) ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={acceptedFileTypes}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                data-cv-tooltip={tooltipOf('attach')}
+                aria-label={tooltipOf('attach')}
+                className={cn(COMPOSER_TOOL_BUTTON_CLASS, COMPOSER_TOOL_BUTTON_IDLE_CLASS)}
+              >
+                <Paperclip size={18} />
+              </button>
+            </>
+          ) : null}
+
+          <div
+            ref={editorRef}
+            contentEditable={!disabled}
+            suppressContentEditableWarning
+            role="textbox"
+            aria-multiline="true"
+            aria-label={placeholder}
+            aria-expanded={showQuickRepliesButton ? isQuickRepliesOpen : undefined}
+            aria-controls={showQuickRepliesButton ? quickRepliesListboxId : undefined}
+            aria-activedescendant={
+              isQuickRepliesOpen && quickRepliesMode === 'shortcut'
+                ? `${quickRepliesListboxId}-option-${quickRepliesPicker.highlightedIndex}`
+                : undefined
+            }
+            data-placeholder={placeholder}
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            style={{ minHeight: '36px', maxHeight: '120px' }}
+            // `min-w-0` em vez de uma largura mínima em px: com o mínimo fixo o campo se recusava a
+            // encolher junto com a coluna e era ele quem estourava a linha ao ligar a prévia.
+            className="ml-1 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-transparent bg-white px-4 py-2 text-sm text-gray-800 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-teal-300 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100 empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 dark:empty:before:text-gray-500 before:pointer-events-none [&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic [&_del]:line-through [&_s]:line-through [&_strike]:line-through [&_code]:rounded [&_code]:bg-black/5 [&_code]:px-0.5 [&_code]:font-mono [&_code]:text-sm dark:[&_code]:bg-white/10"
+          />
+
+          {!canSend && idleAction ? (
+            <div className="flex-shrink-0">{idleAction}</div>
           ) : (
-            <div className="hidden flex-shrink-0 items-center gap-1 sm:flex">{formattingButtons}</div>
-          )
-        ) : null}
-
-        {shows(RICH_COMPOSER_ACTION.EMOJI) ? (
-          <SimpleEmojiPicker onSelect={insertAtCursor} label={tooltipOf('emoji')} />
-        ) : null}
-
-        {variables?.length && shows(RICH_COMPOSER_ACTION.VARIABLES) ? (
-          <div ref={variablesRef} className="relative">
             <button
               type="button"
-              onClick={() => setIsVariablesOpen((open) => !open)}
-              data-cv-tooltip={tooltipOf('variables')}
-              aria-label={tooltipOf('variables')}
-              aria-expanded={isVariablesOpen}
-              className={cn(COMPOSER_TOOL_BUTTON_CLASS, COMPOSER_TOOL_BUTTON_IDLE_CLASS)}
+              onClick={onSend}
+              disabled={disabled || isSending || !canSend}
+              data-cv-tooltip={tooltipOf('send')}
+              aria-label={tooltipOf('send')}
+              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-teal-600 text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Braces size={18} />
+              {isSending ? <span className="text-xs">⏳</span> : <SendHorizonal size={16} />}
             </button>
-            {isVariablesOpen ? (
-              <div className="absolute bottom-full left-0 z-20 mb-2 max-h-56 w-64 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                {variables.map((variable) => (
-                  <button
-                    key={variable.id}
-                    type="button"
-                    data-cv-tooltip={variable.tooltip ?? variable.value} aria-label={variable.tooltip ?? variable.value}
-                    onClick={() => { insertAtCursor(variable.value); setIsVariablesOpen(false) }}
-                    className="flex w-full flex-col items-start px-3 py-1.5 text-left hover:bg-teal-50 dark:hover:bg-teal-950/40"
-                  >
-                    <span className="text-sm text-gray-800 dark:text-gray-100">{variable.label}</span>
-                    <span className="font-mono text-xs text-gray-400 dark:text-gray-500">{variable.value}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {onAttachFiles && shows(RICH_COMPOSER_ACTION.ATTACH) ? (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={acceptedFileTypes}
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              data-cv-tooltip={tooltipOf('attach')}
-              aria-label={tooltipOf('attach')}
-              className={cn(COMPOSER_TOOL_BUTTON_CLASS, COMPOSER_TOOL_BUTTON_IDLE_CLASS)}
-            >
-              <Paperclip size={18} />
-            </button>
-          </>
-        ) : null}
-
-        <div
-          ref={editorRef}
-          contentEditable={!disabled}
-          suppressContentEditableWarning
-          role="textbox"
-          aria-multiline="true"
-          aria-label={placeholder}
-          data-placeholder={placeholder}
-          onInput={handleInput}
-          onKeyDown={handleKeyDown}
-          style={{ minHeight: '36px', maxHeight: '120px' }}
-          // `min-w-0` em vez de uma largura mínima em px: com o mínimo fixo o campo se recusava a
-          // encolher junto com a coluna e era ele quem estourava a linha ao ligar a prévia.
-          className="ml-1 min-w-0 flex-1 overflow-y-auto rounded-2xl border border-transparent bg-white px-4 py-2 text-sm text-gray-800 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-teal-300 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-100 empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 dark:empty:before:text-gray-500 before:pointer-events-none [&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic [&_del]:line-through [&_s]:line-through [&_strike]:line-through [&_code]:rounded [&_code]:bg-black/5 [&_code]:px-0.5 [&_code]:font-mono [&_code]:text-sm dark:[&_code]:bg-white/10"
-        />
-
-        {!canSend && idleAction ? (
-          <div className="flex-shrink-0">{idleAction}</div>
-        ) : (
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={disabled || isSending || !canSend}
-            data-cv-tooltip={tooltipOf('send')}
-            aria-label={tooltipOf('send')}
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-teal-600 text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isSending ? <span className="text-xs">⏳</span> : <SendHorizonal size={16} />}
-          </button>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  )
-})
+    )
+  },
+)

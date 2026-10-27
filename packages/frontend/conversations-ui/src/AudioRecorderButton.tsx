@@ -8,9 +8,13 @@
  * hospeda e devolve o `mediaId` é o host, via `uploadMedia`.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 
 import { AudioPlayer } from './AudioPlayer'
+import { DEFAULT_MAX_RECORDING_MILLISECONDS, RECORDING_FORMATS, resolveRecordingFormat } from './audioRecorderFormat'
+
+export { DEFAULT_MAX_RECORDING_MILLISECONDS, RECORDING_FORMATS, resolveRecordingFormat }
+export type { RecordingFormat } from './audioRecorderFormat'
 
 export interface AudioRecorderButtonLabels {
   start: string
@@ -56,34 +60,12 @@ export interface AudioRecorderButtonProps {
   maxDurationMilliseconds?: number
   labels?: Partial<AudioRecorderButtonLabels>
   disabled?: boolean
-}
-
-/**
- * Cinco minutos: com o codec de voz do WhatsApp isso dá menos de 3MB, folgado dentro do teto de
- * 16MB que a Meta impõe a áudio, e é mais do que qualquer recado de cliente. O corte automático
- * existe porque gravação esquecida aberta só se descobre no envio, com o arquivo inteiro perdido.
- */
-export const DEFAULT_MAX_RECORDING_MILLISECONDS = 5 * 60 * 1000
-
-/**
- * Ordem de preferência de formato: os dois primeiros o WhatsApp aceita como áudio; `webm` é só
- * saída de emergência para navegador que não grava mais nada — gravar em webm e descobrir na hora
- * do envio que o formato é inválido é pior do que gravar já no formato certo.
- */
-const RECORDING_FORMATS = [
-  { mimeType: 'audio/ogg;codecs=opus', uploadMimeType: 'audio/ogg', extension: 'ogg' },
-  { mimeType: 'audio/mp4', uploadMimeType: 'audio/mp4', extension: 'm4a' },
-  { mimeType: 'audio/webm', uploadMimeType: 'audio/webm', extension: 'webm' },
-] as const
-
-export type RecordingFormat = (typeof RECORDING_FORMATS)[number]
-
-/** Primeiro formato que o navegador sabe gravar, ou `undefined` se não souber gravar nenhum. */
-export function resolveRecordingFormat(): RecordingFormat | undefined {
-  if (typeof MediaRecorder === 'undefined') return undefined
-  // `isTypeSupported` não existe em toda implementação; onde falta, o primeiro da lista é o palpite.
-  if (typeof MediaRecorder.isTypeSupported !== 'function') return RECORDING_FORMATS[0]
-  return RECORDING_FORMATS.find((format) => MediaRecorder.isTypeSupported(format.mimeType))
+  /**
+   * Por que o microfone está desabilitado (RF10, D3) — o canal atual não grava áudio. Sai como
+   * `aria-describedby`, não só `data-cv-tooltip`: o tooltip visual não é lido por leitor de tela
+   * sozinho, e uma dica que só aparece no hover falha exatamente para quem mais precisa dela.
+   */
+  disabledHint?: string
 }
 
 type PendingRecording = { file: File; objectURL: string }
@@ -96,9 +78,12 @@ export function AudioRecorderButton({
   maxDurationMilliseconds = DEFAULT_MAX_RECORDING_MILLISECONDS,
   labels,
   disabled,
+  disabledHint,
 }: AudioRecorderButtonProps) {
   const labelOf = (key: keyof AudioRecorderButtonLabels): string =>
     labels?.[key] ?? DEFAULT_AUDIO_RECORDER_BUTTON_LABELS[key]
+  const disabledHintId = useId()
+  const showDisabledHint = Boolean(disabled && disabledHint)
   const [isRecording, setIsRecording] = useState(false)
   const [pending, setPending] = useState<PendingRecording | undefined>(undefined)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -226,8 +211,9 @@ export function AudioRecorderButton({
         type="button"
         disabled={disabled || pending !== undefined}
         onClick={() => (isRecording ? stop() : void start())}
-        data-cv-tooltip={toggleLabel}
+        data-cv-tooltip={showDisabledHint ? disabledHint : toggleLabel}
         aria-label={toggleLabel}
+        aria-describedby={showDisabledHint ? disabledHintId : undefined}
         aria-pressed={isRecording}
         /* Mesma caixa do botão de enviar: o microfone ocupa o lugar dele enquanto o campo está
            vazio, e qualquer diferença de tamanho faz a barra pular a cada letra digitada. */
@@ -243,6 +229,11 @@ export function AudioRecorderButton({
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" /><path d="M19 11a7 7 0 0 1-14 0" /><line x1="12" y1="18" x2="12" y2="22" /></svg>
         )}
       </button>
+      {showDisabledHint && (
+        <span id={disabledHintId} className="sr-only">
+          {disabledHint}
+        </span>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/product-vision-provider",
-  "version": "0.1.0-rc.4",
+  "version": "0.1.0",
   "description": "Identifica produto a partir de uma foto: leitor de codigo de barras e embedding CLIP, ambos locais e gratuitos, encadeaveis",
   "type": "module",
   "main": "dist/index.js",

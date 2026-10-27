@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/notification-contracts",
-  "version": "0.1.0-rc.6",
+  "version": "0.2.1",
   "description": "Shared types, zod schemas, and port interfaces for the notification trio (contracts only — no runtime behavior)",
   "license": "MIT",
   "publishConfig": {
@@ -22,6 +22,7 @@
   "scripts": {
     "build": "tsup",
     "check": "tsc -p tsconfig.json --noEmit",
+    "generate:standard-email": "bun scripts/generate-standard-email.ts && eslint --fix src/templates/standardEmailTemplate.generated.ts",
     "test": "bun test"
   },
   "dependencies": {

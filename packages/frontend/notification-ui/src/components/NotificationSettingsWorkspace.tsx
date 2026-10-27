@@ -31,6 +31,7 @@ import { HtmlCodeField } from './HtmlCodeField'
 import { MessageBodyField } from './MessageBodyField'
 import { TemplatePreview } from './TemplatePreview'
 import { useTemplateEditor } from '../hooks/useTemplateEditor'
+import { isStandardEmailKey } from '../standardEmail.util'
 import type { TemplateDraftField } from '../hooks/useTemplateEditor'
 
 export type NotificationChannelOption = {
@@ -488,20 +489,25 @@ export function NotificationSettingsWorkspace({
                         {template.version}
                       </td>
                       <td>
-                        <button
-                          type="button"
-                          className="adn-settings__remove"
-                          aria-label={`${label('settings.remove')} ${template.key}`}
-                          disabled={editor.isDeactivating}
-                          /* Sem parar a propagacao, remover tambem abriria o template no editor. */
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            editor.deactivate(template.id)
-                          }}
-                        >
-                          <Trash2 className="adn-settings__button-icon" aria-hidden="true" />
-                          {label('settings.remove')}
-                        </button>
+                        {isStandardEmailKey(template.key) ? (
+                          /* Modelo do sistema não se remove: o servidor recusa e o envio depende dele. */
+                          <span className="adn-settings__badge">{label('settings.systemTemplate')}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="adn-settings__remove"
+                            aria-label={`${label('settings.remove')} ${template.key}`}
+                            disabled={editor.isDeactivating}
+                            /* Sem parar a propagacao, remover tambem abriria o template no editor. */
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              editor.deactivate(template.id)
+                            }}
+                          >
+                            <Trash2 className="adn-settings__button-icon" aria-hidden="true" />
+                            {label('settings.remove')}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -537,16 +543,20 @@ export function NotificationSettingsWorkspace({
                         {template.version}
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      className="adn-settings__remove"
-                      aria-label={`${label('settings.remove')} ${template.key}`}
-                      disabled={editor.isDeactivating}
-                      onClick={() => editor.deactivate(template.id)}
-                    >
-                      <Trash2 className="adn-settings__button-icon" aria-hidden="true" />
-                      {label('settings.remove')}
-                    </button>
+                    {isStandardEmailKey(template.key) ? (
+                      <span className="adn-settings__badge">{label('settings.systemTemplate')}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="adn-settings__remove"
+                        aria-label={`${label('settings.remove')} ${template.key}`}
+                        disabled={editor.isDeactivating}
+                        onClick={() => editor.deactivate(template.id)}
+                      >
+                        <Trash2 className="adn-settings__button-icon" aria-hidden="true" />
+                        {label('settings.remove')}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -562,6 +572,9 @@ export function NotificationSettingsWorkspace({
                 <div>
                   <h2 className="adn-settings__section-title">
                     {editor.selected ? (templateLabelOf?.(editor.selected) ?? editor.selected.key) : ''}
+                    {editor.isStandardEmail && (
+                      <span className="adn-settings__badge">{label('settings.systemTemplate')}</span>
+                    )}
                   </h2>
                   <p className="adn-settings__hint">
                     {editor.draft.channels.join(' · ')} · {editor.draft.locale} · {label('settings.version')}
@@ -571,6 +584,16 @@ export function NotificationSettingsWorkspace({
                 <div className="adn-settings__editor-actions">
                   {/* Antes do Fechar: a ação do produto é o que a pessoa procura ali; Fechar é saída. */}
                   {editor.selected && renderEditorActions?.({ templateKey: editor.selected.key })}
+                  {editor.isStandardEmail && editor.selected && (
+                    <button
+                      type="button"
+                      className="adn-settings__restore"
+                      disabled={editor.isRestoring}
+                      onClick={() => editor.selected && editor.restoreDefault(editor.selected.id)}
+                    >
+                      {editor.isRestoring ? label('settings.restoring') : label('settings.restoreDefault')}
+                    </button>
+                  )}
                   <button type="button" className="adn-settings__close" onClick={editor.clear}>
                     <X className="adn-settings__button-icon" aria-hidden="true" />
                     {label('settings.close')}
@@ -717,6 +740,9 @@ export function NotificationSettingsWorkspace({
                         {channel.hint && <span className="adn-settings__hint">{channel.hint}</span>}
                       </header>
 
+                      {editor.isStandardEmail ? (
+                        <p className="adn-settings__hint">{label('settings.standardEmailHint')}</p>
+                      ) : (
                       <label className="adn-settings__field">
                         <span className="adn-settings__field-label">{label('settings.subject')}</span>
                         <span className="adn-settings__hint">{label('settings.subjectHint')}</span>
@@ -727,6 +753,7 @@ export function NotificationSettingsWorkspace({
                           onFocus={() => setCursorChannel(channel.id)}
                         />
                       </label>
+                      )}
 
                       <label className="adn-settings__field">
                         <span className="adn-settings__field-label">{label('settings.body')}</span>
@@ -739,7 +766,7 @@ export function NotificationSettingsWorkspace({
                             onChange={(next) => editor.updateChannel(channel.id, { body: next })}
                             onSelect={(cursorIndex) => rememberCursor('body', cursorIndex)}
                             onFocus={() => setCursorChannel(channel.id)}
-                            {...(validateEmailHtml
+                            {...(validateEmailHtml && !editor.isStandardEmail
                               ? { problems: validateEmailHtml(content?.body ?? '').problems }
                               : {})}
                           />
@@ -753,6 +780,27 @@ export function NotificationSettingsWorkspace({
                           />
                         )}
                       </label>
+
+                      {/* O modelo padrão se valida inteiro, pelo mesmo `assess` do servidor: as obrigatórias
+                          e o HTML inseguro, sem depender de a área de mensagem existir. */}
+                      {editor.isStandardEmail && editor.standardAssessment && !editor.standardAssessment.usable && (
+                        <ul className="adn-settings__email-report" role="alert">
+                          {editor.standardAssessment.missing.length > 0 && (
+                            <li className="adn-settings__email-problem adn-settings__email-problem--error">
+                              {label('settings.standardMissing')}{' '}
+                              {editor.standardAssessment.missing.map((name) => `{{${name}}}`).join(', ')}
+                            </li>
+                          )}
+                          {editor.standardAssessment.unsafe.length > 0 && (
+                            <li className="adn-settings__email-problem adn-settings__email-problem--error">
+                              {label('settings.standardUnsafe')}{' '}
+                              {editor.standardAssessment.unsafe
+                                .map((rule) => label(`settings.standardUnsafe.${rule}`))
+                                .join(', ')}
+                            </li>
+                          )}
+                        </ul>
+                      )}
 
                       {/* Slot do host: campo que só um canal tem, e que o pacote não conhece por nome. */}
                       {renderChannelFields?.({
@@ -781,9 +829,13 @@ export function NotificationSettingsWorkspace({
                                     channel={frame.channel}
                                     viewport={frame.viewport}
                                     rendered={frame.rendered}
-                                    {...(frame.channel === 'email' && isHtmlBody(content?.body ?? '')
-                                      ? { emailHtml: content?.body ?? '' }
-                                      : {})}
+                                    {...(frame.channel === 'email' && editor.standardPreviewHtml !== undefined
+                                      ? { emailHtml: editor.standardPreviewHtml }
+                                      : frame.channel === 'email' &&
+                                          !editor.isStandardEmail &&
+                                          isHtmlBody(content?.body ?? '')
+                                        ? { emailHtml: content?.body ?? '' }
+                                        : {})}
                                     labels={{
                                       to: label('preview.to'),
                                       now: label('preview.now'),

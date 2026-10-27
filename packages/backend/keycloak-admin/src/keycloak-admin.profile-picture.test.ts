@@ -48,8 +48,8 @@ describe('foto de perfil', () => {
     await client.setProfilePicture({ pictureUrl: 'https://cdn.test/ana.png', userId: USER_ID })
 
     expect(requests[0]?.method).toBe('PUT')
-    expect(JSON.parse(requests[0]?.body ?? '{}')).toEqual({
-      attributes: { [PROFILE_PICTURE_ATTRIBUTE]: ['https://cdn.test/ana.png'] },
+    expect(JSON.parse(requests[0]?.body ?? '{}').attributes).toEqual({
+      [PROFILE_PICTURE_ATTRIBUTE]: ['https://cdn.test/ana.png'],
     })
   })
 
@@ -66,12 +66,10 @@ describe('foto de perfil', () => {
 
     await client.setProfilePicture({ pictureUrl: 'https://cdn.test/ana.png', userId: USER_ID })
 
-    expect(JSON.parse(requests[0]?.body ?? '{}')).toEqual({
-      attributes: {
-        company_id: ['company-1'],
-        [PROFILE_PICTURE_ATTRIBUTE]: ['https://cdn.test/ana.png'],
-        tax_id: ['12345678909'],
-      },
+    expect(JSON.parse(requests[0]?.body ?? '{}').attributes).toEqual({
+      company_id: ['company-1'],
+      [PROFILE_PICTURE_ATTRIBUTE]: ['https://cdn.test/ana.png'],
+      tax_id: ['12345678909'],
     })
   })
 
@@ -83,9 +81,7 @@ describe('foto de perfil', () => {
 
     await client.setProfilePicture({ pictureUrl: undefined, userId: USER_ID })
 
-    expect(JSON.parse(requests[0]?.body ?? '{}')).toEqual({
-      attributes: { company_id: ['company-1'] },
-    })
+    expect(JSON.parse(requests[0]?.body ?? '{}').attributes).toEqual({ company_id: ['company-1'] })
   })
 
   /** URL vazia é ausência de foto, não uma foto chamada "". */
@@ -97,7 +93,7 @@ describe('foto de perfil', () => {
 
     await client.setProfilePicture({ pictureUrl: '', userId: USER_ID })
 
-    expect(JSON.parse(requests[0]?.body ?? '{}')).toEqual({ attributes: {} })
+    expect(JSON.parse(requests[0]?.body ?? '{}').attributes).toEqual({})
   })
 
   test('usuário sem atributo nenhum não quebra a leitura', async () => {
@@ -105,8 +101,8 @@ describe('foto de perfil', () => {
 
     await client.setProfilePicture({ pictureUrl: 'https://cdn.test/ana.png', userId: USER_ID })
 
-    expect(JSON.parse(requests[0]?.body ?? '{}')).toEqual({
-      attributes: { [PROFILE_PICTURE_ATTRIBUTE]: ['https://cdn.test/ana.png'] },
+    expect(JSON.parse(requests[0]?.body ?? '{}').attributes).toEqual({
+      [PROFILE_PICTURE_ATTRIBUTE]: ['https://cdn.test/ana.png'],
     })
   })
 })

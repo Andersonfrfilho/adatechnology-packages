@@ -11,10 +11,13 @@ import { Check } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 
 import type { UpdateTeamMemberInput, UserProfile } from './providers/types'
+import { withCurrentRole, type TeamRoleOption } from './roles'
 import { DEFAULT_USER_LABELS, type UserLabels } from './workspace/labels'
 
 export type TeamMemberEditFormProps = {
   readonly member: UserProfile
+  /** Os papéis oferecidos. O papel ATUAL entra na lista mesmo se não estiver aqui — ver `withCurrentRole`. */
+  readonly roles: readonly TeamRoleOption[]
   readonly labels?: Partial<UserLabels>
   readonly saving: boolean
   /**
@@ -45,6 +48,7 @@ const LABEL = 'mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100'
 
 export function TeamMemberEditForm({
   member,
+  roles,
   labels: overrides,
   saving,
   emailError,
@@ -56,6 +60,7 @@ export function TeamMemberEditForm({
   const [email, setEmail] = useState(member.email)
   const [name, setName] = useState(member.name)
   const [role, setRole] = useState(member.role)
+  const roleOptions = withCurrentRole(roles, member.role)
 
   const unchanged = name.trim() === member.name && role === member.role && email.trim() === member.email
 
@@ -123,8 +128,11 @@ export function TeamMemberEditForm({
               onChange={(event) => setRole(event.target.value)}
               value={role}
             >
-              <option value="member">{labels.teamRoleMember}</option>
-              <option value="admin">{labels.teamRoleAdmin}</option>
+              {roleOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
             <svg
               aria-hidden="true"

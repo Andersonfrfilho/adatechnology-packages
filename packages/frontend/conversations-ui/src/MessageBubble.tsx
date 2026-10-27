@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Check } from 'lucide-react'
 import type { InteractiveSelection, MessagePayload, MessageTranscription } from './types'
 import { useConversationLocales } from './ConversationLocalesProvider'
+import { channelCapabilityFor } from './channelCapability'
+import type { ConversationChannel } from './conversationChannel'
 import { StatusTicks } from './StatusTicks'
 import { MediaRenderer, type ResolveMediaUrl } from './MediaRenderer'
 import { Lightbox } from './Lightbox'
@@ -36,6 +38,12 @@ export interface MessageBubbleProps {
    * o que já veio pronto do backend.
    */
   onTranscribeAudio?: (messageId: string) => Promise<MessageTranscription | void>
+  /**
+   * Canal da conversa (RF10, D4). Ausente = `whatsapp`, o comportamento de antes desta mudança.
+   * E-mail não confirma leitura (CA04): o selo de lida nunca aparece nesse canal, mesmo que o
+   * status chegue como `read` por algum caminho antigo — a tela não finge o que o canal não sabe.
+   */
+  channel?: ConversationChannel
   className?: string
 }
 
@@ -57,8 +65,13 @@ const MEDIA_TYPES = new Set(['image', 'audio', 'video', 'document', 'sticker'])
 // tailwind.config do host expondo as cores `whatsapp.*` — ver Wallpaper.tsx e T6.2.
 export function MessageBubble({
   message, isMine, senderName, isFirstInGroup = true, isSelecting = false, isSelected = false, onToggleSelect,
-  onResolveMediaUrl, onInteractiveSelect, onTranscribeAudio, className,
+  onResolveMediaUrl, onInteractiveSelect, onTranscribeAudio, channel, className,
 }: MessageBubbleProps) {
+  // D4, CA04: sem confirmação de leitura no canal, `read` nunca aparece — mesmo que chegue assim do
+  // backend. Rebaixar para `delivered` em vez de esconder o tick inteiro preserva sent/delivered/
+  // failed, que continuam informação válida em qualquer canal.
+  const confirmsRead = channelCapabilityFor(channel).confirmsRead
+  const displayStatus = message.status === 'read' && !confirmsRead ? 'delivered' : message.status
   const { bubble, selection } = useConversationLocales()
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const context = useConversations()
@@ -103,9 +116,9 @@ export function MessageBubble({
     : undefined
   const displayName = message.sender === 'agent' && senderName ? senderName : bubble[message.sender] ?? message.sender
 
-  const tooltipText = message.status === 'read' && message.readAt
+  const tooltipText = displayStatus === 'read' && message.readAt
     ? `${bubble.readAt}${formatDateTime(message.readAt)}`
-    : message.status === 'failed'
+    : displayStatus === 'failed'
       ? bubble.windowExpired
       : undefined
 
@@ -205,8 +218,8 @@ export function MessageBubble({
           <span className="text-xs text-black/40 dark:text-white/40 font-medium">
             {formatTimestamp(message.timestamp)}
           </span>
-          {isMine && message.status && (
-            <StatusTicks status={message.status} title={tooltipText} />
+          {isMine && displayStatus && (
+            <StatusTicks status={displayStatus} title={tooltipText} />
           )}
         </div>
       </div>

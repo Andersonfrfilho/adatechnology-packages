@@ -27,4 +27,22 @@ describe('AudioRecorderButton', () => {
 
     expect(markup).toContain('h-10 w-10')
   })
+
+  // D3: a dica do controle desabilitado tem de ser legível por leitor de tela, não só `title` (que
+  // o pacote nem usa) nem só o tooltip visual (`data-cv-tooltip`, que não é lido por AT sozinho).
+  it('desabilitado com dica, expõe a dica via aria-describedby para leitor de tela', () => {
+    const markup = renderToStaticMarkup(
+      <AudioRecorderButton onRecorded={noop} disabled disabledHint="Este canal não grava áudio." />,
+    )
+
+    expect(markup).toContain('disabled=""')
+    expect(markup).toContain('aria-describedby=')
+    expect(markup).toContain('Este canal não grava áudio.')
+  })
+
+  it('sem dica, o botão desabilitado não ganha aria-describedby à toa', () => {
+    const markup = renderToStaticMarkup(<AudioRecorderButton onRecorded={noop} disabled />)
+
+    expect(markup).not.toContain('aria-describedby=')
+  })
 })

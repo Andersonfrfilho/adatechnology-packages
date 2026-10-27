@@ -2,12 +2,17 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { ConfigMissingError, ProviderMisconfiguredError } from '@adatechnology/user-contracts'
+import {
+  ConfigMissingError,
+  ProviderMisconfiguredError,
+  REFRESH_COOKIE_SAME_SITE,
+} from '@adatechnology/user-contracts'
 import type {
   AvatarStoragePort,
   ClockPort,
   EmailDriverPort,
   LoggerPort,
+  RefreshCookieSameSite,
   RefreshTokenStorePort,
   UserHooks,
   UserModuleConfig,
@@ -74,6 +79,11 @@ export type UserModule = {
   readonly hasAvatar: boolean
   /** Sem `config.passwordReset` as rotas de reset não são publicadas — não existe reset a oferecer. */
   readonly hasPasswordReset: boolean
+  /**
+   * Política do cookie de refresh, já resolvida. As rotas emitem e limpam o cookie com ela, e o
+   * host que serve a tela em outro site registrável declara `none` em `config.refreshToken`.
+   */
+  readonly refreshCookieSameSite: RefreshCookieSameSite
 }
 
 async function resolveKeycloakVerifier(params: CreateUserModuleParams): Promise<KeycloakVerifierPort | undefined> {
@@ -155,5 +165,6 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
     hasEmail: Boolean(dependencies.email),
     hasAvatar: Boolean(dependencies.avatar),
     hasPasswordReset: Boolean(params.config.passwordReset),
+    refreshCookieSameSite: params.config.refreshToken?.sameSite ?? REFRESH_COOKIE_SAME_SITE.LAX,
   }
 }

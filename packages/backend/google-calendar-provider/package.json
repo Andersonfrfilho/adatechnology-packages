@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/google-calendar-provider",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0",
   "description": "CalendarSyncPort backed by the Google Calendar API v3",
   "type": "module",
   "main": "dist/index.js",

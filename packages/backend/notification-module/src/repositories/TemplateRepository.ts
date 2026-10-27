@@ -44,6 +44,23 @@ export class TemplateRepository {
     return row
   }
 
+  /** Existe alguma linha da identidade, ativa ou não? A semente só grava quando não há nenhuma. */
+  async existsIdentity(params: { companyId: string; key: string; channel: string; locale: string }): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: templates.id })
+      .from(templates)
+      .where(
+        and(
+          eq(templates.companyId, params.companyId),
+          eq(templates.key, params.key),
+          eq(templates.channel, params.channel),
+          eq(templates.locale, params.locale),
+        ),
+      )
+      .limit(1)
+    return row !== undefined
+  }
+
   async findById(params: { companyId: string; id: string }): Promise<TemplateRow | undefined> {
     const [row] = await this.db
       .select()
@@ -84,6 +101,29 @@ export class TemplateRepository {
 
   async listByCompany(params: { companyId: string }): Promise<TemplateRow[]> {
     return this.db.select().from(templates).where(eq(templates.companyId, params.companyId))
+  }
+
+  /**
+   * INSERT direto da versão informada, sem `max(version)+1`: duas chamadas para a mesma versão
+   * colidem no índice único `idx_templates_identity` (23505) em vez de gravar versões diferentes.
+   */
+  async insertVersion(params: { companyId: string; version: number } & UpsertTemplateInput): Promise<TemplateRow> {
+    const [row] = await this.db
+      .insert(templates)
+      .values({
+        companyId: params.companyId,
+        key: params.key,
+        channel: params.channel,
+        locale: params.locale,
+        subject: params.subject,
+        body: params.body,
+        whatsappTemplateName: params.whatsappTemplateName,
+        active: params.active,
+        version: params.version,
+      })
+      .returning()
+    if (!row) throw new Error('notification-module: insert em templates não retornou linha')
+    return row
   }
 
   /**

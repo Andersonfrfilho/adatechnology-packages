@@ -16,5 +16,6 @@ export type {
   PutObjectInput,
   PutObjectResult,
   SignedDownloadInput,
+  SignedUploadInput,
   StoredObject,
 } from './object-storage-provider.types'

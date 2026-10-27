@@ -60,33 +60,31 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
           mostra os asteriscos literais, e formatá-los aqui deixaria o simulador mais bonito que o
           aparelho, que é o tipo de divergência que só aparece com o cliente na frente. */}
       {payload.header?.text ? (
-        <p className={cn('text-sm font-semibold text-gray-900 dark:text-gray-100', FORMATTING_CLASSES)}>
+        <div className={cn('text-sm font-semibold text-gray-900 dark:text-gray-100', FORMATTING_CLASSES)}>
           {parseWhatsAppFormatting(payload.header.text)}
-        </p>
+        </div>
       ) : null}
 
       {payload.body?.text ? (
-        <p
-          className={cn(
-            'whitespace-pre-wrap break-words text-sm text-gray-900 dark:text-gray-100',
-            FORMATTING_CLASSES,
-          )}
+        <div
+          className={cn('whitespace-pre-wrap break-words text-sm text-gray-900 dark:text-gray-100', FORMATTING_CLASSES)}
         >
           {parseWhatsAppFormatting(payload.body.text)}
-        </p>
+        </div>
       ) : null}
 
       {payload.footer?.text ? (
-        <p className={cn('text-xs text-gray-500 dark:text-gray-400', FORMATTING_CLASSES)}>
+        <div className={cn('text-xs text-gray-500 dark:text-gray-400', FORMATTING_CLASSES)}>
           {parseWhatsAppFormatting(payload.footer.text)}
-        </p>
+        </div>
       ) : null}
 
       {buttons.length > 0 ? (
         <div className="mt-1 flex flex-col gap-1 border-t border-gray-200 pt-1 dark:border-gray-700">
           {buttons.map((button) => (
             <button
-              data-cv-tooltip={button.title} aria-label={button.title}
+              data-cv-tooltip={button.title}
+              aria-label={button.title}
               key={button.id}
               type="button"
               disabled={!isInteractable}
@@ -102,7 +100,8 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
       {hasRows ? (
         <div className="mt-1 border-t border-gray-200 pt-1 dark:border-gray-700">
           <button
-            data-cv-tooltip={payload.action?.button ?? openListLabel} aria-label={payload.action?.button ?? openListLabel}
+            data-cv-tooltip={payload.action?.button ?? openListLabel}
+            aria-label={payload.action?.button ?? openListLabel}
             type="button"
             onClick={() => setIsListOpen((open) => !open)}
             aria-expanded={isListOpen}
@@ -122,7 +121,8 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
                   ) : null}
                   {(section.rows ?? []).map((row) => (
                     <button
-                      data-cv-tooltip={row.title} aria-label={row.title}
+                      data-cv-tooltip={row.title}
+                      aria-label={row.title}
                       key={row.id}
                       type="button"
                       disabled={!isInteractable}

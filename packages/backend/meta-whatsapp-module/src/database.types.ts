@@ -1,4 +1,4 @@
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
+import type { PgAsyncDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 
 // Conexão Drizzle aceita pelo módulo. Deliberadamente o tipo genérico do pg-core, e não um
 // driver concreto: o módulo só usa o query builder (select/insert/update), nada específico de
@@ -9,7 +9,7 @@ import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core'
 // conhecer as tabelas dele, e o schema `meta_whatsapp` é acessado pelos objetos de tabela que o
 // próprio módulo carrega — não pelo `db.query` tipado do host.
 
-export type MetaWhatsAppDatabase = PgDatabase<PgQueryResultHKT, any, any>
+export type MetaWhatsAppDatabase = PgAsyncDatabase<PgQueryResultHKT>
 
 // Assinatura do `migrate` do drizzle, igual em todos os drivers. Recebida por injeção porque o
 // migrator É específico de driver (`drizzle-orm/node-postgres/migrator`,

@@ -52,6 +52,13 @@ export type {
 /** Tela COMPOSTA de equipe — listagem, cadastro e ativacao. Some quando a `UserApi` nao traz `listTeam`. */
 export { TeamWorkspace } from './workspace/TeamWorkspace'
 export type { TeamWorkspaceProps } from './workspace/TeamWorkspace'
+export {
+  buildDefaultTeamRoles,
+  resolveTeamRole,
+  withCurrentRole,
+  DEFAULT_TEAM_ROLE_VALUE,
+} from './roles'
+export type { TeamRoleOption, TeamRoleTone } from './roles'
 export { TeamMemberForm, TEAM_PASSWORD_MIN_LENGTH } from './TeamMemberForm'
 export type { TeamMemberFormProps } from './TeamMemberForm'
 export { useTeam, TEAM_DEFAULT_PAGE_SIZE } from './useTeam'

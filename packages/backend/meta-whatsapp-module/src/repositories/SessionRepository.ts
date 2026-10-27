@@ -168,26 +168,42 @@ export class SessionRepository {
     return (Date.now() - session.lastInboundAt.getTime()) / (1000 * 60 * 60)
   }
 
+  // `clearHumanRequest` é opt-in: quem chama `setMode` direto para outros fins (ex.: trocar de
+  // atendente sem mexer na fila) continua sem afetar `humanRequestedAt`. Só `takeover`/`release`
+  // pedem a limpeza, porque só eles representam "o pedido de atendimento foi resolvido".
   async setMode(
     companyId: string,
     whatsappNumber: string,
     mode: SessionMode,
     assignedUserId?: string | null,
+    clearHumanRequest = false,
   ): Promise<void> {
     await this.db
       .update(sessions)
-      .set({ mode, assignedUserId: assignedUserId ?? null, updatedAt: sql`now()` })
+      .set({
+        mode,
+        assignedUserId: assignedUserId ?? null,
+        ...(clearHumanRequest ? { humanRequestedAt: null } : {}),
+        updatedAt: sql`now()`,
+      })
       .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
   }
 
   // T3.3 — takeover: atendente assume a conversa, tirando-a do modo bot.
+  //
+  // Limpa `humanRequestedAt`: sem isso a conversa nunca sai da fila `waitingHuman` da inbox,
+  // mesmo depois de atendida — o filtro é só `humanRequestedAt is not null` (ver
+  // `listByContextFilters`), então o campo tem que voltar a null quando o pedido é resolvido.
   async takeover(companyId: string, whatsappNumber: string, agentUserId: string): Promise<void> {
-    await this.setMode(companyId, whatsappNumber, 'human', agentUserId)
+    await this.setMode(companyId, whatsappNumber, 'human', agentUserId, true)
   }
 
   // T3.3 — release: devolve a conversa ao bot.
+  //
+  // Também limpa `humanRequestedAt` pelo mesmo motivo do takeover: se o cliente pedir atendimento
+  // de novo depois, `requestHuman` grava um novo timestamp normalmente.
   async release(companyId: string, whatsappNumber: string): Promise<void> {
-    await this.setMode(companyId, whatsappNumber, 'bot', null)
+    await this.setMode(companyId, whatsappNumber, 'bot', null, true)
   }
 
   /**

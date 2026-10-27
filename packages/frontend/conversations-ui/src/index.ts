@@ -53,7 +53,7 @@ export {
   isReplyOverdue,
 } from './replyLatency'
 export type { ReplyLatency, ReplyLatencyParams } from './replyLatency'
-// Canal de origem: capacidades por plataforma (janela de sessão, reabertura, tipo de identificador).
+// Canal de origem: exibição por plataforma (rótulo, ícone, reabertura, tipo de identificador).
 export {
   CONVERSATION_CHANNEL,
   DEFAULT_CONVERSATION_CHANNEL,
@@ -75,6 +75,10 @@ export type {
   HandleKind,
   FormatContactHandleParams,
 } from './conversationChannel'
+// Capacidade comportamental do canal (RF10, D3) — confirma leitura, janela, anexo, áudio, resposta
+// rápida, transporte próprio. Vem de `@adatechnology/conversation-contracts`; ver channelCapability.ts.
+export { channelCapabilityFor } from './channelCapability'
+export type { ChannelCapability } from '@adatechnology/conversation-contracts'
 export type { ConversationWindow } from './conversationWindow'
 export { ConversationRow } from './ConversationRow'
 export { ChannelIcon, CHANNEL_BRAND_COLOR } from './ChannelIcon'
@@ -174,6 +178,9 @@ export { useConversationRealtime, useGlobalRealtime } from './hooks/useConversat
 export { useConversationActions, useInboxActions } from './hooks/useConversationActions'
 
 export { parseWhatsAppFormatting, waToHTML, htmlToWA, waToHTMLInline } from './lib/whatsapp-formatting'
+export { WhatsAppMessagePreview } from './lib/WhatsAppMessagePreview'
+export type { WhatsAppMessagePreviewProps } from './lib/WhatsAppMessagePreview'
+export { WHATSAPP_MARKER_BY_ACTION } from './lib/composer-formatting'
 export { formatPhone, phoneInitials } from './lib/phone'
 // `formatDateTime` e `isSameDay` já eram usados pelas bolhas e pelo divisor de data; exportá-los
 // evita que cada host mantenha a própria cópia e acabe com timeline e transcript divergindo.
@@ -254,11 +261,38 @@ export { createMediaUrlResolver } from './lib/createMediaUrlResolver'
 export type { ConversationHeaderUtility } from './ConversationHeader'
 export { applyQuickReplyVariables, resolveQuickReply } from './MessageComposer'
 export type { QuickReply } from './MessageComposer'
+// `QuickReply` já nomeia o chip; a mensagem pronta cadastrada sai como `SavedQuickReply` para não quebrar hosts.
+export type {
+  QuickReply as SavedQuickReply,
+  QuickReplyInput,
+  QuickReplyAttachment,
+  QueuedAttachment,
+  StoredAttachmentSendResult,
+  ConversationVariable,
+} from './quickReplies/quickReply.types'
+
+// Só o que o host precisa para montar a fila e ler seus tetos. O resto (validação de arquivo,
+// ordenação de envio, limite de concorrência de upload) é orquestração interna do pacote — expô-lo
+// convida o host a reimplementar o pipeline por fora em vez de usar `ConversationPane` (L2).
+export { QUICK_REPLY_ATTACHMENT_LIMIT } from './quickReplies/quickReply.types'
+export {
+  DEFAULT_MAX_ATTACHMENT_SIZE_BYTES,
+  resolveMaxAttachmentSizeBytes,
+  queuedAttachmentsFromQuickReply,
+} from './quickReplies/quickReplyAttachments'
+export type { MaxAttachmentSizeBytes, OutgoingItems } from './quickReplies/quickReplyAttachments'
+export type { AttachmentFileRejection, ValidateAttachmentFilesResult } from './quickReplies/quickReplyAttachmentUpload'
+export { QuickRepliesWorkspace, QuickRepliesPicker } from './quickReplies'
+export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps } from './quickReplies'
+export { DEFAULT_QUICK_REPLIES_PICKER_LABELS, DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS } from './quickReplies/labels'
+export type { QuickRepliesPickerLabels, QuickRepliesWorkspaceLabels } from './quickReplies/labels'
+export { normalizeForSearch, filterQuickReplies, highlightMatch } from './quickReplies/quickReplySearch'
+export type { FilterQuickRepliesParams, MatchSegment } from './quickReplies/quickReplySearch'
 
 // Tela de atendimento completa. Fica no export principal — e não num subpath — porque é a
 // composição padrão do pacote: quem instala conversas quer esta tela, e as peças continuam
 // exportadas ao lado para quem precisar montar outra.
-export { ConversationsWorkspace, ConversationPane, ConversationsInboxList } from './workspace'
+export { ConversationsWorkspace, ConversationPane, ConversationsInboxList, QueuedAttachmentsList } from './workspace'
 export { useConversationsInbox, CONVERSATIONS_PER_PAGE, DEFAULT_CONVERSATIONS_WORKSPACE_LABELS } from './workspace'
 export type {
   ConversationsWorkspaceProps,
