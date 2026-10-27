@@ -32,8 +32,32 @@ const { id } = await keycloak.createUser({
 })
 ```
 
-Operações: `createUser`, `findUserByEmail`, `updateUser`, `setEnabled`, `updateAttributes`,
-`deleteUser`, `setPassword`, `setTemporaryPassword`.
+Operações de usuário: `createUser`, `findUserByEmail`, `listUsers`, `updateUser`, `setEnabled`,
+`updateAttributes`, `deleteUser`, `setPassword`, `setTemporaryPassword`.
+
+⚠️ `updateAttributes` e `setProfilePicture` **leem a conta antes de gravar** (`GET` + `PUT` da
+representação completa). O Keycloak 26 com perfil de usuário declarativo trata o `PUT` com
+`attributes` como a ficha inteira: só `{ attributes }` responde 400 "User name is missing", e
+`{ username, attributes }` apaga e-mail e nome. `updateAttributes` substitui o conjunto de atributos;
+`setProfilePicture` troca só o `picture`. `updateUser` e `setEnabled` seguem parciais, sem leitura.
+
+Foto de perfil: `setProfilePicture({ userId, pictureUrl })`. O atributo é `picture`, o nome que o
+OIDC reserva — com um mapeador no realm ele chega ao token, e a tela desenha o avatar sem uma
+consulta por pessoa.
+
+⚠️ O Keycloak **não hospeda imagem**: o valor é uma URL e o arquivo é do produto. Base64 no atributo
+cresce o token até ele parar de caber no cabeçalho, e o sintoma aparece longe — login que funciona
+no navegador e falha no `curl`. A operação lê os atributos antes de gravar, porque o Admin API
+substitui o conjunto: mandar só a foto apagaria `company_id` e o resto.
+
+Operações de grupo: `createGroup`, `updateGroup`, `deleteGroup`, `listGroups`, `addUserToGroup`,
+`removeUserFromGroup`. Só o **primeiro nível** — grupo aninhado muda o significado de "pertencer",
+porque quem está no filho herda o pai, e um produto que não modela hierarquia não deve criá-la por
+acidente. A filiação é endereçada pelo **usuário** (`/users/{id}/groups/{id}`), não pelo grupo.
+
+`listUsers({ first, limit, search })` devolve `{ users, hasMore }`. O realm não informa total, então
+a página pede um registro a mais que o limite e descarta-o: é assim que `hasMore` sai sem uma
+segunda chamada.
 
 ## Token
 

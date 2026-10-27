@@ -5,6 +5,7 @@
 import { ConfigMissingError, EMAIL_DRIVER } from '@adatechnology/notification-contracts'
 import type { DeliveryAttemptResult, EmailDriverPort, SendEmailParams } from '@adatechnology/notification-contracts'
 
+import { AttachmentFetchError, fetchAttachments } from './fetchAttachments'
 import { isSmtpError, type SmtpTransportClient } from './SmtpTransportClient'
 
 export type SmtpEmailProviderConfig = {
@@ -50,6 +51,22 @@ export function createSmtpEmailProvider(config: SmtpEmailProviderConfig): EmailD
     driver: EMAIL_DRIVER.SMTP,
     async send(params: SendEmailParams): Promise<DeliveryAttemptResult> {
       const client = await resolveClient()
+
+      /**
+       * Anexo antes da conexao: um arquivo inalcancavel nao vira mensagem pela metade, e o motivo
+       * fica no `errorCode` da tentativa em vez de virar uma falha generica de SMTP.
+       *
+       * `retriable` porque a causa e quase sempre a URL assinada vencida ou o storage fora do ar —
+       * os dois se resolvem sozinhos numa nova tentativa, com uma assinatura nova.
+       */
+      let attachments
+      try {
+        attachments = await fetchAttachments(params.attachments)
+      } catch (error) {
+        if (error instanceof AttachmentFetchError) return { outcome: 'retriable', errorCode: error.errorCode }
+        throw error
+      }
+
       try {
         const result = await client.sendMail({
           from: config.from,
@@ -58,6 +75,15 @@ export function createSmtpEmailProvider(config: SmtpEmailProviderConfig): EmailD
           html: params.html,
           text: params.text,
           replyTo: params.replyTo,
+          ...(attachments.length > 0
+            ? {
+                attachments: attachments.map((attachment) => ({
+                  filename: attachment.filename,
+                  content: Buffer.from(attachment.content),
+                  contentType: attachment.contentType,
+                })),
+              }
+            : {}),
         })
 
         // Servidor aceitou a conexão mas rejeitou o destinatário sem lançar erro — mesmo sinal de

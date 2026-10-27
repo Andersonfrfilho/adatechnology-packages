@@ -40,6 +40,26 @@ describe('WhatsAppMessageProvider.sendText', () => {
     expect(payload).toMatchObject({ type: 'text', to: '5511999990000', text: { body: 'olá' } })
   })
 
+  test('asks for the link card only when previewUrl is set', async () => {
+    const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.1' }] })
+    const provider = buildProvider()
+
+    await provider.sendText('5511999990000', 'mapa: https://maps.google.com/?q=x', { previewUrl: true })
+
+    const payload = JSON.parse(String(calls[0]?.requestInit.body))
+    expect(payload.text).toMatchObject({ preview_url: true })
+  })
+
+  test('omits preview_url when the caller does not ask for the card', async () => {
+    const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.1' }] })
+    const provider = buildProvider()
+
+    await provider.sendText('5511999990000', 'olá')
+
+    const payload = JSON.parse(String(calls[0]?.requestInit.body))
+    expect(payload.text).not.toHaveProperty('preview_url')
+  })
+
   test('returns null waMessageId when the Graph API omits the messages array', async () => {
     mockJsonResponseOnce({})
     const provider = buildProvider()
@@ -109,6 +129,58 @@ describe('WhatsAppMessageProvider.sendInteractiveButtons', () => {
     const [{ requestInit }] = calls
     const payload = JSON.parse(String(requestInit.body)) as { interactive: { action: { buttons: unknown[] } } }
     expect(payload.interactive.action.buttons).toEqual([{ type: 'reply', reply: { id: 'sim', title: 'Sim' } }])
+  })
+})
+
+describe('WhatsAppMessageProvider.sendLocation', () => {
+  test('sends latitude, longitude and the pin labels', async () => {
+    const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.loc' }] })
+    const provider = buildProvider()
+
+    const result = await provider.sendLocation({
+      to: '5511999990000',
+      latitude: -20.5386,
+      longitude: -47.4008,
+      name: 'Entrega',
+      address: 'Rua Radialista Alfeu Stabelini, 6531',
+    })
+
+    expect(result).toEqual({ waMessageId: 'wamid.loc' })
+    const [{ requestInit }] = calls
+    const payload = JSON.parse(String(requestInit.body)) as { type: string; location: Record<string, unknown> }
+    expect(payload.type).toBe('location')
+    expect(payload.location).toEqual({
+      latitude: -20.5386,
+      longitude: -47.4008,
+      name: 'Entrega',
+      address: 'Rua Radialista Alfeu Stabelini, 6531',
+    })
+  })
+
+  test('omits the labels when they are not given', async () => {
+    const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.loc2' }] })
+    const provider = buildProvider()
+
+    await provider.sendLocation({ to: '5511999990000', latitude: 0, longitude: 0 })
+
+    const [{ requestInit }] = calls
+    const payload = JSON.parse(String(requestInit.body)) as { location: Record<string, unknown> }
+    expect(payload.location).toEqual({ latitude: 0, longitude: 0 })
+  })
+
+  /*
+   * Latitude e longitude trocadas de lugar é o erro clássico, e a Graph API aceita o corpo: o pino
+   * simplesmente aparece em outro continente. Recusar aqui é o que torna o engano visível.
+   */
+  test('rejects coordinates outside the valid range', async () => {
+    const provider = buildProvider()
+
+    await expect(provider.sendLocation({ to: '5511999990000', latitude: -200, longitude: 0 })).rejects.toBeInstanceOf(
+      WhatsAppRejectionError,
+    )
+    await expect(provider.sendLocation({ to: '5511999990000', latitude: 0, longitude: 200 })).rejects.toBeInstanceOf(
+      WhatsAppRejectionError,
+    )
   })
 })
 

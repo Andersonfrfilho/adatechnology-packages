@@ -27,10 +27,16 @@ export function buildKeycloakAdminEndpoints({ baseUrl, realm }: BuildKeycloakAdm
   const origin = baseUrl.replace(/\/+$/, '')
   const encodedRealm = encodeURIComponent(realm)
   const users = `${origin}/admin/realms/${encodedRealm}/users`
+  const groups = `${origin}/admin/realms/${encodedRealm}/groups`
 
   return {
+    group: (groupId: string) => `${groups}/${encodeURIComponent(groupId)}`,
+    groups,
     token: `${origin}/realms/${encodedRealm}/protocol/openid-connect/token`,
     user: (userId: string) => `${users}/${encodeURIComponent(userId)}`,
+    /** O Admin API endereça a filiação pelo usuário, não pelo grupo: é `PUT` para entrar, `DELETE` para sair. */
+    userGroup: (userId: string, groupId: string) =>
+      `${users}/${encodeURIComponent(userId)}/groups/${encodeURIComponent(groupId)}`,
     userPassword: (userId: string) => `${users}/${encodeURIComponent(userId)}/reset-password`,
     users,
   } as const

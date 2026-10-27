@@ -47,10 +47,23 @@ export function validateLocation(location: ObjectLocation): void {
   }
 }
 
-export function validateSignedExpiration(expiresInSeconds: number): void {
-  if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 1 || expiresInSeconds > 300) {
+export function validateSignedExpiration(expiresInSeconds: number, maxExpiresInSeconds = 300): void {
+  if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 1 || expiresInSeconds > maxExpiresInSeconds) {
     fail('signedUrlExpirationInvalid', 'Signed URL expiration is invalid')
   }
+}
+
+export function validateSignedUploadContentType(contentType: string): void {
+  if (!contentType.trim() || /[\r\n]/.test(contentType)) {
+    fail('invalidContentType', 'Object content type is invalid')
+  }
+}
+
+export function validateSignedUploadContentLength(contentLength: number, maxObjectSizeBytes: number): void {
+  if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
+    fail('contentLengthMismatch', 'Object content length does not match')
+  }
+  if (contentLength > maxObjectSizeBytes) fail('objectTooLarge', 'Object exceeds the configured size limit')
 }
 
 async function readStream(stream: ReadableStream<Uint8Array>, contentLength: number): Promise<Uint8Array> {

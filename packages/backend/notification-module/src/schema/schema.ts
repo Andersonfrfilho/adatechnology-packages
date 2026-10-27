@@ -50,6 +50,30 @@ export const templates = notificationSchema.table(
   ],
 )
 
+/**
+ * O teto de canais da EMPRESA por categoria, acima da preferência do usuário.
+ *
+ * Sem esta tabela só existiam dois lugares para decidir por onde a notificação sai: o chamador
+ * enumerando canais em cada `sendNotification`, ou a preferência de quem recebe. Faltava "cobrança
+ * nunca sai por SMS" — uma decisão do produto que não cabe em nenhum dos dois.
+ *
+ * Linha ausente significa permitido: fechar por omissão calaria toda categoria existente no deploy
+ * que criasse a tabela.
+ */
+export const categoryPolicies = notificationSchema.table(
+  'category_policies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    companyId: COMPANY_ID,
+    category: varchar('category', { length: 64 }).notNull(),
+    channel: CHANNEL.notNull(),
+    enabled: boolean('enabled').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('idx_category_policies_identity').on(table.companyId, table.category, table.channel)],
+)
+
 export const notifications = notificationSchema.table(
   'notifications',
   {
@@ -110,6 +134,12 @@ export const devices = notificationSchema.table(
   ],
 )
 
+/** O registro de auditoria de um anexo. Deliberadamente sem `url` e sem conteúdo. */
+export type DeliveryAttachmentAudit = {
+  readonly filename: string
+  readonly contentType: string
+}
+
 export const deliveries = notificationSchema.table(
   'deliveries',
   {
@@ -138,6 +168,18 @@ export const deliveries = notificationSchema.table(
     sentAt: timestamp('sent_at', { withTimezone: true }),
     deliveredAt: timestamp('delivered_at', { withTimezone: true }),
     failedAt: timestamp('failed_at', { withTimezone: true }),
+    /**
+     * O que foi anexado nesta entrega — nome e tipo, nunca o conteúdo e nunca a URL.
+     *
+     * A URL é assinada, e assinatura gravada é credencial gravada: ela ficaria no banco depois de
+     * vencer, sem servir para nada além de vazar num dump. O nome fica porque é o que responde a
+     * pergunta que a auditoria faz — "que arquivo esse cliente recebeu?" — e ele já saiu no e-mail
+     * do próprio destinatário.
+     *
+     * Nulo em toda entrega sem anexo, que é a maioria: array vazio e ausência dizem a mesma coisa,
+     * e `null` não ocupa linha de índice.
+     */
+    attachments: jsonb('attachments').$type<readonly DeliveryAttachmentAudit[] | null>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -184,6 +226,9 @@ export const suppressions = notificationSchema.table(
   },
   (table) => [uniqueIndex('idx_suppressions_identity').on(table.companyId, table.channel, table.targetHash)],
 )
+
+export type CategoryPolicyRow = typeof categoryPolicies.$inferSelect
+export type NewCategoryPolicyRow = typeof categoryPolicies.$inferInsert
 
 export type TemplateRow = typeof templates.$inferSelect
 export type NewTemplateRow = typeof templates.$inferInsert

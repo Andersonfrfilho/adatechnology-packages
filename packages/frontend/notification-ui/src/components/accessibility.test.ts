@@ -17,7 +17,11 @@ function readComponent(name: string): string {
   return readFileSync(join(COMPONENTS_DIR, name), 'utf8')
 }
 
-const componentFiles = readdirSync(COMPONENTS_DIR).filter((file) => file.endsWith('.tsx'))
+// Arquivo de teste nao e componente: ele PRECISA de literal para montar o caso, e varre-lo faria a
+// guarda reprovar o proprio teste que a verifica.
+const componentFiles = readdirSync(COMPONENTS_DIR).filter(
+  (file) => file.endsWith('.tsx') && !file.endsWith('.test.tsx'),
+)
 
 describe('regra de ícones (web.md §9)', () => {
   it('usa a biblioteca de ícones do monorepo, nunca emoji como ícone de UI', () => {

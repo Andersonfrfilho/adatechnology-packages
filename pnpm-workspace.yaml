@@ -4,3 +4,4 @@ packages:
   - 'packages/backend/example/*'
   - 'packages/backend/*'
   - 'packages/frontend/*'
+  - 'packages/mcp/*'

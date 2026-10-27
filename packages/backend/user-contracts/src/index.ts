@@ -7,6 +7,7 @@
  */
 
 export * from './user.types'
+export * from './avatar'
 export * from './errors'
 export * from './events'
 export * from './providers'

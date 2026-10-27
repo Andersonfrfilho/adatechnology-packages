@@ -2,21 +2,42 @@ export {
   whatsAppMediaSchema,
   whatsAppInteractiveSchema,
   whatsAppOrderSchema,
+  whatsAppLocationSchema,
   whatsAppMessageSchema,
   whatsAppMessageEchoSchema,
   whatsAppMessageStatusSchema,
   whatsAppStatusSchema,
+  whatsAppStatusErrorSchema,
+  whatsAppWebhookValueSchema,
+  whatsAppWebhookChangeSchema,
   whatsAppWebhookPayloadSchema,
+  whatsAppTemplateStatusEventSchema,
+  whatsAppTemplateStatusUpdateSchema,
+  whatsAppQualityEventSchema,
+  whatsAppPhoneNumberQualityUpdateSchema,
+  WHATSAPP_WEBHOOK_FIELDS,
+  whatsAppContactSchema,
+  resolveContactProfileName,
 } from './webhook.types'
 export type {
   WhatsAppMedia,
   WhatsAppInteractive,
   WhatsAppOrder,
+  WhatsAppLocation,
   WhatsAppMessage,
   WhatsAppMessageEcho,
   WhatsAppMessageStatusValue,
   WhatsAppStatus,
+  WhatsAppStatusError,
+  WhatsAppWebhookValue,
+  WhatsAppWebhookChange,
   WhatsAppWebhookPayload,
+  WhatsAppWebhookField,
+  WhatsAppTemplateStatusEvent,
+  WhatsAppTemplateStatusUpdate,
+  WhatsAppQualityEvent,
+  WhatsAppPhoneNumberQualityUpdate,
+  WhatsAppContact,
 } from './webhook.types'
 
 export type {
@@ -41,6 +62,7 @@ export {
   flowNodeDataSchema,
   flowGraphNodesSchema,
 } from './flow.types'
+export type { SendChannelMediaParams, SendTextOptions } from './providers'
 export type {
   FlowNodeType,
   FlowQuestionType,
@@ -64,9 +86,12 @@ export type {
 
 export type {
   MetaWhatsAppHooks,
+  InboundContact,
   MessageHookOutcome,
+  InboundEffectRejectedDescriptor,
   InboundMediaDescriptor,
   TranscriptionDeferredDescriptor,
+  UnhandledWebhookEventDescriptor,
 } from './events'
 
 export { WHATSAPP_CHOICE_LIMIT } from './providers'
@@ -98,3 +123,5 @@ export {
 } from './errors'
 
 export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './previewMedia.types'
+
+export { hashWaMessageId } from './waMessageId'

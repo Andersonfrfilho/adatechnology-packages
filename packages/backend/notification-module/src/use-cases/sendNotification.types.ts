@@ -61,11 +61,20 @@ export type ActiveDeviceLister = {
   listActiveByUser(params: { companyId: string; userId: string }): Promise<DeviceRow[]>
 }
 
+export type CategoryPolicyLister = {
+  listByCategory(params: {
+    companyId: string
+    category: string
+  }): Promise<{ category: string; channel: string; enabled: boolean }[]>
+}
+
 export type SendNotificationDependencies = {
   readonly notifications: NotificationWriter
   readonly deliveries: DeliveryWriter
   readonly templates: TemplateFinder
   readonly preferences: PreferenceLister
+  /** Ausente, o envio se comporta como antes da política existir. */
+  readonly categoryPolicies?: CategoryPolicyLister
   readonly suppressions: SuppressionChecker
   readonly devices: ActiveDeviceLister
   readonly recipientResolver: RecipientResolverPort

@@ -2,12 +2,14 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
+import { ClipboardList } from 'lucide-react'
 import { useState } from 'react'
 import { MAX_PAGE_SIZE } from '@adatechnology/scheduling-contracts'
 import type { BookingId } from '@adatechnology/scheduling-contracts'
 
 import { BookingDrawer } from '../components/BookingDrawer'
 import { BookingsTable } from '../components/BookingsTable'
+import { EmptyState, ErrorBanner, ListSkeleton } from '../components/StateFeedback'
 import { useConfirmBooking } from '../hooks/useBookingMutations.mutation'
 import { useBookings } from '../hooks/useBookings.query'
 import { useBookingsTableState } from '../hooks/useBookingsTableState.hook'
@@ -21,8 +23,6 @@ export function BookingsArea() {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
   const [tableState, setTableState] = useBookingsTableState()
-  // H-F: `ListBookingsParams.status` aceita array — o servidor filtra por todos os selecionados
-  // (`inArray`), então a paginação (`data.totalPages`) já reflete o total pós-filtro.
   const status = tableState.statusFilters.length > 0 ? tableState.statusFilters : undefined
   const { data, isLoading, isError } = useBookings({
     page: tableState.page,
@@ -32,8 +32,6 @@ export function BookingsArea() {
     sortDirection: tableState.sortColumn ? tableState.sortDirection : undefined,
   })
   const confirmBooking = useConfirmBooking()
-  // M-5 (T9.3): fonte do fuso do recurso para os campos `datetime-local` de remarcação no
-  // `BookingDrawer` — `Booking` só carrega `resourceIds`, o fuso vive em `Resource`.
   const { data: resourcesData } = useResources({ pageSize: MAX_PAGE_SIZE })
 
   const [selectedBookingId, setSelectedBookingId] = useState<BookingId | undefined>(undefined)
@@ -47,31 +45,33 @@ export function BookingsArea() {
   }
 
   return (
-    <div className="flex flex-1 min-h-0 min-w-0 flex-col p-4 space-y-4">
-      {isError && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
-          {messages['common.loadFailure']}
-        </p>
-      )}
+    <div className="flex flex-1 min-h-0 min-w-0">
+      <div className="flex flex-1 min-h-0 min-w-0 flex-col gap-4 overflow-y-auto p-4">
+        {isError && <ErrorBanner message={messages['common.loadFailure']} />}
 
-      {confirmBooking.isError && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
-          {messages['common.actionFailure']}
-        </p>
-      )}
+        {confirmBooking.isError && <ErrorBanner message={messages['common.actionFailure']} />}
 
-      {isLoading ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>
-      ) : (
-        <BookingsTable
-          bookings={data?.data ?? []}
-          state={tableState}
-          onStateChange={setTableState}
-          pagination={data ? { totalPages: data.totalPages } : undefined}
-          onRowClick={(booking) => setSelectedBookingId(booking.id)}
-          bulkActions={[{ key: 'confirm', label: messages['booking.confirm'], onRun: bulkConfirm }]}
-        />
-      )}
+        {isLoading && <ListSkeleton label={messages['common.loading']} rows={8} />}
+
+        {!isLoading && !isError && (data?.data.length ?? 0) === 0 && tableState.statusFilters.length === 0 && (
+          <EmptyState
+            icon={ClipboardList}
+            title={messages['booking.emptyTitle']}
+            hint={messages['booking.emptyHint']}
+          />
+        )}
+
+        {!isLoading && ((data?.data.length ?? 0) > 0 || tableState.statusFilters.length > 0) && (
+          <BookingsTable
+            bookings={data?.data ?? []}
+            state={tableState}
+            onStateChange={setTableState}
+            pagination={data ? { totalPages: data.totalPages } : undefined}
+            onRowClick={(booking) => setSelectedBookingId(booking.id)}
+            bulkActions={[{ key: 'confirm', label: messages['booking.confirm'], onRun: bulkConfirm }]}
+          />
+        )}
+      </div>
 
       {selectedBooking && (
         <BookingDrawer

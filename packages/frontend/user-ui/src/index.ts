@@ -48,3 +48,29 @@ export type {
   UpdateProfileInput,
   ConfirmPasswordResetParams,
 } from './providers/types'
+
+/** Tela COMPOSTA de equipe — listagem, cadastro e ativacao. Some quando a `UserApi` nao traz `listTeam`. */
+export { TeamWorkspace } from './workspace/TeamWorkspace'
+export type { TeamWorkspaceProps } from './workspace/TeamWorkspace'
+export {
+  buildDefaultTeamRoles,
+  resolveTeamRole,
+  withCurrentRole,
+  DEFAULT_TEAM_ROLE_VALUE,
+} from './roles'
+export type { TeamRoleOption, TeamRoleTone } from './roles'
+export { TeamMemberForm, TEAM_PASSWORD_MIN_LENGTH } from './TeamMemberForm'
+export type { TeamMemberFormProps } from './TeamMemberForm'
+export { useTeam, TEAM_DEFAULT_PAGE_SIZE } from './useTeam'
+export type { UseTeamResult, UseTeamParams, TeamApi } from './useTeam'
+export { useOptionalUserApi } from './providers/UserProvider'
+export type { TeamPage, ListTeamParams, CreateTeamMemberInput } from './providers/types'
+
+export { Avatar, initialsOf } from './Avatar'
+export type { AvatarProps } from './Avatar'
+
+export { AvatarPicker } from './AvatarPicker'
+export type { AvatarPickerProps } from './AvatarPicker'
+
+export { TeamMemberEditForm } from './TeamMemberEditForm'
+export type { TeamMemberEditFormProps } from './TeamMemberEditForm'

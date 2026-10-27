@@ -143,13 +143,33 @@ Legenda: ✅ Validado | 🔄 Implementado, aguardando teste | ❌ Não implement
 > **Alternativa imediata:** usar `NfseProvider` (ABRASF direto) com a URL do ISS Net Online RP.  
 > O provider agora detecta esse erro e retorna mensagem acionável em vez de falha genérica de auth.
 
+> ✅ **Correção (17/08/2026): quem provoca o 403 é o `X-Auth-CNPJ`, não a conta.**  
+> Sondagem contra `https://www.notarp.com.br/api/v2/dados-cadastrais` com a mesma conta, variando um
+> cabeçalho por vez:
+>
+> | Cabeçalhos | Resposta |
+> |---|---|
+> | `X-Auth-User-Token` só | `200` · `success: true` · **`cadastro: null`** |
+> | token inventado | `401` · `"Token inválido."` |
+> | `X-Auth-User-Token` + `X-Auth-IM` | `200` · `cadastro` preenchido (razão social, CNAEs, `operacoes_permitidas`) |
+> | os dois acima + `X-Auth-CNPJ` | `403` · `"Esta empresa ainda não foi migrada para a versão v3…"` |
+>
+> Ou seja: a v2 atende essa conta hoje, e o `buildHeaders` é que a empurra para um caminho v3 que ela
+> não tem. **Na v2 o par autenticador é token + inscrição municipal**; o CNPJ é cabeçalho da v3.
+> Enquanto o `NotaRpNfseProvider` mandar `X-Auth-CNPJ` incondicionalmente, toda conta ainda em v2
+> falha com 403 — que é o que este documento vinha lendo como "município não migrado".
+>
+> Duas armadilhas medidas na mesma sondagem: **inscrição municipal ausente não dá erro** (vem `200`
+> com `cadastro: null`, então a credencial só se revela inútil na primeira emissão), e **a API limita
+> taxa** (`429` na quarta busca seguida).
+
 | # | Cenário | Status | Observação |
 |---|---------|--------|------------|
 | 5.1 | Emissão com tomador PF (CPF) — sandbox | 🔄 | Implementado |
 | 5.2 | Emissão com tomador PJ (CNPJ) — sandbox | 🔄 | Implementado |
 | 5.3 | Emissão com tomador estrangeiro — sandbox | 🔄 | Implementado |
 | 5.4 | Cancelamento — sandbox | 🔄 | Implementado |
-| 5.5 | `testConnection` — autenticação Nota RP | ⚠️ | Token/CNPJ/IM válidos, mas RP bloqueado na v3 |
+| 5.5 | `testConnection` — autenticação Nota RP | ⚠️ | v2 autentica com token + IM; o `X-Auth-CNPJ` do `buildHeaders` é que devolve 403 |
 | 5.6 | Webhook de retorno recebido com sucesso | 🔄 | Não testado end-to-end |
 
 **Bugs corrigidos durante validação:**

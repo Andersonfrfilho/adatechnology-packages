@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
   MarkerType,
+  Panel,
   applyNodeChanges,
   type Node,
   type NodeChange,
@@ -16,12 +17,14 @@ import '@xyflow/react/dist/style.css'
 import { Plus, Trash2, LayoutGrid, AlertTriangle, AlertCircle, Save, Undo2, Map as MapIcon, Workflow } from 'lucide-react'
 
 import { useIsDarkTheme } from '../useDarkMode'
-import { flowNodeTypes, nodeLabel, type FlowNodeCardData } from './FlowNodeCard'
+import { NODE_TYPE_COLOR, flowNodeTypes, nodeLabel, type FlowNodeCardData } from './FlowNodeCard'
+import { FlowLegend, type FlowLegendEdgeSample } from './FlowLegend'
 import { flowPortalNodeTypes, type FlowPortalNodeData } from './FlowPortalNode'
 import { flowGroupHeaderNodeTypes, type FlowGroupHeaderData } from './FlowGroupHeader'
 import { flowGroupFrameNodeTypes, type FlowGroupFrameData } from './FlowGroupFrame'
 import { FlowNodePanel } from './FlowNodePanel'
-import { FlowPalette, type FlowPaletteActionOption, type NewNodeSpec } from './FlowPalette'
+import { FlowPalette, FlowPaletteMenu, type FlowPaletteActionOption, type NewNodeSpec } from './FlowPalette'
+import { flowEdgeTypes, type FlowConnectionEdgeData } from './FlowConnectionEdge'
 import { FlowMapCanvas } from './FlowMapCanvas'
 import { mergeFlowEditorLabels, type FlowEditorLabels } from './labels'
 // Operações puras do grafo, com teste próprio. As decisões que elas tomam não dão erro quando estão
@@ -32,6 +35,7 @@ import {
   chainFrameNodeId,
   computeMergedLayout,
   countLiveByNode,
+  findFreeSlot,
   newNodeFromSpec,
   portalNodeId,
   GROUP_HEADER_NODE_ID,
@@ -40,12 +44,14 @@ import {
 } from './flowCanvasModel'
 import {
   applyConnection,
+  clearConnection,
   mergedFlowKeysFrom,
   namespaceNodeId,
   parseNamespacedId,
   removeNodeAndCleanRefs,
   resolveConnection,
 } from './flowEditorOps'
+import { placeFloatingPanel, type FloatingPlacement } from './flowMenuPlacement'
 import {
   computeAutoLayout,
   targetsOf,
@@ -68,10 +74,39 @@ const RF_NODE_TYPES = {
   ...flowGroupFrameNodeTypes,
 }
 
+/**
+ * A legenda lê as mesmas constantes que pintam as arestas — chave que diverge do desenho é pior que
+ * chave nenhuma, porque ensina errado com ar de autoridade.
+ */
+function legendEdgeSamples(labels: FlowEditorLabels): FlowLegendEdgeSample[] {
+  return [
+    { color: EDGE_COLOR_LINEAR, label: labels.legendPanel.linear },
+    { color: EDGE_COLOR_BRANCH, label: labels.legendPanel.branch },
+    { color: EDGE_COLOR_FALLBACK, dash: '5 4', label: labels.legendPanel.fallback },
+    { color: EDGE_COLOR_CROSS_FLOW, dash: '3 3', label: labels.legendPanel.crossFlow },
+    { color: EDGE_COLOR_LIVE, label: labels.legendPanel.live },
+  ]
+}
+
+const LEGEND_NODE_SWATCHES = (Object.keys(NODE_TYPE_COLOR) as (keyof typeof NODE_TYPE_COLOR)[]).map((type) => ({
+  type,
+  className: NODE_TYPE_COLOR[type],
+}))
+
 const CHAIN_FRAME_PADDING = 36
+/** Coluna à direita do card de origem em que o nó criado pelo "+" nasce. */
+const QUICK_ADD_COLUMN_GAP = 320
 const FLOW_KEY_PATTERN = /^[a-z0-9_]{2,40}$/
 
 const EDGE_COLOR_LINEAR = '#94a3b8'
+
+/** Enquadramento ao focar um fluxo pela aba. */
+const FOCUS_MAX_ZOOM = 1
+const FOCUS_PADDING = 0.2
+const FOCUS_DURATION_MS = 400
+
+/** Folga entre o "+" e o menu que ele abre. */
+const QUICK_ADD_MENU_GAP = 12
 const EDGE_COLOR_BRANCH = '#8b5cf6'
 const EDGE_COLOR_FALLBACK = '#cbd5e1'
 const EDGE_COLOR_LIVE = '#3b82f6'
@@ -145,7 +180,7 @@ export interface FlowsWorkspaceProps {
  * O estilo fica aqui e a topologia fica no modelo, de propósito: destino errado é invisível até a
  * conversa do cliente parar; cor errada aparece na primeira olhada.
  */
-function styleEdge(spec: FlowEdgeSpec): Edge {
+function styleEdge(spec: FlowEdgeSpec, params: { disconnectLabel: string; onDisconnect: (spec: FlowEdgeSpec) => void }): Edge {
   const color = spec.crossFlow
     ? EDGE_COLOR_CROSS_FLOW
     : spec.kind === 'fallback'
@@ -164,7 +199,12 @@ function styleEdge(spec: FlowEdgeSpec): Edge {
     source: spec.source,
     target: spec.target,
     ...(spec.sourceHandle === undefined ? {} : { sourceHandle: spec.sourceHandle }),
-    type: 'bezier',
+    type: 'flowConnection',
+    reconnectable: 'target',
+    data: {
+      disconnectLabel: params.disconnectLabel,
+      onDisconnect: () => params.onDisconnect(spec),
+    } satisfies FlowConnectionEdgeData,
     animated: spec.live,
     style: {
       stroke: color,
@@ -222,11 +262,18 @@ export function FlowsWorkspace({
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | undefined>(undefined)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  /** Saída de onde o "+" foi clicado, e o ponto da tela onde ancorar o menu. */
+  const [quickAddFrom, setQuickAddFrom] = useState<
+    { flowKey: string; nodeId: string; handle: string; anchor: { x: number; y: number } } | null
+  >(null)
   const [newFlow, setNewFlow] = useState({ key: '', label: '', showInMenu: false, menuOptionLabel: '' })
   const [flowMutationState, setFlowMutationState] = useState<{ pending: boolean; error?: string }>({ pending: false })
   const [rfNodes, setRfNodes] = useState<Node[]>([])
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance | null>(null)
   const [pendingFocusNodeId, setPendingFocusNodeId] = useState<string | null>(null)
+  const [pendingFocusFlowKey, setPendingFocusFlowKey] = useState<string | null>(null)
+  const quickAddMenuRef = useRef<HTMLDivElement>(null)
+  const [quickAddPlacement, setQuickAddPlacement] = useState<FloatingPlacement | null>(null)
 
   const reloadGraphs = useCallback(async () => {
     try {
@@ -344,6 +391,10 @@ export function FlowsWorkspace({
       if (others.some(isFlowDirty) && !window.confirm(labels.workspace.unsavedChangesConfirm)) return
       setOpenFlowKeys(graphs ? mergedFlowKeysFrom(key, graphs) : [key])
       if (editingRef && editingRef.flowKey !== key) setEditingRef(null)
+      // Trocar o fluxo primário não movia a câmera: a aba acendia, o canvas continuava onde
+      // estava e o fluxo escolhido ficava fora da tela — clicar em "Consórcio" parecia não fazer
+      // nada. O enquadramento espera os cards existirem (ver o efeito abaixo).
+      setPendingFocusFlowKey(key)
     },
     [openFlowKeys, isFlowDirty, editingRef, graphs, labels],
   )
@@ -417,7 +468,19 @@ export function FlowsWorkspace({
           return renderedPositionsRef.current.get(nsId) ?? mergedPositions.get(nsId) ?? { x: 0, y: 0 }
         }
         // Fluxo sozinho no canvas: a posição salva no grafo é a do card, sem tradução no meio.
-        return graph!.nodes[nodeId]?.position ?? fallbackPositions[nodeId] ?? { x: 0, y: 0 }
+        //
+        // O `renderedPositionsRef` no meio é o que impede o card de sumir ao desligar um fio. Nó
+        // vindo do seed não tem posição salva, então quem manda nele é o auto-layout — e o
+        // auto-layout joga todo nó sem ligação de entrada para uma faixa ABAIXO de tudo. Desligar
+        // a última ação a mandava para fora da área visível no mesmo instante, o que se lê como
+        // "o editor apagou meu card". Congelando o lugar em que ele já foi desenhado, desligar o
+        // fio passa a mudar só o fio.
+        const nsId = namespaceNodeId(flowKey, nodeId)
+        return (
+          graph!.nodes[nodeId]?.position ??
+          renderedPositionsRef.current.get(nsId) ??
+          fallbackPositions[nodeId] ?? { x: 0, y: 0 }
+        )
       }
 
       for (const node of Object.values(graph.nodes)) {
@@ -436,6 +499,7 @@ export function FlowsWorkspace({
             issues: flowIssues,
             labels,
             onSelect: (nodeId: string) => setEditingRef({ flowKey, nodeId }),
+            onQuickAdd: ({ nodeId, handle, anchor }) => setQuickAddFrom({ flowKey, nodeId, handle, anchor }),
           } satisfies FlowNodeCardData,
         })
 
@@ -523,10 +587,52 @@ export function FlowsWorkspace({
     labels,
   ])
 
+  // Desligar um fio é gravar destino vazio no nó de origem — o nó do outro lado NÃO se mexe. Era
+  // isso que faltava: sem caminho para desligar, trocar o destino da última ação passava por
+  // apagar o card e refazê-lo.
+  const disconnectEdge = useCallback(
+    (spec: FlowEdgeSpec) => {
+      const { flowKey, nodeId } = parseNamespacedId(spec.source)
+      updateFlow(flowKey, (graph) => {
+        const node = graph.nodes[nodeId]
+        if (!node) return graph
+        return { ...graph, nodes: { ...graph.nodes, [nodeId]: clearConnection(node, spec.sourceHandle ?? 'next') } }
+      })
+    },
+    [updateFlow],
+  )
+
   const edges = useMemo(
     () =>
-      buildFlowEdges({ openKeys: openFlowKeys, graphs: workingGraphs, rootFlowKey, livePositions }).map(styleEdge),
-    [openFlowKeys, workingGraphs, rootFlowKey, livePositions],
+      buildFlowEdges({ openKeys: openFlowKeys, graphs: workingGraphs, rootFlowKey, livePositions }).map((spec) =>
+        // Salto entre fluxos desenhado como portal não se desliga daqui: quem manda nele é o `next`
+        // do nó de origem, e o portal é só a caixa que representa o fluxo alvo ausente.
+        styleEdge(spec, { disconnectLabel: labels.quickAdd.disconnect, onDisconnect: disconnectEdge }),
+      ),
+    [openFlowKeys, workingGraphs, rootFlowKey, livePositions, labels, disconnectEdge],
+  )
+
+  // Arrastar a ponta de um fio para outro card: religa em UMA edição, sem passar por um estado
+  // intermediário em que o fluxo está quebrado.
+  const onReconnect = useCallback(
+    (oldEdge: Edge, connection: Connection) => {
+      const resolved = resolveConnection({
+        connection: {
+          source: connection.source,
+          target: connection.target,
+          sourceHandle: connection.sourceHandle ?? oldEdge.sourceHandle,
+        },
+        graphs: workingGraphs,
+      })
+      if (!resolved) return
+
+      updateFlow(resolved.flowKey, (graph) => {
+        const node = graph.nodes[resolved.nodeId]
+        if (!node) return graph
+        return { ...graph, nodes: { ...graph.nodes, [resolved.nodeId]: applyConnection(node, resolved) } }
+      })
+    },
+    [workingGraphs, updateFlow],
   )
 
   useEffect(() => {
@@ -546,6 +652,51 @@ export function FlowsWorkspace({
     flowInstance.setCenter(target.position.x + NODE_CARD_WIDTH / 2, target.position.y, { zoom: 1, duration: 400 })
     setPendingFocusNodeId(null)
   }, [pendingFocusNodeId, flowInstance, rfNodes])
+
+  // Enquadra o fluxo recém-focado. `fitView` restrito aos cards DELE, e não o `fitView` geral:
+  // o canvas mostra o fecho transitivo inteiro, e enquadrar tudo devolveria a mesma visão de
+  // sempre. `maxZoom` evita que um fluxo de dois nós encha a tela.
+  useEffect(() => {
+    if (!pendingFocusFlowKey || !flowInstance) return
+    const flowNodes = rfNodes.filter((node) => parseNamespacedId(node.id).flowKey === pendingFocusFlowKey)
+    if (flowNodes.length === 0) return
+    void flowInstance.fitView({
+      nodes: flowNodes.map((node) => ({ id: node.id })),
+      maxZoom: FOCUS_MAX_ZOOM,
+      padding: FOCUS_PADDING,
+      duration: FOCUS_DURATION_MS,
+    })
+    setPendingFocusFlowKey(null)
+  }, [pendingFocusFlowKey, flowInstance, rfNodes])
+
+  // O menu do "+" saía da tela quando o card estava perto da borda: a âncora era usada crua, sem
+  // consultar o tamanho da janela. Mede depois de montar e reposiciona antes da pintura.
+  useLayoutEffect(() => {
+    if (!quickAddFrom) {
+      setQuickAddPlacement(null)
+      return
+    }
+    const panel = quickAddMenuRef.current
+    if (!panel) return
+    const { x, y } = quickAddFrom.anchor
+    setQuickAddPlacement(
+      placeFloatingPanel({
+        anchor: { left: x, top: y, right: x, bottom: y },
+        panel: { width: panel.offsetWidth, height: panel.scrollHeight },
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        prefer: 'below',
+        gap: QUICK_ADD_MENU_GAP,
+      }),
+    )
+  }, [quickAddFrom])
+
+  const quickAddMenuStyle = {
+    left: quickAddPlacement?.left ?? 0,
+    top: quickAddPlacement?.top ?? 0,
+    maxHeight: quickAddPlacement?.maxHeight,
+    overflowY: 'auto' as const,
+    visibility: quickAddPlacement ? ('visible' as const) : ('hidden' as const),
+  }
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setRfNodes((current) => applyNodeChanges(changes, current))
@@ -594,6 +745,56 @@ export function FlowsWorkspace({
     updateFlow(primaryFlowKey, (graph) => ({ ...graph, nodes: { ...graph.nodes, [newNode.id]: newNode } }))
     setEditingRef({ flowKey: primaryFlowKey, nodeId: newNode.id })
     setPendingFocusNodeId(namespaceNodeId(primaryFlowKey, newNode.id))
+  }
+
+  /**
+   * Cria o próximo nó e liga o fio na MESMA edição.
+   *
+   * Uma edição só, e não duas, porque o desfazer é por passo: criar e ligar separados fariam um
+   * "desfazer" deixar o card novo solto no canvas, que é justamente o estado que ninguém quer.
+   * A posição sai do card de origem, à direita dele — o nó nasce onde a pessoa estava olhando,
+   * em vez de na faixa de órfãos abaixo de tudo.
+   */
+  function handleQuickAdd(spec: NewNodeSpec) {
+    const origin = quickAddFrom
+    setQuickAddFrom(null)
+    if (!origin) return
+
+    const originGraph = workingGraphs[origin.flowKey]
+    if (!originGraph) return
+
+    const newNode = newNodeFromSpec(spec, new Set(Object.keys(originGraph.nodes)))
+    const originPosition =
+      renderedPositionsRef.current.get(namespaceNodeId(origin.flowKey, origin.nodeId)) ??
+      originGraph.nodes[origin.nodeId]?.position ?? { x: 0, y: 0 }
+    // À direita de quem criou, e descendo se aquele lugar já tiver dono — tipicamente o próprio nó
+    // que acabou de perder a ligação, que é exatamente quem está naquela coluna.
+    const taken = openFlowKeys.flatMap((key) =>
+      Object.entries(workingGraphs[key]?.nodes ?? {}).map(
+        ([id, node]) => renderedPositionsRef.current.get(namespaceNodeId(key, id)) ?? node.position ?? { x: 0, y: 0 },
+      ),
+    )
+    newNode.position = findFreeSlot({
+      desired: { x: originPosition.x + QUICK_ADD_COLUMN_GAP, y: originPosition.y },
+      taken,
+    })
+    // Com fluxos mesclados quem decide o lugar é o layout, não o `position` do nó — sem semear
+    // aqui, o card nascia na coluna calculada, em cima do nó que acabou de ficar solto.
+    renderedPositionsRef.current.set(namespaceNodeId(origin.flowKey, newNode.id), newNode.position)
+
+    updateFlow(origin.flowKey, (graph) => {
+      const sourceNode = graph.nodes[origin.nodeId]
+      if (!sourceNode) return graph
+      const connected = applyConnection(sourceNode, {
+        flowKey: origin.flowKey,
+        nodeId: origin.nodeId,
+        handle: origin.handle,
+        targetValue: newNode.id,
+      })
+      return { ...graph, nodes: { ...graph.nodes, [origin.nodeId]: connected, [newNode.id]: newNode } }
+    })
+
+    setEditingRef({ flowKey: origin.flowKey, nodeId: newNode.id })
   }
 
   function handleNodePanelChange(updated: FlowNodeData) {
@@ -875,9 +1076,11 @@ export function FlowsWorkspace({
             nodes={rfNodes}
             edges={edges}
             nodeTypes={RF_NODE_TYPES}
+            edgeTypes={flowEdgeTypes}
             onNodesChange={onNodesChange}
             onNodeDragStop={onNodeDragStop}
             onConnect={onConnect}
+            onReconnect={onReconnect}
             onInit={setFlowInstance}
             fitView
             proOptions={{ hideAttribution: true }}
@@ -885,10 +1088,39 @@ export function FlowsWorkspace({
           >
             <Background color={isDark ? BACKGROUND_COLOR_DARK : BACKGROUND_COLOR_LIGHT} />
             <Controls />
+            <Panel position="top-right">
+              <FlowLegend
+                labels={labels}
+                edgeSamples={legendEdgeSamples(labels)}
+                nodeSwatches={LEGEND_NODE_SWATCHES}
+              />
+            </Panel>
             <MiniMap pannable zoomable className="!bg-white dark:!bg-gray-800" />
           </ReactFlow>
         )}
       </div>
+
+      {/* Menu do "+": ancorado no ponto clicado e em coordenadas de tela (`fixed`), porque o canvas
+          tem pan e zoom próprios — posicionar dentro dele faria o menu escorregar junto. */}
+      {quickAddFrom && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setQuickAddFrom(null)} />
+          <div
+            ref={quickAddMenuRef}
+            className="fixed z-50 w-64 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-1"
+            style={quickAddMenuStyle}
+          >
+            <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              {labels.quickAdd.title}
+            </p>
+            <FlowPaletteMenu
+              onSelect={handleQuickAdd}
+              labels={labels}
+              {...(actionOptions ? { actionOptions: [...actionOptions] } : {})}
+            />
+          </div>
+        </>
+      )}
 
       {/* `key` por nó: o painel guarda um rascunho local em estado, e sem remontar ao trocar de nó
           selecionado ele seguia mostrando (e salvando) os campos do nó anterior. */}

@@ -93,8 +93,14 @@ export async function dispatchDeliveries(params: {
     userId: notification.recipientUserId,
   })
 
+  const policyRows = await dependencies.categoryPolicies?.listByCategory({
+    companyId: notification.companyId,
+    category: notification.category,
+  })
+
   const plan = planDeliveries({
     category: notification.category,
+    ...(policyRows ? { policies: policyRows } : {}),
     explicitChannels: params.explicitChannels,
     availableChannels: buildAvailableChannels(dependencies),
     preferences: preferenceRows.map((row) => ({ category: row.category, channel: row.channel, enabled: row.enabled })),

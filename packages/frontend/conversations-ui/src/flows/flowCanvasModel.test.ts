@@ -17,8 +17,9 @@ import {
   newNodeFromSpec,
   portalNodeId,
   type FlowLivePosition,
+  findFreeSlot,
 } from './flowCanvasModel'
-import type { FlowGraphData, FlowNodeData } from './flowGraph'
+import { estimateNodeHeight, type FlowGraphData, type FlowNodeData } from './flowGraph'
 
 const ROOT = 'menu'
 
@@ -308,5 +309,148 @@ describe('nó novo da paleta', () => {
 
   it('ação carrega o kind escolhido na paleta', () => {
     expect(newNodeFromSpec({ kind: 'action', actionKind: 'handoff' }, new Set()).actionKind).toBe('handoff')
+  })
+})
+
+/**
+ * O "+" cria o nó à direita de quem o criou — que é onde costuma estar o card que acabou de perder
+ * a ligação. Dois cards no mesmo pixel se leem como um card só, e "sumiu" de novo.
+ */
+describe('findFreeSlot', () => {
+  it('lugar vazio é usado como está', () => {
+    expect(findFreeSlot({ desired: { x: 100, y: 0 }, taken: [] })).toEqual({ x: 100, y: 0 })
+  })
+
+  it('lugar ocupado desce até sobrar espaço, sem sair da coluna', () => {
+    const slot = findFreeSlot({ desired: { x: 100, y: 0 }, taken: [{ x: 100, y: 0 }] })
+
+    expect(slot.x).toBe(100)
+    expect(slot.y).toBeGreaterThan(0)
+  })
+
+  it('desce quantas vezes precisar quando a coluna está empilhada', () => {
+    const taken = [
+      { x: 100, y: 0 },
+      { x: 100, y: 120 },
+      { x: 100, y: 240 },
+    ]
+
+    expect(findFreeSlot({ desired: { x: 100, y: 0 }, taken }).y).toBe(360)
+  })
+
+  it('card em outra coluna não empurra ninguém', () => {
+    expect(findFreeSlot({ desired: { x: 100, y: 0 }, taken: [{ x: 900, y: 0 }] })).toEqual({ x: 100, y: 0 })
+  })
+})
+
+/**
+ * A altura do card decide o espaçamento do layout. `send_media` ganhou uma linha de saída (o motor
+ * do bot anda para o `next` depois dela), e a altura tem de acompanhar — senão a camada de baixo
+ * encosta no card.
+ */
+describe('estimateNodeHeight em nó de ação', () => {
+  it('ação de passagem é mais alta que ação terminal, pela linha de saída', () => {
+    const passThrough = estimateNodeHeight({ id: 'a', type: 'action', actionKind: 'send_media' })
+    const terminal = estimateNodeHeight({ id: 'b', type: 'action', actionKind: 'handoff' })
+
+    expect(passThrough).toBeGreaterThan(terminal)
+  })
+
+  it('ação sem kind conta como terminal, em vez de estourar', () => {
+    expect(estimateNodeHeight({ id: 'c', type: 'action' })).toBe(
+      estimateNodeHeight({ id: 'd', type: 'action', actionKind: 'handoff' }),
+    )
+  })
+})
+
+/**
+ * A regra que o empilhamento por camada quebrava: dois cards na mesma altura fazem o fio entre eles
+ * correr na horizontal, e um fio horizontal passa POR TRÁS de qualquer card que esteja no caminho.
+ * Um card por linha transforma toda ligação numa diagonal curta e visível.
+ */
+describe('cascata: um card por linha', () => {
+  it('cada card tem altura própria — ninguém divide linha com ninguém', () => {
+    const graphs = {
+      menu: graph({
+        key: 'menu',
+        start: 'a',
+        nodes: [node('a', { byAnswer: { sim: 'b', nao: 'c' }, default: 'd' }), node('b'), node('c'), node('d')],
+      }),
+    }
+
+    const positions = computeMergedLayout({ openKeys: ['menu'], graphs, primaryFlowKey: 'menu' })
+    const ys = [...positions.values()].map((each) => each.y)
+
+    expect(new Set(ys).size).toBe(ys.length)
+  })
+
+  it('o card seguinte fica à direita E abaixo de quem o alimenta', () => {
+    const graphs = { menu: graph({ key: 'menu', start: 'a', nodes: [node('a', 'b'), node('b', 'c'), node('c')] }) }
+
+    const positions = computeMergedLayout({ openKeys: ['menu'], graphs, primaryFlowKey: 'menu' })
+    const a = positions.get('menu::a')!
+    const b = positions.get('menu::b')!
+    const c = positions.get('menu::c')!
+
+    expect(b.x).toBeGreaterThan(a.x)
+    expect(b.y).toBeGreaterThan(a.y)
+    expect(c.x).toBeGreaterThan(b.x)
+    expect(c.y).toBeGreaterThan(b.y)
+  })
+
+  it('um ramo inteiro sai antes do próximo começar — caminho de conversa não se intercala', () => {
+    const graphs = {
+      menu: graph({
+        key: 'menu',
+        start: 'a',
+        nodes: [
+          node('a', { byAnswer: { sim: 'b1', nao: 'c1' }, default: '' }),
+          node('b1', 'b2'),
+          node('b2'),
+          node('c1'),
+        ],
+      }),
+    }
+
+    const positions = computeMergedLayout({ openKeys: ['menu'], graphs, primaryFlowKey: 'menu' })
+
+    // b1 e b2 são o mesmo ramo: c1 (o outro ramo) só aparece depois dos dois.
+    expect(positions.get('menu::b2')!.y).toBeLessThan(positions.get('menu::c1')!.y)
+  })
+})
+
+/**
+ * Um `next` apontando para o próprio nó não vira aresta: de A para A não há trajeto que caiba —
+ * por baixo some atrás do card, por cima o cobre. Quem mostra é o ícone de repetição na linha de
+ * saída. O teste existe porque "não desenhar" é fácil de perder numa refatoração de arestas.
+ */
+describe('laço no próprio card', () => {
+  it('saída que volta ao mesmo nó não gera aresta', () => {
+    const graphs = {
+      menu: graph({
+        key: 'menu',
+        start: 'a',
+        nodes: [node('a', { byAnswer: { sim: 'b' }, default: 'a' }), node('b')],
+      }),
+    }
+
+    const edges = buildFlowEdges({ openKeys: ['menu'], graphs, rootFlowKey: 'menu' })
+
+    expect(edges.map((each) => each.id)).toEqual(['menu::a->menu::b-sim'])
+  })
+
+  it('as demais saídas do mesmo card continuam desenhadas', () => {
+    const graphs = {
+      menu: graph({
+        key: 'menu',
+        start: 'a',
+        nodes: [node('a', { byAnswer: { sim: 'b', repete: 'a' }, default: 'b' }), node('b')],
+      }),
+    }
+
+    const edges = buildFlowEdges({ openKeys: ['menu'], graphs, rootFlowKey: 'menu' })
+
+    expect(edges).toHaveLength(2)
+    expect(edges.every((each) => each.target === 'menu::b')).toBe(true)
   })
 })

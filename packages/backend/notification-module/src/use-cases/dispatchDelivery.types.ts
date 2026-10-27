@@ -11,6 +11,7 @@ import type {
   QueuePort,
   RecipientResolverPort,
   TemplateRendererPort,
+  TemplateVariableCatalog,
 } from '@adatechnology/notification-contracts'
 
 import type { DeliveryRow, DeviceRow, NotificationRow, TemplateRow } from '../schema/schema'
@@ -86,6 +87,14 @@ export type DispatchDeliveryDependencies = {
 
 export type DispatchDeliveryConfig = {
   readonly defaultLocale: string
+  /**
+   * O mesmo catálogo do módulo. Aqui ele decide o que do payload é ANEXO — `kind: 'attachment'` é a
+   * única fonte disso.
+   *
+   * Opcional: ausente significa catálogo não declarado, e nesse caso nada é anexo. Torná-lo
+   * obrigatório quebraria todo host que já compõe este use case à mão.
+   */
+  readonly templateVariables?: TemplateVariableCatalog
   readonly suppressionHmacKey: string
   readonly retryAttempts: number
   readonly retryBackoffSeconds: number

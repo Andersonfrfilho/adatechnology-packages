@@ -38,7 +38,7 @@ import { createWhisperLocalTranscriber } from '@adatechnology/audio-transcriptio
 const transcriber = createTranscriberChain(
   [
     createGroqTranscriber({ apiKey: environment.GROQ_API_KEY }),
-    createWhisperLocalTranscriber({ modelPath: '/models/ggml-small.bin' }),
+    createWhisperLocalTranscriber({ modelPath: '/models/ggml-large-v3-turbo.bin' }),
   ],
   { onEngineFailure: (error, { engine }) => logger.warn('transcrição degradou', { engine, error }) },
 )
@@ -79,7 +79,11 @@ Importado de `@adatechnology/audio-transcription-provider/whisper-local`, subpat
 
 Exige na imagem: `ffmpeg` (o whisper.cpp só lê WAV PCM 16kHz mono) e o binário `whisper-cli` mais um modelo ggml. O trecho de Dockerfile Alpine está no cabeçalho de [`whisper-local.service.ts`](src/whisper-local/whisper-local.service.ts).
 
-O modelo `small` (~488MB) é o menor que transcreve pt-BR de forma utilizável; `base` (~148MB) erra demais em áudio de celular para valer a economia.
+Use `large-v3-turbo` (~1.6GB). Os modelos menores não erram só um pouco mais em pt-BR: trocam palavras e entram em loop de repetição em áudio de celular, e o que sai não é uma transcrição pior, é uma transcrição inútil. Como o turbo tem apenas 4 camadas de decoder, ele é muito mais rápido que o `large-v3` cheio. `small` (~488MB) segue aceitável onde a memória da imagem for o limite; `base` (~148MB) não vale a economia.
+
+Medido com `large-v3-turbo` em áudio real de reunião gravado por celular (7min38s, m4a): **61,9s** de ponta a ponta — conversão ffmpeg incluída — em Apple M3 Pro com Metal, sem nenhuma repetição consecutiva acima de 2 segmentos em 530. Esse número é de GPU de laptop; **em CPU de container Linux espere bem mais lento**, e é por isso que o timeout padrão é de 10 minutos. Meça no seu runner antes de dimensionar a fila.
+
+O engine local roda com `--max-context 0`: cada janela de 30s decodifica sem receber o texto da anterior como prompt, que é justamente o que realimenta o loop de repetição.
 
 ## Testes
 

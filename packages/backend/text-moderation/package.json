@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/text-moderation",
-  "version": "0.2.0-rc.0",
+  "version": "0.2.0",
   "description": "Offensive language detection for pt-BR conversational products, extensible by the host",
   "type": "module",
   "main": "dist/index.js",

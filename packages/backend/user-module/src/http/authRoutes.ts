@@ -6,6 +6,8 @@
  */
 
 import {
+  AVATAR_REJECTION,
+  AvatarRejectedError,
   confirmPasswordResetSchema,
   keycloakCallbackSchema,
   localCredentialsSchema,
@@ -17,7 +19,7 @@ import {
   type RequestPasswordResetInput,
   type UpdateProfileInput,
 } from '@adatechnology/user-contracts'
-import type { ModuleRoute } from '@adatechnology/module-http'
+import type { HttpResult, ModuleRoute, RequestContext } from '@adatechnology/module-http'
 
 import type { UserModule } from '../UserModule'
 import {
@@ -29,7 +31,21 @@ import {
 import { requireUser } from './requireUser'
 
 export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
-  const { useCases } = module
+  const { useCases, refreshCookieSameSite: sameSite } = module
+
+  /** Sem armazenamento plugado a rota nao existe — em vez de existir e responder erro no upload. */
+  const avatarRoutes: ModuleRoute[] = module.hasAvatar
+    ? [
+        {
+          method: 'PUT',
+          path: '/auth/profile/avatar',
+          scope: 'user',
+          operationId: 'setOwnAvatar',
+          summary: 'Troca a foto do usuario autenticado',
+          handler: (context) => handleAvatarUpload({ context, module, userId: requireUser(context) }),
+        },
+      ]
+    : []
 
   const keycloakRoutes: ModuleRoute[] = module.hasKeycloak
     ? [
@@ -54,6 +70,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
                 'Set-Cookie': buildRefreshTokenCookie({
                   token: session.refreshToken,
                   maxAgeSeconds: session.refreshExpiresInSeconds,
+                  sameSite,
                 }),
               },
             }
@@ -121,6 +138,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
             'Set-Cookie': buildRefreshTokenCookie({
               token: session.refreshToken,
               maxAgeSeconds: session.refreshExpiresInSeconds,
+              sameSite,
             }),
           },
         }
@@ -150,6 +168,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
             'Set-Cookie': buildRefreshTokenCookie({
               token: session.refreshToken,
               maxAgeSeconds: session.refreshExpiresInSeconds,
+              sameSite,
             }),
           },
         }
@@ -165,7 +184,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       async handler(context) {
         const refreshToken = parseCookieHeader(context.headers['cookie'])[REFRESH_TOKEN_COOKIE_NAME]
         if (refreshToken) await useCases.signOut.execute({ refreshToken })
-        return { kind: 'empty', status: 204, headers: { 'Set-Cookie': buildClearRefreshTokenCookie() } }
+        return { kind: 'empty', status: 204, headers: { 'Set-Cookie': buildClearRefreshTokenCookie(sameSite) } }
       },
     },
 
@@ -200,5 +219,30 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
         return { kind: 'json', status: 200, body: { data: profile } }
       },
     },
+
+    ...avatarRoutes,
   ]
+}
+
+/**
+ * A foto chega como bytes crus, e nao como JSON com base64.
+ *
+ * Base64 infla 33%% e ainda passaria por um parse de JSON de megabytes so para ser desfeito em
+ * seguida. `content-type` diz o formato, e a validacao roda sobre o que chegou.
+ */
+async function handleAvatarUpload(params: {
+  readonly context: RequestContext
+  readonly module: UserModule
+  readonly userId: string
+}): Promise<HttpResult> {
+  const body = params.context.rawBody
+  if (!body || body.byteLength === 0) throw new AvatarRejectedError(AVATAR_REJECTION.EMPTY)
+
+  const profile = await params.module.useCases.setAvatar.execute({
+    userId: params.userId,
+    body,
+    contentType: params.context.headers['content-type'] ?? '',
+  })
+
+  return { kind: 'json', status: 200, body: { data: profile } }
 }

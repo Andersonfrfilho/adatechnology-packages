@@ -1,15 +1,22 @@
 import {
   whatsAppWebhookPayloadSchema,
+  resolveContactProfileName,
+  whatsAppTemplateStatusUpdateSchema,
+  whatsAppPhoneNumberQualityUpdateSchema,
+  WHATSAPP_WEBHOOK_FIELDS,
   type MetaWhatsAppHooks,
+  type WhatsAppWebhookChange,
   type SessionState,
   type WhatsAppMessage,
   type WhatsAppStatus,
   type MessageStatus,
 } from '@adatechnology/meta-whatsapp-contracts'
+import { INBOUND_LOCATION_CONTENT } from '../inboundLocation.constant'
 import type { MessageRepository } from '../repositories/MessageRepository'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
 import type { RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
+import { isDeterministicMetaRejection } from '@adatechnology/meta-graph-core'
 import {
   verifyWebhookSignature,
   claimWebhookDelivery,
@@ -39,11 +46,29 @@ export type ReceiveWebhookResult = {
   // Eventos de outro número da mesma WABA. Contados em vez de silenciados: um filtro que descarta
   // sem deixar rastro é indistinguível de um webhook que parou de chegar.
   ignoredForeignNumber: number
+  // Eventos de conta (template, qualidade do número) entregues aos hooks do host.
+  accountEventsProcessed: number
+  // Chegaram e não foram tratados — field sem handler, ou corpo fora do schema.
+  unhandledEvents: number
 }
+
+const EMPTY_RESULT: Omit<ReceiveWebhookResult, 'duplicate'> = {
+  messagesProcessed: 0,
+  statusesProcessed: 0,
+  ignoredForeignNumber: 0,
+  accountEventsProcessed: 0,
+  unhandledEvents: 0,
+}
+
+type ExtractionOptions = { readonly isLocationRedacted: boolean }
+const DEFAULT_EXTRACTION_OPTIONS: ExtractionOptions = { isLocationRedacted: false }
 
 // Texto legível para o transcript. Uma mensagem interativa traz título E id; guardamos o título
 // (é o que o cliente viu), com o id como fallback quando a Meta não manda título.
-function extractContent(message: WhatsAppMessage): string | null {
+function extractContent(
+  message: WhatsAppMessage,
+  { isLocationRedacted }: ExtractionOptions = DEFAULT_EXTRACTION_OPTIONS,
+): string | null {
   if (message.text?.body) return message.text.body
   const interactive = message.interactive
   if (interactive?.button_reply) return interactive.button_reply.title || interactive.button_reply.id
@@ -52,10 +77,18 @@ function extractContent(message: WhatsAppMessage): string | null {
     const items = message.order.product_items.reduce((sum, item) => sum + item.quantity, 0)
     return `Pedido: ${items} item(ns)`
   }
+  if (message.location) {
+    if (isLocationRedacted) return INBOUND_LOCATION_CONTENT
+    const label = message.location.name ?? message.location.address
+    return label ? `📍 Localização: ${label}` : INBOUND_LOCATION_CONTENT
+  }
   return message.image?.caption ?? message.document?.caption ?? null
 }
 
-function extractPayload(message: WhatsAppMessage): Record<string, unknown> | null {
+function extractPayload(
+  message: WhatsAppMessage,
+  { isLocationRedacted }: ExtractionOptions = DEFAULT_EXTRACTION_OPTIONS,
+): Record<string, unknown> | null {
   const payload: Record<string, unknown> = {}
   if (message.interactive) payload['interactive'] = message.interactive
   if (message.order) payload['order'] = message.order
@@ -64,8 +97,18 @@ function extractPayload(message: WhatsAppMessage): Record<string, unknown> | nul
   if (message.video) payload['video'] = message.video
   if (message.document) payload['document'] = message.document
   if (message.sticker) payload['sticker'] = message.sticker
+  if (message.location && !isLocationRedacted) payload['location'] = message.location
   if (message.context?.referred_product) payload['referredProduct'] = message.context.referred_product
   return Object.keys(payload).length > 0 ? payload : null
+}
+
+const ACCOUNT_EVENT_FIELDS: readonly string[] = [
+  WHATSAPP_WEBHOOK_FIELDS.TEMPLATE_STATUS_UPDATE,
+  WHATSAPP_WEBHOOK_FIELDS.PHONE_NUMBER_QUALITY_UPDATE,
+]
+
+function isAccountEventField(field: string | undefined): boolean {
+  return field !== undefined && ACCOUNT_EVENT_FIELDS.includes(field)
 }
 
 // T5.1 — porta de entrada do canal. Ordem deliberada: assinatura → anti-replay → parse → efeito.
@@ -88,6 +131,8 @@ export class ReceiveWebhookUseCase {
        * Configurá-la é o que faz a conversa sobreviver a um deploy no meio do atendimento.
        */
       inboundQueue?: InboundDispatchQueueInterface
+      /** Não grava `location` no transcript; ver `MetaWhatsAppModuleFeatures.redactInboundLocation`. */
+      redactInboundLocation?: boolean
     },
   ) {
     this.dispatcher = new InboundEffectsDispatcher({
@@ -110,17 +155,41 @@ export class ReceiveWebhookUseCase {
       nonceStore: this.params.nonceStore,
       signatureHeader: input.signatureHeader!,
     })
-    if (!claimed) return { duplicate: true, messagesProcessed: 0, statusesProcessed: 0, ignoredForeignNumber: 0 }
+    if (!claimed) return { duplicate: true, ...EMPTY_RESULT }
 
     const rawText = typeof input.rawBody === 'string' ? input.rawBody : input.rawBody.toString('utf8')
-    const payload = whatsAppWebhookPayloadSchema.parse(JSON.parse(rawText))
+    // `safeParse`, não `parse`: um envelope que não bate com o schema não pode derrubar a entrega
+    // inteira. A Meta desativa webhook que responde erro com frequência, e o corpo já veio
+    // autenticado pela assinatura — então o que resta é reportar ao host e responder 200.
+    const parsed = whatsAppWebhookPayloadSchema.safeParse(JSON.parse(rawText))
+    if (!parsed.success) {
+      await this.params.hooks?.onUnhandledWebhookEvent?.({
+        field: undefined,
+        reason: 'invalid-shape',
+        value: rawText,
+      })
+      return { duplicate: false, ...EMPTY_RESULT, unhandledEvents: 1 }
+    }
+    const payload = parsed.data
 
     let messagesProcessed = 0
     let statusesProcessed = 0
     let ignoredForeignNumber = 0
+    let accountEventsProcessed = 0
+    let unhandledEvents = 0
 
     for (const entry of payload.entry) {
       for (const change of entry.changes) {
+        // Eventos de conta são resolvidos antes do filtro de número: eles não têm `metadata`, e o
+        // filtro abaixo depende dele. O `phone_number_quality_update` traz o número no próprio
+        // corpo (`display_phone_number`), não em `metadata`.
+        if (isAccountEventField(change.field)) {
+          const handled = await this.handleAccountEvent(change)
+          if (handled) accountEventsProcessed++
+          else unhandledEvents++
+          continue
+        }
+
         // Uma WABA comporta vários números, e a Meta entrega os eventos de TODOS eles para cada app
         // inscrito na conta — a inscrição é por WABA, não por número. Sem este filtro, uma instância
         // responde o cliente de um número que não é dela e grava esse contato na própria base.
@@ -133,12 +202,30 @@ export class ReceiveWebhookUseCase {
         }
 
         for (const message of change.value.messages ?? []) {
-          await this.handleMessage(input.companyId, message)
+          // O nome sai do `change`, e não da mensagem: a Meta o entrega em `contacts`, ao lado das
+          // mensagens, e não dentro de cada uma.
+          const profileName = resolveContactProfileName({ contacts: change.value.contacts, from: message.from })
+          await this.handleMessage(input.companyId, message, profileName)
           messagesProcessed++
         }
         for (const status of change.value.statuses ?? []) {
           await this.handleStatus(input.companyId, status)
           statusesProcessed++
+        }
+
+        // Field desconhecido que também não trouxe nada de conversa: sem isto, um campo assinado
+        // por engano no painel seria indistinguível de webhook mudo.
+        const carriedConversationData =
+          (change.value.messages?.length ?? 0) > 0 ||
+          (change.value.message_echoes?.length ?? 0) > 0 ||
+          (change.value.statuses?.length ?? 0) > 0
+        if (!carriedConversationData) {
+          unhandledEvents++
+          await this.params.hooks?.onUnhandledWebhookEvent?.({
+            field: change.field,
+            reason: 'unknown-field',
+            value: change.value,
+          })
         }
       }
     }
@@ -150,20 +237,60 @@ export class ReceiveWebhookUseCase {
       signatureHeader: input.signatureHeader!,
     })
 
-    return { duplicate: false, messagesProcessed, statusesProcessed, ignoredForeignNumber }
+    return {
+      duplicate: false,
+      messagesProcessed,
+      statusesProcessed,
+      ignoredForeignNumber,
+      accountEventsProcessed,
+      unhandledEvents,
+    }
   }
 
-  private async handleMessage(companyId: string, message: WhatsAppMessage): Promise<void> {
+  // Devolve `false` quando o corpo não bate com o schema do field — o chamador conta como não
+  // tratado. O host é avisado nos dois casos, mas com `reason` diferente.
+  private async handleAccountEvent(change: WhatsAppWebhookChange): Promise<boolean> {
+    if (change.field === WHATSAPP_WEBHOOK_FIELDS.TEMPLATE_STATUS_UPDATE) {
+      const update = whatsAppTemplateStatusUpdateSchema.safeParse(change.value)
+      if (!update.success) {
+        await this.params.hooks?.onUnhandledWebhookEvent?.({
+          field: change.field,
+          reason: 'invalid-shape',
+          value: change.value,
+        })
+        return false
+      }
+      await this.params.hooks?.onTemplateStatusUpdate?.(update.data)
+      return true
+    }
+
+    const quality = whatsAppPhoneNumberQualityUpdateSchema.safeParse(change.value)
+    if (!quality.success) {
+      await this.params.hooks?.onUnhandledWebhookEvent?.({
+        field: change.field,
+        reason: 'invalid-shape',
+        value: change.value,
+      })
+      return false
+    }
+    await this.params.hooks?.onPhoneNumberQualityUpdate?.(quality.data)
+    return true
+  }
+
+  private async handleMessage(companyId: string, message: WhatsAppMessage, profileName?: string): Promise<void> {
     // Persistir fica na requisição de propósito: é escrita local, custa pouco, e é o que garante
     // que a mensagem do cliente existe no banco mesmo que tudo depois dela falhe.
+    const extractionOptions: ExtractionOptions = {
+      isLocationRedacted: this.params.redactInboundLocation ?? false,
+    }
     const saved = await this.params.logMessage.execute({
       companyId,
       whatsappNumber: message.from,
       direction: 'inbound',
       sender: 'customer',
       type: message.type,
-      content: extractContent(message),
-      payload: extractPayload(message),
+      content: extractContent(message, extractionOptions),
+      payload: extractPayload(message, extractionOptions),
       waMessageId: message.id,
       status: 'received',
       startState: this.params.startState,
@@ -179,16 +306,27 @@ export class ReceiveWebhookUseCase {
       message,
       savedMessageId: saved.id,
       ...(media ? { media } : {}),
+      ...(profileName ? { profileName } : {}),
       receivedAt: Date.now(),
     })
   }
 
+  /**
+   * Recusa de entrega não é exceção: a Meta responde 200 ao envio e só depois manda `failed` neste
+   * webhook. Para quem não guarda o motivo aqui, todo envio recusado vira silêncio idêntico ao de
+   * um bug próprio — o cliente não recebe nada e não há onde ler de quem é a culpa.
+   *
+   * O motivo segue em duas direções porque as perguntas são duas: `payload` responde "este envio
+   * chegou?" muito depois, e `onStatusUpdate` deixa o host reagir agora (alertar, pausar a fila,
+   * trocar de canal).
+   */
   private async handleStatus(companyId: string, status: WhatsAppStatus): Promise<void> {
-    const updated = await this.params.messageRepository.updateMessageStatus(
+    const updated = await this.params.messageRepository.updateMessageStatus({
       companyId,
-      status.id,
-      status.status as MessageStatus,
-    )
+      waMessageId: status.id,
+      status: status.status as MessageStatus,
+      deliveryError: status.errors?.[0],
+    })
     if (!updated) return
 
     this.params.realtime?.emit(`conv:${updated.whatsappNumber}`, 'message-status', {
@@ -212,8 +350,34 @@ export class ReceiveWebhookUseCase {
       await this.params.inboundQueue.enqueue(job, { jobId: buildInboundJobId(job) })
       return
     }
-    await this.dispatcher.run(job)
+
+    // Sem fila, o efeito roda dentro da requisição do webhook — e é aqui que a resposta do bot é
+    // enviada. Uma recusa determinística da Meta (token sem escopo, conta barrada de mandar para o
+    // país) subiria daqui, viraria resposta não-2xx e faria a Meta reentregar o evento; a reentrega
+    // falha idêntica, e webhook que falha com frequência a Meta desativa. Trocar a resposta do bot
+    // por todo o canal derrubado é o pior negócio possível — a mensagem do cliente já está gravada
+    // neste ponto, então o que se perde aqui é a reação, não o registro.
+    //
+    // Rede e timeout continuam subindo de propósito: aqueles a reentrega resolve, e é o único
+    // motivo de o claim do nonce ser curto.
+    try {
+      await this.dispatcher.run(job)
+    } catch (error) {
+      if (!isDeterministicMetaRejection(error)) throw error
+
+      await this.params.hooks?.onInboundEffectRejected?.({
+        companyId: job.companyId,
+        kind: job.kind,
+        whatsappNumber: resolveJobNumber(job),
+        code: error.code,
+        error,
+      })
+    }
   }
+}
+
+function resolveJobNumber(job: InboundDispatchJob): string | undefined {
+  return job.kind === 'message' ? job.message.from : job.whatsappNumber
 }
 
 export { extractAnswer, extractContent }

@@ -1,4 +1,4 @@
-import type { BackgroundRemovalConfig } from '../removeBackground'
+import type { BackgroundRemovalConfig } from '@adatechnology/image-cutout'
 
 export type ProductsApi = {
   listProducts(params?: {

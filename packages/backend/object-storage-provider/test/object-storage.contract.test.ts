@@ -285,4 +285,98 @@ describe('ObjectStorageProvider public contract', () => {
       withoutDisposition.searchParams.get(SIGNATURE_PARAMETER),
     )
   })
+
+  test('creates a signed private upload URL binding content length into the signature', async () => {
+    const provider = createProvider()
+    const signedUpload = await provider.createSignedUpload({
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+    })
+    const differentContentLength = await provider.createSignedUpload({
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength + 1,
+      contentType: CONTENT_TYPE,
+    })
+
+    expect(signedUpload).toBeInstanceOf(URL)
+    expect(signedUpload.protocol).toBe('http:')
+    // `content-length` é cabeçalho assinável do S3: diverge o tamanho, diverge a assinatura, e o
+    // upload real é recusado se não bater com o que foi assinado aqui.
+    expect(signedUpload.searchParams.get('X-Amz-SignedHeaders')).toContain('content-length')
+    expect(signedUpload.searchParams.get(SIGNATURE_PARAMETER)).not.toBe(
+      differentContentLength.searchParams.get(SIGNATURE_PARAMETER),
+    )
+  })
+
+  /**
+   * O SDK 3.1091 calcula checksum por padrão (`requestChecksumCalculation: 'WHEN_SUPPORTED'`) e, na
+   * URL assinada de PUT, amarra o CRC32 de um corpo que ainda não existe — o do corpo **vazio**. O
+   * storage que confere o checksum (MinIO recente, SeaweedFS) recusa o upload real com `BadDigest`.
+   * Medido pelo transportada (spec 183): 400 sem a correção, 200 com ela. O cliente não pode depender
+   * de o consumidor lembrar `AWS_REQUEST_CHECKSUM_CALCULATION`, então o teste roda sem a variável.
+   */
+  test('signed upload URLs never bind a checksum of an empty body', async () => {
+    const previous = process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+    delete process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+    try {
+      const signedUpload = await createProvider().createSignedUpload({
+        bucket: BUCKET,
+        key: KEY,
+        expiresInSeconds: 60,
+        contentLength: ORIGINAL_BYTES.byteLength,
+        contentType: CONTENT_TYPE,
+      })
+      const parameters = [...signedUpload.searchParams.keys()].map((name) => name.toLowerCase())
+
+      expect(parameters.filter((name) => name.includes('checksum'))).toEqual([])
+      expect(signedUpload.searchParams.get('X-Amz-SignedHeaders')).not.toContain('checksum')
+    } finally {
+      if (previous === undefined) delete process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+      else process.env.AWS_REQUEST_CHECKSUM_CALCULATION = previous
+    }
+  })
+
+  test('rejects invalid expiration, oversized content, and invalid content type for signed uploads', async () => {
+    const provider = createProvider()
+    const validUpload = {
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+    }
+
+    await expect(provider.createSignedUpload({ ...validUpload, expiresInSeconds: 0 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid,
+    })
+    await expect(provider.createSignedUpload({ ...validUpload, expiresInSeconds: 901 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid,
+    })
+    await expect(provider.createSignedUpload({ ...validUpload, contentLength: 1025 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.objectTooLarge,
+    })
+    await expect(
+      provider.createSignedUpload({ ...validUpload, contentType: 'application/xml\r\nx-unsafe: value' }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.invalidContentType })
+  })
+
+  test('rejects signed uploads after the provider is closed', async () => {
+    const provider = createProvider()
+    await provider.close()
+
+    await expect(
+      provider.createSignedUpload({
+        bucket: BUCKET,
+        key: KEY,
+        expiresInSeconds: 60,
+        contentLength: ORIGINAL_BYTES.byteLength,
+        contentType: CONTENT_TYPE,
+      }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.providerClosed })
+  })
 })

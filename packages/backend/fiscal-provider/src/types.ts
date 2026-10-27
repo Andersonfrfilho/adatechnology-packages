@@ -858,6 +858,7 @@ export type NfeXmlParty = {
   readonly name?: string
   readonly tradeName?: string
   readonly stateRegistration?: string
+  readonly email?: string
   readonly address?: NfeXmlAddress
 }
 
@@ -871,6 +872,15 @@ export type NfeXmlProduct = {
   readonly commercialQuantity: string
   readonly unitValue: string
   readonly totalValue: string
+  /**
+   * GTIN do produto (det/prod/cEAN) — só dígitos, 8/12/13/14 caracteres. `undefined` quando
+   * ausente, vazio, "SEM GTIN" ou fora desse formato. Dígito verificador não é validado aqui.
+   */
+  readonly gtin?: string
+  /**
+   * GTIN da unidade tributável (det/prod/cEANTrib) — mesmas regras de `gtin`.
+   */
+  readonly taxableUnitGtin?: string
 }
 
 export type NfeXmlVolume = {
@@ -929,6 +939,8 @@ export type NfeXmlEvent = {
   readonly protocol?: string
   readonly statusCode?: string
   readonly reason?: string
+  /** Texto da Carta de Correção (detEvento/xCorrecao) — presente só quando type é '110110' */
+  readonly correctionText?: string
 }
 
 export type ImportedAuthorizedNfeXml = DfeItem & {
@@ -1015,14 +1027,7 @@ export type ConsultarPorChaveParams = {
 }
 
 export type FiscalConfig =
-  | NfceConfig
-  | NfeConfig
-  | SatConfig
-  | NfseConfig
-  | NotaRpConfig
-  | CteConfig
-  | MdfeConfig
-  | NfeDistribuicaoConfig
+  NfceConfig | NfeConfig | SatConfig | NfseConfig | NotaRpConfig | CteConfig | MdfeConfig | NfeDistribuicaoConfig
 
 export type FiscalItem = {
   /** Código interno do produto */

@@ -51,6 +51,14 @@ export type Product = {
   readonly inventory?: number | null
   readonly costPriceInCents?: number | null
   readonly unit?: string | null
+  /** Fabricante. Entra na busca por texto junto do nome. */
+  readonly brand?: string | null
+  /** Conteudo da embalagem ("1L", "5kg") — distingue itens irmaos que so diferem no tamanho. */
+  readonly unitSize?: string | null
+  /** Onde o item fica na loja, como esta escrito na placa do corredor. Quem separa le isto. */
+  readonly aisle?: string | null
+  /** Como o cliente chama o produto; raramente e o nome cadastrado. */
+  readonly aliases?: readonly string[]
   readonly barcode?: string | null
   readonly sectionId?: SectionId | null
   readonly sectionName?: string
@@ -103,6 +111,10 @@ export type CreateProductInput = {
   readonly priceInCents: number
   readonly costPriceInCents?: number
   readonly unit?: string
+  readonly brand?: string
+  readonly unitSize?: string
+  readonly aisle?: string
+  readonly aliases?: readonly string[]
   readonly barcode?: string
   readonly catalogId?: CatalogId
   readonly sectionId?: SectionId

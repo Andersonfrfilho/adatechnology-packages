@@ -1,0 +1,1932 @@
+{
+  "version": "8",
+  "dialect": "postgres",
+  "id": "e873f155-ddd8-47af-8df8-e0a4334d0b73",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "ddl": [
+    {
+      "name": "conversation",
+      "entityType": "schemas"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "attachments",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "messages",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "participants",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "quick_replies",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "reads",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "unassigned",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "uploads",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "conversations",
+      "entityType": "tables",
+      "schema": "conversation"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "message_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bucket",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "object_key",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "sha256",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "size_bytes",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "content_type",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "''",
+      "generated": null,
+      "identity": null,
+      "name": "file_name",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "duration_ms",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "transcript_text",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "conversation_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "direction",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "author_user_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "false",
+      "generated": null,
+      "identity": null,
+      "name": "automatic",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "sender_address",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "''",
+      "generated": null,
+      "identity": null,
+      "name": "body_text",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'{}'",
+      "generated": null,
+      "identity": null,
+      "name": "status_times",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "provider_message_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "transport_ref",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "dkim_result",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "conversation_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "identifier",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "audience",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "body_text",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "position",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "boolean",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "true",
+      "generated": null,
+      "identity": null,
+      "name": "active",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "conversation_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "last_read_message_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "read_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "sender_address",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "''",
+      "generated": null,
+      "identity": null,
+      "name": "body_text",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "provider_message_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "transport_ref",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "dkim_result",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "received_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "assigned_message_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "assigned_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "assigned_by_user_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "conversation_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "channel",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "requested_by_user_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "bucket",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "object_key",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "declared_content_type",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "declared_size_bytes",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "''",
+      "generated": null,
+      "identity": null,
+      "name": "file_name",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'pending'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "attached_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "gen_random_uuid()",
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "subject_type",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "subject_id",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "audience",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "public_ref",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'open'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "default_channel",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "window_notice_sent_for",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "company_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "message_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "attachments_message_idx",
+      "entityType": "indexes",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "company_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "conversation_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "created_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "messages_conversation_created_idx",
+      "entityType": "indexes",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "company_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "audience",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "position",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "quick_replies_audience_position_idx",
+      "entityType": "indexes",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "company_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "received_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": "\"assigned_message_id\" is null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "unassigned_open_idx",
+      "entityType": "indexes",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "expires_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "uploads_status_expires_idx",
+      "entityType": "indexes",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "company_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "subject_type",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "subject_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "coalesce(\"audience\", '')",
+          "isExpression": true,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "\"subject_type\" is not null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "conversations_subject_audience_unique",
+      "entityType": "indexes",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "message_id"
+      ],
+      "schemaTo": "conversation",
+      "tableTo": "messages",
+      "columnsTo": [
+        "company_id",
+        "id"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT",
+      "name": "attachments_message_fk",
+      "entityType": "fks",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "conversation_id"
+      ],
+      "schemaTo": "conversation",
+      "tableTo": "conversations",
+      "columnsTo": [
+        "company_id",
+        "id"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT",
+      "name": "messages_conversation_fk",
+      "entityType": "fks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "conversation_id"
+      ],
+      "schemaTo": "conversation",
+      "tableTo": "conversations",
+      "columnsTo": [
+        "company_id",
+        "id"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT",
+      "name": "participants_conversation_fk",
+      "entityType": "fks",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "conversation_id"
+      ],
+      "schemaTo": "conversation",
+      "tableTo": "conversations",
+      "columnsTo": [
+        "company_id",
+        "id"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT",
+      "name": "reads_conversation_fk",
+      "entityType": "fks",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "last_read_message_id"
+      ],
+      "schemaTo": "conversation",
+      "tableTo": "messages",
+      "columnsTo": [
+        "company_id",
+        "id"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT",
+      "name": "reads_message_fk",
+      "entityType": "fks",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "assigned_message_id"
+      ],
+      "schemaTo": "conversation",
+      "tableTo": "messages",
+      "columnsTo": [
+        "company_id",
+        "id"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT",
+      "name": "unassigned_assigned_message_fk",
+      "entityType": "fks",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "conversation_id"
+      ],
+      "schemaTo": "conversation",
+      "tableTo": "conversations",
+      "columnsTo": [
+        "company_id",
+        "id"
+      ],
+      "onUpdate": "CASCADE",
+      "onDelete": "RESTRICT",
+      "name": "uploads_conversation_fk",
+      "entityType": "fks",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "attachments_pkey",
+      "schema": "conversation",
+      "table": "attachments",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "messages_pkey",
+      "schema": "conversation",
+      "table": "messages",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "participants_pkey",
+      "schema": "conversation",
+      "table": "participants",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "quick_replies_pkey",
+      "schema": "conversation",
+      "table": "quick_replies",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "reads_pkey",
+      "schema": "conversation",
+      "table": "reads",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "unassigned_pkey",
+      "schema": "conversation",
+      "table": "unassigned",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "uploads_pkey",
+      "schema": "conversation",
+      "table": "uploads",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "conversations_pkey",
+      "schema": "conversation",
+      "table": "conversations",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "attachments_company_id_id_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "messages_company_id_id_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "channel",
+        "provider_message_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "messages_company_id_channel_provider_message_id_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "conversation_id",
+        "channel",
+        "identifier"
+      ],
+      "nullsNotDistinct": false,
+      "name": "participants_company_id_conversation_id_channel_identifier_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "conversation_id",
+        "user_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "reads_company_id_conversation_id_user_id_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "reads"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "unassigned_company_id_id_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "channel",
+        "provider_message_id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "unassigned_company_id_channel_provider_message_id_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "object_key"
+      ],
+      "nullsNotDistinct": false,
+      "name": "uploads_company_id_object_key_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "name": "conversations_company_id_id_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "public_ref"
+      ],
+      "nullsNotDistinct": false,
+      "name": "conversations_company_id_public_ref_unique",
+      "entityType": "uniques",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "value": "\"sha256\" ~ '^[0-9a-f]{64}$'",
+      "name": "attachments_sha256_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "value": "\"size_bytes\" > 0",
+      "name": "attachments_size_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "value": "\"kind\" in ('audio', 'document', 'image')",
+      "name": "attachments_kind_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "value": "\"duration_ms\" is null or \"duration_ms\" > 0",
+      "name": "attachments_duration_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "attachments"
+    },
+    {
+      "value": "\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')",
+      "name": "messages_channel_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"direction\" in ('inbound', 'outbound')",
+      "name": "messages_direction_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "(\"direction\" = 'outbound' and (\"author_user_id\" is not null) <> \"automatic\" and \"sender_address\" is null)\n        or (\"direction\" = 'inbound' and not \"automatic\" and num_nonnulls(\"author_user_id\", \"sender_address\") = 1\n          and (\"author_user_id\" is null or \"channel\" in ('app', 'portal', 'webchat'))\n          and (\"sender_address\" is null or \"channel\" in ('email', 'whatsapp', 'webchat')))",
+      "name": "messages_author_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"status\" is null or \"status\" in ('queued', 'sent', 'delivered', 'read', 'failed', 'bounced')",
+      "name": "messages_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "(\"direction\" = 'outbound') = (\"status\" is not null)",
+      "name": "messages_status_direction_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"dkim_result\" is null or (\"dkim_result\" in ('aligned', 'not_aligned', 'unverifiable', 'absent') and \"channel\" = 'email' and \"direction\" = 'inbound')",
+      "name": "messages_dkim_result_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "length(\"body_text\") <= 8000",
+      "name": "messages_body_length_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"channel\" <> 'email' or \"status\" is null or \"status\" in ('queued', 'sent', 'delivered', 'failed', 'bounced')",
+      "name": "messages_email_reachable_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"channel\" <> 'whatsapp' or \"status\" is null or \"status\" in ('queued', 'sent', 'delivered', 'read', 'failed')",
+      "name": "messages_whatsapp_reachable_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"channel\" <> 'app' or \"status\" is null or \"status\" in ('queued', 'delivered', 'read')",
+      "name": "messages_app_reachable_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"channel\" <> 'portal' or \"status\" is null or \"status\" in ('delivered', 'read')",
+      "name": "messages_portal_reachable_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"channel\" <> 'webchat' or \"status\" is null or \"status\" in ('queued', 'delivered', 'failed')",
+      "name": "messages_webchat_reachable_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "messages"
+    },
+    {
+      "value": "\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')",
+      "name": "participants_channel_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "participants"
+    },
+    {
+      "value": "char_length(btrim(\"body_text\")) between 1 and 500",
+      "name": "quick_replies_body_text_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "value": "\"position\" >= 0",
+      "name": "quick_replies_position_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "quick_replies"
+    },
+    {
+      "value": "\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')",
+      "name": "unassigned_channel_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "value": "num_nonnulls(\"assigned_message_id\", \"assigned_at\", \"assigned_by_user_id\") in (0, 3)",
+      "name": "unassigned_assignment_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "unassigned"
+    },
+    {
+      "value": "\"status\" in ('pending', 'attached', 'expired')",
+      "name": "uploads_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "value": "\"channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')",
+      "name": "uploads_channel_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "value": "\"declared_size_bytes\" > 0",
+      "name": "uploads_size_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "value": "char_length(\"file_name\") <= 200",
+      "name": "uploads_file_name_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "value": "(\"status\" = 'attached') = (\"attached_at\" is not null)",
+      "name": "uploads_attached_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "uploads"
+    },
+    {
+      "value": "\"status\" in ('open', 'closed')",
+      "name": "conversations_status_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "value": "\"default_channel\" is null or \"default_channel\" in ('email', 'whatsapp', 'app', 'portal', 'webchat')",
+      "name": "conversations_default_channel_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "value": "(\"subject_type\" is null) = (\"subject_id\" is null)",
+      "name": "conversations_subject_pair_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "conversations"
+    },
+    {
+      "value": "\"public_ref\" is null or \"public_ref\" ~ '^[A-Za-z0-9_-]{22,64}$'",
+      "name": "conversations_public_ref_check",
+      "entityType": "checks",
+      "schema": "conversation",
+      "table": "conversations"
+    }
+  ],
+  "renames": []
+}

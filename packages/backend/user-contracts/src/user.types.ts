@@ -14,6 +14,13 @@ export type UserProfile = {
   readonly companyId?: string // ausente em single-tenant
   readonly isActive: boolean
   readonly lastSeenAt?: Date
+  /**
+   * URL de leitura assinada, presente so quando ha foto E o host plugou armazenamento.
+   *
+   * Ausente cobre os dois casos porque a tela faz a mesma coisa nos dois: desenha as iniciais. Um
+   * campo separado dizendo "tem foto, mas nao consigo servir" nao mudaria um pixel.
+   */
+  readonly avatarUrl?: string
 }
 
 export type UserSession = {

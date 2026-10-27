@@ -32,6 +32,8 @@ export type {
   InteractiveListRow,
   InteractiveListSection,
   SendInteractiveListParams,
+  SendLocationParams,
+  SendTextOptions,
   SendCatalogMessageParams,
   SendProductMessageParams,
   ProductListSection,

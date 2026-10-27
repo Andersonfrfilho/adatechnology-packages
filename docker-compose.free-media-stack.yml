@@ -1,0 +1,266 @@
+# Complete Free Media Processing Stack
+# No paid APIs required - everything runs locally
+
+version: '3.8'
+
+services:
+  # Redis - Job queue backend
+  redis:
+    image: redis:7-alpine
+    container_name: media-processor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # LibreTranslate - Free translation engine
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: media-processor-translate
+    ports:
+      - "5000:5000"
+    environment:
+      # Configuration
+      - LIB_PORT=5000
+      - CORS_ORIGINS=*
+
+      # Request limits (free tier)
+      - REQ_LIMIT=200        # 200 requests per day per IP (increase if needed)
+      - REQ_LIMIT_STORAGE=memory
+
+      # Performance
+      - THREADS=4            # Use 4 CPU threads
+      - LOAD_ONLY=pt,es,en,fr,it  # Only load these languages (saves memory)
+    volumes:
+      - libretranslate-models:/root/.local/share/argos-translate
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      - redis
+
+  # PostgreSQL - Job metadata storage
+  postgres:
+    image: postgres:16-alpine
+    container_name: media-processor-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: media_processor
+      POSTGRES_USER: media_user
+      POSTGRES_PASSWORD: secure_password_change_this
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./packages/backend/media-processor/sql/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U media_user"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      - redis
+
+  # Whisper.cpp Server (Optional - for unlimited local transcription)
+  # Uncomment to enable, or use Groq free tier instead
+  #
+  # whisper:
+  #   image: ghcr.io/ggerganov/whisper.cpp:latest
+  #   container_name: media-processor-whisper
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./models:/models
+  #   environment:
+  #     - MODEL=/models/ggml-base.bin
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+
+  # Application - Media Processor API & Workers
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.media-processor
+    container_name: media-processor-app
+    ports:
+      - "3000:3000"
+    environment:
+      # Service Configuration
+      NODE_ENV: production
+      LOG_LEVEL: info
+
+      # Database
+      DATABASE_URL: postgresql://media_user:secure_password_change_this@postgres:5432/media_processor
+
+      # Redis Queue
+      REDIS_URL: redis://redis:6379
+
+      # Translation Service
+      LIBRETRANSLATE_URL: http://libretranslate:5000
+      LIBRETRANSLATE_API_KEY: ""  # Public API, no key needed
+
+      # Transcription Service
+      # Option A: Use Groq free tier (240 req/day)
+      TRANSCRIPTION_PROVIDER: groq
+      GROQ_API_KEY: ${GROQ_API_KEY}  # Get free at https://console.groq.com
+
+      # Option B: Use local Whisper (uncomment and use above Whisper service)
+      # TRANSCRIPTION_PROVIDER: whisper_local
+      # WHISPER_URL: http://whisper:8000
+
+      # Text-to-Speech Service
+      TTS_PROVIDER: piper
+      PIPER_BINARY: piper
+      PIPER_MODELS_DIR: /app/models/piper
+
+      # WebSocket
+      WEBSOCKET_PING_INTERVAL: 25000
+      WEBSOCKET_PING_TIMEOUT: 60000
+      FRONTEND_URL: http://localhost:3001
+
+      # Processing
+      MEDIA_PROCESSOR_CONCURRENCY: 1
+      MEDIA_PROCESSOR_MAX_RETRIES: 3
+      MEDIA_PROCESSOR_JOB_TIMEOUT_MS: 1800000
+
+      # Storage (S3-compatible, or local)
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/storage
+      # Or S3:
+      # STORAGE_TYPE: s3
+      # S3_BUCKET: media-processor
+      # S3_REGION: us-east-1
+      # AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      # AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+
+    volumes:
+      - ./storage:/app/storage
+      - ./models/piper:/app/models/piper
+      - ./models/whisper:/app/models/whisper  # If using local Whisper
+
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      libretranslate:
+        condition: service_healthy
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Frontend (Optional)
+  frontend:
+    image: node:20-alpine
+    container_name: media-processor-frontend
+    ports:
+      - "3001:3001"
+    working_dir: /app
+    command: npm run dev
+    volumes:
+      - ./apps/frontend-media:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3000
+      - VITE_WS_URL=ws://localhost:3000
+    depends_on:
+      - app
+
+volumes:
+  redis-data:
+  postgres-data:
+  libretranslate-models:
+
+networks:
+  default:
+    name: media-processor-network
+
+# ============================================================================
+# QUICK START
+# ============================================================================
+#
+# 1. Get Groq API key (free):
+#    Visit https://console.groq.com and create a free account
+#    Set: export GROQ_API_KEY=gsk_xxxxx
+#
+# 2. Download Piper (optional, if you want local TTS):
+#    pip install piper-tts
+#    piper --help  # Verify installation
+#
+# 3. Start the stack:
+#    docker-compose -f docker-compose.free-media-stack.yml up -d
+#
+# 4. Wait for services to be healthy:
+#    docker-compose ps
+#
+# 5. Create a job:
+#    curl -X POST http://localhost:3000/api/media \
+#      -H "Content-Type: application/json" \
+#      -d '{
+#        "videoUrl": "s3://bucket/video.mp4",
+#        "outputType": "subtitles",
+#        "targetLanguages": ["pt-BR", "en"],
+#        "subtitleFormat": "srt"
+#      }'
+#
+# 6. Check progress:
+#    curl http://localhost:3000/api/job/{jobId}/status
+#
+# ============================================================================
+# SERVICES & COSTS
+# ============================================================================
+#
+# Redis           - Free, open-source (yours)
+# LibreTranslate  - Free, open-source (200 req/day in docker, unlimited self-hosted)
+# PostgreSQL      - Free, open-source (yours)
+# Piper TTS       - Free, open-source (runs on CPU/GPU)
+# Whisper         - Option A: Groq free tier (240 req/day)
+#                 - Option B: Whisper.cpp (unlimited, yours)
+#
+# Total cost: $0/month (except for storage if using S3)
+#
+# ============================================================================
+# STORAGE OPTIONS
+# ============================================================================
+#
+# Local (Recommended for testing):
+# - Uses /app/storage directory
+# - Free, no setup
+# - Limited to disk space
+#
+# S3 Compatible (MinIO - free, self-hosted):
+# docker run -p 9000:9000 minio/minio server /data
+#
+# AWS S3 (Paid, but free tier available):
+# - First 5GB free for 12 months
+# - Then pay per GB
+#
+# ============================================================================
+# PERFORMANCE TUNING
+# ============================================================================
+#
+# For high throughput:
+# - Increase MEDIA_PROCESSOR_CONCURRENCY (if you have more CPU cores)
+# - Scale Piper: run multiple instances behind load balancer
+# - Scale LibreTranslate: increase THREADS environment variable
+# - Add GPU support: nvidia-docker + GPU-enabled images
+#
+# For low resource usage:
+# - LOAD_ONLY in LibreTranslate (only load needed languages)
+# - Reduce LIBRETRANSLATE_THREADS
+# - Run Whisper.cpp on GPU (CUDA/OpenCL)
+#
+# ============================================================================

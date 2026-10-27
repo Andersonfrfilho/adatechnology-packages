@@ -17,6 +17,17 @@ bun add @adatechnology/notification-module @adatechnology/notification-contracts
 
 `drizzle-orm` é peer.
 
+## Migrations e versões do drizzle
+
+As migrations vêm em dois formatos: journal (drizzle-orm 0.x) e `migrations-v1` (drizzle-orm 1.x,
+que recusa pasta com `meta/_journal.json`). Host com drizzle-orm 1.x deve passar `layout: 'v1'`:
+
+```ts
+await runNotificationMigrations({ db, migrate, layout: 'v1' })
+```
+
+Sem `layout`, o módulo tenta o journal e, se o migrator recusar, usa o v1.
+
 ## Uso mínimo
 
 ```ts
@@ -113,6 +124,23 @@ de celular deixa um token que a fila tenta para sempre.
 Telefone e e-mail nunca vão para log: `maskTarget` para exibir, `hashTarget` (HMAC) para a chave
 de supressão. A lista de supressão existe para não enviar, não para virar cadastro de contatos
 (`security.md` §1).
+
+## Modelo padrão de e-mail
+
+`module.standardEmail` (`StandardEmailService`) cuida da chave `notification.standard-email`:
+
+- `ensureTemplate({ companyId })` grava a v1 embutida **só se a identidade não tem nenhuma linha**
+  (ativa ou não): versão editada ou desativada nunca é sobrescrita. Idempotente; `23505` na corrida
+  pela v1 = "já existe". O host o chama **no pré-deploy** (por empresa) — o envio não cria modelo.
+- `resolveTemplate` devolve a versão ativa e utilizável da empresa; sem ela, o **embutido
+  (`version: 0`, `source: 'builtin'`)** — rede de segurança, com `warn` de fallback sem o HTML.
+- `render({ companyId, input })` resolve e renderiza (`html`, `text`, `bytes`, `tooLarge`).
+- `restoreDefault({ companyId })` grava uma **versão nova** com o conteúdo embutido; o histórico fica.
+- Rota `POST /notification-templates/:id/restore-default` (escopo `admin`): `201 { data }`; `400` se o
+  id não é do modelo padrão; `409` se recusada.
+- Erros: `StandardEmailTemplateInvalidError` (400, `NOTIFICATION_STANDARD_EMAIL_TEMPLATE_INVALID`,
+  `details: { missing, unsafe }`) ao salvar modelo inutilizável; `StandardEmailTemplateRequiredError`
+  (409, `NOTIFICATION_STANDARD_EMAIL_TEMPLATE_REQUIRED`) ao remover/desativar o padrão.
 
 ## Licença
 

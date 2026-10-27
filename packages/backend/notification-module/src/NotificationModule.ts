@@ -10,6 +10,8 @@
 import {
   ChannelNotConfiguredError,
   ConfigMissingError,
+  STANDARD_EMAIL_TEMPLATE_KEY,
+  STANDARD_EMAIL_VARIABLES,
   type ChannelDrivers,
   type NotificationHooks,
 } from '@adatechnology/notification-contracts'
@@ -22,6 +24,7 @@ import type {
   RealtimeNotifierPort,
   RecipientResolverPort,
   TemplateRendererPort,
+  TemplateVariableCatalog,
 } from '@adatechnology/notification-contracts'
 
 import type { NotificationDatabase } from './database.types'
@@ -30,7 +33,9 @@ import { DeviceRepository } from './repositories/DeviceRepository'
 import { NotificationRepository } from './repositories/NotificationRepository'
 import { PreferenceRepository } from './repositories/PreferenceRepository'
 import { SuppressionRepository } from './repositories/SuppressionRepository'
+import { CategoryPolicyRepository } from './repositories/CategoryPolicyRepository'
 import { TemplateRepository } from './repositories/TemplateRepository'
+import { StandardEmailService } from './use-cases/StandardEmail.use-cases'
 import { createDefaultTemplateRenderer } from './shared/DefaultTemplateRenderer'
 import { createInProcessQueue } from './shared/InProcessQueue'
 import { createInProcessRealtimeNotifier } from './shared/InProcessRealtimeNotifier'
@@ -53,10 +58,12 @@ import { PurgeExpiredNotificationsUseCase } from './use-cases/PurgeExpiredNotifi
 import { ReceiveDeliveryReceiptUseCase } from './use-cases/ReceiveDeliveryReceipt.use-case'
 import { SendNotificationUseCase } from './use-cases/SendNotification.use-case'
 import {
+  DeactivateTemplateUseCase,
   ListTemplatesUseCase,
   SeedDefaultTemplatesUseCase,
   UpsertTemplateUseCase,
 } from './use-cases/Template.use-cases'
+import { GetCategoryPoliciesUseCase, UpdateCategoryPoliciesUseCase } from './use-cases/CategoryPolicy.use-cases'
 
 export type NotificationModuleFeatures = {
   readonly push?: boolean
@@ -72,6 +79,11 @@ export type NotificationModuleConfig = {
   readonly retry?: { readonly attempts: number; readonly backoffSeconds: number }
   readonly suppressionHmacKey: string
   readonly throttlePerHour?: Partial<Record<string, number>>
+  /**
+   * As variáveis que cada `templateKey` promete no payload. Alimenta a validação do `upsert` e a
+   * lista clicável do editor. Ausente, qualquer `{{campo}}` continua sendo aceito.
+   */
+  readonly templateVariables?: TemplateVariableCatalog
 }
 
 export type NotificationModuleProviders = {
@@ -122,8 +134,15 @@ export type NotificationModule = {
     readonly updatePreferences: UpdatePreferencesUseCase
     readonly upsertTemplate: UpsertTemplateUseCase
     readonly listTemplates: ListTemplatesUseCase
+    readonly deactivateTemplate: DeactivateTemplateUseCase
+    readonly getCategoryPolicies: GetCategoryPoliciesUseCase
+    readonly updateCategoryPolicies: UpdateCategoryPoliciesUseCase
     readonly seedDefaultTemplates: SeedDefaultTemplatesUseCase
   }
+  /** O modelo padrão de e-mail: cadastro (semente), resolução, renderização e restauração. */
+  readonly standardEmail: StandardEmailService
+  /** Catálogo do host + o do modelo padrão (o do SDK vence); é o que a rota entrega à tela. */
+  readonly templateVariables: TemplateVariableCatalog
 }
 
 function assertFeaturePorts(features: NotificationModuleFeatures, channels: ChannelDrivers): void {
@@ -147,6 +166,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
   const devices = new DeviceRepository(params.db)
   const preferences = new PreferenceRepository(params.db)
   const templates = new TemplateRepository(params.db)
+  const categoryPolicies = new CategoryPolicyRepository(params.db)
   const suppressions = new SuppressionRepository(params.db)
 
   const queue = params.providers.queue ?? createInProcessQueue()
@@ -158,6 +178,7 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     deliveries,
     templates,
     preferences,
+    categoryPolicies,
     suppressions,
     devices,
     recipientResolver: params.providers.recipientResolver,
@@ -182,9 +203,16 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     suppressionHmacKey: params.config.suppressionHmacKey,
     retryAttempts: params.config.retry?.attempts ?? 5,
     retryBackoffSeconds: params.config.retry?.backoffSeconds ?? 30,
+    // O mesmo catalogo que valida o `upsert` e alimenta a tela: aqui ele diz o que e anexo.
+    templateVariables: params.config.templateVariables ?? {},
   })
 
-  const upsertTemplate = new UpsertTemplateUseCase(templates)
+  // O catálogo do modelo padrão é do SDK: o host não o sobrescreve (a validação do `upsert` e a tela o conhecem).
+  const templateVariables: TemplateVariableCatalog = {
+    ...params.config.templateVariables,
+    [STANDARD_EMAIL_TEMPLATE_KEY]: STANDARD_EMAIL_VARIABLES,
+  }
+  const upsertTemplate = new UpsertTemplateUseCase(templates, templateVariables)
 
   return {
     realtime,
@@ -225,7 +253,12 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
       updatePreferences: new UpdatePreferencesUseCase(preferences, params.hooks),
       upsertTemplate,
       listTemplates: new ListTemplatesUseCase(templates),
+      deactivateTemplate: new DeactivateTemplateUseCase(templates),
+      getCategoryPolicies: new GetCategoryPoliciesUseCase(categoryPolicies),
+      updateCategoryPolicies: new UpdateCategoryPoliciesUseCase(categoryPolicies),
       seedDefaultTemplates: new SeedDefaultTemplatesUseCase(upsertTemplate),
     },
+    standardEmail: new StandardEmailService(templates, params.providers.logger),
+    templateVariables,
   }
 }

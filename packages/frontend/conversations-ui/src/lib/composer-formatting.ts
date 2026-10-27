@@ -22,6 +22,14 @@ export const FORMATTING_ACTION = {
 } as const
 export type FormattingAction = (typeof FORMATTING_ACTION)[keyof typeof FORMATTING_ACTION]
 
+/** Notação do WhatsApp de cada ação — a mesma que `parseWhatsAppFormatting` reconhece. */
+export const WHATSAPP_MARKER_BY_ACTION = {
+  [FORMATTING_ACTION.BOLD]: '*',
+  [FORMATTING_ACTION.ITALIC]: '_',
+  [FORMATTING_ACTION.STRIKETHROUGH]: '~',
+  [FORMATTING_ACTION.MONOSPACE]: '```',
+} as const satisfies Record<FormattingAction, string>
+
 /** Monoespaçado fica de fora: não existe comando nativo, o campo trata à mão. */
 const EXEC_COMMAND_BY_ACTION = {
   [FORMATTING_ACTION.BOLD]: 'bold',

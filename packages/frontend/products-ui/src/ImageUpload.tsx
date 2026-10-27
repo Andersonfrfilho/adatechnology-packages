@@ -2,8 +2,8 @@ import { Check, ImagePlus, Scissors, X } from 'lucide-react'
 import { useState, useCallback, useRef, type DragEvent, type ChangeEvent } from 'react'
 
 import { compressImage, PRODUCT_IMAGE_MAX_BYTES } from './compressImage'
-import { BACKGROUND_FILL } from './removeBackground'
-import { useBackgroundRemoval } from './useBackgroundRemoval.hook'
+import { BACKGROUND_FILL } from '@adatechnology/image-cutout'
+import { useBackgroundRemoval } from '@adatechnology/image-cutout'
 import { useProductsConfig } from './providers/ProductsProvider'
 
 export type ImageUploadProps = {

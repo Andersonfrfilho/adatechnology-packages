@@ -3,13 +3,14 @@
  */
 
 import { Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { AvailabilityRule, ResourceId } from '@adatechnology/scheduling-contracts'
 
 import { useAvailabilityRules } from '../hooks/useAvailabilityRules.query'
 import { useSetAvailabilityRules } from '../hooks/useAvailabilityMutations.mutation'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+import { SelectField, type SelectOption } from './SelectField'
 
 export type WeeklyRulesEditorProps = {
   readonly resourceId: ResourceId
@@ -34,6 +35,15 @@ function createEmptyDraft(): WeeklyRuleDraft {
 export function WeeklyRulesEditor({ resourceId }: WeeklyRulesEditorProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
+
+  const weekdayOptions = useMemo<readonly SelectOption[]>(
+    () =>
+      WEEKDAYS.map((weekday) => ({
+        value: String(weekday),
+        label: messages[`availability.weekday.${weekday}` as keyof typeof messages],
+      })),
+    [messages],
+  )
   const { data, isSuccess: isRulesLoaded, isError: isRulesLoadError } = useAvailabilityRules(resourceId)
   const setAvailabilityRules = useSetAvailabilityRules()
 
@@ -104,18 +114,13 @@ export function WeeklyRulesEditor({ resourceId }: WeeklyRulesEditorProps) {
       <ul className="space-y-2">
         {rules.map((rule, index) => (
           <li key={index} className="flex items-center gap-2">
-            <select
-              aria-label={messages['availability.weekdayLabel']}
-              value={rule.weekday}
-              onChange={(event) => updateRule(index, { weekday: Number(event.target.value) })}
-              className="min-h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-sm"
-            >
-              {WEEKDAYS.map((weekday) => (
-                <option key={weekday} value={weekday}>
-                  {messages[`availability.weekday.${weekday}` as keyof typeof messages]}
-                </option>
-              ))}
-            </select>
+            <SelectField
+              hideLabel
+              label={messages['availability.weekdayLabel']}
+              value={String(rule.weekday)}
+              options={weekdayOptions}
+              onChange={(next) => updateRule(index, { weekday: Number(next) })}
+            />
             <input
               aria-label={messages['availability.startsAtLocal']}
               type="time"

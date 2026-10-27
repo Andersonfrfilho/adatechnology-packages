@@ -1,3 +1,5 @@
+import type { MessageDeliveryStatus } from '@adatechnology/conversation-contracts'
+
 export interface ConversationsUIConfig {
   apiBaseUrl: string
   theme?: ConversationsTheme
@@ -72,7 +74,7 @@ export interface MessagePayload {
   direction: 'inbound' | 'outbound'
   sender: 'bot' | 'customer' | 'agent'
   timestamp: string
-  status?: 'sent' | 'delivered' | 'read' | 'failed'
+  status?: MessageDeliveryStatus
   readAt?: string
   agentName?: string | null
   templateName?: string

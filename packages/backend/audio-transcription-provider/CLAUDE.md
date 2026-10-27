@@ -31,7 +31,7 @@ type TranscriptionInput = Readonly<{
 }>
 
 type TranscriptionResult = Readonly<{
-  text: string              // já vem com trim
+  text: string              // já vem com trim e sem loop de repetição do Whisper
   language?: string         // quando o engine informa
   durationSeconds?: number
   engine: string            // 'groq' | 'whisper-local' | 'chain(a>b)'
@@ -43,6 +43,12 @@ type TranscriptionResult = Readonly<{
 `createTranscriberChain(transcribers, { onEngineFailure })` — lança se a lista for vazia; com um engine só devolve o próprio, sem envolver.
 
 `createWhisperLocalTranscriber(config)` — `modelPath` obrigatório. Opcionais: `binaryPath` (`whisper-cli`), `ffmpegPath` (`ffmpeg`), `threads`, `languageHint`, `timeoutMs` (**600_000**).
+
+## Loop de repetição — o pacote já trata, não trate de novo
+
+Whisper, em qualquer engine, repete a última frase até esgotar a janela quando o trecho tem silêncio, ruído ou fala sobreposta ("de coletivo, de coletivo, de coletivo" noventa vezes). Os dois engines passam o texto por `collapseRepetitions` antes de devolver: um ciclo de até 8 segmentos repetido 3+ vezes seguidas colapsa numa ocorrência. Ênfase legítima de duas repetições é preservada.
+
+Exportado como `collapseRepetitions` para quem já tem transcrição vinda de outro caminho. **Não aplique de novo sobre `TranscriptionResult.text`** — já foi aplicado.
 
 ## Erros — a distinção que o pacote existe para carimbar
 

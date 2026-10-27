@@ -17,15 +17,25 @@ import {
   validateLocation,
   validateProviderConfig,
   validateSignedExpiration,
+  validateSignedUploadContentLength,
+  validateSignedUploadContentType,
 } from './object-storage-provider.validation'
 import type {
   ObjectStorageProvider,
   ObjectStorageProviderConfig,
   SignedDownloadInput,
+  SignedUploadInput,
   StoredObject,
 } from './object-storage-provider.types'
 
 const UNAVAILABLE_MESSAGE = 'Object storage is unavailable'
+/**
+ * Teto maior que o do download (300s): quem consome uma URL de upload assinada costuma ser um
+ * cliente em rede instável (foto de celular, anexo grande) que ainda precisa terminar de enviar
+ * o arquivo, não só de abrir um link. 900s (15 min) cobre esse caso sem abrir uma janela longa
+ * demais de exposição da URL assinada.
+ */
+const SIGNED_UPLOAD_MAX_EXPIRATION_SECONDS = 900
 
 function isMissingError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
@@ -82,6 +92,15 @@ export function createObjectStorageProvider(config: ObjectStorageProviderConfig)
     region: config.region,
     forcePathStyle: config.forcePathStyle,
     credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    /**
+     * Checksum só quando a operação exige. O padrão do SDK (`WHEN_SUPPORTED`) amarra na URL
+     * assinada de PUT o CRC32 de um corpo que ainda não existe — o do corpo vazio —, e o storage
+     * que confere o checksum recusa o upload real com `BadDigest`. A integridade do `put()` segue
+     * garantida pelo sha256 que ele mesmo confere, e a do upload assinado é de quem consome
+     * (`head()` depois do upload), como o comentário de `createSignedUpload` já diz.
+     */
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   })
   let isClosed = false
 
@@ -183,6 +202,49 @@ export function createObjectStorageProvider(config: ObjectStorageProviderConfig)
               // assinatura, então o cliente não consegue trocá-lo depois. É por isso que a escolha
               // entre abrir no navegador e salvar precisa ser feita aqui, ao criar a URL.
               ...(disposition ? { ResponseContentDisposition: disposition } : {}),
+            }),
+            { expiresIn: input.expiresInSeconds },
+          ),
+        )
+      } catch {
+        throw unavailable()
+      }
+    },
+    /**
+     * URL assinada de PUT: o cliente sobe o arquivo direto ao storage, sem passar pela API.
+     *
+     * `contentLength` entra no `PutObjectCommand` e, por ser cabeçalho assinável, vai para a
+     * própria assinatura (`X-Amz-SignedHeaders` inclui `content-length`): um upload com tamanho
+     * diferente do assinado é recusado pelo S3, não só por quem gerou a URL.
+     *
+     * `contentType` é só validado aqui (contra vazio e injeção de `\r`/`\n`) e serve para o
+     * `PutObjectCommand`, mas o `@aws-sdk/s3-request-presigner` marca `content-type` como cabeçalho
+     * NÃO assinável em toda presigned URL do S3 (`prepareRequest` do SDK força
+     * `unsignableHeaders.add('content-type')`, incondicional) — confirmado lendo o pacote instalado
+     * nesta versão (3.1091.0). Ou seja, o upload real pode chegar com um `Content-Type` diferente
+     * do informado aqui sem que a assinatura quebre; isto não é uma garantia de integridade, é só
+     * validação de forma.
+     *
+     * O sha256 também NÃO é amarrado pela assinatura: sem ler o corpo, não há como calculá-lo antes
+     * do upload. Quem consome este método precisa conferir a integridade (tamanho, tipo e hash) DEPOIS
+     * do upload, com `head()` (ou outro mecanismo de verificação) — diferente de `put()`, que garante
+     * tudo isso sozinho porque lê os bytes.
+     */
+    async createSignedUpload(input: SignedUploadInput) {
+      ensureOpen()
+      validateLocation(input)
+      validateSignedExpiration(input.expiresInSeconds, SIGNED_UPLOAD_MAX_EXPIRATION_SECONDS)
+      validateSignedUploadContentLength(input.contentLength, config.maxObjectSizeBytes)
+      validateSignedUploadContentType(input.contentType)
+      try {
+        return new URL(
+          await getSignedUrl(
+            client,
+            new PutObjectCommand({
+              Bucket: input.bucket,
+              Key: input.key,
+              ContentLength: input.contentLength,
+              ContentType: input.contentType,
             }),
             { expiresIn: input.expiresInSeconds },
           ),

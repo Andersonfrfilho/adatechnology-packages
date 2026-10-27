@@ -26,8 +26,12 @@ export { ImageUpload } from './ImageUpload'
 export type { ImageUploadProps } from './ImageUpload'
 export { compressImage, PRODUCT_IMAGE_MAX_BYTES } from './compressImage'
 export type { CompressImageParams } from './compressImage'
-export { removeBackground, BACKGROUND_FILL } from './removeBackground'
-export type { BackgroundFill, BackgroundRemovalConfig, RemoveBackgroundParams } from './removeBackground'
+/*
+  Reexportado, e nao removido: o recorte mudou de casa para `@adatechnology/image-cutout`, e quem ja
+  importava daqui nao precisa saber disso. Tirar seria quebra em versao de correcao.
+*/
+export { removeBackground, BACKGROUND_FILL } from '@adatechnology/image-cutout'
+export type { BackgroundFill, BackgroundRemovalConfig, RemoveBackgroundParams } from '@adatechnology/image-cutout'
 
 export { BulkImport } from './BulkImport'
 export type { BulkImportProps } from './BulkImport'

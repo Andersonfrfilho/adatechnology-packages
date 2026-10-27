@@ -55,6 +55,7 @@ jobs:
         run: pnpm changeset version
 
       - name: Commit version bump
+        id: bump
         env:
           HUSKY: 0
         run: |
@@ -66,6 +67,7 @@ jobs:
             git add -A
             git commit -m "chore(release): version packages"
             git push origin HEAD:main
+            echo "released=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish packages
@@ -76,28 +78,69 @@ jobs:
 
       # Pacotes de escopo saem como restricted quando o package.json não declara
       # publishConfig.access, e o npm responde 404 para quem não tem acesso — o pacote
-      # parece não existir. Os package.json agora declaram access: public, mas quem já
-      # foi publicado antes disso precisa ser corrigido no registry uma vez.
-      # `|| true`: uma vez públicos, repetir o comando é inofensivo, e um pacote ainda
-      # não publicado não deve derrubar o job.
-      - name: Ensure scoped packages are public
+      # parece não existir.
+      #
+      # Este passo verifica o ESTADO FINAL, e não o resultado do comando. `npm access set`
+      # devolve 403 quando o token publica mas não administra o escopo, e engolir esse 403
+      # deixa o job verde sem nenhuma garantia de que o pacote ficou instalável.
+      #
+      # A lista é derivada do workspace, nunca escrita à mão. A versão anterior era uma lista
+      # fixa de dez nomes: pacote criado depois dela nunca passava por aqui, e ninguém
+      # descobria — o job continuava verde de qualquer forma.
+      #
+      # As tentativas com espera existem porque o registry leva alguns segundos para servir o
+      # que acabou de receber; sem elas o passo acusaria falta do que estava só a caminho.
+      - name: Verificar que os pacotes publicados estão acessíveis publicamente
+        if: steps.bump.outputs.released == 'true'
         run: |
-          for pkg in \
-            keycloak-jwt \
-            secret-envelope \
-            meta-graph-core \
-            meta-whatsapp-contracts \
-            meta-whatsapp-provider \
-            meta-catalog-provider \
-            meta-whatsapp-module \
-            text-moderation \
-            conversations-ui \
-            products-ui
-          do
-            echo "--- @adatechnology/$pkg"
-            npm access set status=public "@adatechnology/$pkg" || true
-            npm view "@adatechnology/$pkg" version dist-tags || echo "    (não encontrado no registry)"
+          # Só o que este release publicou: é o commit de versão que diz quais manifests mudaram.
+          # Conferir os ~50 pacotes do monorepo em sequência custava ~2 min por release.
+          mkdir -p "$RUNNER_TEMP/verify"
+          rm -f "$RUNNER_TEMP/verify"/*
+
+          verificar() {
+            manifest="$1"
+            nome=$(jq -r '.name' "$manifest")
+            versao=$(jq -r '.version' "$manifest")
+            privado=$(jq -r '.private // false' "$manifest")
+
+            case "$nome" in @adatechnology/*) ;; *) return 0 ;; esac
+            [ "$privado" = "true" ] && return 0
+
+            npm access set status=public "$nome" >/dev/null 2>&1 || true
+
+            # Sem credencial, de propósito: é a visão de quem vai instalar. `npm view` com o
+            # token do CI enxerga pacote privado e diria que está tudo bem.
+            url="https://registry.npmjs.org/$(printf '%s' "$nome" | sed 's|/|%2f|')/$versao"
+
+            # Espera crescente (5+10+20+40+60+60 = ~3min por pacote): propagação passa sozinha,
+            # restrição de acesso nunca passa. Os pacotes esperam em paralelo, então o pior caso
+            # é o de um pacote só, e não a soma de todos.
+            for espera in 0 5 10 20 40 60 60; do
+              [ "$espera" -gt 0 ] && sleep "$espera"
+              if curl -fsS -o /dev/null "$url"; then
+                echo "ok       $nome@$versao"
+                return 0
+              fi
+            done
+            echo "FALTANDO $nome@$versao"
+            echo "$nome@$versao" >> "$RUNNER_TEMP/verify/faltando"
+          }
+
+          for manifest in $(git diff --name-only HEAD~1 HEAD -- 'packages/backend/*/package.json' 'packages/frontend/*/package.json'); do
+            [ -f "$manifest" ] || continue
+            verificar "$manifest" &
           done
+          wait
+
+          if [ -s "$RUNNER_TEMP/verify/faltando" ]; then
+            faltando=$(paste -sd " " "$RUNNER_TEMP/verify/faltando")
+            echo
+            echo "::error::Publicado com sucesso mas inacessível para quem instala: $faltando"
+            echo "Torne o pacote público no registry (npm access set status=public) com uma conta"
+            echo "que administre o escopo @adatechnology, ou dê essa permissão ao token do CI."
+            exit 1
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -107,12 +150,120 @@ jobs:
       # não lê changelog. O registry guarda o aviso por versão, então repetir o comando a
       # cada release é inofensivo; `|| true` evita que uma linha ainda não publicada, ou uma
       # falha de rede no registry, derrube um release que já concluiu a publicação.
+      # Em pre mode, a dist-tag do prerelease (`rc`) precisa apontar para o que acabou de sair.
+      # Ela não estava: medido em 02/09/2026, `document-intake` tinha `rc` em 0.1.0-rc.1 com a
+      # 0.1.0-rc.4 publicada, e `notification-ui` tinha `rc` em 0.1.0-rc.1 com a 0.1.0-rc.9. Quem
+      # instala com `@rc` recebia a primeira versão da linha, meses atrás, sem nenhum erro que
+      # denunciasse isso — o pior tipo de defeito de publicação, porque o install é verde.
+      #
+      # A correção é idempotente e derivada do workspace, nunca de uma lista escrita à mão: a tag sai
+      # de `.changeset/pre.json` e a versão sai do próprio `package.json`, então ela vale para pacote
+      # criado depois deste passo. Fora do pre mode o passo não faz nada.
+      #
+      # ⚠️ Não mexe em `latest`. Que `latest` aponte para prerelease é outro defeito, e mais grave
+      # (`conversations-ui` tem `latest` em 0.0.0), mas corrigi-lo muda o que `npm install` sem tag
+      # entrega em produto de terceiro — é decisão de produto, não de pipeline.
+      - name: Apontar a dist-tag de prerelease para o que foi publicado
+        run: |
+          if [ ! -f .changeset/pre.json ]; then
+            echo "Fora do pre mode: nada a fazer."
+            exit 0
+          fi
+
+          tag=$(jq -r '.tag // empty' .changeset/pre.json)
+          if [ -z "$tag" ]; then
+            echo "pre.json sem tag: nada a fazer."
+            exit 0
+          fi
+
+          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
+            [ -f "$manifest" ] || continue
+
+            nome=$(jq -r '.name' "$manifest")
+            versao=$(jq -r '.version' "$manifest")
+            privado=$(jq -r '.private // false' "$manifest")
+
+            case "$nome" in @adatechnology/*) ;; *) continue ;; esac
+            [ "$privado" = "true" ] && continue
+            # Versão estável não usa a tag de prerelease.
+            case "$versao" in *-*) ;; *) continue ;; esac
+
+            atual=$(npm view "$nome" "dist-tags.$tag" 2>/dev/null || true)
+            if [ "$atual" = "$versao" ]; then
+              echo "ok    $nome  $tag ja em $versao"
+              continue
+            fi
+
+            # `|| true`: a tag é conveniência de instalação, e falhar aqui derrubaria um release que
+            # já publicou. O desvio fica no log, e o passo seguinte de qualquer forma não depende dela.
+            if npm dist-tag add "$nome@$versao" "$tag" >/dev/null 2>&1; then
+              echo "movida $nome  $tag: ${atual:-<ausente>} -> $versao"
+            else
+              echo "::warning::Nao consegui mover $tag de $nome para $versao (era ${atual:-<ausente>})"
+            fi
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # `latest` em 0.0.0 é acidente de andaime, nunca release: `conversations-ui` e `products-ui`
+      # tiveram o 0.0.0 publicado no mesmo segundo (26/07/2026 13:36:52), antes de terem conteúdo, e
+      # a tag ficou lá. Consequência medida: `npm install @adatechnology/conversations-ui` entregava
+      # um pacote vazio enquanto o código real estava em 0.1.0-rc.44 — e, como antes, sem erro nenhum.
+      #
+      # ⚠️ A regra é **só** o 0.0.0, e isso não é timidez: para a maioria dos pacotes `latest` aponta
+      # de propósito para o **último estável** enquanto uma linha de prerelease corre por fora
+      # (`auth-keycloak` em 0.1.18 com 1.0.0-rc.1 em andamento, `fiscal-provider` em 0.2.0 com
+      # 0.3.0-rc.7). Mover esses empurraria código não lançado para todo mundo que faz `npm install`
+      # sem tag — o oposto do que este passo existe para consertar.
+      - name: Tirar o latest do 0.0.0 de andaime
+        run: |
+          corrigir() {
+            manifest="$1"
+            nome=$(jq -r '.name' "$manifest")
+            versao=$(jq -r '.version' "$manifest")
+            privado=$(jq -r '.private // false' "$manifest")
+
+            case "$nome" in @adatechnology/*) ;; *) return 0 ;; esac
+            [ "$privado" = "true" ] && return 0
+
+            atual=$(npm view "$nome" dist-tags.latest 2>/dev/null || true)
+            [ "$atual" = "0.0.0" ] || return 0
+            [ "$versao" = "0.0.0" ] && return 0
+
+            if npm dist-tag add "$nome@$versao" latest >/dev/null 2>&1; then
+              echo "latest  $nome: 0.0.0 -> $versao"
+            else
+              echo "::warning::Nao consegui mover latest de $nome para $versao"
+            fi
+          }
+
+          # Uma consulta ao registry por pacote: em paralelo (lotes de 8) em vez de uma atrás da outra.
+          contador=0
+          for manifest in packages/backend/*/package.json packages/frontend/*/package.json; do
+            [ -f "$manifest" ] || continue
+            corrigir "$manifest" &
+            contador=$((contador + 1))
+            if [ $((contador % 8)) -eq 0 ]; then wait; fi
+          done
+          wait
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Deprecate legacy package lines
         run: |
           deprecate() {
             echo "--- $1"
             npm deprecate "$1" "$2" || true
           }
+
+          # As duas primeiras versoes do provider de visao saíram com engine que nao funciona. O
+          # aviso vive aqui porque e o unico lugar que alcanca quem ja instalou: ele aparece no
+          # proprio `npm install`, e nao no changelog que ninguem le.
+          deprecate "@adatechnology/product-vision-provider@0.1.0-rc.2" \
+            "Versao com defeito: o leitor de codigo de barras usava nomes de formato que o zbar nao devolve, entao nenhuma foto era lida — a leitura voltava sempre vazia, sem erro. Use 0.1.0-rc.4 ou maior."
+
+          deprecate "@adatechnology/product-vision-provider@0.1.0-rc.3" \
+            "Versao com o engine CLIP quebrado: a imagem era passada como data URL e o transformers.js tenta buscar a URL, entao toda foto falhava com 404. O leitor de codigo de barras funciona nesta versao. Use 0.1.0-rc.4 ou maior."
 
           deprecate "@adatechnology/keycloak-admin@<=0.1.16" \
             "Este nome agora é o cliente agnóstico da Admin API (client_credentials, sem framework). A implementação NestJS mudou para @adatechnology/nestjs-keycloak-admin — troque o nome da dependência, o comportamento é o mesmo."

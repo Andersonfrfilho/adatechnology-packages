@@ -6,7 +6,9 @@ export { FlowMapCanvas } from './FlowMapCanvas'
 export { FlowGroupFrame, flowGroupFrameNodeTypes } from './FlowGroupFrame'
 export { FlowGroupHeader, flowGroupHeaderNodeTypes } from './FlowGroupHeader'
 export { FlowPortalNode, flowPortalNodeTypes } from './FlowPortalNode'
-export { FlowPalette } from './FlowPalette'
+export { FlowPalette, FlowPaletteMenu } from './FlowPalette'
+export { FlowLegend } from './FlowLegend'
+export { FlowConnectionEdge, flowEdgeTypes } from './FlowConnectionEdge'
 export { FlowNodePanel } from './FlowNodePanel'
 export { FlowWhatsAppPreview } from './FlowWhatsAppPreview'
 export { FlowsWorkspace } from './FlowsWorkspace'
@@ -16,6 +18,7 @@ export { DEFAULT_FLOW_EDITOR_LABELS, mergeFlowEditorLabels } from './labels'
 export {
   CONDITION_OPERATORS,
   BUILT_IN_ACTION_KINDS,
+  PASS_THROUGH_ACTION_KINDS,
   NODE_CARD_WIDTH,
   WHATSAPP_LIMITS,
   CROSS_FLOW_PREFIX,

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { CHAT_TEXT_PRIMARY_CLASS, CHAT_TEXT_SECONDARY_CLASS } from './theme'
 import { Avatar } from './Avatar'
 import { contactFlag, formatContactHandle } from './conversationChannel'
 import type { ConversationSummary } from './providers/types'
@@ -149,7 +150,7 @@ export const ConversationListItem = ({
           <div className="flex items-center gap-1.5 min-w-0">
             {/* Sem nome, o título já é o telefone — a bandeira vai nele. */}
             {!conversation.clientName && flag ? <span aria-hidden>{flag}</span> : null}
-            <span className="text-[16px] text-[#111b21] truncate">{name}</span>
+            <span className={`text-[16px] ${CHAT_TEXT_PRIMARY_CLASS} truncate`}>{name}</span>
             {windowStatus && windowStatus.label === 'expired' && (
               <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" data-cv-tooltip={expiredWindowLabel} />
             )}
@@ -158,20 +159,20 @@ export const ConversationListItem = ({
             )}
           </div>
           {timestamp && (
-            <span className="text-xs text-[#667781] flex-shrink-0">{timestamp}</span>
+            <span className={`text-xs ${CHAT_TEXT_SECONDARY_CLASS} flex-shrink-0`}>{timestamp}</span>
           )}
         </div>
         {/* Telefone só como subtítulo quando o título é o nome — repetir o número embaixo dele
             mesmo gastaria uma linha para dizer duas vezes a mesma coisa. */}
         {conversation.clientName ? (
-          <div className="flex items-center gap-1 text-xs text-[#667781]">
+          <div className={`flex items-center gap-1 text-xs ${CHAT_TEXT_SECONDARY_CLASS}`}>
             {flag ? <span aria-hidden>{flag}</span> : null}
             <span className="truncate">{displayHandle}</span>
           </div>
         ) : null}
 
         <div className="flex items-center justify-between mt-0.5">
-          <span className="text-sm text-[#667781] truncate max-w-[180px]">
+          <span className={`text-sm ${CHAT_TEXT_SECONDARY_CLASS} truncate max-w-[180px]`}>
             {preview.icon && <span className="mr-1">{preview.icon}</span>}
             {preview.preview || 'Sem mensagens'}
           </span>

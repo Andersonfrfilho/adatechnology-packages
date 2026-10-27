@@ -6,6 +6,7 @@
  */
 
 import type {
+  AvatarStoragePort,
   ClockPort,
   EmailDriverPort,
   LoggerPort,
@@ -30,6 +31,7 @@ export type UserDependencies = {
   readonly logger?: LoggerPort
   readonly email?: EmailDriverPort
   readonly keycloak?: KeycloakVerifierPort
+  readonly avatar?: AvatarStoragePort
 }
 
 /**

@@ -21,6 +21,7 @@ import {
   windowOf,
   type ConversationWindow,
 } from './conversationWindow'
+import { REPLY_LATENCY, replyLatencyOf } from './replyLatency'
 
 
 const WINDOW_TITLE: Record<ConversationWindow, string> = {
@@ -33,6 +34,14 @@ const WINDOW_TITLE: Record<ConversationWindow, string> = {
 
 // Abaixo disto a conversa é recente e o aviso de "parada" só faria ruído.
 const STALLED_THRESHOLD_MS = 60 * 60 * 1000
+
+// Verde só até 6h: a partir daí o selo perde a cor de "tudo certo", que é o sinal que o operador
+// varre na lista. Crítico ganha vermelho para não se confundir com uma espera de 7h.
+const REPLY_LATENCY_PILL_CLASS = {
+  [REPLY_LATENCY.WITHIN]: 'cv-pill--success',
+  [REPLY_LATENCY.LATE]: 'cv-pill--warning',
+  [REPLY_LATENCY.CRITICAL]: 'cv-pill--danger',
+} as const
 
 const TAKEOVER_LABEL = 'Continuar Atendimento'
 
@@ -81,6 +90,13 @@ export function ConversationRow({
   // ao `waitingHuman` escondia justamente o caso ruim: conversa assumida e esquecida.
   const isStalled = stalledMs > STALLED_THRESHOLD_MS
   const isWaiting = conversation.mode === 'bot' && conversation.waitingHuman
+  // Espera do cliente por resposta — outra coisa que a janela de sessão acima: aqui o relógio para
+  // quando alguém responde. Ver `replyLatency.ts`.
+  const replyLatency = replyLatencyOf({
+    lastDirection: conversation.lastDirection,
+    lastInboundAt: conversation.lastInboundAt,
+    now,
+  })
 
   // Realce e hover ficam na linha inteira: com eles no item, só o bloco dele ficava cinza enquanto
   // checkbox, barra lateral e pills continuavam brancos — parecia meia linha selecionada.
@@ -135,6 +151,12 @@ export function ConversationRow({
           {!isWaiting && conversation.mode === 'bot' ? (
             <span className="cv-pill">
               <Bot size={ICON_SIZE_PILL} aria-hidden="true" /> bot ativo
+            </span>
+          ) : null}
+          {replyLatency ? (
+            <span className={cn('cv-pill', REPLY_LATENCY_PILL_CLASS[replyLatency])}>
+              <AlarmClock size={ICON_SIZE_PILL} aria-hidden="true" /> sem resposta há{' '}
+              {formatStalledFor(conversation.lastInboundAt ?? conversation.lastAt, now)}
             </span>
           ) : null}
           {isStalled ? (

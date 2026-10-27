@@ -3,7 +3,7 @@
  */
 
 import { Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { AVAILABILITY_EXCEPTION_KIND } from '@adatechnology/scheduling-contracts'
 import type { AvailabilityExceptionKind, ResourceId } from '@adatechnology/scheduling-contracts'
 
@@ -14,6 +14,7 @@ import {
 } from '../hooks/useAvailabilityMutations.mutation'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+import { SelectField, type SelectOption } from './SelectField'
 import { DateTimeField } from './DateTimeField'
 import { formatDateTimeLocalInTimeZone, parseDateTimeLocalInTimeZone } from './datetimeLocal.util'
 
@@ -28,6 +29,14 @@ const SELECT_CLASS =
 export function AvailabilityExceptionsEditor({ resourceId, timezone }: AvailabilityExceptionsEditorProps) {
   const { locale } = useSchedulingConfig()
   const messages = resolveSchedulingMessages(locale)
+
+  const kindOptions = useMemo<readonly SelectOption[]>(
+    () => [
+      { value: AVAILABILITY_EXCEPTION_KIND.BLOCK, label: messages['availability.exceptionKind.blocked'] },
+      { value: AVAILABILITY_EXCEPTION_KIND.EXTRA, label: messages['availability.exceptionKind.extra'] },
+    ],
+    [messages],
+  )
   const { data, isLoading, isError: isLoadError } = useAvailabilityExceptions(resourceId)
   const addException = useAddAvailabilityException()
   const removeException = useRemoveAvailabilityException()
@@ -112,15 +121,13 @@ export function AvailabilityExceptionsEditor({ resourceId, timezone }: Availabil
           value={until}
           onChange={setUntil}
         />
-        <select
-          aria-label={messages['availability.exceptionKind.blocked']}
+        <SelectField
+          hideLabel
+          label={messages['availability.exceptionsTitle']}
           value={kind}
-          onChange={(event) => setKind(event.target.value as AvailabilityExceptionKind)}
-          className={SELECT_CLASS}
-        >
-          <option value={AVAILABILITY_EXCEPTION_KIND.BLOCK}>{messages['availability.exceptionKind.blocked']}</option>
-          <option value={AVAILABILITY_EXCEPTION_KIND.EXTRA}>{messages['availability.exceptionKind.extra']}</option>
-        </select>
+          options={kindOptions}
+          onChange={(next) => setKind(next as AvailabilityExceptionKind)}
+        />
         <input
           aria-label={messages['availability.exceptionReason']}
           type="text"

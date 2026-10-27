@@ -54,6 +54,30 @@ export {
   SeedDefaultTemplatesUseCase,
 } from './use-cases/Template.use-cases'
 
+export { StandardEmailService } from './use-cases/StandardEmail.use-cases'
+export {
+  STANDARD_EMAIL_ERROR_CODES,
+  StandardEmailTemplateInvalidError,
+  StandardEmailTemplateRequiredError,
+} from './use-cases/StandardEmail.errors'
+// O host que monta o e-mail padrão precisa destes sem declarar dependência direta dos contracts.
+export {
+  STANDARD_EMAIL_BUILTIN_TEMPLATE,
+  STANDARD_EMAIL_CHANNEL,
+  STANDARD_EMAIL_LOCALE,
+  STANDARD_EMAIL_REQUIRED_VARIABLES,
+  STANDARD_EMAIL_TEMPLATE_KEY,
+  STANDARD_EMAIL_VARIABLES,
+  assessStandardEmailTemplate,
+  renderStandardEmail,
+} from '@adatechnology/notification-contracts'
+export type {
+  RenderedStandardEmail,
+  StandardEmailAssessment,
+  StandardEmailInput,
+  StandardEmailTemplate,
+} from '@adatechnology/notification-contracts'
+
 export { createDefaultTemplateRenderer, renderDefaultTemplate } from './shared/DefaultTemplateRenderer'
 export { createInProcessQueue } from './shared/InProcessQueue'
 export { planDeliveries } from './shared/planDeliveries'
@@ -96,7 +120,7 @@ export type {
 } from './schema/schema'
 
 export { runNotificationMigrations, notificationMigrationsFolder, NOTIFICATION_MIGRATIONS_TABLE } from './runMigrations'
-export type { RunNotificationMigrationsParams } from './runMigrations'
+export type { RunNotificationMigrationsParams, NotificationMigrationsLayout } from './runMigrations'
 
 export { encodeNotificationCursor, decodeNotificationCursor } from './repositories/cursor'
 export type { NotificationCursor } from './repositories/cursor'
@@ -115,3 +139,7 @@ export { TemplateRepository } from './repositories/TemplateRepository'
 export type { UpsertTemplateInput } from './repositories/TemplateRepository'
 
 export { SuppressionRepository } from './repositories/SuppressionRepository'
+
+/** Descobre quais valores do payload sao anexo, pelo `kind` do catalogo de variaveis. */
+export { resolveEmailAttachments } from './use-cases/resolveEmailAttachments'
+export type { ResolveEmailAttachmentsParams } from './use-cases/resolveEmailAttachments'

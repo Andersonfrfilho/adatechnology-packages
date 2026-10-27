@@ -25,6 +25,12 @@ export const createProductSchema = z.object({
   priceInCents,
   costPriceInCents: priceInCents.optional(),
   unit: z.string().min(1).max(16).optional(),
+  brand: z.string().min(1).max(80).optional(),
+  unitSize: z.string().min(1).max(24).optional(),
+  aisle: z.string().min(1).max(60).optional(),
+  // Teto no numero e no tamanho: `aliases` alimenta um indice GIN e vem de formulario, entao sem
+  // limite uma linha so poderia inchar o indice da tabela inteira.
+  aliases: z.array(z.string().min(1).max(60)).max(20).optional(),
   barcode: barcode.optional(),
   catalogId: z.string().uuid().optional(),
   sectionId: z.string().uuid().optional(),
@@ -97,6 +103,9 @@ export const bulkImportRowSchema = z.object({
   price: z.union([z.string(), z.number()]),
   description: z.string().max(2000).optional(),
   unit: z.string().max(16).optional(),
+  brand: z.string().max(80).optional(),
+  unitSize: z.string().max(24).optional(),
+  aisle: z.string().max(60).optional(),
   barcode: z.string().max(14).optional(),
   catalogName: z.string().max(120).optional(),
   sectionName: z.string().max(80).optional(),

@@ -14,7 +14,7 @@ export default defineConfig({
     // Falha alto de proposito: um pacote publicado sem `dist/migrations` instala limpo, sobe
     // limpo e so quebra quando o host descobre que o schema `user` nunca foi criado. Engolir o
     // erro aqui trocaria um build vermelho por um incidente em producao.
-    const entries = await readdir('src/migrations').catch(() => {
+    const entries = await readdir('src/migrations', { recursive: true }).catch(() => {
       throw new Error('user-module: src/migrations ausente — rode `bun run db:generate` antes de buildar')
     })
     if (!entries.some((entry) => entry.endsWith('.sql'))) {

@@ -56,6 +56,25 @@ export interface FlowEditorLabels {
     media: string
     mediaUnavailable: string
   }
+  quickAdd: {
+    fromHandle: string
+    title: string
+    disconnect: string
+  }
+  /** Legenda do canvas: o que cada traço e cada contorno querem dizer. */
+  legendPanel: {
+    title: string
+    nodes: string
+    connections: string
+    linear: string
+    branch: string
+    fallback: string
+    crossFlow: string
+    live: string
+    selfLoop: string
+    detached: string
+    startNode: string
+  }
   palette: {
     title: string
     question: string
@@ -224,6 +243,24 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     media: 'Arquivos enviados neste ponto',
     mediaUnavailable: 'A biblioteca de arquivos não está disponível neste painel.',
   },
+  quickAdd: {
+    fromHandle: 'Criar o próximo nó já ligado aqui',
+    title: 'Ligar em um nó novo',
+    disconnect: 'Desligar este fio (o nó continua no fluxo)',
+  },
+  legendPanel: {
+    title: 'Legenda',
+    nodes: 'Cards',
+    connections: 'Ligações',
+    linear: 'Segue direto para o próximo',
+    branch: 'Caminho de uma opção escolhida',
+    fallback: 'Quando a resposta não casa com nenhuma opção',
+    crossFlow: 'Salta para outro fluxo',
+    live: 'Tem conversa passando por aqui agora',
+    selfLoop: 'Volta ao mesmo card — repete a pergunta',
+    detached: 'Ninguém aponta para este card: o bot não chega nele',
+    startNode: 'Onde o fluxo começa',
+  },
   palette: {
     title: 'Adicionar ao fluxo',
     question: 'Pergunta',
@@ -316,6 +353,8 @@ export function mergeFlowEditorLabels(override?: Partial<FlowEditorLabels>): Flo
     },
     questionTypeLabels: { ...DEFAULT_FLOW_EDITOR_LABELS.questionTypeLabels, ...override.questionTypeLabels },
     nodePanel: { ...DEFAULT_FLOW_EDITOR_LABELS.nodePanel, ...override.nodePanel },
+    quickAdd: { ...DEFAULT_FLOW_EDITOR_LABELS.quickAdd, ...override.quickAdd },
+    legendPanel: { ...DEFAULT_FLOW_EDITOR_LABELS.legendPanel, ...override.legendPanel },
     palette: { ...DEFAULT_FLOW_EDITOR_LABELS.palette, ...override.palette },
     flowMap: { ...DEFAULT_FLOW_EDITOR_LABELS.flowMap, ...override.flowMap },
     flowGroup: { ...DEFAULT_FLOW_EDITOR_LABELS.flowGroup, ...override.flowGroup },

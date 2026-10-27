@@ -18,6 +18,8 @@ import type { DevicePlatform, PushDriver, SuppressionReason } from './notificati
  * - `retriable` reagenda com backoff exponencial + jitter até esgotar `attempts`;
  * - `permanent` finaliza como `failed` na primeira tentativa.
  */
+import type { EmailAttachment } from './emailAttachment'
+
 export type DeliveryAttemptResult =
   | { readonly outcome: 'sent'; readonly providerMessageId?: string }
   | { readonly outcome: 'invalid_target'; readonly errorCode: string; readonly suppressionReason?: SuppressionReason }
@@ -43,6 +45,11 @@ export type SendEmailParams = {
   readonly html: string
   readonly text: string
   readonly replyTo?: string
+  /**
+   * Anexos por REFERÊNCIA: o driver baixa de `url` no momento do envio. Ver `emailAttachment.ts`
+   * para por que o conteúdo não trafega aqui.
+   */
+  readonly attachments?: readonly EmailAttachment[]
   /** Correlaciona o recibo assíncrono (bounce/complaint) com a `delivery` que o originou. */
   readonly idempotencyKey?: string
 }

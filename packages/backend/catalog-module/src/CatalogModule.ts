@@ -6,7 +6,12 @@
  * não existem.
  */
 
-import { ConfigMissingError, MetaSyncDisabledError } from '@adatechnology/catalog-contracts'
+import {
+  ConfigMissingError,
+  MetaSyncDisabledError,
+  VisionDimensionsMismatchError,
+  VisionModelMismatchError,
+} from '@adatechnology/catalog-contracts'
 import type {
   CatalogHooks,
   CatalogModuleConfig,
@@ -16,10 +21,13 @@ import type {
   MetaCatalogSyncPort,
   ProductImageStoragePort,
   ProductSuggestionPort,
+  ProductVisionPort,
   WebhookNonceStorePort,
 } from '@adatechnology/catalog-contracts'
 
 import type { CatalogDatabase } from './database.types'
+import { PRODUCT_EMBEDDING_DIMENSIONS } from './schema/vision.schema'
+import { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
 import { CatalogRepository } from './repositories/CatalogRepository'
 import { ProductRepository } from './repositories/ProductRepository'
 import { SectionRepository } from './repositories/SectionRepository'
@@ -53,6 +61,8 @@ import {
   ListProductsUseCase,
   UpdateProductUseCase,
 } from './use-cases/Product.use-cases'
+import { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'
+import { IndexProductImagesUseCase } from './use-cases/IndexProductImages.use-case'
 
 export type CatalogModuleProviders = {
   /** Guarda de reentrega do webhook de catálogo. Ausente, evento reentregue é processado de novo. */
@@ -60,6 +70,11 @@ export type CatalogModuleProviders = {
   readonly imageStorage?: ProductImageStoragePort
   readonly metaSync?: MetaCatalogSyncPort
   readonly productSuggestion?: ProductSuggestionPort
+  /**
+   * Identificacao visual de produto. Ausente, a busca por imagem nao existe: o use-case nao e
+   * construido e `hasVision` sai `false`, entao o canal nem oferece o affordance.
+   */
+  readonly vision?: ProductVisionPort
   readonly clock?: ClockPort
   readonly logger?: LoggerPort
 }
@@ -104,6 +119,10 @@ export type CatalogModule = {
     readonly recordMetaReviewVerdict: RecordMetaReviewVerdictUseCase
     /** Capacidade por ausência: sem `config.webhook`, a rota de webhook não existe. */
     readonly receiveCatalogWebhook?: ReceiveCatalogWebhookUseCase
+    /** Idem para a visão: sem `providers.vision`, identificar produto por foto não existe. */
+    readonly identifyProductByImage?: IdentifyProductByImageUseCase
+    /** Varredura que popula o índice visual; exige `imageStorage.fetch` além da porta de visão. */
+    readonly indexProductImages?: IndexProductImagesUseCase
   }
   /** Reexposta para as rotas decidirem o que montar sem receber a config por fora. */
   readonly config: CatalogModuleConfig
@@ -113,6 +132,15 @@ export type CatalogModule = {
   readonly lookup: CatalogProductLookup
   /** Capacidade por ausência: sem porta de storage, a rota de upload não é publicada. */
   readonly hasImageStorage: boolean
+  /** Idem para a busca por imagem: sem porta de visão, a rota não sobe e o canal não a oferece. */
+  readonly hasVision: boolean
+  /**
+   * Confere o indice contra o modelo do provider. E assincrona porque le o banco, e por isso nao
+   * cabe no boot sincrono — o host chama depois das migrations, no startup.
+   *
+   * Ausente sem `providers.vision`: nao ha indice a conferir.
+   */
+  readonly verifyVisionIndex?: (params: { readonly companyId: string }) => Promise<void>
 }
 
 /** Teto da listagem do canal: lista interativa de WhatsApp não comporta mais que isso. */
@@ -127,6 +155,14 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
   const wantsMetaSync = params.config.metaSync?.products || params.config.metaSync?.catalogs
   if (wantsMetaSync && !params.providers?.metaSync) throw new MetaSyncDisabledError()
 
+  // A coluna do indice tem tamanho fixo, entao um provider de outra dimensao so poderia gravar
+  // vetor truncado — que continua respondendo, com o produto errado. Falhar aqui e o que impede
+  // o indice de ser envenenado por uma troca de modelo silenciosa.
+  const embeddingModel = params.providers?.vision?.embeddingModel
+  if (embeddingModel && embeddingModel.dimensions !== PRODUCT_EMBEDDING_DIMENSIONS) {
+    throw new VisionDimensionsMismatchError(PRODUCT_EMBEDDING_DIMENSIONS, embeddingModel.dimensions)
+  }
+
   const dependencies: CatalogDependencies = {
     products: new ProductRepository(params.db),
     catalogs: new CatalogRepository(params.db),
@@ -138,6 +174,8 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
     imageStorage: params.providers?.imageStorage,
     metaSync: params.providers?.metaSync,
     productSuggestion: params.providers?.productSuggestion,
+    vision: params.providers?.vision,
+    ...(params.providers?.vision ? { productEmbeddings: new ProductEmbeddingRepository(params.db) } : {}),
     webhookNonceStore: params.providers?.webhookNonceStore,
   }
 
@@ -171,6 +209,10 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       retryFailedSyncs: new RetryFailedSyncsUseCase(dependencies),
       recordMetaReviewVerdict: new RecordMetaReviewVerdictUseCase(dependencies),
       ...(params.config.webhook ? { receiveCatalogWebhook: new ReceiveCatalogWebhookUseCase(dependencies) } : {}),
+      ...(params.providers?.vision ? { identifyProductByImage: new IdentifyProductByImageUseCase(dependencies) } : {}),
+      ...(embeddingModel && params.providers?.imageStorage?.fetch
+        ? { indexProductImages: new IndexProductImagesUseCase(dependencies) }
+        : {}),
     },
 
     config: params.config,
@@ -188,6 +230,21 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       : [],
 
     hasImageStorage: Boolean(params.providers?.imageStorage),
+    hasVision: Boolean(params.providers?.vision),
+
+    ...(embeddingModel && dependencies.productEmbeddings
+      ? {
+          verifyVisionIndex: async ({ companyId }: { readonly companyId: string }): Promise<void> => {
+            const repository = dependencies.productEmbeddings
+            if (!repository) return
+            const indexed = await repository.listIndexedModels({ companyId })
+            // Indice vazio nao e divergencia: e uma base que ainda nao indexou, e o proximo
+            // upsert a preenche com o modelo corrente.
+            const foreign = indexed.find((model) => model !== embeddingModel.id)
+            if (foreign) throw new VisionModelMismatchError(foreign, embeddingModel.id)
+          },
+        }
+      : {}),
 
     lookup: {
       async findByRetailerId({ companyId, retailerId }) {

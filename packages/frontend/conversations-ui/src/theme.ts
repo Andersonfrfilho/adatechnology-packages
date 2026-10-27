@@ -28,3 +28,16 @@ export function getCustomStyles(theme?: ConversationsTheme): Record<string, stri
 
   return styles
 }
+
+/**
+ * Texto do chat nos dois temas.
+ *
+ * Existe porque as cores viviam cravadas em hexadecimal na marcação, sem variante escura: nome do
+ * cliente em `#111b21` e número, horário e prévia em `#667781` — os cinzas do WhatsApp CLARO. Com o
+ * tema escuro ligado eles continuavam escuros sobre fundo escuro, e a lista virava texto quase
+ * ilegível. O mesmo par aparecia dentro do balão, que também escurece.
+ *
+ * Os valores escuros são os que o próprio WhatsApp usa, para a tela não inventar uma paleta própria.
+ */
+export const CHAT_TEXT_PRIMARY_CLASS = 'text-[#111b21] dark:text-[#e9edef]'
+export const CHAT_TEXT_SECONDARY_CLASS = 'text-[#667781] dark:text-[#8696a0]'

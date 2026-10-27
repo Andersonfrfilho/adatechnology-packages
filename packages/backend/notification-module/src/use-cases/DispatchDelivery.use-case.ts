@@ -17,7 +17,9 @@ import type {
   SendWhatsAppParams,
 } from '@adatechnology/notification-contracts'
 
+import type { DeliveryAttachmentAudit } from '../schema/schema'
 import { applyDeliveryOutcome } from './applyDeliveryOutcome'
+import { resolveEmailAttachments } from './resolveEmailAttachments'
 import type { DispatchDeliveryConfig, DispatchDeliveryDependencies } from './dispatchDelivery.types'
 
 function permanentOutcome(errorCode: string): DeliveryAttemptResult {
@@ -95,11 +97,12 @@ export class DispatchDeliveryUseCase {
     })
 
     const address = delivery.channel === NOTIFICATION_CHANNEL.EMAIL ? recipient.email : recipient.phone
-    const { outcome, resolvedAddress } = await this.sendThroughDriver({
+    const { outcome, resolvedAddress, attachments } = await this.sendThroughDriver({
       delivery,
       rendered,
       recipient,
       template,
+      notification: { templateKey: notification.templateKey, payload: notification.payload },
       address,
     })
 
@@ -110,18 +113,26 @@ export class DispatchDeliveryUseCase {
       notification,
       outcome,
       address: resolvedAddress,
+      ...(attachments ? { attachments } : {}),
       now,
     })
   }
 
   private async sendThroughDriver(params: {
-    delivery: { channel: string; deviceId: string | null }
+    delivery: { id: string; channel: string; deviceId: string | null }
     rendered: { title: string; body: string; html?: string }
     recipient: { email?: string; phone?: string }
     template: { whatsappTemplateName?: string | null }
+    /** Chave e payload da notificação: é o par que descobre quais valores são anexo. */
+    notification: { templateKey: string; payload: Readonly<Record<string, unknown>> }
     address?: string
-  }): Promise<{ outcome: DeliveryAttemptResult; resolvedAddress?: string }> {
-    const { delivery, rendered, recipient, template, address } = params
+  }): Promise<{
+    outcome: DeliveryAttemptResult
+    resolvedAddress?: string
+    /** Nome e tipo do que foi anexado — sem url e sem conteudo, e o que a `delivery` guarda. */
+    attachments?: readonly DeliveryAttachmentAudit[]
+  }> {
+    const { delivery, rendered, recipient, template, notification, address } = params
 
     if (delivery.channel === NOTIFICATION_CHANNEL.PUSH) {
       if (!delivery.deviceId) return { outcome: permanentOutcome('device_unavailable') }
@@ -142,13 +153,45 @@ export class DispatchDeliveryUseCase {
       if (!recipient.email) return { outcome: permanentOutcome('recipient_unresolved') }
       if (!this.dependencies.channels.email) return { outcome: permanentOutcome('channel_not_configured') }
 
+      /**
+       * Só a REFERÊNCIA segue para o driver — é ele que baixa, na hora de montar o MIME. Os bytes
+       * não passam por aqui de propósito: este processo pode nem chegar a enviar, e carregar 25MB
+       * para descobrir isso é desperdício num processo que atende outras entregas junto.
+       */
+      const attachments = resolveEmailAttachments({
+        payload: notification.payload,
+        variables: this.config.templateVariables?.[notification.templateKey],
+      })
+
       const sendEmailParams: SendEmailParams = {
         to: recipient.email,
         subject: rendered.title,
         html: rendered.html ?? rendered.body,
         text: rendered.body,
+        ...(attachments.length > 0 ? { attachments } : {}),
       }
-      return { outcome: await this.dependencies.channels.email.send(sendEmailParams), resolvedAddress: address }
+
+      if (attachments.length > 0) {
+        /**
+         * Nome e tipo, nunca a URL: ela é assinada, e assinatura em log é credencial em log
+         * (`security.md` §1). O nome do arquivo pode ser pessoal, então ele também fica de fora —
+         * o que se registra é quantos e de que tipo.
+         */
+        this.dependencies.logger?.info('notification.dispatch_delivery.attachments', {
+          deliveryId: delivery.id,
+          count: attachments.length,
+          contentTypes: [...new Set(attachments.map((attachment) => attachment.contentType))],
+        })
+      }
+
+      return {
+        outcome: await this.dependencies.channels.email.send(sendEmailParams),
+        resolvedAddress: address,
+        attachments: attachments.map((attachment) => ({
+          filename: attachment.filename,
+          contentType: attachment.contentType,
+        })),
+      }
     }
 
     if (delivery.channel === NOTIFICATION_CHANNEL.WHATSAPP) {

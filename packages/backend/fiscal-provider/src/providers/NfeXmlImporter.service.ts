@@ -27,6 +27,8 @@ import type {
 const MAX_NFE_XML_BYTES = 5 * 1024 * 1024
 const DECIMAL_PATTERN = /^-?\d+(?:\.\d+)?$/
 const FORBIDDEN_XML_DECLARATION_PATTERN = /<!\s*(?:DOCTYPE|ENTITY)\b/i
+const GTIN_PATTERN = /^(?:\d{8}|\d{12}|\d{13}|\d{14})$/
+const SEM_GTIN_LITERAL = 'SEM GTIN'
 
 const XML_PARSER = new XMLParser({
   ignoreAttributes: false,
@@ -282,6 +284,8 @@ function parseProducts(infNfe: XmlRecord): readonly NfeXmlProduct[] {
       commercialQuantity: requireDecimal({ key: 'qCom', record: product }),
       unitValue: requireDecimal({ key: 'vUnCom', record: product }),
       totalValue: requireDecimal({ key: 'vProd', record: product }),
+      gtin: optionalGtin({ key: 'cEAN', record: product }),
+      taxableUnitGtin: optionalGtin({ key: 'cEANTrib', record: product }),
     }
   })
 }
@@ -323,6 +327,7 @@ function parseParty({ addressKey, value }: ParsePartyParams): NfeXmlParty | unde
     name: optionalString({ key: 'xNome', record: source }),
     tradeName: optionalString({ key: 'xFant', record: source }),
     stateRegistration: optionalString({ key: 'IE', record: source }),
+    email: optionalTrimmedString({ key: 'email', record: source }),
     address: parseAddress(addressSource),
   }
 
@@ -430,6 +435,7 @@ function parseEvent(processed: XmlRecord): NfeXmlEvent {
     protocol: optionalString({ key: 'nProt', record: returnInfo }) ?? optionalString({ key: 'nProt', record: detail }),
     statusCode: optionalString({ key: 'cStat', record: returnInfo }),
     reason: optionalString({ key: 'xMotivo', record: returnInfo }),
+    correctionText: type === '110110' ? optionalTrimmedString({ key: 'xCorrecao', record: detail }) : undefined,
   }
 }
 
@@ -527,6 +533,20 @@ function optionalString({ key, record }: RecordKeyParams): string | undefined {
   if (!record) return undefined
   const value = record[key]
   return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function optionalTrimmedString(params: RecordKeyParams): string | undefined {
+  const value = optionalString(params)
+  if (value === undefined) return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function optionalGtin(params: RecordKeyParams): string | undefined {
+  const value = optionalTrimmedString(params)
+  if (value === undefined) return undefined
+  if (value.toUpperCase().replace(/\s+/g, ' ') === SEM_GTIN_LITERAL) return undefined
+  return GTIN_PATTERN.test(value) ? value : undefined
 }
 
 function requireRecord(value: unknown): XmlRecord {

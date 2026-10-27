@@ -46,6 +46,26 @@ export function createS3ProductImageStorage(params: S3ProductImageStorageParams)
     async delete(key) {
       await params.storage.delete({ bucket: params.bucket, key })
     },
+
+    /**
+     * Leitura pela chave, para a indexação visual reprocessar a imagem já guardada.
+     *
+     * Pela chave e não pela `imageUrl` mesmo aqui, onde a URL é pública e estável: a URL é um
+     * detalhe de entrega — muda com CDN, com domínio, com migração de bucket — e a chave é o que
+     * o banco guarda como identidade do objeto. Buscar por HTTP ainda sairia do processo para
+     * voltar ao mesmo bucket, pagando uma volta pela internet por produto indexado.
+     */
+    async fetch(key) {
+      const stored = await params.storage.head({ bucket: params.bucket, key })
+      // Objeto ausente é o caso comum de catálogo antigo: imagem apagada do bucket com a linha do
+      // produto ainda apontando para ela. Erro claro aqui, e não um stream vazio que viraria um
+      // vetor de imagem em branco competindo com os produtos de verdade.
+      if (!stored) throw new Error(`Imagem de produto não encontrada no bucket: ${key}`)
+
+      const stream = await params.storage.get({ bucket: params.bucket, key })
+
+      return { buffer: Buffer.from(await new Response(stream).arrayBuffer()), mimeType: stored.contentType }
+    },
   }
 }
 

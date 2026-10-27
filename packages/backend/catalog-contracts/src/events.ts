@@ -19,6 +19,7 @@ export const CATALOG_EVENT = {
   SYNC_SUCCEEDED: 'catalog.sync.succeeded',
   SYNC_FAILED: 'catalog.sync.failed',
   BULK_IMPORT_FINISHED: 'catalog.bulk_import.finished',
+  PRODUCT_IMAGE_UNMATCHED: 'catalog.product_image.unmatched',
 } as const
 export type CatalogEvent = (typeof CATALOG_EVENT)[keyof typeof CATALOG_EVENT]
 
@@ -60,6 +61,22 @@ export type BulkImportFinishedEvent = BaseEvent & {
 }
 
 /**
+ * Foto que não casou com nenhum produto. É o sinal de demanda que a loja não atende — ou de item
+ * cadastrado sem imagem, que some da busca visual sem ninguém perceber.
+ *
+ * A imagem **não viaja no evento**: foto enviada por cliente é conteúdo de mensagem, e conteúdo de
+ * mensagem não entra em log nem em hook de produto (`security.md` §1). Quem precisar dela busca
+ * pela chave no storage, sob a retenção do produto.
+ */
+export type ProductImageUnmatchedEvent = BaseEvent & {
+  /** Presente quando o código foi lido mas nenhum produto da empresa tem esse GTIN. */
+  readonly barcode?: string
+  /** Melhor score do vetorial, quando houve busca. Sem isto não dá para separar "nada parecido" de "parecido e recusado". */
+  readonly bestScore?: number
+  readonly candidateCount: number
+}
+
+/**
  * Hooks são `void`-tolerantes: falha de regra do produto não pode derrubar o salvamento de um
  * produto. O módulo loga e segue.
  */
@@ -73,6 +90,7 @@ export type CatalogHooks = {
   onSyncSucceeded?(event: SyncSucceededEvent): Promise<void> | void
   onSyncFailed?(event: SyncFailedEvent): Promise<void> | void
   onBulkImportFinished?(event: BulkImportFinishedEvent): Promise<void> | void
+  onProductImageUnmatched?(event: ProductImageUnmatchedEvent): Promise<void> | void
 
   /**
    * A Meta avisou que algo mudou no catálogo **do lado dela** (produto editado no painel, item

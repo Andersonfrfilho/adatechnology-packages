@@ -2,11 +2,14 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
+import { Clock } from 'lucide-react'
 import { useState } from 'react'
 import { MAX_PAGE_SIZE } from '@adatechnology/scheduling-contracts'
 import type { ResourceId } from '@adatechnology/scheduling-contracts'
 
 import { AvailabilityEditor } from '../components/AvailabilityEditor'
+import { ResourceSelect } from '../components/ResourceSelect'
+import { EmptyState, ErrorBanner, ListSkeleton } from '../components/StateFeedback'
 import { useResources } from '../hooks/useResources.query'
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
@@ -21,30 +24,26 @@ export function AvailabilityArea() {
   const selectedResource = resources.find((resource) => resource.id === resourceId)
 
   return (
-    <div className="flex flex-1 min-h-0 min-w-0 flex-col p-4 space-y-4">
-      <label className="flex items-center gap-2 text-sm">
-        <span className="font-medium text-gray-700 dark:text-gray-300">{messages['agenda.resourceLabel']}</span>
-        <select
-          value={resourceId}
-          onChange={(event) => setResourceId(event.target.value)}
-          className="min-h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-sm"
-        >
-          <option value="">—</option>
-          {resources.map((resource) => (
-            <option key={resource.id} value={resource.id}>
-              {resource.name}
-            </option>
-          ))}
-        </select>
-      </label>
+    <div className="flex flex-1 min-h-0 min-w-0 flex-col gap-4 overflow-y-auto p-4">
+      <ResourceSelect
+        label={messages['agenda.resourceLabel']}
+        emptyOptionLabel={messages['availability.selectResourceTitle']}
+        resources={resources}
+        value={resourceId}
+        onChange={setResourceId}
+      />
 
-      {isError && (
-        <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg px-3 py-2">
-          {messages['common.loadFailure']}
-        </p>
+      {isError && <ErrorBanner message={messages['common.loadFailure']} />}
+
+      {isLoading && <ListSkeleton label={messages['common.loading']} rows={3} />}
+
+      {!isLoading && !isError && !selectedResource && (
+        <EmptyState
+          icon={Clock}
+          title={messages['availability.selectResourceTitle']}
+          hint={messages['availability.selectResourceHint']}
+        />
       )}
-
-      {isLoading && <p className="text-sm text-gray-500 dark:text-gray-400">{messages['common.loading']}</p>}
 
       {selectedResource && (
         <AvailabilityEditor

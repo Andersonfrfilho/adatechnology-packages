@@ -47,6 +47,24 @@ ou o e-mail entra na lista de supressão, em vez de a fila insistir para sempre 
 - Alvo de entrega (telefone, e-mail) nunca aparece cru em log — ver `maskTarget`/`hashTarget` no
   módulo.
 
+## Modelo padrão de e-mail (`notification.standard-email`)
+
+Moldura única de todo e-mail do sistema (canal `email`, locale `pt-BR`). Identidade (logo e nome),
+assinante e rodapé são marcação **do modelo**, com variáveis — a empresa edita o HTML, não o código.
+
+- Variáveis do sistema (HTML montado e escapado pelo sistema, usadas só pelo nome):
+  `STANDARD_EMAIL_SYSTEM_HTML_VARIABLES` (`logoEmpresa`, `corpoMensagem`, `listaAnexos`,
+  `faixaResposta`, `marcasRodape`). O resto é texto, escapado por valor.
+- Obrigatórias: `STANDARD_EMAIL_REQUIRED_VARIABLES` (corpo, logo, nome da empresa, assinante,
+  rodapé da plataforma, marcas). Modelo sem uma delas é inutilizável.
+- **Nenhuma variável em atributo ou `style`** — `findUnsafeEmailHtml` recusa.
+- `assessStandardEmailTemplate(html)` → `{ usable, missing, unsafe }`; `renderStandardEmail` renderiza
+  com texto puro (`htmlToPlainText`) e `tooLarge` acima de `STANDARD_EMAIL_HTML_MAX_BYTES`.
+  `STANDARD_EMAIL_BUILTIN_TEMPLATE` é o embutido (`source: 'builtin'`, `version: 0`).
+- Regras genéricas de e-mail HTML (reusáveis fora do padrão): `findUnsafeEmailHtml` (regras `event`,
+  `placeholder_in_tag`, `scheme`, `tag`), `htmlToPlainText`, `escapeEmailHtml`, `interpolateEmailHtml`,
+  `buildInitials`, `renderEmailLogoHtml`, `renderEmailMarksHtml`, `STANDARD_EMAIL_THEME`.
+
 ## Licença
 
 MIT © Ada Technology

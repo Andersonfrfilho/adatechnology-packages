@@ -11,6 +11,12 @@ import type { NotificationChannel } from '@adatechnology/notification-contracts'
 
 import { currentHHmmInTimezone, isWithinQuietHours, nextAllowedInstant } from './quietHours'
 
+export type ChannelPolicy = {
+  readonly category: string
+  readonly channel: string
+  readonly enabled: boolean
+}
+
 export type ChannelPreference = {
   readonly category: string
   readonly channel: string
@@ -35,6 +41,12 @@ export type PlanDeliveriesParams = {
   readonly availableChannels: ReadonlySet<NotificationChannel>
   readonly preferences: readonly ChannelPreference[]
   /**
+   * O teto da EMPRESA. Vale inclusive sobre `explicitChannels`: a política existe justamente para
+   * "cobrança nunca sai por SMS", e um chamador conseguir furá-la a tornaria decorativa. O canal
+   * barrado vira `skip` com razão registrada — some da entrega, nunca do histórico.
+   */
+  readonly policies?: readonly ChannelPolicy[]
+  /**
    * Uma janela por canal — o schema guarda `quietHoursStart`/`End` por linha de preferência
    * (`companyId, userId, category, channel`), não um horário único por usuário. Canal ausente do
    * mapa não tem janela configurada e nunca é reagendado.
@@ -58,6 +70,18 @@ function isEnabledByPreference(params: {
   return row?.enabled ?? true
 }
 
+/** Ausência de linha é permissão: a tabela nasceu vazia, e fechar por omissão calaria tudo. */
+function isAllowedByPolicy(params: {
+  category: string
+  channel: NotificationChannel
+  policies: readonly ChannelPolicy[] | undefined
+}): boolean {
+  const row = params.policies?.find(
+    (policy) => policy.category === params.category && policy.channel === params.channel,
+  )
+  return row?.enabled ?? true
+}
+
 function resolveCandidateChannels(params: PlanDeliveriesParams): NotificationChannel[] {
   if (params.explicitChannels) return [...params.explicitChannels]
   return [...params.availableChannels].filter((channel) =>
@@ -71,6 +95,11 @@ export function planDeliveries(params: PlanDeliveriesParams): PlannedChannel[] {
   return candidates.map((channel): PlannedChannel => {
     if (!params.availableChannels.has(channel)) {
       return { channel, action: 'skip', reason: 'channel_not_configured' }
+    }
+
+    // Antes da preferência e antes do inbox: a política é o teto, não mais uma opinião.
+    if (!isAllowedByPolicy({ category: params.category, channel, policies: params.policies })) {
+      return { channel, action: 'skip', reason: 'disabled_by_policy' }
     }
 
     // Inbox nunca é suprimido por preferência nem por quiet hours — é o próprio histórico do

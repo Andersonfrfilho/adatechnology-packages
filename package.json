@@ -8,10 +8,11 @@
     "prepare": "husky install",
     "bootstrap": "pnpm install",
     "build": "pnpm run build:all",
-    "build:all": "pnpm run build:libs && pnpm run build:frontend",
+    "build:all": "pnpm run build:libs && pnpm run build:frontend && pnpm run build:mcp",
     "build:backend": "pnpm run build:libs",
     "build:libs": "pnpm --filter='./packages/backend/nestjs/*' --filter='./packages/backend/!(example|nestjs)' run build",
     "build:frontend": "pnpm --filter='./packages/frontend/*' run build",
+    "build:mcp": "pnpm --filter='./packages/mcp/*' run build",
     "build:example": "pnpm --filter=example run build",
     "build:fiscal-example": "pnpm --filter=fiscal-example run build",
     "build:fiscal-example-frontend": "pnpm --filter=fiscal-example-frontend run build",
@@ -92,6 +93,7 @@
     "packages/backend/fiscal-provider/example/*",
     "packages/backend/example/*",
     "packages/backend/*",
-    "packages/frontend/*"
+    "packages/frontend/*",
+    "packages/mcp/*"
   ]
 }

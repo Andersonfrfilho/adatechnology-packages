@@ -1,13 +1,15 @@
 /**
  * Janela de sessão: o intervalo em que o canal aceita mensagem livre do atendente. No WhatsApp são
  * 24h desde o último contato do cliente; fora dela só template. Cada canal tem a sua regra — e há
- * canal sem janela nenhuma — então a política vem de `capabilitiesOf`, não de constante fixa.
+ * canal sem janela nenhuma — então a política vem de `channelCapabilityFor` (RF10), não de
+ * constante fixa.
  *
  * Mora no SDK porque é regra de plataforma, não de produto: todo projeto que usa este pacote
  * precisa dela para saber o que o atendente ainda consegue fazer.
  */
 
-import { capabilitiesOf, type ConversationChannel } from './conversationChannel'
+import { channelCapabilityFor } from './channelCapability'
+import type { ConversationChannel } from './conversationChannel'
 
 const MINUTE_MS = 60_000
 const HOUR_MS = 60 * MINUTE_MS
@@ -52,12 +54,12 @@ export type WindowOfParams = {
  * bloquearia o composer inventando um limite que a plataforma não impõe.
  */
 export function windowOf(params: WindowOfParams): ConversationWindow {
-  const capabilities = capabilitiesOf(params.channel)
-  if (!capabilities.hasSessionWindow) return CONVERSATION_WINDOW.FRESH
+  const capability = channelCapabilityFor(params.channel)
+  if (capability.sessionWindowHours === null) return CONVERSATION_WINDOW.FRESH
 
   if (!params.lastInboundAt) return CONVERSATION_WINDOW.EXPIRED
 
-  const windowMs = capabilities.windowHours * HOUR_MS
+  const windowMs = capability.sessionWindowHours * HOUR_MS
   const elapsed = params.now - new Date(params.lastInboundAt).getTime()
 
   if (elapsed >= windowMs) return CONVERSATION_WINDOW.EXPIRED

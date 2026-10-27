@@ -1,6 +1,12 @@
-import { and, eq, lt } from 'drizzle-orm'
+import { and, count, eq, lt, sql } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
-import type { MessageDirection, MessageSender, MessageStatus } from '@adatechnology/meta-whatsapp-contracts'
+import type {
+  MessageDirection,
+  MessageSender,
+  MessageStatus,
+  WhatsAppStatusError,
+} from '@adatechnology/meta-whatsapp-contracts'
+import { INBOUND_LOCATION_CONTENT } from '../inboundLocation.constant'
 import { messages, type MessageRow, type NewMessageRow } from '../schema/schema'
 import type { TranscriptionStatus } from '../transcription.types'
 
@@ -19,6 +25,18 @@ export interface InsertMessageParams {
   /** `undefined` deixa a coluna nula: não avaliado, distinto de avaliado e limpo. */
   moderationFlagged?: boolean | null
   moderationTerms?: string[] | null
+}
+
+export interface UpdateMessageStatusParams {
+  companyId: string
+  waMessageId: string
+  status: MessageStatus
+  /**
+   * Por que a Meta recusou, quando `status` é `failed`. Fica na linha da mensagem, e não só no
+   * log, porque a pergunta que aparece depois é sempre sobre um envio específico: "este pedido o
+   * cliente chegou a receber?". Log vence por retenção e some; a linha do transcript não.
+   */
+  deliveryError?: WhatsAppStatusError | undefined
 }
 
 export interface ListMessagesParams {
@@ -49,6 +67,15 @@ export interface SaveTranscriptionParams {
 
 const DEFAULT_LIMIT = 50
 
+export interface InboundLocationScopeParams {
+  companyId: string
+  receivedBefore: Date
+}
+
+export interface RedactInboundLocationsRepositoryParams extends InboundLocationScopeParams {
+  batchSize: number
+}
+
 export class MessageRepository {
   constructor(private readonly db: MetaWhatsAppDatabase) {}
 
@@ -78,17 +105,105 @@ export class MessageRepository {
     return created
   }
 
-  async updateMessageStatus(
-    companyId: string,
-    waMessageId: string,
-    status: MessageStatus,
-  ): Promise<MessageRow | undefined> {
+  /**
+   * O motivo da recusa entra em `payload` por merge, não por sobrescrita: a coluna já pode guardar
+   * o que o envio gravou, e trocar aquilo pelo erro perderia o conteúdo para registrar a falha —
+   * exatamente a linha em que se vai querer os dois juntos.
+   *
+   * O parâmetro vai como objeto, nunca como `JSON.stringify`: o driver `bun-sql` liga string a
+   * jsonb como *escalar string*, e aí `||` concatena em array (`[{...}, "{...}"]`) em vez de
+   * mesclar, sem erro nenhum para denunciar.
+   *
+   * `normalizedPayload` existe porque a mesma armadilha já gravou linha torta: `mapToDriverValue`
+   * do jsonb do drizzle faz `JSON.stringify`, então toda escrita anterior sob `bun-sql` virou
+   * escalar string no banco. A leitura desfaz (`JSON.parse`) e esconde isso do app, mas o `||`
+   * não desfaz. Aqui a linha é normalizada de volta a objeto na própria escrita, em vez de o
+   * merge produzir lixo sobre um dado que já estava errado.
+   *
+   * Coberto por `MessageRepository.deliveryError.integration.test.ts` contra Postgres de verdade:
+   * é diferença de driver, e mock nenhum a reproduz.
+   */
+  async updateMessageStatus(params: UpdateMessageStatusParams): Promise<MessageRow | undefined> {
+    const { companyId, waMessageId, status, deliveryError } = params
+    const column = messages.payload
+    const normalizedPayload = sql`case
+      when jsonb_typeof(${column}) = 'object' then ${column}
+      when jsonb_typeof(${column}) = 'string' then (${column} #>> '{}')::jsonb
+      else '{}'::jsonb
+    end`
+
     const [updated] = await this.db
       .update(messages)
-      .set({ status, ...(status === 'read' ? { readAt: new Date() } : {}) })
+      .set({
+        status,
+        ...(status === 'read' ? { readAt: new Date() } : {}),
+        ...(deliveryError ? { payload: sql`${normalizedPayload} || ${{ deliveryError }}::jsonb` } : {}),
+      })
       .where(and(eq(messages.companyId, companyId), eq(messages.waMessageId, waMessageId)))
       .returning()
     return updated
+  }
+
+  /**
+   * Linhas de entrada com `payload.location` que a redação alcança, mais as localizações com
+   * `payload` escalar string (gravação antiga do `bun-sql` com drizzle 0.x), nas quais `payload ?
+   * 'location'` dá falso e que, por isso, a redação não toca.
+   */
+  async countInboundLocations(params: InboundLocationScopeParams): Promise<{ counted: number; unreachable: number }> {
+    const inboundScope = and(
+      eq(messages.companyId, params.companyId),
+      eq(messages.direction, 'inbound'),
+      lt(messages.createdAt, params.receivedBefore),
+    )
+    const [reachable] = await this.db
+      .select({ total: count() })
+      .from(messages)
+      .where(and(inboundScope, this.hasRedactableLocation()))
+    const [unreachable] = await this.db
+      .select({ total: count() })
+      .from(messages)
+      .where(and(inboundScope, eq(messages.type, 'location'), sql`jsonb_typeof(${messages.payload}) = 'string'`))
+    return { counted: reachable?.total ?? 0, unreachable: unreachable?.total ?? 0 }
+  }
+
+  /**
+   * Redige UMA passada: tira `location` de `payload` (NULL quando não sobra chave) e põe o rótulo
+   * neutro em `content` das linhas de tipo `location`. Sem `ORDER BY`: o índice por empresa não serve
+   * à ordenação e a passada não precisa dela. `FOR UPDATE SKIP LOCKED` evita brigar com o webhook; o
+   * `company_id` é repetido fora da subconsulta. Nunca devolve nem registra os ids das linhas.
+   */
+  async redactInboundLocations(params: RedactInboundLocationsRepositoryParams): Promise<{ redacted: number }> {
+    const batch = this.db.$with('batch').as(
+      this.db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.companyId, params.companyId),
+            eq(messages.direction, 'inbound'),
+            lt(messages.createdAt, params.receivedBefore),
+            this.hasRedactableLocation(),
+          ),
+        )
+        .limit(params.batchSize)
+        .for('update', { skipLocked: true }),
+    )
+
+    const updated = await this.db
+      .with(batch)
+      .update(messages)
+      .set({
+        payload: sql`nullif(${messages.payload} - 'location', '{}'::jsonb)`,
+        content: sql`case when ${messages.type} = 'location' then ${INBOUND_LOCATION_CONTENT} else ${messages.content} end`,
+      })
+      .from(batch)
+      .where(and(eq(messages.id, batch.id), eq(messages.companyId, params.companyId)))
+      .returning({ id: messages.id })
+    return { redacted: updated.length }
+  }
+
+  private hasRedactableLocation() {
+    return sql`jsonb_typeof(${messages.payload}) = 'object' and ${messages.payload} ? 'location'`
   }
 
   /**

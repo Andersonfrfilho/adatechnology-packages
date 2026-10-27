@@ -2,11 +2,23 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import type { NotificationChannel, NotificationTemplate } from '@adatechnology/notification-contracts'
+import {
+  STANDARD_EMAIL_TEMPLATE_KEY,
+  TemplateIdNotFoundError,
+  UnknownTemplateVariablesError,
+  assessStandardEmailTemplate,
+  diffTemplateVariables,
+} from '@adatechnology/notification-contracts'
+import type {
+  NotificationChannel,
+  NotificationTemplate,
+  TemplateVariableCatalog,
+} from '@adatechnology/notification-contracts'
 import type { TemplateRepository, UpsertTemplateInput } from '../repositories/TemplateRepository'
 import type { TemplateRow } from '../schema/schema'
+import { StandardEmailTemplateInvalidError, StandardEmailTemplateRequiredError } from './StandardEmail.errors'
 
-function toNotificationTemplate(row: TemplateRow): NotificationTemplate {
+export function toNotificationTemplate(row: TemplateRow): NotificationTemplate {
   return {
     id: row.id,
     key: row.key,
@@ -21,11 +33,57 @@ function toNotificationTemplate(row: TemplateRow): NotificationTemplate {
 }
 
 export class UpsertTemplateUseCase {
-  constructor(private readonly templates: TemplateRepository) {}
+  constructor(
+    private readonly templates: TemplateRepository,
+    /**
+     * Ausente por completo, ou sem entrada para a `key`, significa catálogo não declarado — e aí
+     * qualquer `{{campo}}` passa. Fechar por omissão quebraria todo host que já grava template
+     * sem catálogo nenhum.
+     */
+    private readonly variableCatalog?: TemplateVariableCatalog,
+  ) {}
 
   async execute(params: { companyId: string } & UpsertTemplateInput): Promise<NotificationTemplate> {
+    const diff = diffTemplateVariables({
+      body: params.body,
+      subject: params.subject,
+      variables: this.variableCatalog?.[params.key],
+    })
+    if (diff.unknown.length > 0) throw new UnknownTemplateVariablesError(params.key, diff.unknown)
+
+    if (params.key === STANDARD_EMAIL_TEMPLATE_KEY) {
+      // Desativar por aqui seria "Remover" por outro caminho; o modelo padrão não some.
+      if (!params.active) throw new StandardEmailTemplateRequiredError()
+      const assessment = assessStandardEmailTemplate(params.body)
+      if (!assessment.usable) {
+        throw new StandardEmailTemplateInvalidError(assessment.missing, assessment.unsafe)
+      }
+    }
+
     const row = await this.templates.upsert(params)
     return toNotificationTemplate(row)
+  }
+}
+
+/**
+ * "Remover" no painel é desativar. Ver `TemplateRepository.deactivateIdentity` para por que a
+ * identidade inteira cai junto, e não só a versão apontada.
+ */
+export class DeactivateTemplateUseCase {
+  constructor(private readonly templates: TemplateRepository) {}
+
+  async execute(params: { companyId: string; id: string }): Promise<void> {
+    const row = await this.templates.findById(params)
+    if (!row) throw new TemplateIdNotFoundError(params.id)
+    if (row.key === STANDARD_EMAIL_TEMPLATE_KEY) throw new StandardEmailTemplateRequiredError()
+
+    // Idempotente: a linha já inativa cai no update que não afeta nenhuma e responde igual.
+    await this.templates.deactivateIdentity({
+      companyId: params.companyId,
+      key: row.key,
+      channel: row.channel,
+      locale: row.locale,
+    })
   }
 }
 

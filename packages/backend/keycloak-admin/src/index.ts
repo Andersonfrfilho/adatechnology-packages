@@ -16,21 +16,34 @@ export { keycloakAdminConfigSchema, parseKeycloakAdminConfig } from './keycloak-
 
 export { createKeycloakAdminClient } from './keycloak-admin.client.js'
 
+export { PROFILE_PICTURE_ATTRIBUTE } from './keycloak-admin.types.js'
+
 export type {
   CreateKeycloakAdminClientParams,
+  CreateGroupParams,
+  CreateGroupResult,
   CreateUserParams,
   CreateUserResult,
+  DeleteGroupParams,
   DeleteUserParams,
   FetchLike,
   FindUserByEmailParams,
+  GroupMembershipParams,
   KeycloakAdminClient,
   KeycloakAdminConfig,
   KeycloakPassword,
   KeycloakUser,
+  KeycloakGroup,
   KeycloakUserAttributes,
+  ListGroupsParams,
+  ListGroupsResult,
+  ListUsersParams,
+  ListUsersResult,
   SetEnabledParams,
   SetPasswordParams,
+  SetProfilePictureParams,
   SetTemporaryPasswordParams,
   UpdateAttributesParams,
+  UpdateGroupParams,
   UpdateUserParams,
 } from './keycloak-admin.types.js'

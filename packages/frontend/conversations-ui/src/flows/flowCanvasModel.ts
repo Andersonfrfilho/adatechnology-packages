@@ -13,6 +13,7 @@
 import { namespaceNodeId, parseNamespacedId } from './flowEditorOps'
 import {
   NODE_CARD_WIDTH,
+  cascadeOrder,
   crossFlowKey,
   estimateNodeHeight,
   isCrossFlowTarget,
@@ -107,11 +108,12 @@ export function countLiveByNode(params: {
 }
 
 /**
- * Um layout só para TODOS os nós de TODOS os fluxos abertos juntos.
+ * Um layout só para TODOS os nós de TODOS os fluxos abertos juntos, na mesma cascata do fluxo
+ * único: um passo para a direita a cada avanço da conversa, um degrau para baixo a cada card.
  *
  * Posicionar cada fluxo à parte e deslocar não resolve: nada impede dois fluxos de ocuparem o mesmo
- * espaço, e a altura real de cada card é ignorada. Aqui o ranqueamento por BFS roda sobre o grafo
- * mesclado inteiro, com os saltos `flow:<key>` já resolvidos para o nó inicial do alvo.
+ * espaço, e a altura real de cada card é ignorada. Aqui a travessia roda sobre o grafo mesclado
+ * inteiro, com os saltos `flow:<key>` já resolvidos para o nó inicial do alvo.
  */
 export function computeMergedLayout(params: {
   readonly openKeys: readonly string[]
@@ -128,7 +130,10 @@ export function computeMergedLayout(params: {
     }
   }
 
-  function forwardEdges(flowKey: string, node: FlowNodeData): string[] {
+  function forwardEdges(id: string): string[] {
+    const node = nodeById.get(id)
+    if (!node) return []
+    const flowKey = parseNamespacedId(id).flowKey
     const result: string[] = []
 
     for (const { target } of targetsOf(node)) {
@@ -144,49 +149,19 @@ export function computeMergedLayout(params: {
     return result
   }
 
-  const rank = new Map<string, number>()
   const primaryGraph = graphs[primaryFlowKey]
-  const rootId = primaryGraph ? namespaceNodeId(primaryFlowKey, primaryGraph.startNodeId) : undefined
-
-  if (rootId && nodeById.has(rootId)) {
-    rank.set(rootId, 0)
-    const queue = [rootId]
-    while (queue.length > 0) {
-      const id = queue.shift()!
-      const node = nodeById.get(id)
-      if (!node) continue
-      for (const nextId of forwardEdges(parseNamespacedId(id).flowKey, node)) {
-        if (!rank.has(nextId)) {
-          rank.set(nextId, rank.get(id)! + 1)
-          queue.push(nextId)
-        }
-      }
-    }
-  }
-
-  // Todo nó não alcançado vai para UMA coluna extra depois de tudo. Uma coluna por órfão empurrava
-  // cada um mais para longe da área visível — e desligar um fio se lia como "o card sumiu".
-  const strayRank = Math.max(0, ...rank.values()) + 1
-  for (const id of nodeById.keys()) {
-    if (!rank.has(id)) rank.set(id, strayRank)
-  }
-
-  const layers = new Map<number, string[]>()
-  for (const [id, value] of rank) {
-    const layer = layers.get(value)
-    if (layer) layer.push(id)
-    else layers.set(value, [id])
-  }
+  const placed = cascadeOrder({
+    rootId: primaryGraph ? namespaceNodeId(primaryFlowKey, primaryGraph.startNodeId) : '',
+    allIds: [...nodeById.keys()],
+    forwardEdges,
+  })
 
   const positions = new Map<string, FlowNodePosition>()
-  for (const value of [...layers.keys()].sort((a, b) => a - b)) {
-    // Alinhado pelo topo, e não centralizado: coluna centralizada saltava inteira a cada nó a mais
-    // num ramo qualquer.
-    let cursorY = 0
-    for (const id of layers.get(value)!) {
-      positions.set(id, { x: value * COLUMN_GAP, y: cursorY })
-      cursorY += estimateNodeHeight(nodeById.get(id)!) + ROW_GAP
-    }
+  let cursorY = 0
+
+  for (const [id, { depth }] of [...placed.entries()].sort((a, b) => a[1].order - b[1].order)) {
+    positions.set(id, { x: depth * COLUMN_GAP, y: cursorY })
+    cursorY += estimateNodeHeight(nodeById.get(id)!) + ROW_GAP
   }
 
   return positions
@@ -255,6 +230,11 @@ export function buildFlowEdges(params: {
 
         const source = namespaceNodeId(flowKey, nodeId)
         const edgeTarget = namespaceNodeId(targetFlowKey, targetNodeId)
+
+        // Voltar ao próprio card não é trajeto, é comportamento — e como aresta não tem onde
+        // caber: por baixo some atrás do card, por cima o cobre. Quem mostra isso é o ícone de
+        // repetição na linha de saída, dentro do card (ver `FlowNodeCard`).
+        if (source === edgeTarget) continue
 
         if (isDefault) {
           edges.push({
@@ -365,4 +345,34 @@ export function newNodeFromSpec(spec: NewNodeSpec, existingIds: ReadonlySet<stri
 
   const id = slugifyNodeId('nova_acao', existingIds)
   return { id, type: 'action', actionKind: spec.actionKind }
+}
+
+/** Distância vertical mínima entre dois cards para que não se leiam como um só. */
+const FREE_SLOT_STEP = 120
+
+/**
+ * Empurra a posição para baixo até achar espaço livre na mesma coluna.
+ *
+ * O "+" põe o nó novo à direita de quem o criou — e é justamente ali que costuma estar o nó que
+ * acabou de perder a ligação. Sem isto, os dois se sobrepõem e a tela mostra um card onde há dois,
+ * que é o mesmo susto de "sumiu" por outro caminho.
+ */
+export function findFreeSlot(params: {
+  readonly desired: FlowNodePosition
+  readonly taken: readonly FlowNodePosition[]
+  readonly step?: number
+}): FlowNodePosition {
+  const step = params.step ?? FREE_SLOT_STEP
+  const isOccupied = (candidate: FlowNodePosition) =>
+    params.taken.some(
+      (each) => Math.abs(each.x - candidate.x) < NODE_CARD_WIDTH && Math.abs(each.y - candidate.y) < step,
+    )
+
+  let slot = params.desired
+  // Teto igual ao número de cards: com N ocupados, N descidas bastam para sair de todos.
+  for (let attempt = 0; attempt <= params.taken.length && isOccupied(slot); attempt += 1) {
+    slot = { x: slot.x, y: slot.y + step }
+  }
+
+  return slot
 }

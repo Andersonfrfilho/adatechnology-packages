@@ -5,6 +5,7 @@
 import type { PaginatedResponse, UserProfile } from '@adatechnology/user-contracts'
 
 import { resolveScopeCompanyId } from '../shared/tenancy'
+import { signAvatars } from '../shared/signAvatar'
 import { toPaginatedUsers } from '../shared/toContract'
 import type { UserDependencies } from './userModule.types'
 
@@ -24,6 +25,7 @@ export class ListUsersUseCase {
     const perPage = params.perPage ?? DEFAULT_PER_PAGE
 
     const { rows, total } = await this.dependencies.users.list({ companyId, page, pageSize: perPage })
-    return toPaginatedUsers({ rows, total, page, perPage })
+    const avatarUrls = await signAvatars({ dependencies: this.dependencies, rows })
+    return toPaginatedUsers({ rows, total, page, perPage, ...(avatarUrls ? { avatarUrls } : {}) })
   }
 }

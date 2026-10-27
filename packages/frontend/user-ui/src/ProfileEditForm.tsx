@@ -4,6 +4,7 @@
 
 import { useCallback, useState, type FormEvent } from 'react'
 
+import { Avatar } from './Avatar'
 import { DEFAULT_USER_LABELS, type UserLabels } from './workspace/labels'
 import type { UpdateProfileInput, UserProfile } from './providers/types'
 
@@ -18,9 +19,18 @@ export type ProfileEditFormProps = {
   readonly loading?: boolean
   readonly error?: string
   readonly labels?: Partial<UserLabels>
+  /** Ausente esconde o controle de foto — mesma capacidade por ausencia do resto do pacote. */
+  readonly onPickAvatar?: (file: File) => Promise<void>
 }
 
-export function ProfileEditForm({ profile, onSubmit, loading = false, error, labels: overrides }: ProfileEditFormProps) {
+export function ProfileEditForm({
+  profile,
+  onSubmit,
+  loading = false,
+  error,
+  labels: overrides,
+  onPickAvatar,
+}: ProfileEditFormProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
   const [name, setName] = useState(profile.name)
 
@@ -34,6 +44,26 @@ export function ProfileEditForm({ profile, onSubmit, loading = false, error, lab
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {onPickAvatar ? (
+        <label className="group relative inline-flex cursor-pointer rounded-full" title={labels.teamChangePhoto}>
+          <Avatar name={profile.name} size={72} {...(profile.avatarUrl ? { url: profile.avatarUrl } : {})} />
+          <span className="absolute inset-0 hidden items-center justify-center rounded-full bg-black/50 text-xs font-medium text-white group-hover:flex group-focus-within:flex">
+            {labels.profilePhotoChange}
+          </span>
+          <input
+            accept="image/jpeg,image/png,image/webp"
+            aria-label={labels.teamChangePhoto}
+            className="sr-only"
+            disabled={loading}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              event.target.value = ''
+              if (file) void onPickAvatar(file)
+            }}
+            type="file"
+          />
+        </label>
+      ) : null}
       <div>
         <label className={LABEL_CLASS} htmlFor="user-ui-profile-name">
           {labels.name}

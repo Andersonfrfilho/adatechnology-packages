@@ -2,10 +2,11 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { useId } from 'react'
+import { useId, useMemo } from 'react'
 
 import { useSchedulingConfig } from '../providers/SchedulingProvider'
 import { resolveSchedulingMessages } from '../locales'
+import { SelectField, type SelectOption } from './SelectField'
 import {
   buildYearOptions,
   daysInMonth,
@@ -26,6 +27,12 @@ export type DateTimeFieldProps = {
 
 const FIELD_CLASS =
   'min-h-11 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 text-sm'
+
+/**
+ * Mês e dia dispensam a caixa de busca do `SelectField`: são listas fixas e ordinais, onde digitar
+ * salta direto para a opção (o `typeahead` do componente) e um filtro por "2" devolveria 2, 12 e
+ * 20–29. A regra de busca do `web.md` §11 mira lista que cresce, que não é o caso de nenhum dos dois.
+ */
 
 /** Anos oferecidos em torno de hoje; o valor do campo entra mesmo fora da janela. */
 const YEAR_WINDOW = { PAST: 1, FUTURE: 2 } as const
@@ -76,6 +83,19 @@ export function DateTimeField({ label, value, onChange, emptyDefault }: DateTime
   const days = daysInMonth({ year: parts.year, month: parts.month })
   const months = monthLabels(locale)
 
+  const yearOptions = useMemo<readonly SelectOption[]>(
+    () => years.map((year) => ({ value: String(year), label: String(year) })),
+    [years],
+  )
+  const monthOptions = useMemo<readonly SelectOption[]>(
+    () => months.map((name, index) => ({ value: String(index + 1), label: name })),
+    [months],
+  )
+  const dayOptions = useMemo<readonly SelectOption[]>(
+    () => Array.from({ length: days }, (_, index) => ({ value: String(index + 1), label: String(index + 1) })),
+    [days],
+  )
+
   function change(patch: Partial<DateTimeParts>): void {
     onChange(formatDateTimeParts({ ...parts, ...patch }))
   }
@@ -86,44 +106,34 @@ export function DateTimeField({ label, value, onChange, emptyDefault }: DateTime
         {label}
       </span>
 
-      <select
-        aria-label={`${label} — ${messages['datetime.year']}`}
-        value={parts.year}
-        onChange={(event) => change({ year: Number(event.target.value) })}
-        className={FIELD_CLASS}
-      >
-        {years.map((year) => (
-          <option key={year} value={year}>
-            {year}
-          </option>
-        ))}
-      </select>
+      <SelectField
+        hideLabel
+        label={`${label} — ${messages['datetime.year']}`}
+        value={String(parts.year)}
+        options={yearOptions}
+        onChange={(next) => change({ year: Number(next) })}
+        className="min-w-24"
+      />
 
-      <select
-        aria-label={`${label} — ${messages['datetime.month']}`}
-        value={parts.month}
-        onChange={(event) => change({ month: Number(event.target.value) })}
-        className={FIELD_CLASS}
-      >
-        {months.map((name, index) => (
-          <option key={name} value={index + 1}>
-            {name}
-          </option>
-        ))}
-      </select>
+      <SelectField
+        hideLabel
+        label={`${label} — ${messages['datetime.month']}`}
+        value={String(parts.month)}
+        options={monthOptions}
+        onChange={(next) => change({ month: Number(next) })}
+        searchable={false}
+        className="min-w-36"
+      />
 
-      <select
-        aria-label={`${label} — ${messages['datetime.day']}`}
-        value={Math.min(parts.day, days)}
-        onChange={(event) => change({ day: Number(event.target.value) })}
-        className={FIELD_CLASS}
-      >
-        {Array.from({ length: days }, (_, index) => index + 1).map((day) => (
-          <option key={day} value={day}>
-            {day}
-          </option>
-        ))}
-      </select>
+      <SelectField
+        hideLabel
+        label={`${label} — ${messages['datetime.day']}`}
+        value={String(Math.min(parts.day, days))}
+        options={dayOptions}
+        onChange={(next) => change({ day: Number(next) })}
+        searchable={false}
+        className="min-w-20"
+      />
 
       <input
         type="time"

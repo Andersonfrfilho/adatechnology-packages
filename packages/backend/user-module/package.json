@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/user-module",
-  "version": "0.1.0-rc.2",
+  "version": "0.2.1",
   "license": "MIT",
   "description": "Stateful user/authentication module — schema, migrations, repositories and use-cases behind pluggable auth providers",
   "publishConfig": {
@@ -72,12 +72,12 @@
   },
   "devDependencies": {
     "@types/bun": "1.3.14",
-    "drizzle-kit": "0.31.10",
-    "drizzle-orm": "0.45.2",
+    "drizzle-kit": "1.0.0-rc.4",
+    "drizzle-orm": "1.0.0-rc.4",
     "tsup": "^8.5.1",
     "typescript": "^5.7.3"
   },
   "peerDependencies": {
-    "drizzle-orm": ">=0.36.0 <1"
+    "drizzle-orm": ">=0.36.0 <2"
   }
 }

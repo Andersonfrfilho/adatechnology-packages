@@ -13,15 +13,31 @@ export type WhatsAppProviderConfig = {
 
 export type SendMessageResult = {
   readonly waMessageId: string | null
+  /**
+   * Id do arquivo na Meta usado no envio — o que foi subido agora, ou o que veio reaproveitado.
+   *
+   * Sai no resultado para quem envia o mesmo arquivo a muitos destinatários poder guardá-lo: a Meta
+   * aceita reusar esse id por 30 dias, e sem ele cada envio ressobe o binário inteiro.
+   */
+  readonly mediaId?: string
 }
 
-export type SendMediaParams = {
+type SendMediaCommon = {
   readonly to: string
-  readonly buffer: Buffer
   readonly mimeType: string
   readonly filename: string
   readonly caption?: string
 }
+
+/**
+ * Ou o binário, ou um `mediaId` já conhecido — nunca nenhum dos dois.
+ *
+ * União em vez de dois campos opcionais de propósito: com ambos opcionais, "esqueci de passar os
+ * dois" compila e só falha na chamada à Meta, em produção. Aqui não se escreve a chamada inválida.
+ */
+export type SendMediaParams =
+  | (SendMediaCommon & { readonly buffer: Buffer; readonly mediaId?: string })
+  | (SendMediaCommon & { readonly buffer?: undefined; readonly mediaId: string })
 
 export type SendTemplateParams = {
   readonly to: string
@@ -62,6 +78,31 @@ export type SendInteractiveListParams = {
   readonly bodyText: string
   readonly buttonText: string
   readonly sections: readonly InteractiveListSection[]
+}
+
+/**
+ * O ponto no mapa, como o WhatsApp o desenha.
+ *
+ * É a única forma de mostrar um mapa na conversa: link de Google Maps rende, na melhor hipótese, um
+ * card de link com o logo do Google — o quadradinho com o pino só existe neste tipo de mensagem.
+ *
+ * `name` e `address` são opcionais porque a Meta os trata como rótulo do pino, não como endereço de
+ * verdade: quem os manda decide o que o cliente lê sob o mapa, e mandar só a coordenada é válido.
+ */
+/**
+ * `previewUrl`: a Meta só renderiza o card do primeiro link do corpo quando a mensagem pede. Opt-in
+ * porque o card ocupa a bolha inteira, e vale só para texto — `interactive` não aceita preview.
+ */
+export type SendTextOptions = {
+  readonly previewUrl?: boolean | undefined
+}
+
+export type SendLocationParams = {
+  readonly to: string
+  readonly latitude: number
+  readonly longitude: number
+  readonly name?: string
+  readonly address?: string
 }
 
 export type SendCatalogMessageParams = {

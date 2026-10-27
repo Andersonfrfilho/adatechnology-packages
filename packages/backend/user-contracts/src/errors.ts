@@ -18,6 +18,7 @@ export const USER_ERROR_CODE = {
   PROVIDER_MISCONFIGURED: 'USER_PROVIDER_MISCONFIGURED',
   PROVIDER_DISABLED: 'USER_PROVIDER_DISABLED',
   CONFIG_MISSING: 'USER_CONFIG_MISSING',
+  AVATAR_REJECTED: 'USER_AVATAR_REJECTED',
 } as const
 
 export type UserErrorCode = (typeof USER_ERROR_CODE)[keyof typeof USER_ERROR_CODE]
@@ -156,5 +157,23 @@ export class ConfigMissingError extends UserError {
       details: { field },
     })
     this.name = 'ConfigMissingError'
+  }
+}
+
+/**
+ * O `details.reason` e o motivo estavel (`AvatarRejection`), nao a frase.
+ *
+ * "Grande demais" e "tipo nao suportado" pedem correcoes diferentes, e quem monta a tela precisa
+ * distinguir os dois sem casar string traduzida.
+ */
+export class AvatarRejectedError extends UserError {
+  constructor(reason: string) {
+    super({
+      message: 'Avatar rejected',
+      statusCode: 400,
+      code: USER_ERROR_CODE.AVATAR_REJECTED,
+      details: { reason },
+    })
+    this.name = 'AvatarRejectedError'
   }
 }

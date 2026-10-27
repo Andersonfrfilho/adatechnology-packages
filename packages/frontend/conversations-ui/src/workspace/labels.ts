@@ -32,10 +32,20 @@ export interface ConversationsWorkspaceLabels {
   readonly templateModalSend: (count: number) => string
   readonly messagesSelected: (count: number) => string
   readonly copySelected: string
+  readonly loadOlderMessages: string
+  readonly loadingOlderMessages: string
   readonly composerPlaceholder: string
   readonly attachFailure: string
   /** Tira um arquivo da fila antes de enviar. */
   readonly attachmentRemove: string
+  /** Estado de cada item da fila durante o envio (QR-47). */
+  readonly attachmentWaiting: string
+  readonly attachmentSending: string
+  readonly attachmentSent: string
+  readonly attachmentFailed: string
+  /** Servidor parou antes de tentar este arquivo, por causa de uma falha anterior no mesmo lote. */
+  readonly attachmentSkipped: string
+  readonly attachmentRetry: string
   readonly recordFailure: string
   readonly sendFailure: string
   readonly takeoverToReply: string
@@ -73,9 +83,17 @@ export const DEFAULT_CONVERSATIONS_WORKSPACE_LABELS: ConversationsWorkspaceLabel
   templateModalSend: (count) => `Enviar para ${count}`,
   messagesSelected: (count) => `${count} mensagem${count === 1 ? '' : 's'} selecionada${count === 1 ? '' : 's'}`,
   copySelected: 'Copiar',
+  loadOlderMessages: 'Carregar mensagens anteriores',
+  loadingOlderMessages: 'Carregando…',
   composerPlaceholder: 'Responder como atendente…',
   attachFailure: 'Falha ao enviar o arquivo.',
   attachmentRemove: 'Remover anexo',
+  attachmentWaiting: 'Aguardando',
+  attachmentSending: 'Enviando…',
+  attachmentSent: 'Enviado ✓',
+  attachmentFailed: 'Falhou',
+  attachmentSkipped: 'Não enviado — aguardando o anterior',
+  attachmentRetry: 'Tentar de novo',
   recordFailure: 'Falha ao gravar o áudio.',
   sendFailure: 'Falha ao enviar a mensagem.',
   takeoverToReply: 'Assuma o atendimento para responder diretamente ao cliente.',

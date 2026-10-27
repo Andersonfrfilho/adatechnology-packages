@@ -93,3 +93,34 @@ describe('contrato de customização', () => {
     }
   })
 })
+
+describe('focar um fluxo leva a câmera até ele', () => {
+  /**
+   * `focusFlow` trocava o fluxo primário e remesclava o canvas, mas nunca movia a viewport: a aba
+   * acendia, a tela continuava onde estava e o fluxo escolhido ficava fora do campo de visão — em
+   * "Consórcio", parado no início com o fluxo lá embaixo, clicar parecia não fazer nada.
+   *
+   * Teste de fonte, como os demais deste arquivo: não prova o enquadramento na tela, prova que o
+   * clique pede o enquadramento e que ele é restrito ao fluxo clicado.
+   */
+  it('focar um fluxo agenda o enquadramento dele', async () => {
+    const content = await Bun.file(WORKSPACE_SOURCE).text()
+
+    expect(content).toContain('setPendingFocusFlowKey(key)')
+  })
+
+  it('enquadra apenas os cards do fluxo focado, não o canvas inteiro', async () => {
+    // O canvas mostra o fecho transitivo inteiro. Um `fitView()` sem `nodes` devolveria a mesma
+    // visão de sempre — que é exatamente o defeito relatado.
+    const content = await Bun.file(WORKSPACE_SOURCE).text()
+
+    expect(content).toMatch(/fitView\(\{[\s\S]*?nodes: flowNodes\.map/)
+    expect(content).toMatch(/flowKey === pendingFocusFlowKey/)
+  })
+
+  it('limita o zoom, para um fluxo de dois nós não encher a tela', async () => {
+    const content = await Bun.file(WORKSPACE_SOURCE).text()
+
+    expect(content).toContain('maxZoom: FOCUS_MAX_ZOOM')
+  })
+})

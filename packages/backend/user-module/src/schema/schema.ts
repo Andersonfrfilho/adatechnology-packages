@@ -22,6 +22,9 @@ export const users = userSchema.table(
     providerId: varchar('provider_id', { length: 40 }).notNull().default('local'),
     // `sub` do Keycloak (ou de outro provider OIDC/OAuth2 futuro); nulo para usuário local.
     externalId: varchar('external_id', { length: 200 }),
+    // Chave opaca no armazenamento do host, nunca uma URL: a URL e assinada e expira, e guardar
+    // URL no banco daria uma coluna cheia de links mortos.
+    avatarKey: varchar('avatar_key', { length: 512 }),
     isActive: boolean('is_active').notNull().default(true),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),

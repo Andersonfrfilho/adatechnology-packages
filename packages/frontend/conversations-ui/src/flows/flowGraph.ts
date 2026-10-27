@@ -38,6 +38,16 @@ export const BUILT_IN_ACTION_KINDS = FLOW_ACTION_KIND
 // (em vez de importado do contracts) de propósito: são três linhas triviais e importá-las como
 // valor puxaria o runtime do contracts para o bundle do frontend só por causa disso. O contracts
 // exporta as mesmas funções para o backend; a convenção "flow:" é o contrato de fato.
+/**
+ * Ações depois das quais a conversa CONTINUA no grafo, em vez de terminar.
+ *
+ * A distinção não é estética: o motor do bot só anda para o `next` depois de `send_media` — as
+ * demais ações (handoff, encerrar, simular, catálogo) encerram o passo ali. Dar saída a uma ação
+ * que o motor não atravessa desenharia um fio que o bot ignora em produção, deixando a conversa
+ * parada sem ninguém entender por quê — o mesmo erro que `resolveConnection` recusa cometer.
+ */
+export const PASS_THROUGH_ACTION_KINDS: readonly string[] = ['send_media']
+
 export const CROSS_FLOW_PREFIX = 'flow:'
 export const isCrossFlowTarget = (target: string): boolean => target.startsWith(CROSS_FLOW_PREFIX)
 export const crossFlowKey = (target: string): string => target.slice(CROSS_FLOW_PREFIX.length)
@@ -54,7 +64,10 @@ export function estimateNodeHeight(node: FlowNodeData): number {
   const ROW_HEIGHT = 34
   const rowCount =
     node.type === 'action'
-      ? 0
+      ? // Ação de passagem desenha uma linha de saída; terminal não desenha nenhuma.
+        node.actionKind && PASS_THROUGH_ACTION_KINDS.includes(node.actionKind)
+        ? 1
+        : 0
       : node.type === 'condition'
         ? 2
         : node.type === 'menu' || node.questionType === 'choice'
@@ -206,59 +219,71 @@ function findUnreachable(graph: FlowGraphData): string[] {
   return Object.keys(graph.nodes).filter((id) => !reachable.has(id))
 }
 
-// Auto-layout hierárquico (sem dependência externa): ranqueia por BFS a partir do início,
-// distribui cada camada horizontalmente e centraliza. Suficiente para fluxos de conversa
-// (grafos rasos, quase-árvores) sem puxar uma lib de layout inteira.
+/** Distância horizontal entre um card e o seguinte na cascata. */
+export const LAYOUT_COLUMN_GAP = 300
+/** Folga vertical entre um card e o de baixo, somada à altura real do de cima. */
+export const LAYOUT_ROW_GAP = 40
+
+/**
+ * Ordem de leitura do grafo: profundidade primeiro, seguindo as saídas na ordem em que o card as
+ * mostra.
+ *
+ * Profundidade, e não largura, porque é ela que mantém um caminho de conversa junto na tela — com
+ * BFS, os dois ramos de uma decisão se intercalam linha a linha e o olho perde qual leva a qual.
+ */
+export function cascadeOrder(params: {
+  readonly rootId: string
+  readonly allIds: readonly string[]
+  readonly forwardEdges: (id: string) => readonly string[]
+}): Map<string, { depth: number; order: number }> {
+  const placed = new Map<string, { depth: number; order: number }>()
+
+  function visit(id: string, depth: number): void {
+    if (placed.has(id)) return
+    placed.set(id, { depth, order: placed.size })
+    for (const next of params.forwardEdges(id)) visit(next, depth + 1)
+  }
+
+  if (params.allIds.includes(params.rootId)) visit(params.rootId, 0)
+
+  // Órfãos entram depois, todos na mesma coluna extra: uma coluna por órfão empurrava cada um para
+  // mais longe da área visível, e desligar um fio se lia como "o card sumiu".
+  const strayDepth = Math.max(0, ...[...placed.values()].map((each) => each.depth)) + 1
+  for (const id of params.allIds) {
+    if (!placed.has(id)) placed.set(id, { depth: strayDepth, order: placed.size })
+  }
+
+  return placed
+}
+
+/**
+ * Auto-layout em cascata: avança para a direita a cada passo do fluxo e desce a cada card.
+ *
+ * **Um card por linha, sempre.** Empilhar por camada — todos do mesmo nível na mesma coluna, todas
+ * as colunas começando na mesma altura — deixava os fios correndo na horizontal, e um fio horizontal
+ * passa por trás de qualquer card que esteja entre a origem e o destino. Descendo um degrau por
+ * card, toda ligação vira uma diagonal curta e visível, e o caminho da conversa se lê de cima para
+ * baixo enquanto avança da esquerda para a direita.
+ */
 export function computeAutoLayout(graph: FlowGraphData): Record<string, { x: number; y: number }> {
-  const H_GAP = 300
-  // Espaço extra entre a camada mais alta de uma linha e a próxima linha, além da altura real
-  // do card mais alto dela — sem isso, um menu com várias opções (card bem mais alto) encostaria
-  // na camada de baixo mesmo com um gap fixo pensado pra cards curtos.
-  const V_GAP = 90
-  const rank: Record<string, number> = {}
-  const queue: string[] = [graph.startNodeId]
-  rank[graph.startNodeId] = 0
+  const placed = cascadeOrder({
+    rootId: graph.startNodeId,
+    allIds: Object.keys(graph.nodes),
+    forwardEdges: (id) =>
+      targetsOf(graph.nodes[id] ?? { id, type: 'action' })
+        .map((edge) => edge.target)
+        .filter((target) => !isCrossFlowTarget(target) && Boolean(graph.nodes[target])),
+  })
 
-  while (queue.length > 0) {
-    const id = queue.shift()!
-    const node = graph.nodes[id]
-    if (!node) continue
-    for (const { target } of targetsOf(node)) {
-      if (isCrossFlowTarget(target) || !graph.nodes[target]) continue
-      if (rank[target] === undefined) {
-        rank[target] = rank[id]! + 1
-        queue.push(target)
-      }
-    }
-  }
-
-  // Nós não alcançáveis vão para uma camada abaixo da última, na ordem em que aparecem.
-  const maxRank = Math.max(0, ...Object.values(rank))
-  let strayRank = maxRank + 1
-  for (const id of Object.keys(graph.nodes)) {
-    if (rank[id] === undefined) rank[id] = strayRank++
-  }
-
-  const layers: Record<number, string[]> = {}
-  for (const [id, r] of Object.entries(rank)) {
-    layers[r] = [...(layers[r] ?? []), id]
-  }
-
+  const byOrder = [...placed.entries()].sort((a, b) => a[1].order - b[1].order)
   const positions: Record<string, { x: number; y: number }> = {}
-  const sortedRanks = Object.keys(layers)
-    .map(Number)
-    .sort((a, b) => a - b)
-  let cumulativeY = 0
-  for (const r of sortedRanks) {
-    const ids = layers[r]!
-    const width = (ids.length - 1) * H_GAP
-    let maxHeight = 0
-    ids.forEach((id, index) => {
-      maxHeight = Math.max(maxHeight, estimateNodeHeight(graph.nodes[id]!))
-      positions[id] = { x: index * H_GAP - width / 2, y: cumulativeY }
-    })
-    cumulativeY += maxHeight + V_GAP
+  let cursorY = 0
+
+  for (const [id, { depth }] of byOrder) {
+    positions[id] = { x: depth * LAYOUT_COLUMN_GAP, y: cursorY }
+    cursorY += estimateNodeHeight(graph.nodes[id]!) + LAYOUT_ROW_GAP
   }
+
   return positions
 }
 

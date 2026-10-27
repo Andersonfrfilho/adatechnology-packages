@@ -6,6 +6,16 @@
  * Forma mínima que o `Transporter` do `nodemailer` já satisfaz. Declarada por estrutura — não
  * importada do pacote — para os testes injetarem um dublê sem carregar o SDK real.
  */
+/**
+ * `Buffer` e array mutavel para casar com o `Attachment` do nodemailer: o `Transporter` real
+ * precisa continuar satisfazendo esta interface por estrutura, sem cast e sem importar o SDK.
+ */
+export type SmtpAttachment = {
+  filename: string
+  content: Buffer
+  contentType: string
+}
+
 export type SmtpMailMessage = {
   readonly from: string
   readonly to: string
@@ -13,6 +23,8 @@ export type SmtpMailMessage = {
   readonly html: string
   readonly text: string
   readonly replyTo?: string
+  /** O nodemailer monta o MIME sozinho — aqui basta entregar os bytes. */
+  readonly attachments?: SmtpAttachment[]
 }
 
 export type SmtpSendResult = {

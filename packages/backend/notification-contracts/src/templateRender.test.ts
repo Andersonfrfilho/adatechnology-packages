@@ -94,3 +94,58 @@ describe('extractTemplatePlaceholders', () => {
     expect(extractTemplatePlaceholders('sem campo nenhum')).toEqual([])
   })
 })
+
+describe('assunto não vira header novo', () => {
+  it('quebra de linha no subject vira espaço, não uma segunda linha de header', () => {
+    const rendered = renderTemplate({
+      channel: 'email',
+      subject: 'Pedido pronto\r\nBcc: atacante@example.com',
+      body: 'corpo',
+      payload: {},
+    })
+
+    expect(rendered.title).not.toContain('\n')
+    expect(rendered.title).not.toContain('\r')
+    expect(rendered.title).toBe('Pedido pronto Bcc: atacante@example.com')
+  })
+
+  it('o valor interpolado também é sanitizado, não só o texto do template', () => {
+    const rendered = renderTemplate({
+      channel: 'email',
+      subject: 'Olá {{nome}}',
+      body: 'corpo',
+      payload: { nome: 'Ana\nBcc: atacante@example.com' },
+    })
+
+    expect(rendered.title).not.toContain('\n')
+  })
+})
+
+describe('constraints do canal', () => {
+  it('marca o assunto de e-mail que passa dos 78 caracteres da caixa de entrada', () => {
+    const rendered = renderTemplate({ channel: 'email', subject: 'a'.repeat(90), body: 'x', payload: {} })
+    const title = rendered.constraints.find((constraint) => constraint.field === 'title')
+
+    expect(title).toEqual({ field: 'title', limit: 78, actual: 90, exceeded: true })
+  })
+
+  it('não marca o que cabe', () => {
+    const rendered = renderTemplate({ channel: 'sms', subject: undefined, body: 'curto', payload: {} })
+
+    expect(rendered.constraints).toEqual([{ field: 'body', limit: 160, actual: 5, exceeded: false }])
+  })
+
+  it('mede o texto já interpolado, que é o que o cliente recebe', () => {
+    const rendered = renderTemplate({
+      channel: 'sms',
+      body: 'Olá {{nome}}',
+      payload: { nome: 'a'.repeat(200) },
+    })
+
+    expect(rendered.constraints[0]?.exceeded).toBe(true)
+  })
+
+  it('canal sem limite declarado não inventa constraint', () => {
+    expect(renderTemplate({ channel: 'desconhecido', body: 'x', payload: {} }).constraints).toEqual([])
+  })
+})

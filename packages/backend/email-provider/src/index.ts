@@ -19,3 +19,9 @@ export type { CreateEmailProviderParams } from './EmailProviderFactory'
 
 export { parseResendWebhook } from './receipts/parseResendWebhook'
 export { parseSesNotification } from './receipts/parseSesNotification'
+
+/** Anexo: download com teto no envio, e o MIME cru que o SES exige. */
+export { fetchAttachments, AttachmentFetchError } from './fetchAttachments'
+export type { FetchedAttachment } from './fetchAttachments'
+export { buildMimeMessage } from './buildMimeMessage'
+export type { BuildMimeMessageParams } from './buildMimeMessage'

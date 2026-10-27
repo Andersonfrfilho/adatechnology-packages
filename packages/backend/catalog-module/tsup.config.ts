@@ -13,5 +13,6 @@ export default defineConfig({
   // Migrations SQL não são código, e o tsup não as bundla: são copiadas como estão para o dist,
   // que é o único diretório publicado. `rm -rf` antes do cp porque sem isso a pasta acumula
   // migration de build anterior, e uma renomeada conviveria com a nova no pacote publicado.
-  onSuccess: 'rm -rf dist/migrations && mkdir -p dist/migrations && cp -r src/migrations/* dist/migrations/',
+  onSuccess:
+    'rm -rf dist/migrations dist/migrations-vision && mkdir -p dist/migrations dist/migrations-vision && cp -r src/migrations/* dist/migrations/ && cp -r src/migrations-vision/* dist/migrations-vision/',
 })

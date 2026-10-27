@@ -13,6 +13,8 @@ export type UserProfile = {
   readonly companyId?: string
   readonly isActive: boolean
   readonly lastSeenAt?: string
+  /** URL assinada e de vida curta. Ausente = sem foto, ou sem armazenamento no host. */
+  readonly avatarUrl?: string
 }
 
 export type UserSession = {
@@ -44,13 +46,58 @@ export type ConfirmPasswordResetParams = {
   readonly newPassword: string
 }
 
+export type TeamPage = {
+  readonly items: readonly UserProfile[]
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+}
+
+export type ListTeamParams = {
+  readonly page: number
+  readonly pageSize: number
+}
+
+export type UpdateTeamMemberInput = {
+  readonly name: string
+  readonly role: string
+  /** Ausente mantem o atual — o host que nao permite trocar e-mail simplesmente nao envia. */
+  readonly email?: string
+}
+
+export type CreateTeamMemberInput = {
+  readonly email: string
+  readonly name: string
+  readonly password: string
+  readonly role: string
+}
+
 export type UserApi = {
   readonly signIn: (params: SignInParams) => Promise<UserSession>
   readonly signOut: () => Promise<void>
   readonly getProfile: () => Promise<UserProfile>
   readonly updateProfile: (input: UpdateProfileInput) => Promise<UserProfile>
+  /** Foto do proprio usuario. Ausente = host sem armazenamento; o controle nao aparece. */
+  readonly setOwnAvatar?: (file: File) => Promise<UserProfile>
   readonly requestPasswordReset: (email: string) => Promise<void>
   readonly confirmPasswordReset: (params: ConfirmPasswordResetParams) => Promise<void>
+  /**
+   * Administração de equipe — OPCIONAL, e é a ausência que desliga a tela.
+   *
+   * Nem todo produto expõe as rotas de admin do `user-module`, e vários não têm sequer a noção de
+   * equipe. Tornar isto obrigatório quebraria todo consumidor atual e forçaria implementações vazias
+   * que lançam — pior que a capacidade não existir.
+   */
+  readonly listTeam?: (params: ListTeamParams) => Promise<TeamPage>
+  readonly createTeamMember?: (input: CreateTeamMemberInput) => Promise<UserProfile>
+  /** Ausente, a tela não desenha a coluna de ação — desativar é destrutivo e nem todo produto quer. */
+  readonly setTeamMemberActive?: (userId: string, isActive: boolean) => Promise<UserProfile>
+  /** Ausente esconde a acao de editar — nome e papel viram somente leitura. */
+  readonly updateTeamMember?: (userId: string, input: UpdateTeamMemberInput) => Promise<UserProfile>
+  /** Ausente quando o host nao plugou armazenamento — o controle de foto nem aparece. */
+  readonly setTeamMemberAvatar?: (userId: string, file: File) => Promise<UserProfile>
+  /** Ausente quando o host nao tem reset de senha E e-mail — botao que nao entrega nada nao existe. */
+  readonly sendPasswordReset?: (userId: string) => Promise<void>
 }
 
 export type UserConfig = {
