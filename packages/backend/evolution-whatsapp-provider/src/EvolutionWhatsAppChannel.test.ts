@@ -26,7 +26,27 @@ function fixture(responder: (call: Call) => Response) {
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
 
+/** A forma que a ponte `createWhatsAppDriverFromChannel` exige: o canal precisa satisfazê-la por estrutura. */
+type SendingChannel = {
+  sendText(to: string, body: string): Promise<{ externalMessageId: string | null }>
+  sendTemplate(params: {
+    to: string
+    templateName: string
+    languageCode: string
+    bodyParameters?: string[]
+  }): Promise<{ externalMessageId: string | null }>
+}
+
 describe('EvolutionWhatsAppChannel', () => {
+  test('satisfies the notification bridge channel shape', () => {
+    const channel: SendingChannel = new EvolutionWhatsAppChannel({
+      apiKey: 'k',
+      baseUrl: 'https://e.example',
+      instance: 'i',
+    })
+    expect(typeof channel.sendText).toBe('function')
+  })
+
   test('sendText posts digits-only number and returns the provider message id', async () => {
     const { calls, channel } = fixture(() => json({ key: { id: 'MSG1' } }))
 
@@ -65,9 +85,7 @@ describe('EvolutionWhatsAppChannel', () => {
     await expect(
       channel.sendMedia({ filename: 'a.pdf', mediaId: 'm1', mimeType: 'application/pdf', to: '5516999998888' }),
     ).rejects.toBeInstanceOf(EvolutionUnsupportedError)
-    await expect(
-      channel.sendTemplate({ languageCode: 'pt_BR', templateName: 'x', to: '5516999998888' }),
-    ).rejects.toMatchObject({ statusCode: 400 })
+    await expect(channel.sendTemplate()).rejects.toMatchObject({ statusCode: 400 })
   })
 
   test('http failures carry statusCode, network failures do not', async () => {
