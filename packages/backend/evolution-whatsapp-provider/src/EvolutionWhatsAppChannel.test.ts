@@ -116,6 +116,24 @@ describe('EvolutionWhatsAppChannel', () => {
     expect(await channel.getQrCode()).toEqual({ base64: 'data:image/png;base64,AAA', pairingCode: 'ABCD-1234' })
   })
 
+  test('setWebhook points the instance at the url with the secret headers and the parsed events', async () => {
+    const { calls, channel } = fixture(() => json({ webhook: { enabled: true } }, 201))
+
+    await channel.setWebhook({ headers: { 'x-webhook-token': 'segredo' }, url: 'https://api.example/public/hook/1' })
+
+    expect(calls[0]?.url).toBe('https://evolution.example/webhook/set/empresa%201')
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      webhook: {
+        base64: false,
+        byEvents: false,
+        enabled: true,
+        events: ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'],
+        headers: { 'x-webhook-token': 'segredo' },
+        url: 'https://api.example/public/hook/1',
+      },
+    })
+  })
+
   test('rejects an obviously invalid number before calling the gateway', () => {
     expect(() => normalizeEvolutionNumber('123')).toThrow(EvolutionError)
   })

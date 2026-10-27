@@ -7,6 +7,10 @@ import type { EvolutionConfig, EvolutionConnectionState, EvolutionFetch, Evoluti
 
 const DEFAULT_TIMEOUT_MS = 15_000
 
+/** Os eventos que `parseEvolutionWebhook` sabe ler: mensagem recebida, estado de entrega e conexão. */
+export const DEFAULT_WEBHOOK_EVENTS = ['MESSAGES_UPSERT', 'MESSAGES_UPDATE', 'CONNECTION_UPDATE'] as const
+export type EvolutionWebhookEventName = (typeof DEFAULT_WEBHOOK_EVENTS)[number] | (string & {})
+
 type SendMediaParams = {
   to: string
   mimeType: string
@@ -116,6 +120,27 @@ export class EvolutionWhatsAppChannel {
       base64: typeof base64 === 'string' ? base64 : null,
       pairingCode: typeof pairingCode === 'string' ? pairingCode : null,
     }
+  }
+
+  /**
+   * Aponta o webhook da instância para `url`, com `headers` repetidos em toda entrega (é por eles
+   * que quem recebe confere o segredo: o Evolution não assina o corpo). Substitui o anterior.
+   */
+  async setWebhook(params: {
+    url: string
+    headers: Record<string, string>
+    events?: readonly EvolutionWebhookEventName[]
+  }): Promise<void> {
+    await this.request('POST', `/webhook/set/${this.instance}`, {
+      webhook: {
+        enabled: true,
+        url: params.url,
+        headers: params.headers,
+        byEvents: false,
+        base64: false,
+        events: params.events ?? DEFAULT_WEBHOOK_EVENTS,
+      },
+    })
   }
 
   private async request(method: 'GET' | 'POST', path: string, body?: unknown): Promise<unknown> {
