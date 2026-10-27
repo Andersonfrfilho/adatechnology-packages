@@ -1,7 +1,8 @@
-export { EvolutionWhatsAppChannel, normalizeEvolutionNumber } from './EvolutionWhatsAppChannel'
+export { DEFAULT_WEBHOOK_EVENTS, EvolutionWhatsAppChannel, normalizeEvolutionNumber } from './EvolutionWhatsAppChannel'
+export type { EvolutionWebhookEventName } from './EvolutionWhatsAppChannel'
 export { EvolutionError, EvolutionUnsupportedError } from './errors'
-export { parseEvolutionWebhook, verifyEvolutionWebhookSecret } from './evolutionWebhook'
-export type { EvolutionWebhookEvent } from './evolutionWebhook'
+export { evolutionWebhookInstance, parseEvolutionWebhook, verifyEvolutionWebhookSecret } from './evolutionWebhook'
+export type { EvolutionChatKind, EvolutionWebhookEvent } from './evolutionWebhook'
 export type {
   EvolutionConfig,
   EvolutionConnectionState,
