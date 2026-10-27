@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/evolution-whatsapp-provider",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Evolution API (WhatsApp, self-hosted) client — text, media, connection state and webhook parsing, same channel contract as the Meta provider",
   "publishConfig": {
     "access": "public"
