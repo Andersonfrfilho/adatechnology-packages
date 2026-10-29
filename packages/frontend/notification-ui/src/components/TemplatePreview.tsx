@@ -29,8 +29,19 @@ export type TemplatePreviewProps = {
   readonly emailHtml?: string
   /** Nome do produto, para o cabeçalho do e-mail e o do push. O pacote não sabe de quem é a marca. */
   readonly senderName?: string
+  /**
+   * Arquivo que segue com a mensagem (ex.: o PDF do boleto). Aparece como cartão de documento no
+   * balão do WhatsApp e como chip no fim do e-mail. O nome e o tamanho vêm do produto.
+   */
+  readonly attachment?: PreviewAttachment
   /** Os textos da moldura. Nada aqui é hardcoded — nem "para você", nem "agora" (web.md §6). */
   readonly labels: PreviewLabels
+}
+
+export type PreviewAttachment = {
+  readonly name: string
+  /** Já formatado pelo produto (ex.: "4,4 KB · PDF"). Ausente, só o nome. */
+  readonly detail?: string
 }
 
 export type PreviewLabels = {
@@ -88,17 +99,7 @@ function StatusIcons() {
  * arredondados; no Android é o furo à esquerda e a moldura é mais reta. É o que faz reconhecer o
  * aparelho de relance, e é onde a mesma mensagem quebra em pontos diferentes.
  */
-function Phone({
-  children,
-  os,
-  tone,
-  time,
-}: {
-  children: React.ReactNode
-  os: string
-  tone?: 'dark'
-  time: string
-}) {
+function Phone({ children, os, tone, time }: { children: React.ReactNode; os: string; tone?: 'dark'; time: string }) {
   const android = os === 'android'
   const classes = ['adn-preview-phone', `adn-preview-phone--${android ? 'android' : 'ios'}`]
   if (tone === 'dark') classes.push('adn-preview-phone--dark')
@@ -166,7 +167,9 @@ const ICON = {
   forward: 'M15 17h5V7M20 7l-7 7M4 17v-3a6 6 0 0 1 6-6h10',
   replyAll: 'M7 17H3V9M3 9l5 5M11 17H8V9M8 9l5 5M20 17v-3a6 6 0 0 0-6-6H8',
   chevron: 'm6 9 6 6 6-6',
-  settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L6.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1',
+  file: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5',
+  settings:
+    'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L6.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1',
 } as const
 
 /**
@@ -182,11 +185,13 @@ function EmailDesktop({
   emailHtml,
   senderName,
   labels,
+  attachment,
 }: {
   rendered: RenderedTemplatePreview
   emailHtml: string | undefined
   senderName: string
   labels: PreviewLabels
+  attachment: PreviewAttachment | undefined
 }) {
   return (
     <div className="adn-preview-browser">
@@ -274,6 +279,7 @@ function EmailDesktop({
               </div>
 
               <MailBody html={emailHtml} text={rendered.body} />
+              {attachment ? <AttachmentCard attachment={attachment} block="adn-preview-attachment--mail" /> : null}
             </div>
           </div>
         </div>
@@ -296,12 +302,14 @@ function EmailMobile({
   senderName,
   os,
   labels,
+  attachment,
 }: {
   rendered: RenderedTemplatePreview
   emailHtml: string | undefined
   senderName: string
   os: string
   labels: PreviewLabels
+  attachment: PreviewAttachment | undefined
 }) {
   return (
     <Phone os={os} time={labels.time}>
@@ -340,6 +348,7 @@ function EmailMobile({
           </div>
 
           <MailBody html={emailHtml} text={rendered.body} />
+          {attachment ? <AttachmentCard attachment={attachment} block="adn-preview-attachment--mail" /> : null}
 
           <div className="adn-preview-mail__reply">
             <span className="adn-preview-mail__reply-button">
@@ -373,11 +382,13 @@ function WhatsAppPreview({
   labels,
   os,
   senderName,
+  attachment,
 }: {
   rendered: RenderedTemplatePreview
   labels: PreviewLabels
   os: string
   senderName: string
+  attachment: PreviewAttachment | undefined
 }) {
   return (
     <Phone os={os} time={labels.time}>
@@ -398,6 +409,7 @@ function WhatsAppPreview({
       <div className="adn-preview-wa">
         <div className="adn-preview-wa__day">{labels.today}</div>
         <div className="adn-preview-wa__bubble">
+          {attachment ? <AttachmentCard attachment={attachment} block="adn-preview-attachment--wa" /> : null}
           <div className="adn-preview-wa__text">{rendered.body}</div>
           <div className="adn-preview-wa__time">{labels.now}</div>
         </div>
@@ -473,6 +485,19 @@ function InboxPreview({ rendered }: { rendered: RenderedTemplatePreview }) {
   )
 }
 
+/** O arquivo anexo: mesmo cartão nos canais que o mostram, só a moldura em volta muda. */
+function AttachmentCard({ attachment, block }: { attachment: PreviewAttachment; block: string }) {
+  return (
+    <div className={`adn-preview-attachment ${block}`}>
+      <Icon d={ICON.file} size={18} />
+      <span className="adn-preview-attachment__text">
+        <span className="adn-preview-attachment__name">{attachment.name}</span>
+        {attachment.detail ? <span className="adn-preview-attachment__detail">{attachment.detail}</span> : null}
+      </span>
+    </div>
+  )
+}
+
 /**
  * O corpo do e-mail. Com `html`, um documento inteiro dentro de `<iframe sandbox="" srcDoc>`:
  * sandbox vazio é o mais restrito que existe — sem script, sem mesma-origem, sem formulário — e o
@@ -494,12 +519,22 @@ function MailBody({ html, text }: { html: string | undefined; text: string }) {
   )
 }
 
-export function TemplatePreview({ channel, viewport, rendered, emailHtml, senderName, labels }: TemplatePreviewProps) {
+export function TemplatePreview({
+  channel,
+  viewport,
+  rendered,
+  emailHtml,
+  senderName,
+  attachment,
+  labels,
+}: TemplatePreviewProps) {
   /** Sem nome do produto, o remetente vira a inicial do assunto — nunca um literal inventado. */
   const sender = senderName ?? rendered.title.slice(0, 1).toUpperCase()
 
   if (channel === 'whatsapp') {
-    return <WhatsAppPreview rendered={rendered} labels={labels} os={viewport} senderName={sender} />
+    return (
+      <WhatsAppPreview rendered={rendered} labels={labels} os={viewport} senderName={sender} attachment={attachment} />
+    )
   }
   if (channel === 'sms') return <SmsPreview rendered={rendered} os={viewport} labels={labels} />
   if (channel === 'push') {
@@ -508,8 +543,21 @@ export function TemplatePreview({ channel, viewport, rendered, emailHtml, sender
   if (channel === 'inbox') return <InboxPreview rendered={rendered} />
 
   return viewport === 'browser' ? (
-    <EmailDesktop rendered={rendered} emailHtml={emailHtml} senderName={sender} labels={labels} />
+    <EmailDesktop
+      rendered={rendered}
+      emailHtml={emailHtml}
+      senderName={sender}
+      labels={labels}
+      attachment={attachment}
+    />
   ) : (
-    <EmailMobile rendered={rendered} emailHtml={emailHtml} senderName={sender} os={viewport} labels={labels} />
+    <EmailMobile
+      rendered={rendered}
+      emailHtml={emailHtml}
+      senderName={sender}
+      os={viewport}
+      labels={labels}
+      attachment={attachment}
+    />
   )
 }

@@ -2942,3 +2942,30 @@
 .adn-settings__preview-frames {
   gap: var(--adn-space-5, 20px);
 }
+
+/* Anexo na moldura do canal (ex.: PDF do boleto): cartao de documento no balao, chip no e-mail. */
+.adn-preview-attachment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.adn-preview-attachment--wa {
+  margin-bottom: 6px;
+  background: var(--adn-preview-wa-attachment, rgba(11, 20, 26, 0.06));
+  color: var(--adn-preview-wa-text, #111b21);
+}
+
+.adn-preview-attachment--mail {
+  margin-top: var(--adn-space-3, 12px);
+  border: 1px solid var(--adn-border, rgba(127, 127, 127, 0.35));
+  width: fit-content;
+  max-width: 100%;
+}
+
+.adn-preview-attachment__text { display: flex; flex-direction: column; min-width: 0; }
+.adn-preview-attachment__name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adn-preview-attachment__detail { font-size: 11px; opacity: 0.7; }

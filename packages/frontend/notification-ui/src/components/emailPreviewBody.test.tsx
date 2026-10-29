@@ -47,3 +47,37 @@ describe('corpo do preview de e-mail', () => {
     expect(render('<p>x</p>')).toContain('sandbox=""')
   })
 })
+
+describe('anexo na moldura do canal', () => {
+  const ATTACHMENT = { name: 'boleto-nf-899853.pdf', detail: '4,4 KB · PDF' }
+
+  function renderChannel(channel: string, viewport: string, attachment?: typeof ATTACHMENT): string {
+    return renderToStaticMarkup(
+      <TemplatePreview
+        channel={channel}
+        viewport={viewport}
+        rendered={RENDERED}
+        labels={LABELS}
+        {...(attachment ? { attachment } : {})}
+      />,
+    )
+  }
+
+  it('WhatsApp mostra o cartão do documento dentro do balão', () => {
+    const markup = renderChannel('whatsapp', 'ios', ATTACHMENT)
+
+    expect(markup).toContain('adn-preview-attachment--wa')
+    expect(markup).toContain('boleto-nf-899853.pdf')
+    expect(markup).toContain('4,4 KB · PDF')
+  })
+
+  it('e-mail mostra o anexo no desktop e no celular', () => {
+    expect(renderChannel('email', 'browser', ATTACHMENT)).toContain('adn-preview-attachment--mail')
+    expect(renderChannel('email', 'ios', ATTACHMENT)).toContain('boleto-nf-899853.pdf')
+  })
+
+  it('sem anexo, nada muda', () => {
+    expect(renderChannel('whatsapp', 'ios')).not.toContain('adn-preview-attachment')
+    expect(renderChannel('email', 'browser')).not.toContain('adn-preview-attachment')
+  })
+})
