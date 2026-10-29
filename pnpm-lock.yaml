@@ -1525,6 +1525,9 @@ importers:
 
   packages/frontend/notification-ui:
     dependencies:
+      '@adatechnology/conversations-ui':
+        specifier: workspace:*
+        version: link:../conversations-ui
       '@adatechnology/notification-client':
         specifier: workspace:*
         version: link:../notification-client

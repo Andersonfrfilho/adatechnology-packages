@@ -29,6 +29,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@adatechnology/conversations-ui": "workspace:*",
     "@adatechnology/notification-client": "workspace:*",
     "@adatechnology/notification-contracts": "workspace:*",
     "clsx": "^2.1.1",

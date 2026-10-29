@@ -18,6 +18,8 @@
 
 import type { RenderedTemplatePreview } from '@adatechnology/notification-contracts'
 
+import { parseWhatsAppFormatting } from '@adatechnology/conversations-ui'
+
 export type TemplatePreviewProps = {
   readonly channel: string
   readonly viewport: string
@@ -410,7 +412,7 @@ function WhatsAppPreview({
         <div className="adn-preview-wa__day">{labels.today}</div>
         <div className="adn-preview-wa__bubble">
           {attachment ? <AttachmentCard attachment={attachment} block="adn-preview-attachment--wa" /> : null}
-          <div className="adn-preview-wa__text">{rendered.body}</div>
+          <div className="adn-preview-wa__text">{parseWhatsAppFormatting(rendered.body)}</div>
           <div className="adn-preview-wa__time">{labels.now}</div>
         </div>
       </div>
