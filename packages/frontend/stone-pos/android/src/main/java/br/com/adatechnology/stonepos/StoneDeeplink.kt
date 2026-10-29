@@ -29,6 +29,8 @@ const val PRINT_STATUS_UNKNOWN = "UNKNOWN"
 const val PRINT_STATUS_SUCCESS = "SUCCESS"
 const val PRINT_WARNING_UNKNOWN_STATUS = "UNKNOWN_PRINT_STATUS"
 
+const val PIX_INSTALLMENT_TYPE = "MERCHANT"
+
 const val KIND_PAY = "PAY"
 const val KIND_CANCEL = "CANCEL"
 const val KIND_PRINT = "PRINT"
@@ -58,8 +60,14 @@ object StoneDeeplink {
             "return_scheme" to returnScheme,
             "amount" to params.amountCents.toString(),
             "transaction_type" to params.transactionType,
-            "installment_type" to params.installmentType,
         )
+        if (params.transactionType != "CREDIT") {
+            require(params.installmentType == "NONE") { "Installments are only allowed for CREDIT" }
+        } else {
+            entries.add("installment_type" to params.installmentType)
+        }
+        // P2 on bundle 7.10.0.4 (2026-10-29): PIX only charges with installment_type=MERCHANT; NONE or omitted fails at /v1/charge.
+        if (params.transactionType == "PIX") entries.add("installment_type" to PIX_INSTALLMENT_TYPE)
         if (params.installmentType != "NONE") {
             val count = params.installmentCount
             require(count != null && count in 2..99) { "installment_count must be 2..99" }

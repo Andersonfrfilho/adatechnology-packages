@@ -26,6 +26,38 @@ class StoneDeeplinkTest {
     }
 
     @Test
+    fun buildsDebitPaymentUriWithoutInstallmentType() {
+        val uri = StoneDeeplink.buildPaymentUri(SCHEME, PaymentParams(amountCents = 26710, transactionType = "DEBIT"))
+        assertEquals(
+            "payment-app://pay?return_scheme=comandada&amount=26710&transaction_type=DEBIT&editable_amount=0",
+            uri,
+        )
+    }
+
+    @Test
+    fun buildsPixPaymentUriWithMerchantInstallmentType() {
+        val uri = StoneDeeplink.buildPaymentUri(SCHEME, PaymentParams(amountCents = 3910, transactionType = "PIX"))
+        assertEquals(
+            "payment-app://pay?return_scheme=comandada&amount=3910&transaction_type=PIX" +
+                "&installment_type=MERCHANT&editable_amount=0",
+            uri,
+        )
+    }
+
+    @Test
+    fun rejectsInstallmentsOutsideCredit() {
+        try {
+            StoneDeeplink.buildPaymentUri(
+                SCHEME,
+                PaymentParams(amountCents = 9600, transactionType = "DEBIT", installmentType = "MERCHANT", installmentCount = 3),
+            )
+            fail("installments on DEBIT should be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("CREDIT"))
+        }
+    }
+
+    @Test
     fun buildsInstallmentPaymentUriWithOrderId() {
         val uri = StoneDeeplink.buildPaymentUri(
             SCHEME,
