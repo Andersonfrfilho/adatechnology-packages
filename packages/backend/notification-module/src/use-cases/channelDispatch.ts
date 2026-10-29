@@ -142,8 +142,12 @@ export async function dispatchChannel(params: {
   })
   if (!template) return Promise.all(skip('template_not_found'))
 
-  if (planned.channel === NOTIFICATION_CHANNEL.WHATSAPP && !template.whatsappTemplateName) {
-    // Regra §10.7 — sem template aprovado, não tentamos texto livre fora da janela de 24h; quem
+  if (
+    planned.channel === NOTIFICATION_CHANNEL.WHATSAPP &&
+    !template.whatsappTemplateName &&
+    !dependencies.channels.whatsapp?.acceptsFreeText
+  ) {
+    // Regra §10.7 — sem template aprovado (e sem driver de texto livre, como o Evolution), não tentamos texto livre fora da janela de 24h; quem
     // sabe se está dentro da janela é a Graph API, não este pacote (ver whatsappDriver.ts).
     return Promise.all(skip('whatsapp_template_required'))
   }
