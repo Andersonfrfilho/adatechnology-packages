@@ -193,6 +193,28 @@ describe('SendNotificationUseCase — supressão e template', () => {
     expect(queue.enqueued).toHaveLength(0)
   })
 
+  it('WhatsApp sem template segue para a fila quando o driver aceita texto livre (Evolution)', async () => {
+    const templates = createInMemoryTemplates([
+      buildTemplateRow({ companyId: COMPANY_ID, key: 'order.shipped', channel: 'inbox' }),
+      buildTemplateRow({
+        companyId: COMPANY_ID,
+        key: 'order.shipped',
+        channel: 'whatsapp',
+        whatsappTemplateName: null,
+      }),
+    ])
+    const { useCase, deliveries, queue } = buildUseCase({
+      templates,
+      channels: { whatsapp: { acceptsFreeText: true, send: async () => ({ outcome: 'sent' }) } },
+    })
+
+    await useCase.execute({ ...baseParams, channels: ['whatsapp'] })
+
+    const whatsapp = deliveries.rows.find((row) => row.channel === 'whatsapp')
+    expect(whatsapp?.status).toBe('queued')
+    expect(queue.enqueued).toHaveLength(1)
+  })
+
   it('e-mail guarda só o endereço mascarado, nunca em claro', async () => {
     const { useCase, deliveries } = buildUseCase()
 

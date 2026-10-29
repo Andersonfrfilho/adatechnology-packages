@@ -48,6 +48,8 @@ export type { HtmlToken, HtmlTokenKind } from './htmlHighlight.util'
 /** Caixa de mensagem com barra de formatacao — marcacao do WhatsApp, unica para todos os canais. */
 export { MessageBodyField } from './components/MessageBodyField'
 export type { MessageBodyFieldProps } from './components/MessageBodyField'
+export { TemplatePreview } from './components/TemplatePreview'
+export type { TemplatePreviewProps, PreviewLabels, PreviewAttachment } from './components/TemplatePreview'
 export { MessageToolbar } from './components/MessageToolbar'
 export type { MessageToolbarProps } from './components/MessageToolbar'
 export { MESSAGE_FORMAT, MESSAGE_FORMAT_MARKS, MESSAGE_EMOJI } from './messageFormat.constant'

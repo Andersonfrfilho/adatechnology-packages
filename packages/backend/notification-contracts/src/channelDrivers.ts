@@ -91,6 +91,12 @@ export interface EmailDriverPort {
  * independentes, com a costura acontecendo no produto (regra de módulos plugáveis, §2).
  */
 export interface WhatsAppDriverPort {
+  /**
+   * `true` = o provedor entrega texto livre sem janela de 24 h (ex.: Evolution, sessão própria).
+   * Então o canal não exige `whatsappTemplateName`. Ausente/`false` = Meta Cloud API, que só
+   * aceita template aprovado fora da janela.
+   */
+  readonly acceptsFreeText?: boolean
   send(params: SendWhatsAppParams): Promise<DeliveryAttemptResult>
 }
 
