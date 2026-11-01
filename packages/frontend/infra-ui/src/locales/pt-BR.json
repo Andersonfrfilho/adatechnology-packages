@@ -15,7 +15,7 @@
   },
   "access": {
     "ok": "Conexão com o provedor ativa.",
-    "token_invalid": "Sem acesso ao provedor: o token é inválido ou foi revogado. Atualize-o na configuração do servidor.",
+    "token_invalid": "Sem acesso ao provedor: o token é inválido, foi revogado ou não pertence a este workspace. Troque-o na aba Integração ou, se ele vier de variável de ambiente, na configuração do servidor.",
     "billing_unavailable": "Cobrança ilegível: o token não consegue ler a cobrança. Ambientes e agendas funcionam; os custos podem aparecer sem o total oficial.",
     "unavailable": "Não foi possível falar com o provedor agora. Tente de novo em instantes."
   },

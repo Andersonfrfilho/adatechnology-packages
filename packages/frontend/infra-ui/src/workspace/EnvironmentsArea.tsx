@@ -3,6 +3,7 @@
  */
 
 import { AccessBanner } from '../components/AccessBanner.component'
+import { INFRA_ACCESS_STATUS, type InfraAccessStatus } from '../constants/infra.constant'
 import { InfraPageHeader } from '../components/InfraPageHeader.component'
 import { InfraQueryError } from '../components/InfraQueryError.component'
 import { ProjectGroup } from '../components/ProjectGroup.component'
@@ -35,7 +36,8 @@ export function EnvironmentsArea() {
       {data ? (
         <>
           <AccessBanner access={data.access} />
-          {data.projects.length === 0 ? (
+          {/* Sem acesso ao provedor a lista vem vazia por falta de leitura, não por falta de ambientes. */}
+          {isInventoryUnreadable(data.access) ? null : data.projects.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">{locale.empty}</p>
           ) : (
             <div className="space-y-6">
@@ -48,4 +50,8 @@ export function EnvironmentsArea() {
       ) : null}
     </section>
   )
+}
+
+function isInventoryUnreadable(access: InfraAccessStatus): boolean {
+  return access === INFRA_ACCESS_STATUS.TOKEN_INVALID || access === INFRA_ACCESS_STATUS.UNAVAILABLE
 }
