@@ -59,7 +59,18 @@ export function RecommendationCard({ entry, onVisible, onOpen }: RecommendationC
       ref={ref as never}
       className="flex min-w-[220px] max-w-[280px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
     >
-      {entry.imageUrl ? <img src={entry.imageUrl} alt="" loading="lazy" className="h-32 w-full object-cover" /> : null}
+      {entry.imageUrl ? (
+        <img
+          src={entry.imageUrl}
+          alt=""
+          loading="lazy"
+          // Imagem bloqueada (CSP do host, link quebrado) some em vez de deixar um buraco no card.
+          onError={(event) => {
+            event.currentTarget.style.display = 'none'
+          }}
+          className="h-32 w-full object-cover"
+        />
+      ) : null}
       <div className="flex flex-1 flex-col gap-1 p-3">
         <span
           className={
