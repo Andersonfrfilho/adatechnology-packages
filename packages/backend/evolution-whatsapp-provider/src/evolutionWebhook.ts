@@ -25,6 +25,12 @@ export type EvolutionWebhookEvent =
       replyToExternalMessageId: string | null
       pushName: string | null
       timestamp: number | null
+      /** O id do grupo (`...@g.us`) quando `chat` é `group`; `null` nos demais chats. */
+      groupJid: string | null
+      /** Número (só dígitos) de quem escreveu no grupo; vazio fora de grupo ou quando só há `@lid` sem número. */
+      participant: string
+      /** Os `mentionedJid` da mensagem, como vieram (podem ser `@s.whatsapp.net` ou `@lid`). */
+      mentionedJids: string[]
     }
   | { type: 'status'; externalMessageId: string; status: EvolutionDeliveryStatus }
   | { type: 'connection'; state: EvolutionConnectionState }
@@ -97,6 +103,33 @@ function textOf(message: unknown): string | null {
   return null
 }
 
+/** Quem escreveu dentro do grupo: `participant`, ou `participantAlt` quando a privacidade `@lid` esconde o número. */
+function participantOf(key: Json, item: Json): string {
+  const candidates = [key.participantAlt, key.participantPn, key.participant, item.participant]
+  const jid = candidates.find((candidate) => chatOf(candidate) === 'user')
+  return jid === undefined ? '' : digitsOf(jid)
+}
+
+/** Os `mentionedJid` de qualquer tipo de mensagem ou do `contextInfo` de topo (v2). */
+function mentionedOf(item: Json): string[] {
+  const contexts: unknown[] = [item.contextInfo]
+  if (isRecord(item.message)) {
+    for (const value of Object.values(item.message)) {
+      if (isRecord(value)) contexts.push(value.contextInfo)
+    }
+  }
+  const jids = contexts.flatMap((context) =>
+    isRecord(context) && Array.isArray(context.mentionedJid) ? context.mentionedJid : [],
+  )
+  return [...new Set(jids.filter((jid): jid is string => typeof jid === 'string' && jid !== ''))]
+}
+
+/** O bot foi marcado? Compara pelos dígitos do número da instância (`getOwnerNumber`). */
+export function evolutionMentionsNumber(event: { mentionedJids: readonly string[] }, ownerNumber: string): boolean {
+  const owner = ownerNumber.replace(/\D/g, '')
+  return owner !== '' && event.mentionedJids.some((jid) => jid.split('@')[1] !== 'lid' && digitsOf(jid) === owner)
+}
+
 /** O `stanzaId` da mensagem citada, em qualquer tipo de mensagem ou no `contextInfo` de topo (v2). */
 function replyToOf(item: Json): string | null {
   const contexts: unknown[] = [item.contextInfo]
@@ -148,6 +181,9 @@ export function parseEvolutionWebhook(payload: unknown): EvolutionWebhookEvent[]
           replyToExternalMessageId: replyToOf(item),
           pushName: typeof item.pushName === 'string' ? item.pushName : null,
           timestamp: timestampOf(item.messageTimestamp),
+          groupJid: chatOf(item.key.remoteJid) === 'group' ? (item.key.remoteJid as string) : null,
+          participant: chatOf(item.key.remoteJid) === 'group' ? participantOf(item.key, item) : '',
+          mentionedJids: mentionedOf(item),
         },
       ]
     })

@@ -27,6 +27,20 @@ export function normalizeEvolutionNumber(to: string): string {
   return digits
 }
 
+/** `120363025246125486@g.us` (ou o formato antigo `5511999998888-1600000000@g.us`): o id de um grupo. */
+export function isEvolutionGroupJid(value: string): boolean {
+  return /^\d+(-\d+)?@g\.us$/.test(value.trim())
+}
+
+/**
+ * O destino como o Evolution espera: grupo (`...@g.us`) segue intacto, porque tirar os não-dígitos
+ * o transformaria num número inválido; qualquer outro destino é normalizado para só dígitos.
+ */
+export function resolveEvolutionDestination(to: string): string {
+  const trimmed = to.trim()
+  return isEvolutionGroupJid(trimmed) ? trimmed : normalizeEvolutionNumber(trimmed)
+}
+
 function mediaTypeOf(mimeType: string): 'image' | 'video' | 'audio' | 'document' {
   if (mimeType.startsWith('image/')) return 'image'
   if (mimeType.startsWith('video/')) return 'video'
@@ -62,7 +76,7 @@ export class EvolutionWhatsAppChannel {
 
   async sendText(to: string, body: string): Promise<EvolutionSendResult> {
     const response = await this.request('POST', `/message/sendText/${this.instance}`, {
-      number: normalizeEvolutionNumber(to),
+      number: resolveEvolutionDestination(to),
       text: body,
     })
     return { externalMessageId: readMessageId(response) }
@@ -71,7 +85,7 @@ export class EvolutionWhatsAppChannel {
   async sendMedia(params: SendMediaParams): Promise<EvolutionSendResult & { mediaId?: string | undefined }> {
     if (params.buffer === undefined) throw new EvolutionUnsupportedError('mediaId reuse')
     const response = await this.request('POST', `/message/sendMedia/${this.instance}`, {
-      number: normalizeEvolutionNumber(params.to),
+      number: resolveEvolutionDestination(params.to),
       mediatype: mediaTypeOf(params.mimeType),
       mimetype: params.mimeType,
       fileName: params.filename,

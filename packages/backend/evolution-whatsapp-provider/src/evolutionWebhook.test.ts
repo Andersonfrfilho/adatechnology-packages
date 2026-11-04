@@ -4,7 +4,12 @@
 
 import { describe, expect, test } from 'bun:test'
 
-import { evolutionWebhookInstance, parseEvolutionWebhook, verifyEvolutionWebhookSecret } from './evolutionWebhook'
+import {
+  evolutionMentionsNumber,
+  evolutionWebhookInstance,
+  parseEvolutionWebhook,
+  verifyEvolutionWebhookSecret,
+} from './evolutionWebhook'
 
 describe('parseEvolutionWebhook', () => {
   test('an incoming text message becomes a message event with digits-only sender', () => {
@@ -24,6 +29,9 @@ describe('parseEvolutionWebhook', () => {
         externalMessageId: 'ABC',
         from: '5516999998888',
         fromMe: false,
+        groupJid: null,
+        mentionedJids: [],
+        participant: '',
         pushName: 'Maria',
         replyToExternalMessageId: null,
         text: 'oi',
@@ -134,5 +142,56 @@ describe('verifyEvolutionWebhookSecret', () => {
     expect(verifyEvolutionWebhookSecret('segredo2', 'segredo')).toBe(false)
     expect(verifyEvolutionWebhookSecret(undefined, 'segredo')).toBe(false)
     expect(verifyEvolutionWebhookSecret('x', '')).toBe(false)
+  })
+})
+
+describe('group messages', () => {
+  const group = '120363000000000000@g.us'
+  const bot = '5516988887777'
+
+  test('returns the group, who wrote and who was tagged', () => {
+    const [event] = parseEvolutionWebhook({
+      data: {
+        key: { fromMe: false, id: 'G1', participant: '5516999998888@s.whatsapp.net', remoteJid: group },
+        message: {
+          extendedTextMessage: {
+            contextInfo: { mentionedJid: [`${bot}@s.whatsapp.net`, `${bot}@s.whatsapp.net`] },
+            text: '@bot prorrogação de boleto 17234',
+          },
+        },
+      },
+      event: 'messages.upsert',
+    })
+
+    expect(event).toMatchObject({
+      chat: 'group',
+      from: '',
+      groupJid: group,
+      mentionedJids: [`${bot}@s.whatsapp.net`],
+      participant: '5516999998888',
+    })
+    if (event?.type !== 'message') throw new Error('expected message')
+    expect(evolutionMentionsNumber(event, `+${bot}`)).toBe(true)
+    expect(evolutionMentionsNumber(event, '5516900000000')).toBe(false)
+  })
+
+  test('a lid participant falls back to participantAlt, and without it has no number', () => {
+    const parse = (key: Record<string, unknown>) =>
+      parseEvolutionWebhook({ data: { key: { id: 'G2', remoteJid: group, ...key } }, event: 'messages.upsert' })[0]
+
+    expect(parse({ participant: '99@lid', participantAlt: '5516999998888@s.whatsapp.net' })).toMatchObject({
+      participant: '5516999998888',
+    })
+    expect(parse({ participant: '99@lid' })).toMatchObject({ participant: '' })
+  })
+
+  test('a direct chat has no group and a lid mention never matches the owner number', () => {
+    const [event] = parseEvolutionWebhook({
+      data: { key: { id: 'D', remoteJid: '5516999998888@s.whatsapp.net' }, message: { conversation: 'oi' } },
+      event: 'messages.upsert',
+    })
+    expect(event).toMatchObject({ groupJid: null, participant: '' })
+    expect(evolutionMentionsNumber({ mentionedJids: [`${bot}@lid`] }, bot)).toBe(false)
+    expect(evolutionMentionsNumber({ mentionedJids: [`${bot}@s.whatsapp.net`] }, '')).toBe(false)
   })
 })

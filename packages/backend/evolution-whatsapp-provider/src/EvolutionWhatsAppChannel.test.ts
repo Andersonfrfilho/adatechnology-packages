@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from 'bun:test'
 
-import { EvolutionWhatsAppChannel, normalizeEvolutionNumber } from './EvolutionWhatsAppChannel'
+import { EvolutionWhatsAppChannel, isEvolutionGroupJid, normalizeEvolutionNumber } from './EvolutionWhatsAppChannel'
 import { EvolutionError, EvolutionUnsupportedError } from './errors'
 
 type Call = { url: string; init: RequestInit }
@@ -56,6 +56,25 @@ describe('EvolutionWhatsAppChannel', () => {
     expect(calls[0]?.url).toBe('https://evolution.example/message/sendText/empresa%201')
     expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ number: '5516999998888', text: 'oi' })
     expect((calls[0]?.init.headers as Record<string, string>).apikey).toBe('fixture-key')
+  })
+
+  test('sendText and sendMedia keep a group jid intact instead of stripping it to digits', async () => {
+    const { calls, channel } = fixture(() => json({ key: { id: 'G1' } }))
+    const group = '120363025246125486@g.us'
+
+    await channel.sendText(group, 'oi grupo')
+    await channel.sendMedia({ buffer: Buffer.from('x'), filename: 'b.pdf', mimeType: 'application/pdf', to: group })
+
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ number: group, text: 'oi grupo' })
+    expect(JSON.parse(String(calls[1]?.init.body)).number).toBe(group)
+  })
+
+  test('isEvolutionGroupJid accepts new and legacy group ids only', () => {
+    expect(isEvolutionGroupJid('120363025246125486@g.us')).toBe(true)
+    expect(isEvolutionGroupJid('5511999998888-1600000000@g.us')).toBe(true)
+    expect(isEvolutionGroupJid('5511999998888@s.whatsapp.net')).toBe(false)
+    expect(isEvolutionGroupJid('abc@g.us')).toBe(false)
+    expect(isEvolutionGroupJid('@g.us')).toBe(false)
   })
 
   test('sendMedia sends the buffer as base64 with document type for a pdf', async () => {
