@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/recommendation-contracts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "Shared types, zod schemas, error codes and port interfaces for the recommendation trio — sponsored and curated recommendations of any kind (contracts only — no runtime behavior)",
   "publishConfig": {
