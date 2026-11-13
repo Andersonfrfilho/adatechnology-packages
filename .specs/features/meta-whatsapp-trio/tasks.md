@@ -1,0 +1,296 @@
+# Tasks — Trio plugável `meta-whatsapp`
+
+Plano de execução da [`spec.md`](./spec.md). Catálogo **adiado** — ver §2.5 da spec.
+
+**Protocolo de modelo** (`~/.claude/rules/rules/model-economy.md`): ao iniciar uma fase,
+comparar o modelo da sessão com o recomendado. Se divergir, **parar e pedir a troca**
+antes de tocar em código. Tasks marcadas 🧠 exigem upgrade pontual.
+
+**Guard-rails em toda task:** `tsc --noEmit` · testes do pacote · commit isolado.
+
+---
+
+## Ordem geral
+
+```
+F0 fundação → F1 providers → F2 contracts → F3 conversa → F4 fluxograma
+   → F5 canal → F6 UI design → F7 UI settings+flows → F8 consumidor → F9 publicação
+```
+
+F3 e F4 podem correr em paralelo com F5 (times diferentes) — dependem só de F2.
+
+---
+
+## Fase 0 — Fundação e fronteiras
+> 🤖 Modelo: `opus` (T0.1 e T0.4 são estruturais) · demais `haiku`
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T0.1 🧠 | ADR da extração: camadas conversa/canal, `ChannelAdapterInterface`, `CatalogPort` opcional, decisão de fluxograma dentro do trio | ADR em `docs/adr/` revisado |
+| T0.2 | Scaffolding dos pacotes: `meta-graph-core`, `meta-whatsapp-provider`, `meta-catalog-provider`, `meta-whatsapp-contracts`, `meta-whatsapp-module` — `package.json`, `tsconfig`, `tsup`, changeset | `turbo build` passa vazio |
+| T0.3 | `conversations-ui`: configurar `exports` com subpaths `.`, `./flows`, `./whatsapp`; `@xyflow/react` como peer **opcional** | `bun run build` gera os 3 entry points |
+| T0.4 🧠 | Regra de fronteira em CI: `conversations/` **não importa** `channel/` (`dependency-cruiser` ou `eslint-plugin-boundaries`) | Violação proposital quebra o build |
+
+**Verificação:** `turbo build && turbo lint`
+
+---
+
+## Fase 1 — Reorganização dos providers Meta
+> 🤖 Modelo: `haiku` (mecânico: mover arquivos e renomear)
+> Depende de: F0
+
+Feita **agora**, mesmo com catálogo adiado, para não gastar duas majors no
+`whatsapp-provider`. Rename do pacote incluído nesta rodada (decisão do usuário).
+
+> ⚠️ **Ordem obrigatória: T1.1 antes de T1.3.** O `MetaCatalogProvider` importa
+> `graphFetch`, `assertConfigField` e `graphResponseSchemas` de `shared/`, compartilhados
+> com messages e templates. Mover o catálogo sem extrair o `meta-graph-core` antes
+> obrigaria a duplicar o encanamento.
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T1.1 | Criar `meta-graph-core`: mover `shared/graphFetch.ts`, `assertConfigField.ts`, `graphResponseSchemas.ts`, `errors/WhatsAppError.ts` → `MetaGraphError` | Pacote publicável, sem referência a WhatsApp |
+| T1.2 | Renomear `whatsapp-provider` → `meta-whatsapp-provider`; manter `messages` + `templates`; consumir `meta-graph-core` | `bun run check` limpo |
+| T1.3 | Mover `WhatsAppCatalogProvider` → `meta-catalog-provider` como `MetaCatalogProvider` | Zero símbolo `WhatsApp*` no pacote de catálogo |
+| T1.4 | Atualizar consumidores: bot (api, worker) e quickcart (api, worker) | Ambos os produtos compilam e sobem |
+
+**Verificação:** `turbo build && turbo test` · subir bot e quickcart localmente
+**Nota:** major nos 3 pacotes; changeset com nota de migração de imports.
+
+---
+
+## Fase 2 — `meta-whatsapp-contracts`
+> 🤖 Modelo: `haiku` (mover tipos existentes) · T2.5 é `sonnet`
+> Depende de: F0
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T2.1 | `webhook.types` + `webhook.schema` (zod) — extrair de `ReceiveWhatsAppWebhook.use-case.ts:40-110` | Cobre texto, imagem, áudio, vídeo, documento, sticker, interactive (button_reply/list_reply), order, context.referred_product, echo, status |
+| T2.2 | `conversation.types` — session, message, listagem, `SessionMode` | Estado é `string` opaca (**não** importar o enum de financiamento) |
+| T2.3 | `flow.types` — `FlowGraph`, `FlowNode`, `FlowActionKind` extensível | `trigger_simulation` **não** aparece; actions são registráveis |
+| T2.4 | `settings.types` — `WhatsAppSettings`, `TemplateConfig`, `TemplateVariablesMap` | — |
+| T2.5 | `events` (`MetaWhatsAppHooks`), `providers` (portas, incl. `ChannelAdapterInterface`, `SubjectResolverInterface`, `CatalogPort`), `errors` | `onMessageReceived` devolve `{outcome:'handled'\|'continue'}` |
+
+**Verificação:** `tsc --noEmit` · zero dependência além de `zod`
+
+---
+
+## Fase 3 — `module/conversations/` (agnóstico de canal) ✅ CONCLUÍDA
+> 🤖 Modelo: `sonnet`
+> Depende de: F2
+> Pacote: `@adatechnology/meta-whatsapp-module`. Validado contra Postgres real (não só tsc).
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T3.1 | `pgSchema('meta_whatsapp')` + tabelas `sessions`, `messages` + migrations com journal `meta_whatsapp_migrations` | `runMetaWhatsAppMigrations(db)` aplica limpo em banco vazio |
+| T3.2 | Repositórios de sessão e mensagem (getContext, setState, setMode, requestHuman, markRead, markAllRead, listByContextFilters, insertMessage, updateMessageStatus) | Testes unitários com banco de teste |
+| T3.3 | Use-cases: takeover/release, log, export, listagem | — |
+| T3.4 | Realtime: `SseHub` + relay Redis + ticket 60s, atrás de `RealtimeNotifierInterface` | Host pode trocar por WebSocket ou desligar |
+| T3.5 | Multiempresa: `companyId` vindo do contexto autenticado, índices incluindo tenant | Teste negativo de isolamento entre tenants |
+
+**Verificação:** `tsc --noEmit && bun test` · **lint de fronteira: zero import de `channel/`**
+
+---
+
+## Fase 4 — `module/conversations/flows/` (fluxograma) ✅ CONCLUÍDA (T4.1-T4.3)
+> 🤖 Modelo: `sonnet` · T4.3 é 🧠 `opus` (executada em sonnet — flag se precisar revisão)
+> Depende de: F2 · paralelizável com F3 e F5
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T4.1 ✅ | Tabela `flow_graphs` (key, label, start_node_id, nodes, version) + migrations | — |
+| T4.2 ✅ | CRUD de grafo + `GetLiveFlowPositions` | Paridade com `modules/flows/**` do bot |
+| T4.3 ✅ | Interpretador de grafo + **registro de actions do host** (`registerFlowAction`) | `trigger_simulation` do bot funciona registrado de fora, sem estar no pacote |
+| T4.4 ✅ | Flag `features.flowEngine` — desligável | Entregue na F5 junto com a factory: `flows` fica `undefined` e o interpretador nem é instanciado |
+
+**Verificação:** `tsc --noEmit && bun test` · lint de fronteira
+
+---
+
+## Fase 5 — `module/channel/` (Meta/WhatsApp) ✅ CONCLUÍDA
+> 🤖 Modelo: `sonnet` · T5.1 e T5.6 são 🧠 `opus` (segurança e API pública)
+> Depende de: F2
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T5.1 ✅ | Webhook: verify (compare constante), HMAC `sha256=`, nonce anti-replay Redis TTL 300s | Verificado: assinatura forjada/ausente/corpo adulterado → rejeita; replay → `duplicate:true` sem re-disparar hook |
+| T5.2 ✅ | `sender`: wrapper do `meta-whatsapp-provider` — texto, mídia, template, lista interativa; erro de janela 24h → `WINDOW_EXPIRED` | Janela checada localmente ANTES da Graph API; `sendTemplate` isento (é o que reabre) |
+| T5.3 ✅ | `media`: download/upload Meta, idempotente por `sourceMediaId`, via `ObjectStorageInterface` | Delegado à porta (zero S3 no pacote); job reentregue não re-baixa nem duplica objeto |
+| T5.4 ✅ | **Corrigir dívida:** outbound deixa de gravar base64 no banco; grava no storage e referencia `uploadId` | `messages.payload` guarda `uploadId`, nunca binário |
+| T5.5 ✅ | `settings`: tabela `meta_whatsapp.settings` (só chaves de WhatsApp) + CRUD de templates/welcome/farewell/variáveis | Tabela do módulo; `resolveTemplateVariables` mapeia `{{n}}` → contexto |
+| T5.6 ✅ | `createMetaWhatsAppModule()` — costura conversa×canal, hooks, portas, `CatalogPort` **opcional** | Sobe sem catálogo; zero `process.env`. `registerRoutes()` **não** feito — ver nota |
+
+> **`registerRoutes()` deliberadamente não implementado.** A factory expõe os use-cases e o host
+> liga nas próprias rotas. Montar rotas exigiria o módulo assumir um framework HTTP (Bun.serve,
+> Hono, Express…) e um formato de auth/erro — justamente o acoplamento que o padrão de módulo
+> plugável evita. O host já precisa resolver `companyId` do contexto autenticado antes de chamar
+> qualquer coisa aqui. Reavaliar na F8/F9 se os dois consumidores acabarem escrevendo o mesmo
+> boilerplate de rota.
+
+**Verificação:** `tsc --noEmit && bun test` · zero `process.env` no pacote
+
+---
+
+## Fase 6 — `conversations-ui`: design, áudio, documentos
+> 🤖 Modelo: `haiku` em T6.1 · `sonnet` no resto
+> Depende de: F2
+> ⚠️ **Maior esforço do projeto.** Paridade visual é critério de aceite.
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T6.1 | **Desacoplar locale primeiro** — remover import do barrel pt-BR dos componentes; strings via props/context com default pt-BR | Zero import de `locales` do produto. **Bloqueia todas as tasks seguintes** |
+| T6.2 | Tokens: reconciliar `tailwind.config.js:27-40` e `theme.constant.ts` numa fonte única exportada | Uma definição só de `whatsapp.*` |
+| T6.3 | **Wallpaper** `.wa-wallpaper` (`index.css:119-129`) — SVG data-URI, claro `#d7cfc0` / escuro `#19232a` | Screenshot idêntico ao bot, claro e escuro |
+| T6.4 | `MessageBubble` + `Ticks` + `Avatar` + `DateDivider` | Cor por sender, tail só no `isFirstInGroup`, agrupamento `mt-2`/`mt-0.5`, `ring-1 ring-red-400` em falha, tick `read → sky-500`, tooltip de `readAt`/janela expirada |
+| T6.5 | Formatação: `whatsapp-formatting.tsx` (`*bold*`, `_italic_`, `` `code` ``, `waToHTML`/`htmlToWA`) + `WhatsAppMessageEditor` + `SimpleEmojiPicker` | Round-trip WA↔HTML sem perda |
+| T6.6 | `AudioPlayer` — **paridade primeiro** (waveform fake de 30 barras, click-to-seek, `m:ss`) | Idêntico ao bot. Waveform real, velocidade, gravador e STT ficam como *enhancement* pós-paridade |
+| T6.7 | Documentos: `ImageLightbox`, download por URL assinada, aceite `image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip` | Paridade |
+| T6.8 | **Melhorias** sobre as lacunas: ícone por extensão (hoje é `FileText` para tudo) e tamanho formatado na bolha | Não regride paridade |
+| T6.9 | Camada headless: hooks/queries exportados independentes das telas | Produto consegue montar tela própria sobre os hooks |
+
+**Verificação:** `tsc --noEmit && bun test` · **screenshots antes/depois por componente,
+claro e escuro** · Storybook ou página de sandbox
+
+---
+
+## Fase 7 — `conversations-ui`: settings + editor de fluxograma
+> 🤖 Modelo: `sonnet`
+> Depende de: F6.1 (desacople de locale)
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T7.1 | Telas de Settings do WhatsApp: template (picker + refresh da Meta), idioma, variáveis dinâmicas, welcome, farewell | Paridade com `SettingsPage.tsx:517-876` |
+| T7.2 | Editor de fluxograma no subpath `./flows` — 9 componentes + blueprint (~2.233 linhas) | Importar `conversations-ui` **sem** `/flows` não puxa React Flow (verificar no bundle) |
+| T7.3 | `FlowWhatsAppPreview` passa a consumir a bolha do pacote em vez de duplicar estilo | Zero duplicação de estilo de bolha |
+
+**Verificação:** `tsc --noEmit` · análise de bundle provando o code-split
+
+---
+
+## Fase 8 — Primeiro consumidor
+> 🤖 Modelo: `sonnet` · revisão 🧠 `opus`
+> Depende de: F3, F4, F5, F6, F7
+
+> ✅ **RESOLVIDA — QuickCart migra primeiro.** Decisão do usuário: QuickCart primeiro,
+> comparação visual contra o bot (baseline conhecido) depois de migrado, bot migra em
+> seguida na Fase 9. Branch de migração do bot ainda não identificada — resolver ao
+> iniciar a Fase 9.
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T8.1 | ✅ Instalar o trio; remover código duplicado do produto | Feito. QuickCart perdeu webhook/sender/schema próprios; interfaces de domínio preservadas e adaptadas por trás, então os ~2.000 handlers ficaram intactos |
+| T8.2 | ✅ Plugar regra de negócio nos hooks (`onMessageReceived`) | Feito. Engine TS do QuickCart no hook, `flowEngine: false`. O upsert de cliente voltou junto (o smoke test pegou a ausência) |
+| T8.3 | ✅ Migrar dados existentes para o schema `meta_whatsapp` | Feito. `0005`, não destrutiva (tabelas antigas de pé = rollback sem down-migration), idempotente, ids preservados. Ensaiada em banco semeado: 18 asserções |
+| T8.4 | ✅ Injetar portas do produto | `nonceStore` sobre o Redis do QuickCart. `objectStorage`, `realtime`, `subjectResolver` e `catalog` ausentes por ausência real de recurso (sem SSE, sem storage de mídia, sem atendimento humano), não por pendência |
+| T8.5 🧠 | ✅ Revisão de regressão | Funcional feita: conversa de 2 turnos ponta a ponta contra Postgres+Redis reais, verificação/assinatura/replay/forjada. Testes 61/2 contra baseline 70/3 — delta é exatamente os 2 arquivos deletados, 2 falhas pré-existentes. **Visual por screenshot não feita: o QuickCart não tem UI de conversa** |
+
+### O que o primeiro consumidor revelou nos pacotes
+
+A Fase 8 existe para isto, e rendeu 5 defeitos que nenhum teste do próprio monorepo pegaria:
+
+1. `tsconfig.base.json` sem `strict` → todo `.d.ts` publicado saía com campo obrigatório do zod marcado como opcional. Nenhum consumidor strict compilava. (Ligar strict revelou 4 bugs latentes, 2 deles caminhos de crash.)
+2. `drizzle-orm` como dependência normal → segunda cópia instalada, incompatível em tipos e em runtime. Virou peer.
+3. `db` tipado `BunSQLDatabase` → excluía hosts em node-postgres.
+4. Pin em `1.0.0-rc.4` → arrastava consumidores para um release candidate com o estável em 0.45.
+5. `messages.type` em `varchar(16)` → `interactive_buttons` (19) estourava o insert, silenciosamente, porque o envio é fire-and-forget.
+
+**Verificação:** `make validate` do produto · smoke test de conversa ponta a ponta
+
+---
+
+## Fase 9 — Segundo consumidor
+> 🤖 Modelo: `sonnet` · revisão 🧠 `opus`
+> Depende de: F8
+
+Mesmas tasks da F8 para o outro produto. **É esta fase que prova a extração** — se algo
+precisar mudar no pacote aqui, é sinal de que a fronteira ficou errada.
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T9.1 | Integrar o trio no 2º produto | — |
+| T9.2 | Registrar toda customização que exigiu mudança no pacote | Se exigiu porta nova, abrir PR no pacote — **nunca** editar `node_modules` nem forkar |
+
+---
+
+## Fase 10 — Publicação
+> 🤖 Modelo: **`opus` — gate obrigatório**
+> Depende de: F9
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T10.1 | README de cada pacote: instalação, factory, portas, exemplo de host | — |
+| T10.2 | Changesets + semver + notas de migração | Major documentada |
+| T10.3 🧠 | **Revisão final:** checklist da spec §11, auditoria de segurança e performance, zero regra de negócio de produto nos pacotes | Aprovação explícita antes do `publish` |
+
+---
+
+## Pendências que travam o início
+
+1. ✅ **RESOLVIDA** — QuickCart migra primeiro na F8; bot migra na F9.
+2. **[NEEDS CLARIFICATION]** Qual a branch de migração do bot? Não encontrada. Resolver
+   ao iniciar a Fase 9.
+3. **[NEEDS CLARIFICATION]** Q3 da spec — tabelas `uploads`/`upload_*_links` entram no
+   módulo? *Reco:* não; módulo tem `meta_whatsapp.media`, `uploads` genérica fica no produto.
+4. **[NEEDS CLARIFICATION]** Q4 da spec — settings em tabela do módulo?
+   *Reco:* sim, `meta_whatsapp.settings` só com chaves de WhatsApp.
+
+⚠️ **Ação independente e urgente:** token da Meta aparentemente real em texto plano em
+`packages/backend/meta-business/catalog/readme.md:13` — revogar e rotacionar.
+
+---
+
+## Fase 11 — Preview e mock local (canal simulado)
+> 🤖 Modelo: `sonnet` · desenho 🧠 `opus`
+> Depende de: F5 (canal), F4 (motor de fluxo)
+
+> ✅ **DECIDIDO — local apenas.** O preview e o mock rodam só em desenvolvimento. Consequência
+> aceita conscientemente: o lojista continua publicando fluxo sem poder testá-lo antes, e só
+> descobre um erro quando um cliente real passa. Quando isso incomodar, a base já estará pronta
+> — é o mesmo mecanismo com o portão aberto e o isolamento levado a sério.
+
+### Por que existe
+
+Hoje não há como rodar uma conversa sem credencial da Meta: o canal do módulo não tem modo
+mock (diferente do `WhatsAppSender` do QuickCart, que mocka). Isso trava duas coisas ao mesmo
+tempo — o desenvolvimento local do caminho do grafo, e a existência de qualquer teste de
+conversa no pacote, que hoje é zero.
+
+### As duas cadeiras
+
+É a mesma máquina; muda só em qual cadeira o humano senta.
+
+| | Humano é… | Simulado é… | O que se testa de fato |
+|---|---|---|---|
+| **Preview de fluxo** | o cliente | o bot / o grafo | o fluxo desenhado |
+| **Mock de inbox** | o atendente | o cliente | atendimento humano, takeover, thread, SSE |
+
+O segundo é o único jeito de exercitar `mode === 'human'`. Hoje o takeover silenciar o bot
+depende de uma linha no `ReceiveWebhook` que nenhum teste cobre — e é o tipo de coisa que
+quebra na frente do cliente, com o bot atropelando o atendente no meio do atendimento.
+
+| # | Task | Critério de aceite |
+|---|---|---|
+| T11.1 | Canal mock (`ChannelAdapterInterface` que registra em vez de enviar) | Injetável, nunca padrão. Conversa completa roda sem credencial |
+| T11.2 | Entrada sintética pelo caminho real | Percorre assinatura, anti-replay e persistência. Injetar direto no interpretador testaria menos do que aparenta |
+| T11.3 | Sessão descartável isolada | Não aparece na listagem de conversas nem soma não lidas |
+| T11.4 | Preview roda o **rascunho** do editor | Endpoint recebe o grafo no corpo. Ler por chave obrigaria a publicar para testar — e no módulo **salvar já é publicar** |
+| T11.5 | Dois portões independentes | `features: { preview: true }` no módulo (nunca padrão) **e** rotas registradas só fora de produção. Vazar exige errar nos dois |
+| T11.6 | Teste: `mode === 'human'` cala o bot | Entrada sintética em modo humano não dispara o hook |
+| T11.7 | Ligar o `FlowWhatsAppPreview` (já exportado pelo conversations-ui) | A casca visual existe; falta o backend que a torna viva |
+
+### Em aberto
+
+- **Nós de ação com efeito real.** `quickcart_repeat_order` já monta carrinho de verdade, e
+  amanhã alguém liga um nó que fecha pedido ou dispara cobrança. Sendo local, o risco é baixo
+  (carrinho de mentira no Postgres de desenvolvimento). Vira requisito no dia em que o preview
+  for para produção — decidir antes de existir a primeira ação com efeito financeiro.
+- **Respostas automáticas** (roteirizadas para CI, aleatórias como fuzzer de grafo) ficam para
+  depois. O atalho mais barato para o mock de inbox não é um cliente automático: é um "responder
+  como cliente" onde você digita os dois lados. Um cliente aleatório só entrega valor junto de
+  um relatório do que encontrou (nós nunca visitados, ciclos, becos) — sem isso é um teste que
+  passa sempre e não afirma nada.
+- **Ciclo no grafo.** O `validateGraph` do editor detecta nó inalcançável mas **não** detecta
+  ciclo, então um grafo cíclico é publicável e a única defesa é o corte por `maxSteps` em
+  runtime. Cabe nesta fase ou numa própria.
+
+**Verificação:** conversa completa ponta a ponta sem nenhuma credencial da Meta configurada

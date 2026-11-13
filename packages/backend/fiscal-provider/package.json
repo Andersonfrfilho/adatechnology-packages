@@ -1,0 +1,79 @@
+{
+  "name": "@adatechnology/fiscal-provider",
+  "version": "0.4.0",
+  "description": "Emissão de documentos fiscais brasileiros direto na SEFAZ, sem intermediários: NFC-e (65), NF-e (55), NFS-e (ABRASF), CT-e (57) e SAT. Assinatura A1, IBS/CBS da Reforma Tributária (NT 2025.002), QR Code, DANFE/DANFCE em PDF, cancelamento e verificação — TypeScript, Node/Bun.",
+  "keywords": [
+    "nfce",
+    "nfe",
+    "nfse",
+    "cte",
+    "sat",
+    "sefaz",
+    "nota-fiscal",
+    "nota-fiscal-eletronica",
+    "danfe",
+    "danfce",
+    "qrcode",
+    "reforma-tributaria",
+    "ibs",
+    "cbs",
+    "ibs-cbs",
+    "certificado-a1",
+    "fiscal",
+    "brasil",
+    "documento-fiscal",
+    "abrasf"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsup && tsc -p tsconfig.json --emitDeclarationOnly",
+    "prepack": "bun run build",
+    "build:watch": "tsup --watch",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun run test:local && bun run test:contract",
+    "test:local": "bun run scripts/test-fiscal.ts",
+    "test:contract": "bun test test/contract",
+    "test:package": "bun test ./test/package.integration.ts",
+    "test:sat": "bun run scripts/test-fiscal.ts --sat",
+    "test:nfce": "bun run scripts/test-fiscal.ts --nfce",
+    "test:nfe": "bun run scripts/test-fiscal.ts --nfe",
+    "test:nfse": "bun run scripts/test-fiscal.ts --nfse",
+    "test:nfse-sub": "bun run scripts/test-fiscal.ts --nfse-sub",
+    "test:notarp": "bun run scripts/test-fiscal.ts --notarp",
+    "test:cte": "bun run scripts/test-fiscal.ts --cte",
+    "test:mdfe": "bun run scripts/test-fiscal.ts --mdfe",
+    "test:all": "bun run scripts/test-fiscal.ts --all",
+    "mock": "bun run scripts/mock-sefaz.ts",
+    "test:mock": "MOCK_SEFAZ_URL=http://localhost:9090 bun run scripts/test-fiscal.ts --nfce --nfe",
+    "controlid:install": "bun run scripts/install-controlid.ts",
+    "controlid:middleware": "bun run scripts/satid-middleware-server.ts",
+    "controlid:start": "bash scripts/start-controlid.sh",
+    "controlid:test": "bun run scripts/test-satid-lib.ts",
+    "controlid:setup-code": "bun run scripts/setup-activation-code.ts"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.3",
+    "node-forge": "^1.3.1",
+    "pdfkit": "^0.19.1",
+    "qrcode": "^1.5.4",
+    "xml-crypto": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/node-forge": "^1.3.11",
+    "@types/pdfkit": "^0.17.6",
+    "@types/qrcode": "^1.5.6",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

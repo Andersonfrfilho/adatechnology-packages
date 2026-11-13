@@ -1,0 +1,1 @@
+export const NETWORK_ERROR_PREFIX = "NETWORK_ERROR_";

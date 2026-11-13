@@ -1,0 +1,67 @@
+# Node & Typescript
+node_modules
+.pnpm-store
+dist
+dist-server
+lib-cov
+coverage
+.nyc_output
+*.tsbuildinfo
+*.log
+
+# Stray build artifacts inside source directories (tsc/IDE leaks)
+packages/**/src/**/*.js
+packages/**/src/**/*.js.map
+packages/**/src/**/*.d.ts
+!packages/**/src/**/*.spec.ts
+!packages/**/src/**/*.test.ts
+
+# Turbo
+.turbo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/mcp.json
+
+# IDEs
+.idea
+.project
+.classpath
+.c9/
+*.launch
+*.sublime-project
+*.sublime-workspace
+
+# Temporary
+tmp/
+temp/
+out/
+build/
+
+# PNPM
+# pnpm-lock.yaml is REQUIRED for CI/CD and must be committed
+pnpm-workspace.yaml.bak
+.gemini/
+# .github/ removed — workflows must be tracked
+.claude/
+.agent/
+.agents/
+agents/
+**/agents/
+.cursor/
+.history/
+.windsurf/
+.skill-lock.json
+
+# Graphify (regenerable knowledge graph output)
+graphify-out/

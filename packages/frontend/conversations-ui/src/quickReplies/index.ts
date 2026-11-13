@@ -1,0 +1,5 @@
+export { QuickRepliesWorkspace } from './QuickRepliesWorkspace'
+export type { QuickRepliesWorkspaceProps } from './QuickRepliesWorkspace'
+export { QuickRepliesPicker } from './QuickRepliesPicker'
+export type { QuickRepliesPickerProps } from './QuickRepliesPicker'
+export type { QuickRepliesWorkspaceLabels, QuickRepliesPickerLabels } from './labels'

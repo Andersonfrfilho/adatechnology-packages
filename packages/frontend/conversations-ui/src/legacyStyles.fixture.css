@@ -1,0 +1,1121 @@
+/**
+ * Wallpaper de fundo da conversa — padrão de doodles do WhatsApp.
+ * Extraído 1:1 de financiamento-imobiliario-bot/apps/web/src/index.css:119-129
+ * (mesmas cores, mesmo SVG, mesma opacidade) para preservar paridade visual.
+ *
+ * Consumo: import '@adatechnology/conversations-ui/styles.css' uma vez no host.
+ * Alterna claro/escuro via ancestral `.dark` (mesma convenção do darkMode: 'class'
+ * do Tailwind) — não depende de nenhuma configuração do Tailwind do host.
+ */
+
+.cv-wallpaper {
+  background-color: #efeae2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%23d7cfc0' stroke-width='1.2' opacity='0.7'%3E%3Ccircle cx='15' cy='15' r='3'/%3E%3Cpath d='M40 10 q5 8 0 16 q-5 -8 0 -16z'/%3E%3Ccircle cx='70' cy='28' r='2'/%3E%3Cpath d='M18 55 l6 6 m-6 0 l6 -6'/%3E%3Ccircle cx='55' cy='68' r='2.5'/%3E%3Cpath d='M85 58 q6 6 0 12 q-6 -6 0 -12z'/%3E%3Ccircle cx='8' cy='85' r='2'/%3E%3Cpath d='M65 90 l5 5 m-5 0 l5 -5'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 100px 100px;
+}
+
+.dark .cv-wallpaper {
+  background-color: #0b141a;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill='none' stroke='%2319232a' stroke-width='1.2' opacity='0.9'%3E%3Ccircle cx='15' cy='15' r='3'/%3E%3Cpath d='M40 10 q5 8 0 16 q-5 -8 0 -16z'/%3E%3Ccircle cx='70' cy='28' r='2'/%3E%3Cpath d='M18 55 l6 6 m-6 0 l6 -6'/%3E%3Ccircle cx='55' cy='68' r='2.5'/%3E%3Cpath d='M85 58 q6 6 0 12 q-6 -6 0 -12z'/%3E%3Ccircle cx='8' cy='85' r='2'/%3E%3Cpath d='M65 90 l5 5 m-5 0 l5 -5'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Botão de ação do cabeçalho de conversa e do aviso de janela. Vive no stylesheet, como o
+   .cv-wallpaper, para não depender da configuração de Tailwind do consumidor. */
+/* `inline-flex` com gap em todo controle com ícone: o ícone é SVG e, como elemento inline, assentava
+   na baseline do texto — o traço ficava um fio abaixo do rótulo em cada botão. */
+.cv-header-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  background: transparent;
+  cursor: pointer;
+}
+.cv-header-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.dark .cv-header-action { border-color: rgb(71 85 105); color: rgb(226 232 240); }
+
+.cv-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+.cv-header-icon--active { background: rgb(241 245 249); border-color: rgb(148 163 184); }
+.cv-header-icon:disabled { opacity: 0.5; cursor: not-allowed; }
+.dark .cv-header-icon { border-color: rgb(71 85 105); }
+.dark .cv-header-icon--active { background: rgb(51 65 85); }
+
+.cv-header-action--primary {
+  background: rgb(37 99 235);
+  border-color: rgb(37 99 235);
+  color: white;
+  font-weight: 500;
+}
+.cv-header-action--danger {
+  background: rgb(239 68 68);
+  border-color: rgb(239 68 68);
+  color: white;
+  font-weight: 500;
+}
+
+.cv-subtab {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: rgb(100 116 139);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.cv-subtab--active { color: inherit; font-weight: 500; border-bottom-color: rgb(37 99 235); }
+
+/* Pills de estado da conversa. No stylesheet, como os demais cv-*, para não depender do Tailwind
+   do consumidor. */
+.cv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  background: rgb(241 245 249);
+  color: rgb(71 85 105);
+}
+.cv-pill--success { background: rgb(220 252 231); color: rgb(21 128 61); }
+.cv-pill--warning { background: rgb(254 243 199); color: rgb(146 64 14); }
+.cv-pill--danger { background: rgb(255 237 213); color: rgb(194 65 12); }
+.dark .cv-pill { background: rgb(51 65 85); color: rgb(203 213 225); }
+.dark .cv-pill--success { background: rgb(20 83 45); color: rgb(187 247 208); }
+.dark .cv-pill--warning { background: rgb(120 53 15); color: rgb(253 230 138); }
+.dark .cv-pill--danger { background: rgb(124 45 18); color: rgb(254 215 170); }
+
+/* Linha da inbox: realce e hover cobrem a linha toda, incluindo checkbox, barra de janela e pills. */
+.cv-row:hover { background: #f0f2f5; }
+.cv-row--active, .cv-row--active:hover { background: #f0f2f5; }
+.dark .cv-row:hover { background: rgb(30 41 59); }
+.dark .cv-row--active, .dark .cv-row--active:hover { background: rgb(30 41 59); }
+
+/* Voltar do master/detail: existe só onde lista e conversa não cabem lado a lado. */
+.cv-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+}
+@media (min-width: 1024px) { .cv-back { display: none; } }
+.dark .cv-back { border-color: rgb(71 85 105); color: rgb(226 232 240); }
+
+/* Contador do cabeçalho da inbox: ícone e número na mesma linha de base ótica. */
+.cv-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Utilitários de densidade: em tela estreita o texto das ações vira ícone, porque rótulo longo
+   empilha e come a altura útil da conversa. */
+.cv-only-wide { display: none; }
+@media (min-width: 1024px) { .cv-only-wide { display: inline; } }
+.cv-only-narrow { display: inline-flex; }
+@media (min-width: 1024px) { .cv-only-narrow { display: none; } }
+
+.cv-menu { position: relative; }
+.cv-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 20;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border: 1px solid rgb(203 213 225);
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+.dark .cv-menu-panel { background: rgb(30 41 59); border-color: rgb(71 85 105); }
+.cv-menu-panel .cv-header-action { text-align: left; }
+
+/* Área de toque mínima do padrão de responsividade (44px). Só em tela estreita: no desktop o
+   cursor é preciso e botões de 44px viram blocos desproporcionais. */
+@media (max-width: 1023px) {
+  .cv-touch { min-width: 44px; min-height: 44px; }
+  .cv-back { min-width: 44px; min-height: 44px; }
+  .cv-menu-panel .cv-touch { min-height: 44px; }
+}
+
+/* Em tela estreita o painel do menu ancora na viewport, não no botão: ancorado ao botão ele
+   escapava pela borda quando o gatilho ficava perto da esquerda, e o texto era cortado. */
+@media (max-width: 1023px) {
+  .cv-menu-panel {
+    position: fixed;
+    right: 0.75rem;
+    left: auto;
+    top: auto;
+    max-width: calc(100vw - 1.5rem);
+  }
+}
+
+/**
+ * Scrollbar fina — paridade com `.scrollbar-thin` de
+ * financiamento-imobiliario-bot/apps/web/src/index.css.
+ *
+ * Prefixo `cv-` porque o host pode ter a própria `.scrollbar-thin` (plugin do Tailwind ou CSS
+ * próprio): colidir no nome faria o painel herdar regra alheia sem ninguém entender por quê.
+ *
+ * Usada onde a área rola dentro de um bloco de altura limitada, como o grid de "Suas Seleções":
+ * a barra padrão do sistema ocupa ~15px e, num card de 3 colunas, come uma coluna inteira.
+ */
+.cv-scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.cv-scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+.cv-scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.cv-scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 2px; }
+.cv-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
+.dark .cv-scrollbar-thin { scrollbar-color: rgba(255, 255, 255, 0.15) transparent; }
+.dark .cv-scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); }
+.dark .cv-scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+
+/**
+ * Mãozinha no que é clicável.
+ *
+ * O Preflight do Tailwind v3 punha `cursor: pointer` em `button`; o v4 removeu, e sem regra
+ * explícita o botão herda o `cursor: default` do browser — os componentes deste pacote deixam de
+ * parecer clicáveis num host v4. São 91 botões aqui: carimbar a classe em cada um seria ruído que o
+ * próximo componente esqueceria de repetir.
+ *
+ * `:where()` zera a especificidade de propósito: a regra vence o UA stylesheet (autor sempre vence)
+ * mas perde de qualquer regra do host, então quem quiser outro cursor não precisa de `!important`.
+ */
+:where(button:not(:disabled), [role='button']:not(:disabled), summary) {
+  cursor: pointer;
+}
+
+/**
+ * Simulador de cliente. Largura fixa porque é painel auxiliar: a thread ao lado é que deve
+ * ganhar o espaço restante quando a janela encolhe.
+ */
+.cv-simulator-panel {
+  display: flex;
+  flex-direction: column;
+  width: 24rem;
+  flex-shrink: 0;
+  border-left: 1px solid rgb(229 231 235);
+  background: #fff;
+}
+
+.cv-simulator-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgb(229 231 235);
+}
+
+.cv-simulator-panel__heading { min-width: 0; }
+
+.cv-simulator-panel__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgb(17 24 39);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-simulator-panel__subtitle {
+  font-size: 0.75rem;
+  color: rgb(156 163 175);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cv-simulator-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.cv-simulator-panel__close {
+  display: inline-flex;
+  padding: 0.375rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: rgb(156 163 175);
+  transition: color 150ms, background-color 150ms;
+}
+
+.cv-simulator-panel__close:hover {
+  color: rgb(55 65 81);
+  background: rgb(243 244 246);
+}
+
+/* `min-height: 0` para o transcript rolar dentro do painel em vez de esticar o `<aside>`. */
+.cv-simulator-panel__body { flex: 1; min-height: 0; }
+
+.dark .cv-simulator-panel {
+  border-left-color: rgb(31 41 55);
+  background: rgb(17 24 39);
+}
+.dark .cv-simulator-panel__header { border-bottom-color: rgb(31 41 55); }
+.dark .cv-simulator-panel__title { color: rgb(243 244 246); }
+.dark .cv-simulator-panel__subtitle { color: rgb(107 114 128); }
+.dark .cv-simulator-panel__close:hover { color: rgb(229 231 235); background: rgb(31 41 55); }
+
+/* Painel auxiliar não cabe ao lado da thread em tela estreita: vira sobreposição de tela cheia. */
+@media (max-width: 1023px) {
+  .cv-simulator-panel {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    z-index: 40;
+    border-left: 0;
+  }
+}
+
+/**
+ * Workspace de atendimento: a grade da tela inteira (lista · conversa · simulador).
+ *
+ * Cada coluna é um cartão sobre fundo neutro, com respiro entre elas — separação por espaço lê mais
+ * rápido que por borda. Todas as alturas presas em `min-height: 0` porque, em grid e flex, o padrão
+ * é não encolher abaixo do conteúdo: sem isso o scroll interno nunca ativa e quem rola é a página.
+ */
+.cv-workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.cv-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgb(229 231 235);
+}
+.dark .cv-workspace-header { border-color: rgb(51 65 85); }
+
+.cv-workspace-header__titles { min-width: 0; }
+.cv-workspace-header__titles h1 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-workspace-header__titles p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  color: rgb(107 114 128);
+}
+.cv-workspace-header__waiting { color: rgb(217 119 6); }
+.dark .cv-workspace-header__waiting { color: rgb(251 191 36); }
+
+.cv-workspace-header__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cv-workspace-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  /* 44px de área de toque em mobile — abaixo disso o dedo erra o alvo. */
+  min-height: 2.75rem;
+}
+.cv-workspace-toggle:disabled { opacity: 0.5; }
+.cv-workspace-toggle--on { background: rgb(37 99 235); color: #fff; border-color: rgb(37 99 235); }
+.dark .cv-workspace-toggle { border-color: rgb(71 85 105); color: rgb(226 232 240); }
+
+.cv-workspace-failure {
+  border-bottom: 1px solid rgb(253 230 138);
+  background: rgb(255 251 235);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: rgb(146 64 14);
+}
+.dark .cv-workspace-failure { background: rgb(69 26 3); color: rgb(253 230 138); border-color: rgb(120 53 15); }
+
+.cv-workspace-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgb(243 244 246);
+}
+.dark .cv-workspace-grid { background: rgb(17 24 39); }
+
+.cv-workspace-list,
+.cv-workspace-detail,
+.cv-workspace-simulator {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.dark .cv-workspace-list,
+.dark .cv-workspace-detail,
+.dark .cv-workspace-simulator { background: rgb(31 41 55); border-color: rgb(51 65 85); }
+
+/* Em linha, e não em coluna: o painel do simulador não tem teto de altura — empilhado ele cresce
+   com o transcript e transborda o cartão; em linha herda a altura da faixa e rola por dentro. */
+.cv-workspace-simulator { flex-direction: row; }
+
+/* Master/detail abaixo de 1024px: com conversa aberta, some a lista; sem ela, some o detalhe.
+   Empilhar os dois na mesma altura fixa dava duas fatias inúteis. */
+@media (max-width: 1023px) {
+  .cv-workspace-grid[data-detail='open'] .cv-workspace-list { display: none; }
+  .cv-workspace-grid[data-detail='closed'] .cv-workspace-detail { display: none; }
+}
+
+@media (min-width: 1024px) {
+  .cv-workspace-grid { grid-template-columns: 360px minmax(0, 1fr); }
+  /* Entre `lg` e `xl` as três não cabem — sobrariam ~100px para a conversa e o texto quebraria uma
+     palavra por linha. Enquanto se testa UMA conversa, é a lista que menos importa. */
+  .cv-workspace-grid--with-simulator { grid-template-columns: minmax(0, 1fr) 24rem; }
+  .cv-workspace-grid--with-simulator .cv-workspace-list { display: none; }
+}
+
+@media (min-width: 1280px) {
+  .cv-workspace-grid--with-simulator { grid-template-columns: 320px minmax(0, 1fr) 24rem; }
+  .cv-workspace-grid--with-simulator .cv-workspace-list { display: flex; }
+}
+
+.cv-workspace-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.cv-workspace-transcript {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 1rem;
+}
+
+.cv-workspace-failure__link {
+  text-decoration: underline;
+}
+
+.cv-workspace-selection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid #bfdbfe;
+  background: #eff6ff;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: #1d4ed8;
+}
+
+.cv-workspace-selection__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cv-workspace-selection__actions button {
+  min-height: 2.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid #bfdbfe;
+  padding: 0 0.625rem;
+}
+
+.dark .cv-workspace-selection {
+  border-color: #1e40af;
+  background: rgb(23 37 84 / 40%);
+  color: #93c5fd;
+}
+
+.dark .cv-workspace-selection__actions button {
+  border-color: #1e40af;
+}
+
+.cv-workspace-notice {
+  border-top: 1px solid var(--cv-border, #e5e7eb);
+  background: #f3f4f6;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.cv-workspace-load-older {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.cv-workspace-load-older button {
+  min-height: 2.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--cv-border, #e5e7eb);
+  padding: 0 0.75rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.cv-workspace-load-older button:disabled {
+  opacity: 0.6;
+}
+
+.dark .cv-workspace-notice {
+  border-top-color: #374151;
+  background: #1f2937;
+  color: #9ca3af;
+}
+
+.cv-workspace-alert {
+  border-top: 1px solid rgb(254 202 202);
+  background: rgb(254 242 242);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: rgb(185 28 28);
+}
+.dark .cv-workspace-alert { background: rgb(69 10 10); color: rgb(252 165 165); border-color: rgb(127 29 29); }
+
+.cv-workspace-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid rgb(229 231 235);
+}
+.dark .cv-workspace-filters { border-color: rgb(51 65 85); }
+
+.cv-workspace-search {
+  width: 100%;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  background: transparent;
+}
+.dark .cv-workspace-search { border-color: rgb(71 85 105); color: rgb(226 232 240); }
+
+/* Linha única com rolagem, e não wrap: quebrando, a fila de janelas empurrava a categoria e a
+   lista para baixo toda vez que a coluna estreitava. */
+.cv-workspace-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cv-workspace-chips::-webkit-scrollbar { display: none; }
+.cv-workspace-chips__legend { color: rgb(107 114 128); flex-shrink: 0; }
+.cv-workspace-chip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+}
+.cv-workspace-chip--on { background: rgb(229 231 235); }
+.dark .cv-workspace-chip--on { background: rgb(51 65 85); }
+
+/* A cor do próprio rótulo é o estado da janela; selecionado, o mesmo tom vira o fundo. */
+.cv-workspace-chip--fresh { color: rgb(22 163 74); }
+.cv-workspace-chip--warning { color: rgb(202 138 4); }
+.cv-workspace-chip--critical { color: rgb(220 38 38); }
+.cv-workspace-chip--expired { color: rgb(107 114 128); }
+.cv-workspace-chip--fresh.cv-workspace-chip--on { background: rgb(220 252 231); }
+.cv-workspace-chip--warning.cv-workspace-chip--on { background: rgb(254 249 195); }
+.cv-workspace-chip--critical.cv-workspace-chip--on { background: rgb(254 226 226); }
+.cv-workspace-chip--expired.cv-workspace-chip--on { background: rgb(229 231 235); }
+.dark .cv-workspace-chip--fresh { color: rgb(74 222 128); }
+.dark .cv-workspace-chip--warning { color: rgb(250 204 21); }
+.dark .cv-workspace-chip--critical { color: rgb(248 113 113); }
+.dark .cv-workspace-chip--expired { color: rgb(148 163 184); }
+.dark .cv-workspace-chip--fresh.cv-workspace-chip--on { background: rgb(20 83 45); }
+.dark .cv-workspace-chip--warning.cv-workspace-chip--on { background: rgb(113 63 18); }
+.dark .cv-workspace-chip--critical.cv-workspace-chip--on { background: rgb(127 29 29); }
+.dark .cv-workspace-chip--expired.cv-workspace-chip--on { background: rgb(51 65 85); }
+
+.cv-workspace-selectall {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.cv-workspace-rows { flex: 1; min-height: 0; overflow-y: auto; }
+
+.cv-workspace-empty { padding: 1rem; font-size: 0.875rem; color: rgb(107 114 128); }
+
+.cv-workspace-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgb(191 219 254);
+  background: rgb(239 246 255);
+  font-size: 0.75rem;
+}
+.dark .cv-workspace-bulk { background: rgb(23 37 84); border-color: rgb(30 58 138); }
+.cv-workspace-bulk__count { font-weight: 500; color: rgb(29 78 216); }
+.dark .cv-workspace-bulk__count { color: rgb(147 197 253); }
+.cv-workspace-bulk__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.cv-workspace-bulk__actions button {
+  border: 1px solid rgb(191 219 254);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+}
+.cv-workspace-bulk__actions button:disabled { opacity: 0.5; }
+
+.cv-workspace-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-top: 1px solid rgb(229 231 235);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: rgb(107 114 128);
+}
+.dark .cv-workspace-pager { border-color: rgb(51 65 85); }
+.cv-workspace-pager__buttons { display: flex; align-items: center; gap: 0.25rem; }
+.cv-workspace-pager__buttons button { padding: 0 0.5rem; }
+.cv-workspace-pager__buttons button:disabled { opacity: 0.4; }
+
+/* Modal de template do envio em lote. Sobre a tela inteira e não dentro da coluna da lista: a
+   escolha vale para todas as conversas marcadas, e ancorado na lista parecia filtro dela. */
+.cv-workspace-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 50%);
+}
+
+.cv-workspace-modal__box {
+  display: flex;
+  width: 100%;
+  max-width: 28rem;
+  max-height: 80vh;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 25%);
+}
+
+.cv-workspace-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1rem 1.25rem;
+}
+
+.cv-workspace-modal__header h3 {
+  font-weight: 600;
+}
+
+.cv-workspace-modal__header p {
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.cv-workspace-modal__search {
+  border-bottom: 1px solid #f3f4f6;
+  padding: 0.75rem 1rem;
+}
+
+.cv-workspace-modal__search input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.cv-workspace-modal__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.cv-workspace-modal__item {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.125rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.cv-workspace-modal__item:hover {
+  background: #f9fafb;
+}
+
+.cv-workspace-modal__item--on {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.cv-workspace-modal__item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.cv-workspace-modal__item-meta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.cv-workspace-modal__warning {
+  border-top: 1px solid #fde68a;
+  background: #fffbeb;
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: #b45309;
+}
+
+.cv-workspace-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem;
+}
+
+.cv-workspace-modal__footer button {
+  min-height: 2.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  padding: 0 0.875rem;
+  font-size: 0.875rem;
+}
+
+.cv-workspace-modal__footer button:last-child {
+  border-color: transparent;
+  background: #2563eb;
+  color: #fff;
+}
+
+.cv-workspace-modal__footer button:disabled {
+  opacity: 0.5;
+}
+
+.dark .cv-workspace-modal__box {
+  border-color: #374151;
+  background: #1f2937;
+}
+
+.dark .cv-workspace-modal__header,
+.dark .cv-workspace-modal__footer {
+  border-color: #374151;
+}
+
+.dark .cv-workspace-modal__search {
+  border-color: #374151;
+}
+
+.dark .cv-workspace-modal__search input {
+  border-color: #4b5563;
+  background: #374151;
+  color: #f3f4f6;
+}
+
+.dark .cv-workspace-modal__item:hover {
+  background: rgb(55 65 81 / 50%);
+}
+
+.dark .cv-workspace-modal__item--on {
+  border-color: #1e40af;
+  background: rgb(23 37 84 / 40%);
+  color: #93c5fd;
+}
+
+.dark .cv-workspace-modal__warning {
+  border-color: #92400e;
+  background: rgb(69 26 3 / 40%);
+  color: #fbbf24;
+}
+
+.dark .cv-workspace-modal__footer button {
+  border-color: #4b5563;
+  color: #f3f4f6;
+}
+
+/* Fila de anexos acima da barra: nomes visíveis para conferir antes de mandar, e um X por item —
+   escolher seis arquivos e não poder tirar o errado obrigava a recomeçar. */
+.cv-workspace-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+.cv-workspace-attachments li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 14rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+}
+.cv-workspace-attachments li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cv-workspace-attachments li button {
+  flex: none;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  color: inherit;
+}
+.dark .cv-workspace-attachments li {
+  border-color: rgb(51 65 85);
+}
+
+/* Item da fila com miniatura, estado de envio (QR-47) e saída com transição curta. */
+.cv-attachment-item {
+  max-width: 16rem;
+}
+.cv-attachment-item__thumbnail {
+  display: block;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  overflow: hidden;
+  border-radius: 0.375rem;
+  background: rgb(226 232 240);
+}
+.dark .cv-attachment-item__thumbnail { background: rgb(51 65 85); }
+.cv-attachment-item__thumbnail img { width: 100%; height: 100%; object-fit: cover; }
+.cv-attachment-item__info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.cv-attachment-item__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.cv-attachment-item__meta { font-size: 0.6875rem; color: rgb(100 116 139); }
+.dark .cv-attachment-item__meta { color: rgb(148 163 184); }
+.cv-attachment-item--failed .cv-attachment-item__meta { color: rgb(220 38 38); }
+.dark .cv-attachment-item--failed .cv-attachment-item__meta { color: rgb(248 113 113); }
+.cv-attachment-item--sent .cv-attachment-item__meta { color: rgb(22 163 74); }
+.dark .cv-attachment-item--sent .cv-attachment-item__meta { color: rgb(74 222 128); }
+.cv-attachment-item--skipped .cv-attachment-item__meta { color: rgb(180 83 9); }
+.dark .cv-attachment-item--skipped .cv-attachment-item__meta { color: rgb(251 191 36); }
+.cv-attachment-item__retry {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 0.6875rem;
+  text-decoration: underline;
+  color: rgb(37 99 235);
+  cursor: pointer;
+}
+.cv-attachment-item {
+  transition: opacity 200ms ease, transform 200ms ease;
+  opacity: 1;
+  transform: scale(1);
+}
+.cv-attachment-item--departing {
+  opacity: 0;
+  transform: scale(0.92);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-attachment-item { transition: none; }
+}
+
+/* Esqueleto de linha — usado no painel de mensagens prontas e na tabela de cadastro (QR-47): nunca
+   "Carregando…" solto, e o conteúdo nunca aparece de uma vez. */
+.cv-skeleton-line {
+  border-radius: 0.25rem;
+  background: linear-gradient(90deg, rgb(226 232 240) 25%, rgb(241 245 249) 50%, rgb(226 232 240) 75%);
+  background-size: 200% 100%;
+  animation: cv-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.dark .cv-skeleton-line {
+  background: linear-gradient(90deg, rgb(51 65 85) 25%, rgb(71 85 105) 50%, rgb(51 65 85) 75%);
+  background-size: 200% 100%;
+}
+@keyframes cv-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-skeleton-line { animation: none; }
+}
+/* Larguras da linha de esqueleto da tabela de mensagens prontas: uma por coluna, porque colunas
+   diferentes leem melhor com proporções diferentes em vez de todas do mesmo tamanho. */
+.cv-skeleton-line--title { width: 70%; height: 0.75rem; }
+.cv-skeleton-line--shortcut { width: 50%; height: 0.75rem; }
+.cv-skeleton-line--body { width: 90%; height: 0.75rem; }
+
+/* Linha excluída sai com transição curta em vez de sumir de repente (QR-47). */
+.cv-row-departing {
+  transition: opacity 200ms ease;
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-row-departing { transition: none; }
+}
+
+/* Peças de listagem (documentos, mensagens): tabela com filtros, seleção em lote e paginação. */
+.cv-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 9999px;
+  background: rgb(37 99 235);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+.cv-filter-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  margin-top: 0.25rem;
+  min-width: 12rem;
+  padding: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+.dark .cv-filter-menu { background: rgb(30 41 59); border-color: rgb(71 85 105); }
+.cv-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.cv-filter-option:hover { background: rgb(241 245 249); }
+.dark .cv-filter-option:hover { background: rgb(51 65 85); }
+.cv-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(191 219 254);
+  border-radius: 0.5rem;
+  background: rgb(239 246 255);
+}
+.dark .cv-bulk-bar { background: rgb(30 58 138 / 0.25); border-color: rgb(30 64 175); }
+.cv-listing-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgb(241 245 249);
+}
+.dark .cv-listing-pagination { border-color: rgb(30 41 59); }
+.cv-listing-perpage {
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.375rem;
+  background: transparent;
+  font-size: 0.75rem;
+}
+.dark .cv-listing-perpage { border-color: rgb(71 85 105); }
+
+/**
+ * Cor padrão de borda para as classes `border` sem cor ao lado.
+ *
+ * O Tailwind v4 trocou o padrão de `gray-200` por `currentColor`, e os componentes daqui foram
+ * escritos no v3. Em produto que traz a base do shadcn nada aparece — ela já redefine isto; em
+ * produto sem shadcn, cada `border` sai na cor do texto, e a tabela de documentos vinha com régua
+ * azul-quase-preta em vez de cinza. `:where()` zera a especificidade do seletor, então qualquer
+ * `border-*` do host ou daqui continua ganhando por especificidade — sem depender da camada
+ * `base` do Tailwind, que quebra o build de host que importa este arquivo fora do pipeline do
+ * Tailwind (erro do postcss: "`@layer base` is used but no matching `@tailwind base` directive").
+ */
+:root { --cv-border-color: rgb(229 231 235); }
+.dark { --cv-border-color: rgb(51 65 85); }
+
+:where(*, ::before, ::after, ::backdrop, ::file-selector-button) {
+  border-color: var(--cv-border-color);
+}
+
+/* Tabela de listagem: a moldura, o cabeçalho e a zebra que `web.md` §7 exige, no stylesheet pelo
+   mesmo motivo do resto — host que não varre `node_modules` com `@source` não compila utilitário
+   nenhum do pacote, e a tabela sairia crua. */
+.cv-table-card {
+  overflow-x: auto;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.dark .cv-table-card { border-color: rgb(51 65 85); background: rgb(17 24 39); }
+
+/* `collapse` porque a régua de baixo mora no `tr`: com o `separate` padrão o navegador ignora borda
+   de linha e a tabela ficava sem separação nenhuma entre os registros. */
+.cv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.cv-table thead {
+  background: rgb(248 250 252);
+  color: rgb(100 116 139);
+}
+.dark .cv-table thead { background: rgb(30 41 59 / 60%); color: rgb(148 163 184); }
+
+.cv-table thead th {
+  border-bottom: 1px solid rgb(226 232 240);
+  white-space: nowrap;
+}
+.dark .cv-table thead th { border-bottom-color: rgb(51 65 85); }
+
+.cv-table tbody tr { border-bottom: 1px solid rgb(241 245 249); }
+.dark .cv-table tbody tr { border-bottom-color: rgb(30 41 59); }
+.cv-table tbody tr:last-child { border-bottom: 0; }
+
+/* A alternada é o que leva o olho do nome do arquivo até a coluna de ações; em tela larga a régua
+   sozinha não segura a linha. */
+.cv-table tbody tr:nth-child(even) { background: rgb(248 250 252 / 70%); }
+.dark .cv-table tbody tr:nth-child(even) { background: rgb(30 41 59 / 35%); }
+
+.cv-table tbody tr:hover { background: rgb(239 246 255); }
+.dark .cv-table tbody tr:hover { background: rgb(30 58 138 / 25%); }
+
+/* Extensão do arquivo como etiqueta: `PDF` e `DOCX` têm larguras parecidas e a coluna para de dançar
+   a cada linha, o que o MIME cru não permitia. */
+.cv-type-tag {
+  display: inline-block;
+  border-radius: 0.25rem;
+  background: rgb(241 245 249);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgb(71 85 105);
+}
+.dark .cv-type-tag { background: rgb(51 65 85); color: rgb(203 213 225); }
+
+/* Dica de ação (ver `Tooltip.tsx`). Impressa em `document.body`, então a posição é da janela e o
+   `z-index` fica acima de qualquer painel do produto. */
+.cv-tooltip {
+  position: fixed;
+  z-index: 9999;
+  max-width: min(16rem, 90vw);
+  transform: translate(-50%, -100%);
+  border-radius: 0.375rem;
+  background: rgb(17 24 39 / 95%);
+  padding: 0.3125rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 18%);
+  pointer-events: none;
+  animation: cv-tooltip-in 90ms ease-out;
+}
+
+.cv-tooltip--bottom {
+  transform: translate(-50%, 0);
+}
+
+.dark .cv-tooltip {
+  background: rgb(243 244 246 / 96%);
+  color: rgb(17 24 39);
+}
+
+@keyframes cv-tooltip-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-tooltip { animation: none; }
+}
+
+/* Barra de composição: fundo neutro para separar da conversa e para os atalhos e o campo de texto
+   terem contraste próprio. Sobre branco, régua branca e campo cinza-claro se confundiam num bloco
+   só, sem hierarquia. */
+.cv-composer-bar {
+  border-top: 1px solid rgb(229 231 235);
+  background: rgb(240 242 245);
+  padding: 0.625rem 0.75rem;
+}
+
+.dark .cv-composer-bar {
+  border-top-color: rgb(51 65 85);
+  background: rgb(17 24 39);
+}

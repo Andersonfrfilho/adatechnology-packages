@@ -1,0 +1,70 @@
+# Modo DEV — o código-fonte é montado (bind mount) e os servidores rodam em watch
+# DENTRO do container, então cada alteração reflete automaticamente.
+#
+#   Subir:  docker compose -f docker-compose.dev.yml up -d
+#   Logs:   docker compose -f docker-compose.dev.yml logs -f
+#   Parar:  docker compose -f docker-compose.dev.yml down
+#
+# web  → Vite HMR (5173)     | api → nest build --watch + nodemon (3333)
+# lib  → tsup --watch roda dentro do serviço api e atualiza o dist; o nodemon
+#        observa o dist da lib e reinicia a API. Polling ligado (Docker Desktop mac).
+
+services:
+  api:
+    image: node:22-alpine
+    container_name: fiscal-provider-api-dev
+    working_dir: /app
+    environment:
+      - PORT=3333
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    command:
+      - sh
+      - -c
+      - |
+        corepack enable
+        pnpm install --frozen-lockfile
+        pnpm run build:libs
+        cd /app/packages/backend/fiscal-provider && (pnpm exec tsup --watch &)
+        cd /app/packages/backend/fiscal-provider/example/api
+        pnpm exec nest build
+        (pnpm exec nest build --watch &)
+        exec npx --yes nodemon --legacy-watch \
+          --watch dist \
+          --watch /app/packages/backend/fiscal-provider/dist \
+          --ext js,json --exec 'node dist/main.js'
+    ports:
+      - '3333:3333'
+    volumes:
+      - ../../../..:/app
+      - /app/node_modules
+      - /app/packages/backend/shared/node_modules
+      - /app/packages/backend/nestjs-logger/node_modules
+      - /app/packages/backend/fiscal-provider/node_modules
+      - /app/packages/backend/fiscal-provider/example/api/node_modules
+    restart: unless-stopped
+
+  web:
+    image: node:22-alpine
+    container_name: fiscal-provider-web-dev
+    working_dir: /app/packages/backend/fiscal-provider/example/web
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_TARGET=http://api:3333
+    command:
+      - sh
+      - -c
+      - |
+        corepack enable
+        cd /app && pnpm install --frozen-lockfile
+        cd /app/packages/backend/fiscal-provider/example/web
+        exec pnpm exec vite --host 0.0.0.0 --port 5173
+    ports:
+      - '5173:5173'
+    volumes:
+      - ../../../..:/app
+      - /app/node_modules
+      - /app/packages/backend/fiscal-provider/example/web/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped

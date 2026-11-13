@@ -1,0 +1,70 @@
+import { CHAVE_PATTERN, CNPJ_PATTERN, normalizeTaxId } from './SefazTaxId'
+
+function maskCnpj(value: string): string {
+  const taxId = normalizeTaxId(value)
+  if (!CNPJ_PATTERN.test(taxId)) return '**masked**'
+  // Preserva UF raiz (2 posições) + sufixo filial (4) para identificação; oculta o centro
+  return `${taxId.slice(0, 2)}****${taxId.slice(8, 12)}-**`
+}
+
+function maskCpf(value: string): string {
+  const digits = value.replace(/\D/g, '')
+  if (digits.length !== 11) return '**masked**'
+  // Padrão BR: 420.***.***-90
+  return `${digits.slice(0, 3)}.***.***-**`
+}
+
+function maskChaveAcesso(value: string): string {
+  const key = normalizeTaxId(value)
+  if (!CHAVE_PATTERN.test(key)) return '**masked**'
+  // UF+AAMM visíveis no início, cNF visível no final para rastreio mínimo
+  return `${key.slice(0, 6)}...${key.slice(-4)}`
+}
+
+function maskXmlResponse(value: string): string {
+  return (
+    value
+      // `\d{14}` não casava o CNPJ alfanumérico: a tag passava direto e o documento ia inteiro
+      // para o log, ao lado de um `<xNome>` corretamente mascarado
+      .replace(/(<CNPJ>)([A-Z0-9]{12}[0-9]{2})(<\/CNPJ>)/g, '$1**masked**$3')
+      .replace(/(<CPF>)(\d{11})(<\/CPF>)/g, '$1**masked**$3')
+      .replace(/(<IE>)([^<]+)(<\/IE>)/g, '$1**masked**$3')
+      .replace(/(<xNome>)([^<]+)(<\/xNome>)/g, '$1**masked**$3')
+  )
+}
+
+/**
+ * Mascara campos sensíveis antes de gravar no log estruturado.
+ * Aplica-se automaticamente no `log()` de cada provider — não chamar manualmente.
+ */
+export function obfuscateMeta(meta: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(meta)) {
+    if (typeof value !== 'string') {
+      result[key] = value
+      continue
+    }
+
+    if (key === 'cnpj') {
+      result[key] = maskCnpj(value)
+      continue
+    }
+    if (key === 'cpf') {
+      result[key] = maskCpf(value)
+      continue
+    }
+    if (key === 'chaveAcesso') {
+      result[key] = maskChaveAcesso(value)
+      continue
+    }
+    if (key === 'rawResponse') {
+      result[key] = maskXmlResponse(value)
+      continue
+    }
+
+    result[key] = value
+  }
+
+  return result
+}

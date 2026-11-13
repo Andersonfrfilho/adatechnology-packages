@@ -1,0 +1,8 @@
+export { ProductsWorkspace } from './ProductsWorkspace'
+export type { ProductsWorkspaceProps } from './ProductsWorkspace'
+export { useProductsWorkspace } from './useProductsWorkspace'
+export type { ProductsWorkspaceState, ProductDraft } from './useProductsWorkspace'
+export { DEFAULT_PRODUCTS_WORKSPACE_LABELS } from './labels'
+export type { ProductsWorkspaceLabels } from './labels'
+export { PRODUCTS_WORKSPACE_AREA, isProductsWorkspaceArea } from './workspace.constant'
+export type { ProductsWorkspaceArea } from './workspace.constant'

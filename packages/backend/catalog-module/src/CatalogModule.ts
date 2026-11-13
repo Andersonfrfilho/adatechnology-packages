@@ -1,0 +1,267 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * Composição raiz. **Escopo da Fase 2:** devolve `{ useCases, lookup }`. Rotas HTTP e worker de
+ * publicação chegam nas Fases 3 e 4 — não é forma reduzida por engano, eles genuinamente ainda
+ * não existem.
+ */
+
+import {
+  ConfigMissingError,
+  MetaSyncDisabledError,
+  VisionDimensionsMismatchError,
+  VisionModelMismatchError,
+} from '@adatechnology/catalog-contracts'
+import type {
+  CatalogHooks,
+  CatalogModuleConfig,
+  CatalogProductLookup,
+  ClockPort,
+  LoggerPort,
+  MetaCatalogSyncPort,
+  ProductImageStoragePort,
+  ProductSuggestionPort,
+  ProductVisionPort,
+  WebhookNonceStorePort,
+} from '@adatechnology/catalog-contracts'
+
+import type { CatalogDatabase } from './database.types'
+import { PRODUCT_EMBEDDING_DIMENSIONS } from './schema/vision.schema'
+import { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
+import { CatalogRepository } from './repositories/CatalogRepository'
+import { ProductRepository } from './repositories/ProductRepository'
+import { SectionRepository } from './repositories/SectionRepository'
+import { toProduct } from './shared/toContract'
+import { BulkImportProductsUseCase } from './use-cases/BulkImportProducts.use-case'
+import type { CatalogDependencies } from './use-cases/catalogModule.types'
+import {
+  CreateCatalogUseCase,
+  CreateSectionUseCase,
+  DeleteCatalogUseCase,
+  DeleteSectionUseCase,
+  ListCatalogsUseCase,
+  ListSectionsUseCase,
+  UpdateCatalogUseCase,
+  UpdateSectionUseCase,
+} from './use-cases/Catalog.use-cases'
+import { AdjustInventoryUseCase, ConsumeInventoryUseCase } from './use-cases/Inventory.use-cases'
+import {
+  RecordMetaReviewVerdictUseCase,
+  RetryFailedSyncsUseCase,
+  SyncCatalogToMetaUseCase,
+  SyncPendingToMetaUseCase,
+  SyncProductToMetaUseCase,
+} from './use-cases/MetaSync.use-cases'
+import { ReceiveCatalogWebhookUseCase } from './use-cases/ReceiveCatalogWebhook.use-case'
+import { UploadProductImageUseCase } from './use-cases/UploadProductImage.use-case'
+import {
+  CreateProductUseCase,
+  DeleteProductUseCase,
+  GetProductUseCase,
+  ListProductsUseCase,
+  UpdateProductUseCase,
+} from './use-cases/Product.use-cases'
+import { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'
+import { IndexProductImagesUseCase } from './use-cases/IndexProductImages.use-case'
+
+export type CatalogModuleProviders = {
+  /** Guarda de reentrega do webhook de catálogo. Ausente, evento reentregue é processado de novo. */
+  readonly webhookNonceStore?: WebhookNonceStorePort
+  readonly imageStorage?: ProductImageStoragePort
+  readonly metaSync?: MetaCatalogSyncPort
+  readonly productSuggestion?: ProductSuggestionPort
+  /**
+   * Identificacao visual de produto. Ausente, a busca por imagem nao existe: o use-case nao e
+   * construido e `hasVision` sai `false`, entao o canal nem oferece o affordance.
+   */
+  readonly vision?: ProductVisionPort
+  readonly clock?: ClockPort
+  readonly logger?: LoggerPort
+}
+
+export type CreateCatalogModuleParams = {
+  readonly db: CatalogDatabase
+  readonly config: CatalogModuleConfig
+  readonly providers?: CatalogModuleProviders
+  readonly hooks?: CatalogHooks
+}
+
+export type CatalogSchedule = {
+  readonly name: string
+  readonly cronExpression: string
+  /** Recebe a empresa: o módulo não conhece a lista de empresas do host. */
+  run(companyId: string): Promise<void>
+}
+
+export type CatalogModule = {
+  readonly useCases: {
+    readonly createProduct: CreateProductUseCase
+    readonly updateProduct: UpdateProductUseCase
+    readonly deleteProduct: DeleteProductUseCase
+    readonly getProduct: GetProductUseCase
+    readonly listProducts: ListProductsUseCase
+    readonly createCatalog: CreateCatalogUseCase
+    readonly updateCatalog: UpdateCatalogUseCase
+    readonly deleteCatalog: DeleteCatalogUseCase
+    readonly listCatalogs: ListCatalogsUseCase
+    readonly createSection: CreateSectionUseCase
+    readonly updateSection: UpdateSectionUseCase
+    readonly deleteSection: DeleteSectionUseCase
+    readonly listSections: ListSectionsUseCase
+    readonly consumeInventory: ConsumeInventoryUseCase
+    readonly adjustInventory: AdjustInventoryUseCase
+    readonly bulkImportProducts: BulkImportProductsUseCase
+    readonly uploadProductImage: UploadProductImageUseCase
+    readonly syncProductToMeta: SyncProductToMetaUseCase
+    readonly syncCatalogToMeta: SyncCatalogToMetaUseCase
+    readonly syncPendingToMeta: SyncPendingToMetaUseCase
+    readonly retryFailedSyncs: RetryFailedSyncsUseCase
+    readonly recordMetaReviewVerdict: RecordMetaReviewVerdictUseCase
+    /** Capacidade por ausência: sem `config.webhook`, a rota de webhook não existe. */
+    readonly receiveCatalogWebhook?: ReceiveCatalogWebhookUseCase
+    /** Idem para a visão: sem `providers.vision`, identificar produto por foto não existe. */
+    readonly identifyProductByImage?: IdentifyProductByImageUseCase
+    /** Varredura que popula o índice visual; exige `imageStorage.fetch` além da porta de visão. */
+    readonly indexProductImages?: IndexProductImagesUseCase
+  }
+  /** Reexposta para as rotas decidirem o que montar sem receber a config por fora. */
+  readonly config: CatalogModuleConfig
+  /** Descritores para o cron do host registrar; o módulo não abre timer próprio. */
+  readonly schedules: readonly CatalogSchedule[]
+  /** Projeção para o canal de conversa plugar no `CatalogPort` do `meta-whatsapp-module`. */
+  readonly lookup: CatalogProductLookup
+  /** Capacidade por ausência: sem porta de storage, a rota de upload não é publicada. */
+  readonly hasImageStorage: boolean
+  /** Idem para a busca por imagem: sem porta de visão, a rota não sobe e o canal não a oferece. */
+  readonly hasVision: boolean
+  /**
+   * Confere o indice contra o modelo do provider. E assincrona porque le o banco, e por isso nao
+   * cabe no boot sincrono — o host chama depois das migrations, no startup.
+   *
+   * Ausente sem `providers.vision`: nao ha indice a conferir.
+   */
+  readonly verifyVisionIndex?: (params: { readonly companyId: string }) => Promise<void>
+}
+
+/** Teto da listagem do canal: lista interativa de WhatsApp não comporta mais que isso. */
+const CHANNEL_PRODUCT_LIMIT = 30
+
+export function createCatalogModule(params: CreateCatalogModuleParams): CatalogModule {
+  if (!params.config.currency) throw new ConfigMissingError('currency')
+  if (!params.config.locale) throw new ConfigMissingError('locale')
+
+  // Feature ligada sem a porta é erro de composição, e falha no boot em vez de na primeira
+  // publicação — o operador descobriria pelo item que nunca sobe, dias depois.
+  const wantsMetaSync = params.config.metaSync?.products || params.config.metaSync?.catalogs
+  if (wantsMetaSync && !params.providers?.metaSync) throw new MetaSyncDisabledError()
+
+  // A coluna do indice tem tamanho fixo, entao um provider de outra dimensao so poderia gravar
+  // vetor truncado — que continua respondendo, com o produto errado. Falhar aqui e o que impede
+  // o indice de ser envenenado por uma troca de modelo silenciosa.
+  const embeddingModel = params.providers?.vision?.embeddingModel
+  if (embeddingModel && embeddingModel.dimensions !== PRODUCT_EMBEDDING_DIMENSIONS) {
+    throw new VisionDimensionsMismatchError(PRODUCT_EMBEDDING_DIMENSIONS, embeddingModel.dimensions)
+  }
+
+  const dependencies: CatalogDependencies = {
+    products: new ProductRepository(params.db),
+    catalogs: new CatalogRepository(params.db),
+    sections: new SectionRepository(params.db),
+    config: params.config,
+    hooks: params.hooks,
+    clock: params.providers?.clock,
+    logger: params.providers?.logger,
+    imageStorage: params.providers?.imageStorage,
+    metaSync: params.providers?.metaSync,
+    productSuggestion: params.providers?.productSuggestion,
+    vision: params.providers?.vision,
+    ...(params.providers?.vision ? { productEmbeddings: new ProductEmbeddingRepository(params.db) } : {}),
+    webhookNonceStore: params.providers?.webhookNonceStore,
+  }
+
+  const createProduct = new CreateProductUseCase(dependencies)
+  const consumeInventory = new ConsumeInventoryUseCase(dependencies)
+  const syncProductToMeta = new SyncProductToMetaUseCase(dependencies)
+  const syncPendingToMeta = new SyncPendingToMetaUseCase(dependencies, syncProductToMeta)
+
+  return {
+    useCases: {
+      createProduct,
+      updateProduct: new UpdateProductUseCase(dependencies),
+      deleteProduct: new DeleteProductUseCase(dependencies),
+      getProduct: new GetProductUseCase(dependencies),
+      listProducts: new ListProductsUseCase(dependencies),
+      createCatalog: new CreateCatalogUseCase(dependencies),
+      updateCatalog: new UpdateCatalogUseCase(dependencies),
+      deleteCatalog: new DeleteCatalogUseCase(dependencies),
+      listCatalogs: new ListCatalogsUseCase(dependencies),
+      createSection: new CreateSectionUseCase(dependencies),
+      updateSection: new UpdateSectionUseCase(dependencies),
+      deleteSection: new DeleteSectionUseCase(dependencies),
+      listSections: new ListSectionsUseCase(dependencies),
+      consumeInventory,
+      adjustInventory: new AdjustInventoryUseCase(dependencies),
+      bulkImportProducts: new BulkImportProductsUseCase(dependencies, createProduct),
+      uploadProductImage: new UploadProductImageUseCase(dependencies),
+      syncProductToMeta,
+      syncCatalogToMeta: new SyncCatalogToMetaUseCase(dependencies),
+      syncPendingToMeta,
+      retryFailedSyncs: new RetryFailedSyncsUseCase(dependencies),
+      recordMetaReviewVerdict: new RecordMetaReviewVerdictUseCase(dependencies),
+      ...(params.config.webhook ? { receiveCatalogWebhook: new ReceiveCatalogWebhookUseCase(dependencies) } : {}),
+      ...(params.providers?.vision ? { identifyProductByImage: new IdentifyProductByImageUseCase(dependencies) } : {}),
+      ...(embeddingModel && params.providers?.imageStorage?.fetch
+        ? { indexProductImages: new IndexProductImagesUseCase(dependencies) }
+        : {}),
+    },
+
+    config: params.config,
+
+    schedules: wantsMetaSync
+      ? [
+          {
+            name: 'catalog:sync-pending',
+            // A cada 5 min: o intervalo do cron É o backoff do `retriable`, e catálogo tolera
+            // essa latência. Um minuto só gastaria chamada da Graph API à toa.
+            cronExpression: '*/5 * * * *',
+            run: (companyId: string) => syncPendingToMeta.execute({ companyId }).then(() => undefined),
+          },
+        ]
+      : [],
+
+    hasImageStorage: Boolean(params.providers?.imageStorage),
+    hasVision: Boolean(params.providers?.vision),
+
+    ...(embeddingModel && dependencies.productEmbeddings
+      ? {
+          verifyVisionIndex: async ({ companyId }: { readonly companyId: string }): Promise<void> => {
+            const repository = dependencies.productEmbeddings
+            if (!repository) return
+            const indexed = await repository.listIndexedModels({ companyId })
+            // Indice vazio nao e divergencia: e uma base que ainda nao indexou, e o proximo
+            // upsert a preenche com o modelo corrente.
+            const foreign = indexed.find((model) => model !== embeddingModel.id)
+            if (foreign) throw new VisionModelMismatchError(foreign, embeddingModel.id)
+          },
+        }
+      : {}),
+
+    lookup: {
+      async findByRetailerId({ companyId, retailerId }) {
+        // `retailerId` na Meta é o id do produto aqui — é o que o `SyncProductToMeta` envia.
+        // `findByIdForCustomer` seleciona só as colunas do cliente: o custo nem sai do banco.
+        const row = await dependencies.products.findByIdForCustomer({ companyId, id: retailerId })
+        return row ? toProduct(row as never, 'customer') : undefined
+      },
+
+      async listForChannel({ companyId, search }) {
+        const rows = await dependencies.products.listForCustomer({ companyId, search, limit: CHANNEL_PRODUCT_LIMIT })
+        return rows.map((row) => toProduct(row as never, 'customer'))
+      },
+
+      async consumeInventory({ companyId, productId, quantity }) {
+        await consumeInventory.execute({ companyId, productId, quantity })
+      },
+    },
+  }
+}

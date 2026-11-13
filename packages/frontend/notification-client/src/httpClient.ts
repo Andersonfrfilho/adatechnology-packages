@@ -1,0 +1,349 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * Cliente HTTP tipado pelas 13 rotas do módulo. **Isomórfico e sem DOM**: `fetch` é injetável e o
+ * default é o global — é o que permite o mesmo pacote rodar no React Native do cawme e no PWA do
+ * quickcart, sem o `-ui` (que tem `react-dom` e Tailwind) entrar no bundle mobile.
+ */
+
+import type {
+  DeviceRegistration,
+  NotificationPreference,
+  NotificationSummary,
+  NotificationTemplate,
+  NotificationCategoryPolicy,
+  TemplateVariableCatalog,
+  UpsertTemplateBody,
+  WebPushSubscription,
+  SendPushDirectBody,
+  SendPushDirectResult,
+  BroadcastPushBody,
+  BroadcastPushResult,
+} from '@adatechnology/notification-contracts'
+
+export type NotificationClientConfig = {
+  /** Base do host, sem barra final: `https://api.exemplo.com/v1`. */
+  readonly baseUrl: string
+  /**
+   * Devolve o header de autorização a cada chamada — função, não string, porque o token do host
+   * rotaciona e capturar o valor no boot deixaria o cliente com uma credencial vencida.
+   */
+  readonly getAuthHeaders?: () => Promise<Record<string, string>> | Record<string, string>
+  readonly fetchImpl?: typeof fetch
+}
+
+export type ListNotificationsOptions = {
+  readonly category?: string
+  readonly read?: boolean
+  readonly cursor?: string
+  readonly perPage?: number
+}
+
+export type ListNotificationsPage = {
+  readonly data: readonly NotificationSummary[]
+  readonly nextCursor?: string
+  readonly unreadCount: number
+}
+
+export type RegisterDeviceInput = {
+  readonly platform: 'ios' | 'android' | 'web'
+  readonly driver: 'expo' | 'fcm'
+  readonly token: string
+  readonly appVersion?: string
+  readonly locale?: string
+  readonly timezone?: string
+}
+
+export type NotificationApiError = Error & {
+  readonly status: number
+  readonly code: string
+  readonly issues?: readonly { path: string; message: string }[]
+}
+
+function buildApiError(status: number, payload: unknown): NotificationApiError {
+  const envelope = payload as {
+    error?: { code?: string; message?: string; issues?: { path: string; message: string }[] }
+  }
+  const error = new Error(envelope?.error?.message ?? `Falha na requisição (${status}).`) as NotificationApiError
+  return Object.assign(error, {
+    status,
+    code: envelope?.error?.code ?? 'NOTIFICATION_UNKNOWN_ERROR',
+    issues: envelope?.error?.issues,
+  })
+}
+
+export type NotificationClient = {
+  listNotifications(options?: ListNotificationsOptions): Promise<ListNotificationsPage>
+  countUnread(): Promise<number>
+  markAsRead(id: string): Promise<NotificationSummary>
+  markAllAsRead(): Promise<number>
+  deleteNotification(id: string): Promise<void>
+  registerDevice(input: RegisterDeviceInput): Promise<DeviceRegistration>
+  unregisterDevice(id: string): Promise<void>
+  getPreferences(): Promise<readonly NotificationPreference[]>
+  updatePreferences(preferences: readonly NotificationPreference[]): Promise<readonly NotificationPreference[]>
+  /** O teto de canais da empresa por categoria — acima da preferência de quem recebe. */
+  getCategoryPolicies(): Promise<readonly NotificationCategoryPolicy[]>
+  /** Substitui a política das categorias enviadas; as demais ficam intactas. */
+  updateCategoryPolicies(
+    policies: readonly NotificationCategoryPolicy[],
+  ): Promise<readonly NotificationCategoryPolicy[]>
+  listTemplates(): Promise<readonly NotificationTemplate[]>
+  /**
+   * Cria uma VERSÃO nova do template, não edita a atual.
+   *
+   * O módulo versiona por `key`+`channel`+`locale`: a versão anterior fica legível para auditoria, e
+   * a leitura só devolve a ativa mais alta. Então "editar a copy" e "reverter" são a mesma operação
+   * — o que a tela de configuração precisa para alguém corrigir um texto sem medo.
+   */
+  upsertTemplate(input: UpsertTemplateBody): Promise<NotificationTemplate>
+  /**
+   * "Remover" é desativar: o servidor derruba todas as versões ativas da identidade e mantém as
+   * linhas, porque entrega já enviada precisa continuar auditável com o texto que usou.
+   */
+  deactivateTemplate(id: string): Promise<void>
+  /**
+   * "Restaurar padrão": o servidor grava uma versão nova com o conteúdo embutido do modelo padrão
+   * (`notification.standard-email`). 400 se o id não é dele; 409 se a restauração é recusada.
+   */
+  restoreDefault(id: string): Promise<NotificationTemplate>
+  /** O catálogo de variáveis por chave — é o que a tela mostra como lista clicável. */
+  listTemplateVariables(): Promise<TemplateVariableCatalog>
+  /** Base + headers, para o assinante de SSE reaproveitar a mesma configuração. */
+  resolveStreamRequest(): Promise<{ url: string; headers: Record<string, string> }>
+  /** Obtém a chave pública VAPID do servidor para inscrição Web Push no navegador */
+  getVapidPublicKey(): Promise<string>
+  /** Dispara uma notificação push direta (para token, user ou subscription) */
+  sendPush(input: SendPushDirectBody): Promise<SendPushDirectResult>
+  /** Dispara push em broadcast por tópico ou filtro */
+  broadcastPush(input: BroadcastPushBody): Promise<BroadcastPushResult>
+  /** Registra uma assinatura Web Push nativa (PWA) no backend */
+  registerWebPush(
+    subscription: WebPushSubscription,
+    options?: { readonly appVersion?: string; readonly locale?: string; readonly timezone?: string },
+  ): Promise<DeviceRegistration>
+}
+
+export function createNotificationClient(config: NotificationClientConfig): NotificationClient {
+  const fetchImpl = config.fetchImpl ?? fetch
+  const baseUrl = config.baseUrl.endsWith('/') ? config.baseUrl.slice(0, -1) : config.baseUrl
+
+  async function request<TResponse>(params: {
+    method: string
+    path: string
+    query?: Record<string, string | number | boolean | undefined>
+    body?: unknown
+  }): Promise<TResponse | undefined> {
+    const fullPath = `${baseUrl}${params.path}`
+    const isAbsolute = fullPath.startsWith('http://') || fullPath.startsWith('https://')
+    const fallbackBase =
+      typeof window !== 'undefined' && window.location?.origin ? window.location.origin : 'http://localhost'
+    const url = new URL(fullPath, isAbsolute ? undefined : fallbackBase)
+    for (const [key, value] of Object.entries(params.query ?? {})) {
+      if (value !== undefined) url.searchParams.set(key, String(value))
+    }
+
+    const authHeaders = (await config.getAuthHeaders?.()) ?? {}
+    const finalUrl = isAbsolute || typeof window !== 'undefined' ? url.toString() : `${url.pathname}${url.search}`
+    const response = await fetchImpl(finalUrl, {
+      method: params.method,
+      headers: { ...(params.body === undefined ? {} : { 'Content-Type': 'application/json' }), ...authHeaders },
+      body: params.body === undefined ? undefined : JSON.stringify(params.body),
+    })
+
+    if (response.status === 204) return undefined
+
+    const text = await response.text()
+    const payload: unknown = text === '' ? undefined : JSON.parse(text)
+    if (!response.ok) throw buildApiError(response.status, payload)
+    return payload as TResponse
+  }
+
+  return {
+    async listNotifications(options): Promise<ListNotificationsPage> {
+      const payload = await request<{
+        data: NotificationSummary[]
+        pagination: { nextCursor?: string }
+        meta: { unreadCount: number }
+      }>({
+        method: 'GET',
+        path: '/notifications',
+        query: { category: options?.category, read: options?.read, cursor: options?.cursor, perPage: options?.perPage },
+      })
+
+      return {
+        data: payload?.data ?? [],
+        nextCursor: payload?.pagination.nextCursor,
+        unreadCount: payload?.meta.unreadCount ?? 0,
+      }
+    },
+
+    async countUnread(): Promise<number> {
+      const payload = await request<{ data: { unreadCount: number } }>({
+        method: 'GET',
+        path: '/notifications/unread-count',
+      })
+      return payload?.data.unreadCount ?? 0
+    },
+
+    async markAsRead(id): Promise<NotificationSummary> {
+      const payload = await request<{ data: NotificationSummary }>({
+        method: 'PATCH',
+        path: `/notifications/${encodeURIComponent(id)}/read`,
+      })
+      if (!payload) throw new Error('notification-client: resposta vazia em markAsRead')
+      return payload.data
+    },
+
+    async markAllAsRead(): Promise<number> {
+      const payload = await request<{ data: { updated: number } }>({ method: 'POST', path: '/notifications/read-all' })
+      return payload?.data.updated ?? 0
+    },
+
+    async deleteNotification(id): Promise<void> {
+      await request({ method: 'DELETE', path: `/notifications/${encodeURIComponent(id)}` })
+    },
+
+    async registerDevice(input): Promise<DeviceRegistration> {
+      const payload = await request<{ data: DeviceRegistration }>({
+        method: 'POST',
+        path: '/notification-devices',
+        body: input,
+      })
+      if (!payload) throw new Error('notification-client: resposta vazia em registerDevice')
+      return payload.data
+    },
+
+    async unregisterDevice(id): Promise<void> {
+      await request({ method: 'DELETE', path: `/notification-devices/${encodeURIComponent(id)}` })
+    },
+
+    async getPreferences(): Promise<readonly NotificationPreference[]> {
+      const payload = await request<{ data: NotificationPreference[] }>({
+        method: 'GET',
+        path: '/notification-preferences',
+      })
+      return payload?.data ?? []
+    },
+
+    async updatePreferences(preferences): Promise<readonly NotificationPreference[]> {
+      const payload = await request<{ data: NotificationPreference[] }>({
+        method: 'PUT',
+        path: '/notification-preferences',
+        body: { preferences },
+      })
+      return payload?.data ?? []
+    },
+
+    async listTemplates(): Promise<readonly NotificationTemplate[]> {
+      const payload = await request<{ data: NotificationTemplate[] }>({
+        method: 'GET',
+        path: '/notification-templates',
+      })
+      return payload?.data ?? []
+    },
+
+    async getCategoryPolicies(): Promise<readonly NotificationCategoryPolicy[]> {
+      const payload = await request<{ data: NotificationCategoryPolicy[] }>({
+        method: 'GET',
+        path: '/notification-category-policies',
+      })
+      return payload?.data ?? []
+    },
+
+    async updateCategoryPolicies(policies): Promise<readonly NotificationCategoryPolicy[]> {
+      const payload = await request<{ data: NotificationCategoryPolicy[] }>({
+        method: 'PUT',
+        path: '/notification-category-policies',
+        body: { policies },
+      })
+      return payload?.data ?? []
+    },
+
+    async deactivateTemplate(id): Promise<void> {
+      await request({ method: 'DELETE', path: `/notification-templates/${encodeURIComponent(id)}` })
+    },
+
+    async restoreDefault(id): Promise<NotificationTemplate> {
+      const payload = await request<{ data: NotificationTemplate }>({
+        method: 'POST',
+        path: `/notification-templates/${encodeURIComponent(id)}/restore-default`,
+      })
+      if (!payload?.data) throw new Error('notification-client: restoreDefault não devolveu o template')
+      return payload.data
+    },
+
+    async listTemplateVariables(): Promise<TemplateVariableCatalog> {
+      const payload = await request<{ data: TemplateVariableCatalog }>({
+        method: 'GET',
+        path: '/notification-template-variables',
+      })
+      return payload?.data ?? {}
+    },
+
+    async upsertTemplate(input: UpsertTemplateBody): Promise<NotificationTemplate> {
+      const payload = await request<{ data: NotificationTemplate }>({
+        method: 'POST',
+        path: '/notification-templates',
+        body: input,
+      })
+      // Sem fallback: a rota responde 201 com o template criado, e devolver `undefined as never`
+      // aqui esconderia uma mudança de contrato até estourar na tela.
+      if (!payload?.data) throw new Error('notification-client: upsertTemplate não devolveu o template')
+      return payload.data
+    },
+
+    async resolveStreamRequest(): Promise<{ url: string; headers: Record<string, string> }> {
+      return { url: `${baseUrl}/notifications/stream`, headers: (await config.getAuthHeaders?.()) ?? {} }
+    },
+
+    async getVapidPublicKey(): Promise<string> {
+      const payload = await request<{ data: { publicKey: string } }>({
+        method: 'GET',
+        path: '/push/vapid-public-key',
+      })
+      if (!payload?.data?.publicKey) throw new Error('notification-client: chave pública VAPID não retornada')
+      return payload.data.publicKey
+    },
+
+    async sendPush(input: SendPushDirectBody): Promise<SendPushDirectResult> {
+      const payload = await request<{ data: SendPushDirectResult }>({
+        method: 'POST',
+        path: '/push/send',
+        body: input,
+      })
+      if (!payload?.data) throw new Error('notification-client: resposta vazia ao enviar push')
+      return payload.data
+    },
+
+    async broadcastPush(input: BroadcastPushBody): Promise<BroadcastPushResult> {
+      const payload = await request<{ data: BroadcastPushResult }>({
+        method: 'POST',
+        path: '/push/broadcast',
+        body: input,
+      })
+      if (!payload?.data) throw new Error('notification-client: resposta vazia em broadcastPush')
+      return payload.data
+    },
+
+    async registerWebPush(
+      subscription: WebPushSubscription,
+      options?: { readonly appVersion?: string; readonly locale?: string; readonly timezone?: string },
+    ): Promise<DeviceRegistration> {
+      const payload = await request<{ data: DeviceRegistration }>({
+        method: 'POST',
+        path: '/notification-devices',
+        body: {
+          platform: 'web',
+          driver: 'webpush',
+          token: JSON.stringify(subscription),
+          appVersion: options?.appVersion,
+          locale: options?.locale,
+          timezone: options?.timezone,
+        },
+      })
+      if (!payload?.data) throw new Error('notification-client: resposta vazia em registerWebPush')
+      return payload.data
+    },
+  }
+}

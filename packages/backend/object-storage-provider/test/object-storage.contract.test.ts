@@ -1,0 +1,382 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+import { createHash } from 'node:crypto'
+
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test'
+
+import {
+  OBJECT_STORAGE_ERROR_CODES,
+  ObjectStorageError,
+  createObjectStorageProvider,
+  type ObjectBody,
+  type ObjectStorageProvider,
+  type SignedDownloadInput,
+} from '../src'
+import { startSyntheticS3Server, type SyntheticS3Server } from './synthetic-s3.server'
+
+const BUCKET = 'transportada-test-private'
+const KEY = 'tenants/tenant-1/nfe-documents/document-1/original/object-1.xml'
+const CONTENT_TYPE = 'application/xml'
+const SYNTHETIC_SECRET_ACCESS_KEY = 'synthetic-secret-key'
+const CONTENT_DISPOSITION_PARAMETER = 'response-content-disposition'
+const SIGNATURE_PARAMETER = 'X-Amz-Signature'
+const ORIGINAL_BYTES = new TextEncoder().encode('<NFe id="synthetic"/>')
+const DIFFERENT_BYTES = new TextEncoder().encode('<NFe id="different"/>')
+let syntheticS3Server: SyntheticS3Server | undefined
+
+function getSyntheticS3Server(): SyntheticS3Server {
+  if (!syntheticS3Server) throw new Error('Synthetic S3 server was not started')
+  return syntheticS3Server
+}
+
+function calculateSha256(bytes: Uint8Array): string {
+  return createHash('sha256').update(bytes).digest('hex')
+}
+
+function createProvider(): ObjectStorageProvider {
+  return createObjectStorageProvider({
+    endpoint: getSyntheticS3Server().endpoint,
+    region: 'us-east-1',
+    accessKeyId: 'synthetic-access-key',
+    secretAccessKey: SYNTHETIC_SECRET_ACCESS_KEY,
+    forcePathStyle: true,
+    healthCheckBucket: BUCKET,
+    maxObjectSizeBytes: 1024,
+  })
+}
+
+function createPutInput(body: ObjectBody = ORIGINAL_BYTES) {
+  return {
+    bucket: BUCKET,
+    key: KEY,
+    body,
+    contentLength: ORIGINAL_BYTES.byteLength,
+    contentType: CONTENT_TYPE,
+    sha256: calculateSha256(ORIGINAL_BYTES),
+    mode: 'create-only' as const,
+  }
+}
+
+async function readBytes(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+  return new Uint8Array(await new Response(stream).arrayBuffer())
+}
+
+describe('ObjectStorageProvider public contract', () => {
+  beforeAll(() => {
+    syntheticS3Server = startSyntheticS3Server(BUCKET)
+  })
+
+  beforeEach(() => {
+    getSyntheticS3Server().reset()
+  })
+
+  afterAll(async () => {
+    await getSyntheticS3Server().close()
+    syntheticS3Server = undefined
+  })
+
+  test('creates an immutable object from bytes with verified metadata', async () => {
+    const stored = await createProvider().put(createPutInput())
+
+    expect(stored).toEqual({
+      provider: 's3',
+      bucket: BUCKET,
+      key: KEY,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+      sha256: calculateSha256(ORIGINAL_BYTES),
+      disposition: 'created',
+    })
+  })
+
+  test('streams put and get without changing the original bytes', async () => {
+    const provider = createProvider()
+    const body = new Blob([ORIGINAL_BYTES]).stream()
+    await provider.put(createPutInput(body))
+
+    expect(await readBytes(await provider.get({ bucket: BUCKET, key: KEY }))).toEqual(ORIGINAL_BYTES)
+  })
+
+  test('treats the same key and SHA-256 as an idempotent replay', async () => {
+    const provider = createProvider()
+    await provider.put(createPutInput())
+
+    expect((await provider.put(createPutInput())).disposition).toBe('replayed')
+  })
+
+  test('rejects a divergent hash conflict and never overwrites the bytes', async () => {
+    const provider = createProvider()
+    await provider.put(createPutInput())
+
+    await expect(
+      provider.put({
+        ...createPutInput(DIFFERENT_BYTES),
+        contentLength: DIFFERENT_BYTES.byteLength,
+        sha256: calculateSha256(DIFFERENT_BYTES),
+      }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.objectConflict })
+    expect(await readBytes(await provider.get({ bucket: BUCKET, key: KEY }))).toEqual(ORIGINAL_BYTES)
+  })
+
+  test('rejects content length, SHA-256, and MIME mismatches before success', async () => {
+    const provider = createProvider()
+
+    await expect(
+      provider.put({ ...createPutInput(), contentLength: ORIGINAL_BYTES.byteLength + 1 }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.contentLengthMismatch })
+    await expect(provider.put({ ...createPutInput(), sha256: calculateSha256(DIFFERENT_BYTES) })).rejects.toMatchObject(
+      { code: OBJECT_STORAGE_ERROR_CODES.sha256Mismatch },
+    )
+    const longerStream = new Blob([DIFFERENT_BYTES, Uint8Array.of(0)]).stream()
+    await expect(provider.put({ ...createPutInput(longerStream) })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.contentLengthMismatch,
+    })
+    await expect(
+      provider.put({ ...createPutInput(), contentType: 'application/xml\r\nx-unsafe: value' }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.invalidContentType })
+    await expect(provider.put({ ...createPutInput(), contentLength: 1025 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.objectTooLarge,
+    })
+  })
+
+  test('copies mutable byte input before yielding to the storage client', async () => {
+    const provider = createProvider()
+    const mutableBytes = new Uint8Array(ORIGINAL_BYTES)
+    const pendingPut = provider.put(createPutInput(mutableBytes))
+    mutableBytes.fill(0)
+
+    await pendingPut
+    expect(await readBytes(await provider.get({ bucket: BUCKET, key: KEY }))).toEqual(ORIGINAL_BYTES)
+  })
+
+  test('rejects invalid buckets, absolute keys, backslashes, and traversal segments', async () => {
+    const provider = createProvider()
+    const invalidLocations = [
+      {
+        location: { bucket: 'INVALID_BUCKET', key: KEY },
+        code: OBJECT_STORAGE_ERROR_CODES.invalidBucket,
+      },
+      {
+        location: { bucket: BUCKET, key: '/absolute.xml' },
+        code: OBJECT_STORAGE_ERROR_CODES.invalidKey,
+      },
+      {
+        location: { bucket: BUCKET, key: 'tenants\\tenant-1\\object.xml' },
+        code: OBJECT_STORAGE_ERROR_CODES.invalidKey,
+      },
+      {
+        location: { bucket: BUCKET, key: 'tenants/tenant-1/../tenant-2/object.xml' },
+        code: OBJECT_STORAGE_ERROR_CODES.invalidKey,
+      },
+    ]
+
+    for (const invalidLocation of invalidLocations) {
+      await expect(provider.head(invalidLocation.location)).rejects.toMatchObject({
+        code: invalidLocation.code,
+      })
+    }
+  })
+
+  test('returns stable errors without credentials, endpoint, bucket, or key', async () => {
+    const provider = createProvider()
+    getSyntheticS3Server().failNextRequest()
+
+    try {
+      await provider.get({ bucket: BUCKET, key: KEY })
+      throw new Error('Expected storage operation to fail')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ObjectStorageError)
+      expect((error as ObjectStorageError).code).toBe(OBJECT_STORAGE_ERROR_CODES.unavailable)
+      expect((error as Error).message).not.toContain(SYNTHETIC_SECRET_ACCESS_KEY)
+      expect((error as Error).message).not.toContain(getSyntheticS3Server().endpoint.toString())
+      expect((error as Error).message).not.toContain(BUCKET)
+      expect((error as Error).message).not.toContain(KEY)
+    }
+  })
+
+  test('redacts failures raised while consuming an upload stream', async () => {
+    const provider = createProvider()
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new Error(`${SYNTHETIC_SECRET_ACCESS_KEY}:${BUCKET}:${KEY}`))
+      },
+    })
+
+    try {
+      await provider.put(createPutInput(body))
+      throw new Error('Expected stream consumption to fail')
+    } catch (error) {
+      expect(error).toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.unavailable })
+      expect((error as Error).message).not.toContain(SYNTHETIC_SECRET_ACCESS_KEY)
+      expect((error as Error).message).not.toContain(BUCKET)
+      expect((error as Error).message).not.toContain(KEY)
+    }
+  })
+
+  test('supports head, get, and idempotent delete lifecycle', async () => {
+    const provider = createProvider()
+    await provider.put(createPutInput())
+
+    expect(await provider.head({ bucket: BUCKET, key: KEY })).toEqual({
+      provider: 's3',
+      bucket: BUCKET,
+      key: KEY,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+      sha256: calculateSha256(ORIGINAL_BYTES),
+    })
+    await provider.delete({ bucket: BUCKET, key: KEY })
+    await provider.delete({ bucket: BUCKET, key: KEY })
+    expect(await provider.head({ bucket: BUCKET, key: KEY })).toBeUndefined()
+  })
+
+  test('supports path-style health and rejects operations after close', async () => {
+    const provider = createProvider()
+
+    await provider.put(createPutInput())
+    expect(getSyntheticS3Server().requestPaths).toContain(`/${BUCKET}/${KEY}`)
+    expect(await provider.health()).toEqual({ status: 'up' })
+    await provider.close()
+    await provider.close()
+    await expect(provider.head({ bucket: BUCKET, key: KEY })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.providerClosed,
+    })
+  })
+
+  test('creates only short-lived signed private download URLs', async () => {
+    const provider = createProvider()
+    const signedUrl = await provider.createSignedDownload({
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+    })
+
+    expect(signedUrl).toBeInstanceOf(URL)
+    expect(signedUrl.protocol).toBe('http:')
+    await expect(
+      provider.createSignedDownload({ bucket: BUCKET, key: KEY, expiresInSeconds: 301 }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid })
+    await expect(
+      provider.createSignedDownload({ bucket: BUCKET, key: KEY, expiresInSeconds: 0 }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid })
+  })
+
+  test('signs the requested content disposition into the download URL', async () => {
+    const provider = createProvider()
+    const signedDownload = (extra: Partial<SignedDownloadInput>): Promise<URL> =>
+      provider.createSignedDownload({ bucket: BUCKET, key: KEY, expiresInSeconds: 60, ...extra })
+
+    const attachment = await signedDownload({ disposition: 'attachment', filename: 'nota fiscal.xml' })
+    const inline = await signedDownload({ disposition: 'inline' })
+    const withoutDisposition = await signedDownload({})
+    const filenameWithoutDisposition = await signedDownload({ filename: 'nota fiscal.xml' })
+
+    expect(attachment.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBe(
+      "attachment; filename*=UTF-8''nota%20fiscal.xml",
+    )
+    expect(inline.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBe('inline')
+    expect(withoutDisposition.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBeNull()
+    expect(filenameWithoutDisposition.searchParams.get(CONTENT_DISPOSITION_PARAMETER)).toBeNull()
+
+    // Vai assinado, não como parâmetro solto: mudar a disposição muda a assinatura.
+    expect(attachment.searchParams.get(SIGNATURE_PARAMETER)).not.toBe(inline.searchParams.get(SIGNATURE_PARAMETER))
+    expect(inline.searchParams.get(SIGNATURE_PARAMETER)).not.toBe(
+      withoutDisposition.searchParams.get(SIGNATURE_PARAMETER),
+    )
+  })
+
+  test('creates a signed private upload URL binding content length into the signature', async () => {
+    const provider = createProvider()
+    const signedUpload = await provider.createSignedUpload({
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+    })
+    const differentContentLength = await provider.createSignedUpload({
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength + 1,
+      contentType: CONTENT_TYPE,
+    })
+
+    expect(signedUpload).toBeInstanceOf(URL)
+    expect(signedUpload.protocol).toBe('http:')
+    // `content-length` é cabeçalho assinável do S3: diverge o tamanho, diverge a assinatura, e o
+    // upload real é recusado se não bater com o que foi assinado aqui.
+    expect(signedUpload.searchParams.get('X-Amz-SignedHeaders')).toContain('content-length')
+    expect(signedUpload.searchParams.get(SIGNATURE_PARAMETER)).not.toBe(
+      differentContentLength.searchParams.get(SIGNATURE_PARAMETER),
+    )
+  })
+
+  /**
+   * O SDK 3.1091 calcula checksum por padrão (`requestChecksumCalculation: 'WHEN_SUPPORTED'`) e, na
+   * URL assinada de PUT, amarra o CRC32 de um corpo que ainda não existe — o do corpo **vazio**. O
+   * storage que confere o checksum (MinIO recente, SeaweedFS) recusa o upload real com `BadDigest`.
+   * Medido pelo transportada (spec 183): 400 sem a correção, 200 com ela. O cliente não pode depender
+   * de o consumidor lembrar `AWS_REQUEST_CHECKSUM_CALCULATION`, então o teste roda sem a variável.
+   */
+  test('signed upload URLs never bind a checksum of an empty body', async () => {
+    const previous = process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+    delete process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+    try {
+      const signedUpload = await createProvider().createSignedUpload({
+        bucket: BUCKET,
+        key: KEY,
+        expiresInSeconds: 60,
+        contentLength: ORIGINAL_BYTES.byteLength,
+        contentType: CONTENT_TYPE,
+      })
+      const parameters = [...signedUpload.searchParams.keys()].map((name) => name.toLowerCase())
+
+      expect(parameters.filter((name) => name.includes('checksum'))).toEqual([])
+      expect(signedUpload.searchParams.get('X-Amz-SignedHeaders')).not.toContain('checksum')
+    } finally {
+      if (previous === undefined) delete process.env.AWS_REQUEST_CHECKSUM_CALCULATION
+      else process.env.AWS_REQUEST_CHECKSUM_CALCULATION = previous
+    }
+  })
+
+  test('rejects invalid expiration, oversized content, and invalid content type for signed uploads', async () => {
+    const provider = createProvider()
+    const validUpload = {
+      bucket: BUCKET,
+      key: KEY,
+      expiresInSeconds: 60,
+      contentLength: ORIGINAL_BYTES.byteLength,
+      contentType: CONTENT_TYPE,
+    }
+
+    await expect(provider.createSignedUpload({ ...validUpload, expiresInSeconds: 0 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid,
+    })
+    await expect(provider.createSignedUpload({ ...validUpload, expiresInSeconds: 901 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.signedUrlExpirationInvalid,
+    })
+    await expect(provider.createSignedUpload({ ...validUpload, contentLength: 1025 })).rejects.toMatchObject({
+      code: OBJECT_STORAGE_ERROR_CODES.objectTooLarge,
+    })
+    await expect(
+      provider.createSignedUpload({ ...validUpload, contentType: 'application/xml\r\nx-unsafe: value' }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.invalidContentType })
+  })
+
+  test('rejects signed uploads after the provider is closed', async () => {
+    const provider = createProvider()
+    await provider.close()
+
+    await expect(
+      provider.createSignedUpload({
+        bucket: BUCKET,
+        key: KEY,
+        expiresInSeconds: 60,
+        contentLength: ORIGINAL_BYTES.byteLength,
+        contentType: CONTENT_TYPE,
+      }),
+    ).rejects.toMatchObject({ code: OBJECT_STORAGE_ERROR_CODES.providerClosed })
+  })
+})

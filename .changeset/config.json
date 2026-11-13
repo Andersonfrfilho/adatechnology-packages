@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@2.3.0/schema.json",
+  "changelog": false,
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "commit": false,
+  "ignore": [
+    "bun-app-example",
+    "frontend-example",
+    "fiscal-example",
+    "fiscal-example-frontend"
+  ],
+  "privatePackages": {
+    "version": true,
+    "tag": false
+  },
+  "fixed": []
+}

@@ -1,0 +1,79 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * Liga a porta de imagem do `catalog-module` a um bucket S3-compatível.
+ *
+ * O módulo guarda a porta e não a implementação de propósito — quem só gerencia catálogo interno
+ * não deve baixar o SDK da AWS por tabela. Este pacote é a ponte, e existe para as decisões abaixo
+ * não serem redecididas em cada produto.
+ */
+
+import type { ProductImageStoragePort } from '@adatechnology/catalog-contracts'
+import type { ObjectStorageProvider } from '@adatechnology/object-storage-provider'
+
+export type S3ProductImageStorageParams = {
+  readonly storage: ObjectStorageProvider
+  readonly bucket: string
+  /**
+   * Base pública da URL devolvida, separada do endpoint de propósito.
+   *
+   * Quem busca a imagem do produto é a Meta, para renderizar o item dentro do WhatsApp: a URL
+   * precisa ser estável e sem credencial. URL assinada expira, e o catálogo aparece quebrado
+   * semanas depois — sem nada falhar no momento em que quebrou.
+   */
+  readonly publicBaseUrl: string
+}
+
+export function createS3ProductImageStorage(params: S3ProductImageStorageParams): ProductImageStoragePort {
+  const publicBaseUrl = params.publicBaseUrl.replace(/\/+$/, '')
+
+  return {
+    async upload(input) {
+      const stored = await params.storage.put({
+        bucket: params.bucket,
+        key: input.key,
+        body: new Uint8Array(input.buffer),
+        contentLength: input.buffer.byteLength,
+        contentType: input.mimeType,
+        sha256: await sha256Hex(input.buffer),
+        // A chave já é um UUID novo a cada envio: colisão aqui é bug, e sobrescrever a esconderia.
+        mode: 'create-only',
+      })
+
+      return { url: `${publicBaseUrl}/${stored.key}`, key: stored.key }
+    },
+
+    async delete(key) {
+      await params.storage.delete({ bucket: params.bucket, key })
+    },
+
+    /**
+     * Leitura pela chave, para a indexação visual reprocessar a imagem já guardada.
+     *
+     * Pela chave e não pela `imageUrl` mesmo aqui, onde a URL é pública e estável: a URL é um
+     * detalhe de entrega — muda com CDN, com domínio, com migração de bucket — e a chave é o que
+     * o banco guarda como identidade do objeto. Buscar por HTTP ainda sairia do processo para
+     * voltar ao mesmo bucket, pagando uma volta pela internet por produto indexado.
+     */
+    async fetch(key) {
+      const stored = await params.storage.head({ bucket: params.bucket, key })
+      // Objeto ausente é o caso comum de catálogo antigo: imagem apagada do bucket com a linha do
+      // produto ainda apontando para ela. Erro claro aqui, e não um stream vazio que viraria um
+      // vetor de imagem em branco competindo com os produtos de verdade.
+      if (!stored) throw new Error(`Imagem de produto não encontrada no bucket: ${key}`)
+
+      const stream = await params.storage.get({ bucket: params.bucket, key })
+
+      return { buffer: Buffer.from(await new Response(stream).arrayBuffer()), mimeType: stored.contentType }
+    },
+  }
+}
+
+/** `crypto.subtle` em vez de `node:crypto`: o pacote roda em Bun, Node e Workers sem import de runtime. */
+async function sha256Hex(buffer: Buffer): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(buffer))
+
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}

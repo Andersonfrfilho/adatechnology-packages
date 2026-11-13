@@ -1,0 +1,100 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * Fases 1-4: dados, comportamento, HTTP e publicação na Meta.\n *\n * Adaptadores em entrypoints próprios: `./http/fetch`, `./http/uws`, `./openapi`.
+ */
+
+export type { CatalogDatabase, DrizzleMigrateFunction } from './database.types'
+
+export { catalogSchema, catalogs, sections, products } from './schema/schema'
+export type { CatalogRow, NewCatalogRow, SectionRow, NewSectionRow, ProductRow, NewProductRow } from './schema/schema'
+
+export { runCatalogMigrations, catalogMigrationsFolder, CATALOG_MIGRATIONS_TABLE } from './runMigrations'
+export {
+  runCatalogVisionMigrations,
+  catalogVisionMigrationsFolder,
+  CATALOG_VISION_MIGRATIONS_TABLE,
+} from './runVisionMigrations'
+export type { RunCatalogVisionMigrationsParams } from './runVisionMigrations'
+export { productEmbeddings, PRODUCT_EMBEDDING_DIMENSIONS, PRODUCT_EMBEDDING_SOURCE } from './schema/vision.schema'
+export type { ProductEmbeddingRow, NewProductEmbeddingRow, ProductEmbeddingSource } from './schema/vision.schema'
+export { ProductEmbeddingRepository } from './repositories/ProductEmbeddingRepository'
+export type { NearestProductRow, FindNearestParams } from './repositories/ProductEmbeddingRepository'
+export { IdentifyProductByImageUseCase } from './use-cases/IdentifyProductByImage.use-case'
+export { IndexProductImagesUseCase } from './use-cases/IndexProductImages.use-case'
+export type { IndexProductImagesParams, IndexProductImagesResult } from './use-cases/IndexProductImages.use-case'
+export type {
+  IdentifyProductByImageParams,
+  IdentifyProductByImageResult,
+} from './use-cases/IdentifyProductByImage.use-case'
+export { VISION } from './shared/vision.constant'
+export type { RunCatalogMigrationsParams } from './runMigrations'
+
+export {
+  productOwnedByCondition,
+  productListCondition,
+  productSearchCondition,
+  catalogOwnedByCondition,
+  catalogListCondition,
+  sectionOwnedByCondition,
+  sectionListCondition,
+} from './repositories/conditions'
+
+export { ProductRepository, CUSTOMER_FACING_PRODUCT_COLUMNS } from './repositories/ProductRepository'
+export type { ListProductsQuery, ListProductsPage } from './repositories/ProductRepository'
+
+export { CatalogRepository } from './repositories/CatalogRepository'
+export type { ListCatalogsQuery, CatalogWithCount } from './repositories/CatalogRepository'
+
+export { SectionRepository } from './repositories/SectionRepository'
+
+export { createCatalogModule } from './CatalogModule'
+export type { CatalogModule, CreateCatalogModuleParams, CatalogModuleProviders } from './CatalogModule'
+
+export {
+  CreateProductUseCase,
+  UpdateProductUseCase,
+  DeleteProductUseCase,
+  GetProductUseCase,
+  ListProductsUseCase,
+} from './use-cases/Product.use-cases'
+export {
+  CreateCatalogUseCase,
+  UpdateCatalogUseCase,
+  DeleteCatalogUseCase,
+  ListCatalogsUseCase,
+  CreateSectionUseCase,
+  UpdateSectionUseCase,
+  DeleteSectionUseCase,
+  ListSectionsUseCase,
+} from './use-cases/Catalog.use-cases'
+export { ConsumeInventoryUseCase, AdjustInventoryUseCase } from './use-cases/Inventory.use-cases'
+export { BulkImportProductsUseCase } from './use-cases/BulkImportProducts.use-case'
+export type { BulkImportParams } from './use-cases/BulkImportProducts.use-case'
+export {
+  ReceiveCatalogWebhookUseCase,
+  HANDLED_CATALOG_WEBHOOK_FIELDS,
+} from './use-cases/ReceiveCatalogWebhook.use-case'
+export type { ReceiveCatalogWebhookParams } from './use-cases/ReceiveCatalogWebhook.use-case'
+export type { CatalogDependencies } from './use-cases/catalogModule.types'
+
+export { deriveAvailability, crossedIntoOutOfStock, requiresMetaResync } from './shared/availability'
+export { parsePriceToCents } from './shared/parsePrice'
+export type { ParsePriceResult } from './shared/parsePrice'
+export { toProduct, toCatalog, toSection, toPaginated } from './shared/toContract'
+export type { ProductProjection } from './shared/toContract'
+
+export { createCatalogRoutes } from './http/routes'
+export { buildCatalogWebhookRoutes, CATALOG_WEBHOOK_PATH } from './http/webhookRoutes'
+export type { CreateCatalogRoutesParams } from './http/routes'
+export { requireCompany } from './http/requireCompany'
+
+export {
+  SyncProductToMetaUseCase,
+  SyncCatalogToMetaUseCase,
+  SyncPendingToMetaUseCase,
+  RetryFailedSyncsUseCase,
+  RecordMetaReviewVerdictUseCase,
+} from './use-cases/MetaSync.use-cases'
+export type { SweepResult } from './use-cases/MetaSync.use-cases'
+export type { CatalogSchedule } from './CatalogModule'

@@ -1,0 +1,66 @@
+import type { ReactNode } from 'react'
+
+import type { ParticipantConversationSummary, ParticipantSubjectRef } from '@adatechnology/conversation-contracts'
+
+import type { ConversationChannel } from '../conversationChannel'
+import type { QuickReply } from '../quickReplies/quickReply.types'
+import type { ConversationsTheme } from '../types'
+import type { ParticipantAuthorAvatarRenderer, ParticipantMessageActionsRenderer } from './ParticipantAuthorAvatar'
+import { ParticipantConversationsScreen } from './ParticipantConversationsScreen'
+import type {
+  ParticipantConversationsClassNames,
+  ParticipantSubjectGroup,
+  ParticipantSubjectIconRenderer,
+} from './participant.types'
+import type { ParticipantConversationsApi, ParticipantPendingMessage } from './participantApi.types'
+import type { ParticipantAudioRecordingOptions } from './participantAudio.types'
+import type { ParticipantConversationsLabels } from './participantLabels'
+import { useParticipantInbox } from './useParticipantInbox'
+import type { ParticipantMessageMenuOptions } from './participantMessageMenuModel'
+
+export type ParticipantConversationsProps = {
+  api: ParticipantConversationsApi
+  subjectGroups: readonly ParticipantSubjectGroup[]
+  /** undefined renders the list; defined renders that conversation. */
+  selected: ParticipantSubjectRef | undefined
+  onSelect: (subject: ParticipantSubjectRef) => void
+  onBack?: () => void
+  channel?: ConversationChannel
+  labels?: Partial<ParticipantConversationsLabels>
+  locale?: string
+  theme?: ConversationsTheme
+  className?: string
+  classNames?: Partial<ParticipantConversationsClassNames>
+  pendingMessages?: readonly ParticipantPendingMessage[]
+  onRetryPending?: (clientMessageId: string) => void
+  quickReplies?: readonly QuickReply[]
+  renderSubjectIcon?: ParticipantSubjectIconRenderer
+  renderSubjectCard?: (conversation: ParticipantConversationSummary) => ReactNode
+  onOpenSubject?: (subject: ParticipantSubjectRef) => void
+  /** Absent draws no avatar. The SDK has no photo: the host supplies it through renderAuthorAvatar. */
+  avatars?: 'initials'
+  /** Host slot for the author's photo; wins over 'initials' and enables avatars on its own. */
+  renderAuthorAvatar?: ParticipantAuthorAvatarRenderer
+  /** Host slot at the end of each message's meta line (copy, forward...). The package knows no action. */
+  renderMessageActions?: ParticipantMessageActionsRenderer
+  /** Opt-in message menu as in common chat apps: copy, select messages, plus the host's entries. */
+  messageMenu?: ParticipantMessageMenuOptions
+  /** Speech-bubble tail on the bottom corner; false removes it. Default true. */
+  tail?: boolean
+  /** Absent draws no microphone. Present lets the user record and send an audio as a message of its own. */
+  audioRecording?: ParticipantAudioRecordingOptions
+  /** Return a node to replace the composer for this conversation (notice + host actions); undefined keeps the composer. `closed` still wins. Evaluated every render. */
+  renderComposerLock?: (conversation: ParticipantConversationSummary) => ReactNode | undefined
+}
+
+export function ParticipantConversations(props: ParticipantConversationsProps) {
+  const inbox = useParticipantInbox(props.api)
+  const { status, conversations, hasMore, refresh, loadMore, markSubjectRead } = inbox
+
+  return (
+    <ParticipantConversationsScreen
+      {...props}
+      inbox={{ status, conversations, hasMore, refresh, loadMore, markSubjectRead }}
+    />
+  )
+}

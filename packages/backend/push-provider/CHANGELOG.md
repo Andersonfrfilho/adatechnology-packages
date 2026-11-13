@@ -1,0 +1,1 @@
+# @adatechnology/push-provider

@@ -1,0 +1,1 @@
+# @adatechnology/email-provider

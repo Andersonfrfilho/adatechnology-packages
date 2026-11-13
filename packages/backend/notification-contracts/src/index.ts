@@ -1,0 +1,235 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+
+export {
+  NOTIFICATION_CHANNEL,
+  INTRUSIVE_CHANNELS,
+  NOTIFICATION_STATUS,
+  DELIVERY_STATUS,
+  DEVICE_PLATFORM,
+  PUSH_DRIVER,
+  EMAIL_DRIVER,
+  SUPPRESSION_REASON,
+  NOTIFICATION_CATEGORY_HINT,
+} from './notification.types'
+export type {
+  NotificationChannel,
+  NotificationStatus,
+  DeliveryStatus,
+  DevicePlatform,
+  PushDriver,
+  EmailDriver,
+  SuppressionReason,
+  NotificationId,
+  CompanyId,
+  UserId,
+  NotificationSummary,
+  DeliverySummary,
+  DeviceRegistration,
+  NotificationPreference,
+  NotificationTemplate,
+  NotificationCategoryPolicy,
+  SendNotificationParams,
+  SendNotificationResult,
+  ListNotificationsParams,
+  ListNotificationsResult,
+  DeliveryReceipt,
+  WebPushKeys,
+  WebPushSubscription,
+} from './notification.types'
+
+export type {
+  PushNotificationPayload,
+  SendPushDirectTarget,
+  SendPushDirectParams,
+  SendPushDirectResult,
+  BroadcastPushFilter,
+  BroadcastPushParams,
+  BroadcastPushResult,
+  RegisterPushSubscriptionParams,
+  PushSubscriptionRecord,
+  VapidKeys,
+  PushServiceContainerConfig,
+  PushServicePort,
+} from './pushService.types'
+
+export { EMAIL_ATTACHMENT_MAX_BYTES, EMAIL_ATTACHMENT_MAX_COUNT, checkEmailAttachment } from './emailAttachment'
+export type { EmailAttachment } from './emailAttachment'
+
+export type {
+  DeliveryAttemptResult,
+  SendPushParams,
+  SendEmailParams,
+  SendWhatsAppParams,
+  SendWhatsAppTemplateParams,
+  SendSmsParams,
+  PushDriverPort,
+  EmailDriverPort,
+  WhatsAppDriverPort,
+  SmsDriverPort,
+  ChannelDrivers,
+} from './channelDrivers'
+
+export type {
+  ResolvedRecipient,
+  RecipientResolverPort,
+  NotificationJob,
+  QueuePort,
+  RenderTemplateParams,
+  RenderedTemplate,
+  TemplateRendererPort,
+  CachePort,
+  RealtimeNotifierPort,
+  RealtimeEvent,
+  RealtimeSubscription,
+  ClockPort,
+  LogMeta,
+  LoggerPort,
+  MetricsPort,
+} from './providers'
+
+export {
+  sendNotificationSchema,
+  registerDeviceSchema,
+  preferenceEntrySchema,
+  updatePreferencesSchema,
+  updateCategoryPoliciesSchema,
+  categoryPolicyEntrySchema,
+  upsertTemplateSchema,
+  listNotificationsQuerySchema,
+  deliveryWebhookSchema,
+  webPushKeysSchema,
+  webPushSubscriptionSchema,
+  pushNotificationPayloadSchema,
+  sendPushDirectTargetSchema,
+  sendPushDirectSchema,
+  broadcastPushFilterSchema,
+  broadcastPushSchema,
+  registerPushSubscriptionSchema,
+} from './schemas'
+export type {
+  SendNotificationBody,
+  RegisterDeviceBody,
+  UpdatePreferencesBody,
+  UpdateCategoryPoliciesBody,
+  UpsertTemplateBody,
+  ListNotificationsQuery,
+  DeliveryWebhookBody,
+  WebPushKeysBody,
+  WebPushSubscriptionBody,
+  PushNotificationPayloadBody,
+  SendPushDirectTargetBody,
+  SendPushDirectBody,
+  BroadcastPushFilterBody,
+  BroadcastPushBody,
+  RegisterPushSubscriptionBody,
+} from './schemas'
+
+export { NOTIFICATION_EVENT } from './events'
+export type {
+  NotificationEvent,
+  NotificationCreatedEvent,
+  NotificationDispatchedEvent,
+  NotificationReadEvent,
+  DeliverySentEvent,
+  DeliveryFailedEvent,
+  DeliveryBouncedEvent,
+  DeviceRegisteredEvent,
+  DeviceInvalidatedEvent,
+  PreferencesUpdatedEvent,
+  NotificationHooks,
+} from './events'
+
+export {
+  NotificationError,
+  NOTIFICATION_ERROR_CODES,
+  TemplateNotFoundError,
+  ChannelNotConfiguredError,
+  RecipientUnresolvedError,
+  SuppressedTargetError,
+  NotificationNotFoundError,
+  InvalidWebhookSignatureError,
+  DuplicateWebhookDeliveryError,
+  DeviceNotFoundError,
+  ThrottledError,
+  ConfigMissingError,
+  UnknownTemplateVariablesError,
+  TemplateIdNotFoundError,
+  WebPushEncryptionError,
+  InvalidVapidKeysError,
+  SubscriptionNotFoundError,
+} from './errors'
+
+export { createWhatsAppDriverFromChannel } from './whatsappDriver'
+export type { WhatsAppSendingChannel } from './whatsappDriver'
+
+export {
+  deriveTitleFromBody,
+  escapeTemplateHtml,
+  extractTemplatePlaceholders,
+  interpolateTemplate,
+  renderTemplate,
+} from './templateRender'
+export type { RenderedTemplatePreview, TemplateConstraintCheck } from './templateRender'
+
+export { buildPreviewPayload, diffTemplateVariables, TEMPLATE_VARIABLE_KIND } from './templateVariables'
+export type {
+  DiffTemplateVariablesParams,
+  TemplateVariableCatalog,
+  TemplateVariableDefinition,
+  TemplateVariableKind,
+  TemplateVariableDiff,
+} from './templateVariables'
+
+export { PREVIEW_VIEWPORT, PREVIEW_VIEWPORT_BY_CHANNEL, TEMPLATE_CONSTRAINTS_BY_CHANNEL } from './previewViewport'
+export type {
+  PreviewViewport,
+  PreviewViewportSpec,
+  TemplateConstraintField,
+  TemplateConstraintLimits,
+} from './previewViewport'
+
+export {
+  STANDARD_EMAIL_THEME,
+  buildInitials,
+  escapeEmailHtml,
+  findUnsafeEmailHtml,
+  htmlToPlainText,
+  interpolateEmailHtml,
+  renderEmailLogoHtml,
+  renderEmailMarksHtml,
+} from './emailHtml'
+export type { EmailLogo, InterpolateEmailHtmlParams, UnsafeEmailHtmlRule } from './emailHtml'
+
+export {
+  STANDARD_EMAIL_BUILTIN_TEMPLATE,
+  STANDARD_EMAIL_CHANNEL,
+  STANDARD_EMAIL_HTML_MAX_BYTES,
+  STANDARD_EMAIL_LOCALE,
+  STANDARD_EMAIL_REQUIRED_VARIABLES,
+  STANDARD_EMAIL_SYSTEM_HTML_VARIABLES,
+  STANDARD_EMAIL_TEMPLATE_KEY,
+  STANDARD_EMAIL_VARIABLES,
+  assessStandardEmailTemplate,
+  renderStandardEmail,
+} from './standardEmail'
+export type {
+  RenderedStandardEmail,
+  StandardEmailAssessment,
+  StandardEmailInput,
+  StandardEmailSystemHtmlVariable,
+  StandardEmailTemplate,
+} from './standardEmail'
+
+export {
+  generateGoogleCalendarUrl,
+  generateOutlookCalendarUrl,
+  generateOffice365CalendarUrl,
+  generateYahooCalendarUrl,
+  generateIcsContent,
+  generateIcsDataUri,
+  generateCalendarLinks,
+  extractCalendarEvent,
+} from './calendarEvent'
+export type { NotificationCalendarEvent, CalendarLinks } from './calendarEvent'

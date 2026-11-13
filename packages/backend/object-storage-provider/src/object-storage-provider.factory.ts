@@ -1,0 +1,271 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ */
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadBucketCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+
+import { OBJECT_STORAGE_ERROR_CODES, ObjectStorageError } from './object-storage-provider.error'
+import {
+  calculateObjectBody,
+  validateLocation,
+  validateProviderConfig,
+  validateSignedExpiration,
+  validateSignedUploadContentLength,
+  validateSignedUploadContentType,
+} from './object-storage-provider.validation'
+import type {
+  ObjectStorageProvider,
+  ObjectStorageProviderConfig,
+  SignedDownloadInput,
+  SignedUploadInput,
+  StoredObject,
+} from './object-storage-provider.types'
+
+const UNAVAILABLE_MESSAGE = 'Object storage is unavailable'
+/**
+ * Teto maior que o do download (300s): quem consome uma URL de upload assinada costuma ser um
+ * cliente em rede instável (foto de celular, anexo grande) que ainda precisa terminar de enviar
+ * o arquivo, não só de abrir um link. 900s (15 min) cobre esse caso sem abrir uma janela longa
+ * demais de exposição da URL assinada.
+ */
+const SIGNED_UPLOAD_MAX_EXPIRATION_SECONDS = 900
+
+function isMissingError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return error.name === 'NoSuchKey' || error.name === 'NotFound' || error.name === 'NoSuchBucket'
+}
+
+function isConflictError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  return error.name === 'PreconditionFailed' || error.name === 'ConditionalRequestConflict'
+}
+
+function unavailable(): ObjectStorageError {
+  return new ObjectStorageError(OBJECT_STORAGE_ERROR_CODES.unavailable, UNAVAILABLE_MESSAGE)
+}
+
+function redactStreamErrors(source: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const reader = source.getReader()
+  return new ReadableStream<Uint8Array>({
+    async pull(controller): Promise<void> {
+      try {
+        const result = await reader.read()
+        if (result.done) controller.close()
+        else controller.enqueue(result.value)
+      } catch {
+        controller.error(unavailable())
+      }
+    },
+    async cancel(): Promise<void> {
+      try {
+        await reader.cancel()
+      } catch {
+        return
+      }
+    },
+  })
+}
+
+/**
+ * Monta o header `Content-Disposition`.
+ *
+ * O nome vai em `filename*=UTF-8''…` percent-encoded: nome com acento ou espaço quebra o parsing do
+ * formato antigo, e arquivo de cliente brasileiro tem acento o tempo todo.
+ */
+function contentDispositionOf(input: SignedDownloadInput): string | undefined {
+  if (!input.disposition) return undefined
+  if (!input.filename) return input.disposition
+  return `${input.disposition}; filename*=UTF-8''${encodeURIComponent(input.filename)}`
+}
+
+export function createObjectStorageProvider(config: ObjectStorageProviderConfig): ObjectStorageProvider {
+  validateProviderConfig(config)
+  const client = new S3Client({
+    endpoint: config.endpoint.toString(),
+    region: config.region,
+    forcePathStyle: config.forcePathStyle,
+    credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    /**
+     * Checksum só quando a operação exige. O padrão do SDK (`WHEN_SUPPORTED`) amarra na URL
+     * assinada de PUT o CRC32 de um corpo que ainda não existe — o do corpo vazio —, e o storage
+     * que confere o checksum recusa o upload real com `BadDigest`. A integridade do `put()` segue
+     * garantida pelo sha256 que ele mesmo confere, e a do upload assinado é de quem consome
+     * (`head()` depois do upload), como o comentário de `createSignedUpload` já diz.
+     */
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
+  })
+  let isClosed = false
+
+  function ensureOpen(): void {
+    if (isClosed) {
+      throw new ObjectStorageError(OBJECT_STORAGE_ERROR_CODES.providerClosed, 'Object storage provider is closed')
+    }
+  }
+
+  async function head(input: { readonly bucket: string; readonly key: string }): Promise<StoredObject | undefined> {
+    ensureOpen()
+    validateLocation(input)
+    try {
+      const result = await client.send(new HeadObjectCommand({ Bucket: input.bucket, Key: input.key }))
+      return {
+        provider: 's3',
+        bucket: input.bucket,
+        key: input.key,
+        contentLength: result.ContentLength ?? 0,
+        contentType: result.ContentType ?? 'application/octet-stream',
+        sha256: result.Metadata?.sha256 ?? '',
+      }
+    } catch (error) {
+      if (isMissingError(error)) return undefined
+      throw unavailable()
+    }
+  }
+
+  return {
+    async put(input) {
+      ensureOpen()
+      validateLocation(input)
+      const bytes = await calculateObjectBody(input, config.maxObjectSizeBytes)
+      try {
+        await client.send(
+          new PutObjectCommand({
+            Bucket: input.bucket,
+            Key: input.key,
+            Body: bytes,
+            ContentLength: input.contentLength,
+            ContentType: input.contentType,
+            Metadata: { sha256: input.sha256 },
+            IfNoneMatch: '*',
+          }),
+        )
+        return {
+          provider: 's3',
+          bucket: input.bucket,
+          key: input.key,
+          contentLength: input.contentLength,
+          contentType: input.contentType,
+          sha256: input.sha256,
+          disposition: 'created',
+        }
+      } catch (error) {
+        if (!isConflictError(error)) throw unavailable()
+        const existing = await head(input)
+        if (existing?.sha256 === input.sha256) return { ...existing, disposition: 'replayed' }
+        throw new ObjectStorageError(
+          OBJECT_STORAGE_ERROR_CODES.objectConflict,
+          'Object already exists with different content',
+        )
+      }
+    },
+    async get(input) {
+      ensureOpen()
+      validateLocation(input)
+      try {
+        const result = await client.send(new GetObjectCommand({ Bucket: input.bucket, Key: input.key }))
+        if (!result.Body) throw new Error('Missing object body')
+        return redactStreamErrors(result.Body.transformToWebStream())
+      } catch {
+        throw unavailable()
+      }
+    },
+    head,
+    async delete(input) {
+      ensureOpen()
+      validateLocation(input)
+      try {
+        await client.send(new DeleteObjectCommand({ Bucket: input.bucket, Key: input.key }))
+      } catch {
+        throw unavailable()
+      }
+    },
+    async createSignedDownload(input) {
+      ensureOpen()
+      validateLocation(input)
+      validateSignedExpiration(input.expiresInSeconds)
+      try {
+        const disposition = contentDispositionOf(input)
+        return new URL(
+          await getSignedUrl(
+            client,
+            new GetObjectCommand({
+              Bucket: input.bucket,
+              Key: input.key,
+              // Vai ASSINADO, não como query param solto: `response-content-disposition` entra na
+              // assinatura, então o cliente não consegue trocá-lo depois. É por isso que a escolha
+              // entre abrir no navegador e salvar precisa ser feita aqui, ao criar a URL.
+              ...(disposition ? { ResponseContentDisposition: disposition } : {}),
+            }),
+            { expiresIn: input.expiresInSeconds },
+          ),
+        )
+      } catch {
+        throw unavailable()
+      }
+    },
+    /**
+     * URL assinada de PUT: o cliente sobe o arquivo direto ao storage, sem passar pela API.
+     *
+     * `contentLength` entra no `PutObjectCommand` e, por ser cabeçalho assinável, vai para a
+     * própria assinatura (`X-Amz-SignedHeaders` inclui `content-length`): um upload com tamanho
+     * diferente do assinado é recusado pelo S3, não só por quem gerou a URL.
+     *
+     * `contentType` é só validado aqui (contra vazio e injeção de `\r`/`\n`) e serve para o
+     * `PutObjectCommand`, mas o `@aws-sdk/s3-request-presigner` marca `content-type` como cabeçalho
+     * NÃO assinável em toda presigned URL do S3 (`prepareRequest` do SDK força
+     * `unsignableHeaders.add('content-type')`, incondicional) — confirmado lendo o pacote instalado
+     * nesta versão (3.1091.0). Ou seja, o upload real pode chegar com um `Content-Type` diferente
+     * do informado aqui sem que a assinatura quebre; isto não é uma garantia de integridade, é só
+     * validação de forma.
+     *
+     * O sha256 também NÃO é amarrado pela assinatura: sem ler o corpo, não há como calculá-lo antes
+     * do upload. Quem consome este método precisa conferir a integridade (tamanho, tipo e hash) DEPOIS
+     * do upload, com `head()` (ou outro mecanismo de verificação) — diferente de `put()`, que garante
+     * tudo isso sozinho porque lê os bytes.
+     */
+    async createSignedUpload(input: SignedUploadInput) {
+      ensureOpen()
+      validateLocation(input)
+      validateSignedExpiration(input.expiresInSeconds, SIGNED_UPLOAD_MAX_EXPIRATION_SECONDS)
+      validateSignedUploadContentLength(input.contentLength, config.maxObjectSizeBytes)
+      validateSignedUploadContentType(input.contentType)
+      try {
+        return new URL(
+          await getSignedUrl(
+            client,
+            new PutObjectCommand({
+              Bucket: input.bucket,
+              Key: input.key,
+              ContentLength: input.contentLength,
+              ContentType: input.contentType,
+            }),
+            { expiresIn: input.expiresInSeconds },
+          ),
+        )
+      } catch {
+        throw unavailable()
+      }
+    },
+    async health() {
+      ensureOpen()
+      try {
+        await client.send(new HeadBucketCommand({ Bucket: config.healthCheckBucket }))
+        return { status: 'up' }
+      } catch {
+        return { status: 'down' }
+      }
+    },
+    async close() {
+      if (isClosed) return
+      isClosed = true
+      client.destroy()
+    },
+  }
+}
