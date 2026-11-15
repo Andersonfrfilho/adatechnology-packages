@@ -6,6 +6,9 @@ Plugin Mercado Pago do trio de pagamentos (`payment-contracts`). Gera cobrança 
 - **Link de cartão**: `createCharge({ kind: 'payment_link', ... })` devolve o `init_point` (sem boleto, à vista).
 - **Webhook**: confere o `x-signature` (HMAC-SHA256 com a assinatura secreta da aplicação) e busca o
   estado em `GET /v1/payments/:id` com o token da conta. `eventId` = `<id>:<status>` (idempotente).
+- **Estorno**: `refundCharge({ paymentId, amount?, idempotencyKey })` devolve tudo (sem `amount`) ou
+  parte, em `POST /v1/payments/:id/refunds`. `paymentId` é o `transactionId` do evento aprovado. O
+  estorno total também chega pelo webhook como `payment_refunded`; o parcial só vem na resposta.
 - **Uma instância por conta**: o access token é de quem recebe. Em produto multiempresa, crie um
   provedor por empresa; o dinheiro cai direto na conta dela.
 

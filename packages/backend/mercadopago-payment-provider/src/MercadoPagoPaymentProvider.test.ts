@@ -237,6 +237,58 @@ describe('cobrança', () => {
   })
 })
 
+describe('estorno no Mercado Pago', () => {
+  const REFUND = { id: 555, payment_id: 987, amount: 57.9, status: 'approved', date_created: '2026-11-15T13:00:00Z' }
+
+  test('estorno total: não manda valor, manda a chave de idempotência', async () => {
+    const api = fakeApi({ 'POST /v1/payments/987/refunds': { status: 201, body: REFUND } })
+    const provider = createMercadoPagoPaymentProvider({ accessToken: TOKEN, webhookSecret: SECRET, fetch: api.fetcher })
+    const refund = await provider.refundCharge?.({ paymentId: '987', idempotencyKey: 'refund-order-1-1' })
+    expect(refund).toMatchObject({
+      provider: 'mercadopago',
+      id: '555',
+      paymentId: '987',
+      amount: { cents: 5790, currency: 'BRL' },
+      status: 'approved',
+    })
+    expect(api.calls[0]?.body).toEqual({})
+    expect(api.calls[0]?.headers['X-Idempotency-Key']).toBe('refund-order-1-1')
+  })
+
+  test('estorno parcial manda o valor em reais', async () => {
+    const api = fakeApi({
+      'POST /v1/payments/987/refunds': { status: 201, body: { ...REFUND, amount: 10.5, status: 'in_process' } },
+    })
+    const provider = createMercadoPagoPaymentProvider({ accessToken: TOKEN, webhookSecret: SECRET, fetch: api.fetcher })
+    const refund = await provider.refundCharge?.({
+      paymentId: '987',
+      amount: { cents: 1050, currency: 'BRL' },
+      idempotencyKey: 'refund-order-1-2',
+    })
+    expect(api.calls[0]?.body).toEqual({ amount: 10.5 })
+    expect(refund).toMatchObject({ amount: { cents: 1050 }, status: 'pending' })
+  })
+
+  test('valor inválido não chega na API', async () => {
+    const api = fakeApi({})
+    const provider = createMercadoPagoPaymentProvider({ accessToken: TOKEN, webhookSecret: SECRET, fetch: api.fetcher })
+    await expect(
+      provider.refundCharge?.({ paymentId: '987', amount: { cents: 0, currency: 'BRL' }, idempotencyKey: 'k' }),
+    ).rejects.toBeInstanceOf(PaymentConfigInvalidError)
+    expect(api.calls).toHaveLength(0)
+  })
+
+  test('recusa do Mercado Pago vira MercadoPagoApiError', async () => {
+    const api = fakeApi({
+      'POST /v1/payments/987/refunds': { status: 400, body: { message: 'Invalid refund amount' } },
+    })
+    const provider = createMercadoPagoPaymentProvider({ accessToken: TOKEN, webhookSecret: SECRET, fetch: api.fetcher })
+    await expect(provider.refundCharge?.({ paymentId: '987', idempotencyKey: 'k' })).rejects.toBeInstanceOf(
+      MercadoPagoApiError,
+    )
+  })
+})
+
 describe('webhook do Mercado Pago', () => {
   test('pagamento aprovado: lê o estado na API, não no corpo', async () => {
     const api = fakeApi({ 'GET /v1/payments/123456789': { body: APPROVED_PAYMENT } })
