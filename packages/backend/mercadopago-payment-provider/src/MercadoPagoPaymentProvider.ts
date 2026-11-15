@@ -22,6 +22,7 @@ import {
   CHARGE_KIND,
   CHARGE_STATUS,
   PAYMENT_EVENT_TYPE,
+  REFUND_STATUS,
   PAYMENT_METHOD,
   PaymentConfigInvalidError,
   PaymentError,
@@ -33,6 +34,7 @@ import {
 import type {
   Charge,
   ChargeCapablePaymentProvider,
+  ChargeRefund,
   ChargeStatus,
   CheckoutLinkParams,
   CreateChargeParams,
@@ -41,6 +43,8 @@ import type {
   PaymentEvent,
   PaymentEventType,
   PaymentMethod,
+  RefundChargeParams,
+  RefundStatus,
 } from '@adatechnology/payment-contracts'
 
 export const MERCADOPAGO_PROVIDER_NAME = 'mercadopago'
@@ -72,6 +76,15 @@ export const MERCADOPAGO_CHARGE_STATUS_MAP: Readonly<Record<string, ChargeStatus
   cancelled: CHARGE_STATUS.FAILED,
   refunded: CHARGE_STATUS.REFUNDED,
   charged_back: CHARGE_STATUS.CHARGEBACK,
+}
+
+/** `status` do estorno no Mercado Pago → estado do trio. */
+export const MERCADOPAGO_REFUND_STATUS_MAP: Readonly<Record<string, RefundStatus>> = {
+  approved: REFUND_STATUS.APPROVED,
+  in_process: REFUND_STATUS.PENDING,
+  pending: REFUND_STATUS.PENDING,
+  rejected: REFUND_STATUS.FAILED,
+  cancelled: REFUND_STATUS.FAILED,
 }
 
 /** `payment_type_id` do Mercado Pago → método do trio. Pix vem como `bank_transfer`. */
@@ -381,6 +394,32 @@ export function createMercadoPagoPaymentProvider(config: MercadoPagoProviderConf
 
     async cancelCharge({ id }): Promise<void> {
       await call('PUT', `/v1/payments/${encodeURIComponent(id)}`, { status: 'cancelled' })
+    },
+
+    async refundCharge(params: RefundChargeParams): Promise<ChargeRefund> {
+      if (params.amount && (!Number.isInteger(params.amount.cents) || params.amount.cents <= 0)) {
+        throw new PaymentConfigInvalidError('valor do estorno precisa ser inteiro em centavos e maior que zero')
+      }
+      // Sem `amount` o Mercado Pago devolve o saldo inteiro do pagamento.
+      const refund = await call(
+        'POST',
+        `/v1/payments/${encodeURIComponent(params.paymentId)}/refunds`,
+        params.amount ? { amount: toAmount(params.amount.cents) } : {},
+        params.idempotencyKey,
+      )
+      const id = text(refund['id'])
+      const amount = money(refund['amount'], params.amount?.currency ?? 'BRL')
+      if (!id || !amount) {
+        throw new MercadoPagoApiError(502, 'resposta do estorno sem id ou sem valor')
+      }
+      return {
+        provider: MERCADOPAGO_PROVIDER_NAME,
+        id,
+        paymentId: text(refund['payment_id']) ?? params.paymentId,
+        amount,
+        status: MERCADOPAGO_REFUND_STATUS_MAP[text(refund['status']) ?? ''] ?? REFUND_STATUS.PENDING,
+        createdAt: date(refund['date_created']) ?? new Date(),
+      }
     },
 
     async parseWebhook({ headers, rawBody }): Promise<PaymentEvent> {

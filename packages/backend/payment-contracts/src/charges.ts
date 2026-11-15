@@ -80,12 +80,58 @@ export type Charge = {
   readonly paymentMethod: PaymentMethod | null
 }
 
+/** Estado de um estorno no provedor. */
+export const REFUND_STATUS = {
+  /** O dinheiro já voltou (ou está voltando) para quem pagou. */
+  APPROVED: 'approved',
+  /** O provedor aceitou o pedido e ainda vai processar. */
+  PENDING: 'pending',
+  /** O provedor recusou (saldo insuficiente na conta, prazo vencido...). */
+  FAILED: 'failed',
+} as const
+export type RefundStatus = (typeof REFUND_STATUS)[keyof typeof REFUND_STATUS]
+export const REFUND_STATUS_VALUES = Object.values(REFUND_STATUS) as [RefundStatus, ...RefundStatus[]]
+
+export type RefundChargeParams = {
+  /**
+   * Id do **pagamento** no provedor (o `transactionId` do evento aprovado), não o da cobrança: no link
+   * de cartão a cobrança é uma preferência, e quem tem dinheiro para devolver é o pagamento.
+   */
+  readonly paymentId: string
+  /** Quanto devolver. Sem valor, devolve tudo o que ainda não foi devolvido. */
+  readonly amount?: Money | undefined
+  /** A mesma chave não devolve duas vezes (clique duplo, retry). Ex.: `refund-<pedido>-<n>`. */
+  readonly idempotencyKey: string
+}
+
+export type ChargeRefund = {
+  readonly provider: string
+  /** Id do estorno no provedor. */
+  readonly id: string
+  readonly paymentId: string
+  readonly amount: Money
+  readonly status: RefundStatus
+  readonly createdAt: Date
+}
+
 export interface ChargeProviderPort {
   /** Tipos de cobrança que este provedor gera. */
   readonly chargeKinds: readonly ChargeKind[]
   createCharge(params: CreateChargeParams): Promise<Charge>
   /** Cancela uma cobrança Pix ainda pendente (o pedido foi cancelado antes de pagar). */
   cancelCharge?(params: { readonly id: string }): Promise<void>
+  /**
+   * Devolve um pagamento aprovado, inteiro ou em parte. O estorno total também chega pelo webhook
+   * (`payment_refunded`); o parcial, em geral, não muda o estado do pagamento e só existe nesta resposta.
+   */
+  refundCharge?(params: RefundChargeParams): Promise<ChargeRefund>
+}
+
+/** O provedor devolve pagamento de cobrança avulsa? */
+export function supportsRefunds(
+  provider: ChargeProviderPort,
+): provider is ChargeProviderPort & Required<Pick<ChargeProviderPort, 'refundCharge'>> {
+  return typeof provider.refundCharge === 'function'
 }
 
 export type ChargeCapablePaymentProvider = PaymentProviderPort & ChargeProviderPort
