@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/hotmart-payment-provider",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "description": "Hotmart plugin for the payment trio: webhook 2.0.0 (hottok) to normalized payment events, and checkout links that carry the customer back",
   "publishConfig": {

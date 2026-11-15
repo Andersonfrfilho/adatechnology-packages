@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/payment-contracts",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "license": "MIT",
   "description": "Types, zod schemas, error codes, the subscription state machine and the payment provider port (contracts only — no I/O)",
   "publishConfig": {

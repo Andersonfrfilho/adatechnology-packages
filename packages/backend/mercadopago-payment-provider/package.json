@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/mercadopago-payment-provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "description": "Mercado Pago plugin for the payment trio: Pix (QR + copia-e-cola) and card payment links per account, webhook with x-signature HMAC check, normalized payment events",
   "keywords": [
