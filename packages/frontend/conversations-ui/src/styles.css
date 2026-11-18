@@ -1301,7 +1301,7 @@
 }
 .cv-p-bubble__author { display: block; flex: 1 0 100%; margin-bottom: 0.15rem; font: 0.65rem 'SFMono-Regular', Consolas, monospace; text-transform: uppercase; color: var(--cv-p-i-accent); }
 .cv-p-bubble > .cv-p-text { flex: 0 1 auto; min-width: 0; margin-inline-end: auto; }
-.cv-p-bubble > .cv-p-attachment { flex: 1 0 100%; }
+.cv-p-bubble > .cv-p-attachment { flex: 1 0 100%; min-width: 0; max-width: 100%; margin-inline: 0; }
 .cv-p-bubble__host-actions { display: inline-flex; align-items: center; gap: 0.25rem; }
 .cv-p-bubble__original { flex: 1 0 100%; margin-top: 0.2rem; }
 .cv-p-bubble__original-toggle { display: inline-block; font-size: 0.7rem; color: var(--cv-p-i-text-muted); cursor: pointer; list-style: none; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
@@ -1369,7 +1369,7 @@
 .cv-p-selection-bar__close:hover, .cv-p-selection-bar__action:hover:not(:disabled), .cv-p-selection-bar__close:focus-visible, .cv-p-selection-bar__action:focus-visible { background: var(--cv-p-i-highlight); }
 .cv-p-attachment { display: flex; flex-direction: column; gap: 0.25rem; margin-top: 0.35rem; color: inherit; }
 .cv-p-attachment--document { flex-direction: row; justify-content: space-between; min-height: var(--cv-p-i-touch); align-items: center; text-decoration: underline; }
-.cv-p-attachment__image { display: block; max-width: 100%; max-height: 16rem; object-fit: contain; }
+.cv-p-attachment__image { display: block; max-width: 100%; height: auto; max-height: 16rem; object-fit: contain; }
 .cv-p-attachment__audio { width: 100%; min-height: var(--cv-p-i-touch); }
 .cv-p-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; width: 100%; min-width: min(15rem, 100%); box-sizing: border-box; }
 .cv-p-audio__toggle, .cv-p-audio__rate { flex: 0 0 auto; display: inline-grid; place-items: center; min-width: var(--cv-p-i-touch); min-height: var(--cv-p-i-touch); padding: 0; background: transparent; border: 1px solid var(--cv-p-i-border); border-radius: var(--cv-p-i-radius); color: inherit; font: inherit; font-size: 0.75rem; cursor: pointer; }
