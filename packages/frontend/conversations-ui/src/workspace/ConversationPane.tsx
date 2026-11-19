@@ -371,10 +371,24 @@ export function ConversationPane({
         }}
         className="cv-workspace-transcript"
       >
-        {hasMoreOlderMessages ? (
+        {/* Carregando: balões-esqueleto no lugar do botão, alternando cliente/bot como numa conversa
+            real — o texto de um botão desabilitado passava despercebido e o operador achava que a
+            conversa acabava ali. Fora do carregamento o botão fica como alternativa à rolagem. */}
+        {hasMoreOlderMessages && loadingOlderMessages ? (
+          <div
+            className="cv-workspace-load-older cv-workspace-load-older--loading"
+            role="status"
+            aria-live="polite"
+            aria-label={labels.loadingOlderMessages}
+          >
+            <span className="cv-skeleton-line cv-skeleton-bubble cv-skeleton-bubble--incoming" aria-hidden="true" />
+            <span className="cv-skeleton-line cv-skeleton-bubble cv-skeleton-bubble--outgoing" aria-hidden="true" />
+            <span className="cv-skeleton-line cv-skeleton-bubble cv-skeleton-bubble--incoming cv-skeleton-bubble--short" aria-hidden="true" />
+          </div>
+        ) : hasMoreOlderMessages ? (
           <div className="cv-workspace-load-older">
-            <button type="button" onClick={loadOlder.triggerLoadOlder} disabled={loadingOlderMessages}>
-              {loadingOlderMessages ? labels.loadingOlderMessages : labels.loadOlderMessages}
+            <button type="button" onClick={loadOlder.triggerLoadOlder}>
+              {labels.loadOlderMessages}
             </button>
           </div>
         ) : null}
@@ -384,7 +398,7 @@ export function ConversationPane({
             !previous || new Date(message.timestamp).toDateString() !== new Date(previous.timestamp).toDateString()
 
           return (
-            <div key={message.id}>
+            <div key={message.id} data-message-id={message.id}>
               {startsNewDay ? <DateDivider iso={message.timestamp} /> : null}
               <MessageBubble
                 message={message}
