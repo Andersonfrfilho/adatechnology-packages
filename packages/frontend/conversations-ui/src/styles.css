@@ -432,6 +432,9 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* A SDK reposiciona a rolagem sozinha ao prepender o histórico (useLoadOlderMessagesScroll). Com a
+     ancoragem do navegador ligada, os dois ajustes se somavam (Firefox) e o operador pulava. */
+  overflow-anchor: none;
   padding: 0.75rem 1rem;
 }
 
@@ -500,6 +503,22 @@
 .cv-workspace-load-older button:disabled {
   opacity: 0.6;
 }
+
+.cv-workspace-load-older--loading {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.cv-skeleton-bubble {
+  display: block;
+  height: 2.5rem;
+  width: 55%;
+  border-radius: 0.75rem;
+}
+.cv-skeleton-bubble--incoming { align-self: flex-start; }
+.cv-skeleton-bubble--outgoing { align-self: flex-end; width: 40%; }
+.cv-skeleton-bubble--short { width: 30%; height: 1.75rem; }
 
 .dark .cv-workspace-notice {
   border-top-color: #374151;
