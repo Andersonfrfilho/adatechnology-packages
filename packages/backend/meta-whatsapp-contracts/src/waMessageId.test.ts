@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test'
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { hashWaMessageId } from './waMessageId'
 
 const EMBEDDED_PHONE = '5516993056772'
@@ -29,5 +31,18 @@ describe('hashWaMessageId', () => {
 
   it('repassa undefined sem inventar chave', () => {
     expect(hashWaMessageId(undefined)).toBeUndefined()
+  })
+
+  it('produz o mesmo valor que createHash do Node, inclusive em entradas multibloco e não ASCII', () => {
+    const nodeHash = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 16)
+    const inputs = ['', WAMID, 'a'.repeat(55), 'a'.repeat(56), 'a'.repeat(64), 'x'.repeat(1000), 'ação ✓ 😀']
+
+    for (const input of inputs) expect(hashWaMessageId(input)).toBe(nodeHash(input))
+  })
+
+  it('não importa módulo do Node, para o pacote poder ir no bundle do navegador', () => {
+    const source = readFileSync(`${__dirname}/waMessageId.ts`, 'utf8')
+
+    expect(source).not.toMatch(/from ['"](node:)?crypto['"]/)
   })
 })
