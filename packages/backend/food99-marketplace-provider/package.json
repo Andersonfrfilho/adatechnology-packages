@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/food99-marketplace-provider",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "99Food native protocol connector for @adatechnology/marketplace-contracts: signed webhook, per-shop token, 64-bit ids, order details in cents, status actions, cancellation, refund/cancel requests and financial bills.",
   "keywords": [
