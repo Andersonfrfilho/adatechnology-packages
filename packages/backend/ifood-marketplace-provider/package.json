@@ -1,0 +1,43 @@
+{
+  "name": "@adatechnology/ifood-marketplace-provider",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "iFood Merchant API connector for @adatechnology/marketplace-contracts: events polling with acknowledgment, order details, status actions, cancellation reasons, disputes (handshake), webhook HMAC check, Financial v3 (sales, settlements) and Review v2.",
+  "keywords": [
+    "ifood",
+    "marketplace",
+    "delivery",
+    "merchant-api",
+    "pos"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@adatechnology/marketplace-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  }
+}
