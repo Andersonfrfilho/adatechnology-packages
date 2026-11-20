@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/marketplace-contracts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Common layer for food delivery marketplaces (iFood, 99Food, Open Delivery): order, event, dispute, financial and review types, the MarketplaceProvider port, POS status → platform action mapping and HTTP helpers (token cache, retry, int64-safe JSON). No I/O.",
   "keywords": [

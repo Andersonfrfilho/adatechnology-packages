@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/ifood-marketplace-provider",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "iFood Merchant API connector for @adatechnology/marketplace-contracts: events polling with acknowledgment, order details, status actions, cancellation reasons, disputes (handshake), webhook HMAC check, Financial v3 (sales, settlements) and Review v2.",
   "keywords": [

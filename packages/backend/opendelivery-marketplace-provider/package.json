@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/opendelivery-marketplace-provider",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Open Delivery (Abrasel) connector for @adatechnology/marketplace-contracts: OAuth client credentials, events polling with acknowledgment, order details, status actions, cancellation and webhook HMAC check. Works with any platform on the standard.",
   "keywords": [
