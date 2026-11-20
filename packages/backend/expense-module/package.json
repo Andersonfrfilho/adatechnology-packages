@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/expense-module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Stateful accounts-payable module (bills, recurring expenses, due dates, settlements) — schema, migrations, use-cases and HTTP routes",
   "publishConfig": {
@@ -33,9 +33,15 @@
   },
   "typesVersions": {
     "*": {
-      "schema": ["dist/schema/index.d.ts"],
-      "http/fetch": ["dist/http/fetch.d.ts"],
-      "openapi": ["dist/openapi.d.ts"]
+      "schema": [
+        "dist/schema/index.d.ts"
+      ],
+      "http/fetch": [
+        "dist/http/fetch.d.ts"
+      ],
+      "openapi": [
+        "dist/openapi.d.ts"
+      ]
     }
   },
   "files": [

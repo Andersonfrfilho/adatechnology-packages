@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/expense-mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "MCP server for accounts payable (bills, due dates, settlements) over any API that exposes the @adatechnology/expense-module routes",
   "type": "module",
   "main": "dist/main.js",
