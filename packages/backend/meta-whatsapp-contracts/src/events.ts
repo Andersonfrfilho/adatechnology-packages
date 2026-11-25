@@ -198,7 +198,9 @@ export type FlowRunnerErrorDetails = {
   /**
    * Em que passo falhou: enviar o nó, saltar de fluxo, ciclo de nós automáticos, o encaminhamento
    * (fila ou ganchos), ou qualquer outro ponto do turno depois de a mensagem ter sido marcada como
-   * tratada (`turn`) — nesse caso ela não é reprocessada.
+   * tratada (`turn`) — nesse caso ela não é reprocessada. `text`: um resolvedor de texto do host
+   * (`FlowConfigText`) falhou e valeu o texto padrão; `validate-answer`: o validador de resposta do
+   * host falhou e a resposta foi aceita pela validação do pacote.
    */
-  readonly stage: 'render' | 'cross-flow' | 'max-steps' | 'handoff' | 'turn'
+  readonly stage: 'render' | 'cross-flow' | 'max-steps' | 'handoff' | 'turn' | 'text' | 'validate-answer'
 }

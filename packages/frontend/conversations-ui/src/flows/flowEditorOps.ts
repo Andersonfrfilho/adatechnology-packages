@@ -17,7 +17,7 @@ import type { FlowGraphData, FlowNodeData, FlowNodeNext } from '@adatechnology/m
 
 // A constante vem do `flowGraph`, que já a define, e não do contracts: duas fontes do mesmo prefixo
 // divergem em silêncio, e o sintoma seria salto entre fluxos que o motor do bot não reconhece.
-import { CROSS_FLOW_PREFIX, crossFlowTargetsOf, keywordOfHandle } from './flowGraph'
+import { CROSS_FLOW_PREFIX, crossFlowTargetsOf, keywordOfHandle, possibleNextOfHandle } from './flowGraph'
 
 const NAMESPACE_SEPARATOR = '::'
 
@@ -50,7 +50,10 @@ export function removeNodeAndCleanRefs(
 
   for (const [id, node] of Object.entries(nodes)) {
     if (id === removedId) continue
-    remaining[id] = { ...node, next: cleanNext(node.next, removedId) }
+    const cleaned: FlowNodeData = { ...node, next: cleanNext(node.next, removedId) }
+    // Destino possível não é linha visível de opção: some junto com o nó apagado.
+    if (node.possibleNext) cleaned.possibleNext = node.possibleNext.filter((target) => target !== removedId)
+    remaining[id] = cleaned
   }
 
   return remaining
@@ -151,6 +154,9 @@ export function applyConnection(node: FlowNodeData, resolved: ResolvedConnection
 
   if (resolved.handle === 'next') return { ...node, next: resolved.targetValue }
 
+  const possible = possibleNextOfHandle(resolved.handle)
+  if (possible !== undefined) return withPossibleNext(node, possible, resolved.targetValue)
+
   if (resolved.handle === '__default') {
     return { ...node, next: { ...currentNext, byAnswer: currentNext?.byAnswer ?? {}, default: resolved.targetValue } }
   }
@@ -197,7 +203,18 @@ export function isGraphDirty(working: FlowGraphData | undefined, published: Flow
  * opção sem `byAnswer` some do card — e some junto o botão que o cliente via no WhatsApp, o que se
  * lê como "o editor apagou minha opção". Vazio mantém a linha visível, cobrando a religação.
  */
+function withPossibleNext(node: FlowNodeData, replaced: string, target: string | undefined): FlowNodeData {
+  const current = node.possibleNext ?? []
+  const updated = current.flatMap((entry) => (entry === replaced ? (target ? [target] : []) : [entry]))
+  if (!current.includes(replaced) && target) updated.push(target)
+  return { ...node, possibleNext: [...new Set(updated)] }
+}
+
 export function clearConnection(node: FlowNodeData, handle: string): FlowNodeData {
+  // Destino possível sem alvo não tem o que mostrar: desligar é tirá-lo da lista.
+  const possible = possibleNextOfHandle(handle)
+  if (possible !== undefined) return withPossibleNext(node, possible, undefined)
+
   if (handle === 'next' || typeof node.next === 'string' || node.next === undefined) {
     return { ...node, next: '' }
   }

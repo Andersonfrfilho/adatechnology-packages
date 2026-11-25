@@ -16,8 +16,8 @@ import {
   type LucideIcon,
   ListChecks,
 } from 'lucide-react'
-import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
-import { isPassThroughAction, keywordHandle, type FlowNodeData, type GraphIssue } from './flowGraph'
+import { DEFAULT_FLOW_EDITOR_LABELS, OPTIONAL_RUNNER_FIELD_LABEL_DEFAULTS, type FlowEditorLabels } from './labels'
+import { isPassThroughAction, keywordHandle, possibleNextHandle, type FlowNodeData, type GraphIssue } from './flowGraph'
 
 /**
  * Diâmetro dos pontos de ligação.
@@ -130,9 +130,19 @@ function selfLoopHandles(node: FlowNodeData): Set<string> {
 function sourceRows(node: FlowNodeData, labels: FlowEditorLabels): SourceRowSpec[] {
   // Ação de passagem tem saída; ação terminal, não — ver `isPassThroughAction`.
   if (node.type === 'action') {
-    return isPassThroughAction(node)
+    const rowLabel =
+      labels.runnerFields?.possibleNextRowLabel ?? OPTIONAL_RUNNER_FIELD_LABEL_DEFAULTS.possibleNextRowLabel
+    // Destinos que a action pode devolver: linha própria, com o visual esmaecido do "caso contrário".
+    const possibleRows = (node.possibleNext ?? []).map((target) => ({
+      id: possibleNextHandle(target),
+      label: `${rowLabel}: ${target}`,
+      isDefault: true,
+      isSelfLoop: target === node.id,
+    }))
+    const nextRows = isPassThroughAction(node)
       ? [{ id: 'next', label: labels.nodePanel.nextRowLabel, isDefault: false, isSelfLoop: false }]
       : []
+    return [...nextRows, ...possibleRows]
   }
 
   const loops = selfLoopHandles(node)
@@ -296,7 +306,9 @@ export function FlowNodeCard({ data }: NodeProps) {
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400 text-xs">
           <Icon size={12} strokeWidth={2.5} />
-          {isStart && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" data-cv-tooltip={labels.startNodeTooltip} />}
+          {isStart && (
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" data-cv-tooltip={labels.startNodeTooltip} />
+          )}
           {labels.legend[node.type] ?? DEFAULT_FLOW_EDITOR_LABELS.legend.dynamic_choice}
         </span>
         <div className="flex items-center gap-1">
@@ -340,9 +352,7 @@ export function FlowNodeCard({ data }: NodeProps) {
               addLabel={labels.quickAdd.fromHandle}
               isSelfLoop={row.isSelfLoop}
               selfLoopLabel={labels.legendPanel.selfLoop}
-              {...(onQuickAdd
-                ? { onQuickAdd: (params) => onQuickAdd({ nodeId: node.id, ...params }) }
-                : {})}
+              {...(onQuickAdd ? { onQuickAdd: (params) => onQuickAdd({ nodeId: node.id, ...params }) } : {})}
             />
           ))}
         </div>

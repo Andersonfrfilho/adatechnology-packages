@@ -23,6 +23,7 @@ import type { RequestHumanConversationUseCase } from '../use-cases/RequestHumanC
 import type { SendMessageUseCase } from '../use-cases/SendMessage.use-case'
 import { DEFAULT_FLOW_TEXT } from './flowRunner.constant'
 import type { FlowHandoffConfig } from './flowRunner.types'
+import { resolveFlowConfigText } from './resolveFlowConfigText'
 
 export type FlowHandoffDependencies = {
   readonly requestHuman: RequestHumanConversationUseCase
@@ -57,11 +58,11 @@ export class FlowHandoff {
     try {
       await requestHuman.execute({ companyId: params.companyId, whatsappNumber: params.whatsappNumber })
     } catch (error) {
-      await this.reportFailure(error, params)
+      await this.reportFailure(error, params, 'handoff')
     }
 
     const isWithinHours = await this.isWithinHours(params.companyId)
-    const template = this.messageFor(isWithinHours, params.node)
+    const template = await this.messageFor(isWithinHours, params)
     await sendMessage.sendText({
       companyId: params.companyId,
       whatsappNumber: params.whatsappNumber,
@@ -93,14 +94,18 @@ export class FlowHandoff {
     }
   }
 
-  private async reportFailure(error: unknown, params: RequestFlowHandoffParams): Promise<void> {
+  private async reportFailure(
+    error: unknown,
+    params: RequestFlowHandoffParams,
+    stage: 'handoff' | 'text',
+  ): Promise<void> {
     try {
       await this.dependencies.hooks?.onFlowRunnerError?.(error, {
         companyId: params.companyId,
         whatsappNumber: params.whatsappNumber,
         flowKey: null,
         nodeId: params.node?.id ?? null,
-        stage: 'handoff',
+        stage,
       })
     } catch {
       // Gancho de observabilidade com defeito não pode impedir o aviso ao cliente.
@@ -113,16 +118,28 @@ export class FlowHandoff {
     return hours ? isWithinBusinessHours(hours, this.dependencies.now()) : true
   }
 
-  private messageFor(isWithinHours: boolean, node: FlowNodeData | undefined): string {
+  private async messageFor(isWithinHours: boolean, params: RequestFlowHandoffParams): Promise<string> {
     const { config } = this.dependencies
-    const inHours = readParam(node, 'message') ?? config.message ?? DEFAULT_FLOW_TEXT.HANDOFF
-    if (isWithinHours) return inHours
-    return (
-      readParam(node, 'outOfHoursMessage') ??
-      config.outOfHoursMessage ??
-      readParam(node, 'message') ??
-      config.message ??
-      DEFAULT_FLOW_TEXT.HANDOFF_OUT_OF_HOURS
-    )
+    const { node } = params
+    const chain = isWithinHours
+      ? [readParam(node, 'message'), config.message, DEFAULT_FLOW_TEXT.HANDOFF]
+      : [
+          readParam(node, 'outOfHoursMessage'),
+          config.outOfHoursMessage,
+          readParam(node, 'message'),
+          config.message,
+          DEFAULT_FLOW_TEXT.HANDOFF_OUT_OF_HOURS,
+        ]
+    const text = await resolveFlowConfigText({
+      chain,
+      context: {
+        companyId: params.companyId,
+        whatsappNumber: params.whatsappNumber,
+        kind: isWithinHours ? 'handoff' : 'handoff-out-of-hours',
+        ...(node ? { nodeId: node.id } : {}),
+      },
+      onError: (error) => this.reportFailure(error, params, 'text'),
+    })
+    return text ?? DEFAULT_FLOW_TEXT.HANDOFF
   }
 }

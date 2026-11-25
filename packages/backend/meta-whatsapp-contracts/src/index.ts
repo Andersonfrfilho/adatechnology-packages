@@ -174,6 +174,9 @@ export {
   parseFlowInteger,
   parseFlowMoney,
   parseFlowCpf,
+  parseFlowTime,
+  readFlowTimeWindows,
+  isWithinFlowTimeWindow,
   validateFlowAnswer,
 } from './flowAnswer'
 export type {
@@ -181,6 +184,7 @@ export type {
   FlowAnswerRejection,
   FlowAnswerResult,
   FlowClock,
+  FlowTimeWindow,
   ValidateFlowAnswerParams,
 } from './flowAnswer'
 
