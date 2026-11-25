@@ -84,3 +84,11 @@ export type {
   UpdateCatalogInput,
   BulkImportResult,
 } from './providers/types'
+
+export {
+  createCatalogModuleProductsApi,
+  CatalogModuleApiError,
+  CATALOG_MODULE_DEFAULT_PAGE_SIZE,
+} from './providers/createCatalogModuleProductsApi'
+export type { CreateCatalogModuleProductsApiParams } from './providers/createCatalogModuleProductsApi'
+export { parseBulkImportCsv } from './lib/csv'

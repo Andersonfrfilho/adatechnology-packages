@@ -60,6 +60,19 @@ export function buildCatalogRoutes(module: CatalogModule): ModuleRoute[] {
     },
 
     {
+      method: 'GET',
+      path: '/catalogs/:id',
+      scope: 'admin',
+      operationId: 'getCatalog',
+      summary: 'Detalhe de um catálogo, com contagem de produtos',
+      async handler(context) {
+        const companyId = requireCompany(context)
+        const catalog = await useCases.getCatalog.execute({ companyId, id: context.params.id ?? '' })
+        return { kind: 'json', status: 200, body: { data: catalog } }
+      },
+    },
+
+    {
       method: 'PUT',
       path: '/catalogs/:id',
       scope: 'admin',

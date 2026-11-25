@@ -4,6 +4,28 @@ Telas de produto e catálogo (lista, formulário, importação, workspace), para
 `ProductsApi` injetado. Campos que só existem em algumas verticais são ligados em
 `ProductsConfig.fields`.
 
+## API pronta para o `catalog-module`
+
+Host que montou `createCatalogRoutes` do `@adatechnology/catalog-module` não precisa escrever a ponte:
+
+```tsx
+import { ProductsWorkspace, createCatalogModuleProductsApi } from '@adatechnology/products-ui'
+
+const api = createCatalogModuleProductsApi({
+  baseUrl: '/v1/catalog',                                  // onde as rotas foram montadas
+  getHeaders: () => ({ authorization: `Bearer ${token}` }), // chamado a cada requisição
+  imageUpload: true,                                        // só se o módulo tem storage de imagem
+})
+```
+
+- Converte `{ data, pagination }` do módulo para `{ data, total, page, pageSize, totalPages }`.
+- `bulkImportProducts` lê o CSV no navegador (`parseBulkImportCsv`: cabeçalho sem acento nem caixa,
+  `Nome`/`Preço`/`Catálogo`/`Seção`/`Estoque`...) e manda as linhas; troque com `parseBulkImportFile`.
+- Erro vira `CatalogModuleApiError` com `status` e o `code` estável do envelope.
+- O token precisa trazer `catalog:read`/`catalog:write` (ver README do `catalog-module`).
+
+Host com API própria continua implementando `ProductsApi` à mão.
+
 ## Campos opcionais gerais
 
 ```tsx

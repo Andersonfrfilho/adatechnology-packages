@@ -111,6 +111,20 @@ export class DeleteCatalogUseCase {
   }
 }
 
+export class GetCatalogUseCase {
+  constructor(private readonly dependencies: CatalogDependencies) {}
+
+  async execute(params: { companyId: string; id: string }): Promise<Catalog> {
+    const row = await this.dependencies.catalogs.findById(params)
+    if (!row) throw new CatalogNotFoundError(params.id)
+    const productCount = await this.dependencies.products.countByCatalog({
+      companyId: params.companyId,
+      catalogId: params.id,
+    })
+    return toCatalog({ ...row, productCount })
+  }
+}
+
 export class ListCatalogsUseCase {
   constructor(private readonly dependencies: CatalogDependencies) {}
 

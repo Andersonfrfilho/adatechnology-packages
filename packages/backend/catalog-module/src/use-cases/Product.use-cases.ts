@@ -28,7 +28,11 @@ export class CreateProductUseCase {
   constructor(private readonly dependencies: CatalogDependencies) {}
 
   async execute(params: { companyId: string } & CreateProductInput): Promise<Product> {
-    await validateAttributes({ dependencies: this.dependencies, companyId: params.companyId, attributes: params.attributes })
+    await validateAttributes({
+      dependencies: this.dependencies,
+      companyId: params.companyId,
+      attributes: params.attributes,
+    })
 
     if (params.barcode) {
       const existing = await this.dependencies.products.findByBarcode({
@@ -63,7 +67,9 @@ export class CreateProductUseCase {
       sortOrder: params.sortOrder,
       preparationTimeMinutes: params.preparationTimeMinutes,
       preparationInstructions: params.preparationInstructions,
-      ...(params.availabilitySchedule ? { availabilitySchedule: params.availabilitySchedule as AvailabilitySchedule } : {}),
+      ...(params.availabilitySchedule
+        ? { availabilitySchedule: params.availabilitySchedule as AvailabilitySchedule }
+        : {}),
       ...(params.attributes ? { attributes: { ...params.attributes } } : {}),
       ...(availability ? { availability } : {}),
       // Publicar nunca bloqueia o salvamento: nasce `pending` e o worker leva. Graph API fora do
@@ -213,12 +219,23 @@ export class ListProductsUseCase {
 
   async execute(query: ListProductsQuery & { projection?: ProductProjection }): Promise<PaginatedResponse<Product>> {
     const page = await this.dependencies.products.list(query)
+    const catalogIds = [...new Set(page.rows.flatMap((row) => (row.catalogId ? [row.catalogId] : [])))]
+    // Uma consulta para a página inteira, não uma por produto: a lista mostra o nome do catálogo.
+    const catalogNames = new Map(
+      (await this.dependencies.catalogs.findNamesByIds({ companyId: query.companyId, ids: catalogIds })).map(
+        (catalog) => [catalog.id, catalog.name] as const,
+      ),
+    )
     return toPaginated({
       rows: page.rows,
       total: page.total,
       page: query.page,
       pageSize: query.pageSize,
-      map: (row) => toProduct(row, query.projection),
+      map: (row) => {
+        const product = toProduct(row, query.projection)
+        const catalogName = row.catalogId ? catalogNames.get(row.catalogId) : undefined
+        return catalogName === undefined ? product : { ...product, catalogName }
+      },
     })
   }
 }
@@ -264,8 +281,7 @@ export class ListAvailableProductsUseCase {
     return rows
       .filter(
         (row) =>
-          evaluateProductAvailability({ row, at, defaultTimeZone: this.dependencies.config.defaultTimeZone })
-            .available,
+          evaluateProductAvailability({ row, at, defaultTimeZone: this.dependencies.config.defaultTimeZone }).available,
       )
       .map((row) => toProduct(row, params.projection))
   }

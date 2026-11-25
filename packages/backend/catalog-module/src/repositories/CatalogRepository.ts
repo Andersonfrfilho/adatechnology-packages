@@ -2,7 +2,8 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { and, asc, eq, isNull, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
+import { getTableConfig } from 'drizzle-orm/pg-core'
 
 import type { CatalogDatabase } from '../database.types'
 import { catalogs, products, type CatalogRow, type NewCatalogRow } from '../schema/schema'
@@ -43,12 +44,7 @@ export class CatalogRepository {
     if (query.active !== undefined) conditions.push(eq(catalogs.active, query.active))
 
     const where = and(...conditions)
-    const productCount = sql<number>`(
-      select count(*)::int from ${products}
-      where ${products.catalogId} = ${catalogs.id}
-        and ${products.companyId} = ${catalogs.companyId}
-        and ${products.deletedAt} is null
-    )`
+    const productCount = catalogProductCountSql()
 
     const [rows, [counted]] = await Promise.all([
       this.db
@@ -79,6 +75,24 @@ export class CatalogRepository {
     ])
 
     return { rows: rows as CatalogWithCount[], total: counted?.value ?? 0 }
+  }
+
+  /** Nomes dos catálogos vivos da empresa, para a listagem de produto trazer `catalogName`. */
+  async findNamesByIds(params: {
+    companyId: string
+    ids: readonly string[]
+  }): Promise<Array<{ id: string; name: string }>> {
+    if (params.ids.length === 0) return []
+    return this.db
+      .select({ id: catalogs.id, name: catalogs.name })
+      .from(catalogs)
+      .where(
+        and(
+          eq(catalogs.companyId, params.companyId),
+          inArray(catalogs.id, [...params.ids]),
+          isNull(catalogs.deletedAt),
+        ),
+      )
   }
 
   async update(params: {
@@ -120,4 +134,23 @@ export class CatalogRepository {
       })
       .where(and(eq(catalogs.companyId, params.companyId), eq(catalogs.id, params.id), isNull(catalogs.deletedAt)))
   }
+}
+
+function qualifiedCatalogColumn(columnName: string): SQL {
+  const { schema, name } = getTableConfig(catalogs)
+  return sql`${sql.identifier(schema ?? 'public')}.${sql.identifier(name)}.${sql.identifier(columnName)}`
+}
+
+/**
+ * O lado externo da correlação vai qualificado à mão: numa consulta de uma tabela só o Drizzle
+ * escreve a coluna sem o nome da tabela, e dentro da subquery `"id"` passava a ser `products.id`
+ * — a contagem saía sempre 0.
+ */
+export function catalogProductCountSql(): SQL<number> {
+  return sql<number>`(
+      select count(*)::int from ${products}
+      where ${products.catalogId} = ${qualifiedCatalogColumn(catalogs.id.name)}
+        and ${products.companyId} = ${qualifiedCatalogColumn(catalogs.companyId.name)}
+        and ${products.deletedAt} is null
+    )`
 }

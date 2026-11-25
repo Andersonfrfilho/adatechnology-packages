@@ -41,6 +41,7 @@ import {
   CreateSectionUseCase,
   DeleteCatalogUseCase,
   DeleteSectionUseCase,
+  GetCatalogUseCase,
   ListCatalogsUseCase,
   ListSectionsUseCase,
   UpdateCatalogUseCase,
@@ -111,6 +112,7 @@ export type CatalogModule = {
     readonly createCatalog: CreateCatalogUseCase
     readonly updateCatalog: UpdateCatalogUseCase
     readonly deleteCatalog: DeleteCatalogUseCase
+    readonly getCatalog: GetCatalogUseCase
     readonly listCatalogs: ListCatalogsUseCase
     readonly createSection: CreateSectionUseCase
     readonly updateSection: UpdateSectionUseCase
@@ -209,6 +211,7 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       createCatalog: new CreateCatalogUseCase(dependencies),
       updateCatalog: new UpdateCatalogUseCase(dependencies),
       deleteCatalog: new DeleteCatalogUseCase(dependencies),
+      getCatalog: new GetCatalogUseCase(dependencies),
       listCatalogs: new ListCatalogsUseCase(dependencies),
       createSection: new CreateSectionUseCase(dependencies),
       updateSection: new UpdateSectionUseCase(dependencies),

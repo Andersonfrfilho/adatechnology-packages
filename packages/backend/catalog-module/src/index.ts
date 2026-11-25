@@ -62,6 +62,7 @@ export {
   CreateCatalogUseCase,
   UpdateCatalogUseCase,
   DeleteCatalogUseCase,
+  GetCatalogUseCase,
   ListCatalogsUseCase,
   CreateSectionUseCase,
   UpdateSectionUseCase,
