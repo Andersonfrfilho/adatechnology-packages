@@ -643,7 +643,6 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Precisa de:** API compatível com `catalog-module`. Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
 - **Usado por:** `ada-technology`, `comandada`
-- **Atenção / não verificado:** Sem README.
 
 ### @adatechnology/image-cutout
 - **Versão:** `0.1.0` · `packages/frontend/image-cutout`
