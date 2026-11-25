@@ -12,26 +12,33 @@ import {
   keycloakCallbackSchema,
   localCredentialsSchema,
   requestPasswordResetSchema,
+  signUpSchema,
   updateProfileSchema,
   type ConfirmPasswordResetInput,
   type KeycloakCallbackInput,
   type LocalCredentials,
   type RequestPasswordResetInput,
+  type SignUpInput,
+  type UserSession,
   type UpdateProfileInput,
 } from '@adatechnology/user-contracts'
 import type { HttpResult, ModuleRoute, RequestContext } from '@adatechnology/module-http'
 
 import type { UserModule } from '../UserModule'
-import {
-  buildClearRefreshTokenCookie,
-  buildRefreshTokenCookie,
-  parseCookieHeader,
-  REFRESH_TOKEN_COOKIE_NAME,
-} from './cookies'
+import { buildClearRefreshTokenCookie, buildRefreshTokenCookie, parseCookieHeader } from './cookies'
 import { requireUser } from './requireUser'
 
 export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
-  const { useCases, refreshCookieSameSite: sameSite } = module
+  const { useCases, refreshCookie } = module
+
+  const buildSessionCookie = (session: Pick<UserSession, 'refreshToken' | 'refreshExpiresInSeconds'>): string =>
+    buildRefreshTokenCookie({
+      token: session.refreshToken,
+      maxAgeSeconds: session.refreshExpiresInSeconds,
+      sameSite: refreshCookie.sameSite,
+      name: refreshCookie.name,
+      path: refreshCookie.path,
+    })
 
   /** Sem armazenamento plugado a rota nao existe — em vez de existir e responder erro no upload. */
   const avatarRoutes: ModuleRoute[] = module.hasAvatar
@@ -67,11 +74,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
               status: 200,
               body: { data: session },
               headers: {
-                'Set-Cookie': buildRefreshTokenCookie({
-                  token: session.refreshToken,
-                  maxAgeSeconds: session.refreshExpiresInSeconds,
-                  sameSite,
-                }),
+                'Set-Cookie': buildSessionCookie(session),
               },
             }
           },
@@ -115,6 +118,35 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       ]
     : []
 
+  /** Sem `config.signUp` a rota não existe — o cadastro público é opt-in. */
+  const signUpRoutes: ModuleRoute[] = module.hasSignUp
+    ? [
+        {
+          method: 'POST',
+          path: '/auth/signup',
+          scope: 'public',
+          bodySchema: signUpSchema,
+          operationId: 'signUp',
+          summary: 'Cadastro público; o papel vem da configuração do host e a sessão já é aberta',
+          async handler(context) {
+            const body = context.body as SignUpInput
+            const session = await useCases.signUp.execute({
+              email: body.email,
+              name: body.name,
+              password: body.password,
+              ipAddress: context.ip,
+            })
+            return {
+              kind: 'json',
+              status: 201,
+              body: { data: session },
+              headers: { 'Set-Cookie': buildSessionCookie(session) },
+            }
+          },
+        },
+      ]
+    : []
+
   return [
     {
       method: 'POST',
@@ -135,15 +167,13 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
           status: 200,
           body: { data: session },
           headers: {
-            'Set-Cookie': buildRefreshTokenCookie({
-              token: session.refreshToken,
-              maxAgeSeconds: session.refreshExpiresInSeconds,
-              sameSite,
-            }),
+            'Set-Cookie': buildSessionCookie(session),
           },
         }
       },
     },
+
+    ...signUpRoutes,
 
     ...keycloakRoutes,
 
@@ -156,7 +186,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       operationId: 'refreshSession',
       summary: 'Rotaciona o refresh token e emite um novo access token',
       async handler(context) {
-        const refreshToken = parseCookieHeader(context.headers['cookie'])[REFRESH_TOKEN_COOKIE_NAME]
+        const refreshToken = parseCookieHeader(context.headers['cookie'])[refreshCookie.name]
         if (!refreshToken) return { kind: 'empty', status: 401 }
 
         const session = await useCases.refreshSession.execute({ refreshToken })
@@ -165,11 +195,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
           status: 200,
           body: { data: session },
           headers: {
-            'Set-Cookie': buildRefreshTokenCookie({
-              token: session.refreshToken,
-              maxAgeSeconds: session.refreshExpiresInSeconds,
-              sameSite,
-            }),
+            'Set-Cookie': buildSessionCookie(session),
           },
         }
       },
@@ -182,9 +208,13 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       operationId: 'signOut',
       summary: 'Revoga o refresh token da sessão atual',
       async handler(context) {
-        const refreshToken = parseCookieHeader(context.headers['cookie'])[REFRESH_TOKEN_COOKIE_NAME]
+        const refreshToken = parseCookieHeader(context.headers['cookie'])[refreshCookie.name]
         if (refreshToken) await useCases.signOut.execute({ refreshToken })
-        return { kind: 'empty', status: 204, headers: { 'Set-Cookie': buildClearRefreshTokenCookie(sameSite) } }
+        return {
+          kind: 'empty',
+          status: 204,
+          headers: { 'Set-Cookie': buildClearRefreshTokenCookie(refreshCookie.sameSite, refreshCookie) },
+        }
       },
     },
 

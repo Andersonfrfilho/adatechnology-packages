@@ -30,7 +30,8 @@ export class ConfirmPasswordResetUseCase {
     const passwordHash = await Bun.password.hash(params.newPassword)
     const user = await this.dependencies.users.updateById({
       id: consumed.userId,
-      values: { passwordHash },
+      // Provar posse do e-mail destrava a conta: o bloqueio existe contra adivinhação, não contra o dono.
+      values: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
     })
     if (!user) throw new ResetTokenInvalidError()
 

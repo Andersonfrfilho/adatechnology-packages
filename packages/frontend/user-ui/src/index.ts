@@ -4,6 +4,15 @@ export type { UserWorkspaceProps, UserLabels } from './workspace'
 export { SignInScreen } from './SignInScreen'
 export type { SignInScreenProps } from './SignInScreen'
 
+export { SignUpScreen } from './SignUpScreen'
+export type { SignUpScreenProps } from './SignUpScreen'
+
+export { SignUpForm, SIGN_UP_PASSWORD_MIN_LENGTH } from './SignUpForm'
+export type { SignUpFormProps } from './SignUpForm'
+
+export { useSignUp } from './useSignUp'
+export type { UseSignUpResult } from './useSignUp'
+
 export { ForgotPasswordScreen } from './ForgotPasswordScreen'
 export type { ForgotPasswordScreenProps } from './ForgotPasswordScreen'
 
@@ -45,6 +54,7 @@ export type {
   UserApi,
   UserConfig,
   SignInParams,
+  SignUpParams,
   UpdateProfileInput,
   ConfirmPasswordResetParams,
 } from './providers/types'
@@ -52,12 +62,7 @@ export type {
 /** Tela COMPOSTA de equipe — listagem, cadastro e ativacao. Some quando a `UserApi` nao traz `listTeam`. */
 export { TeamWorkspace } from './workspace/TeamWorkspace'
 export type { TeamWorkspaceProps } from './workspace/TeamWorkspace'
-export {
-  buildDefaultTeamRoles,
-  resolveTeamRole,
-  withCurrentRole,
-  DEFAULT_TEAM_ROLE_VALUE,
-} from './roles'
+export { buildDefaultTeamRoles, resolveTeamRole, withCurrentRole, DEFAULT_TEAM_ROLE_VALUE } from './roles'
 export type { TeamRoleOption, TeamRoleTone } from './roles'
 export { TeamMemberForm, TEAM_PASSWORD_MIN_LENGTH } from './TeamMemberForm'
 export type { TeamMemberFormProps } from './TeamMemberForm'

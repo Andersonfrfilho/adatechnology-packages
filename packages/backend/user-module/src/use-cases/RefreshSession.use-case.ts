@@ -2,28 +2,50 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { NotAuthenticatedError, type UserSession } from '@adatechnology/user-contracts'
+import { NotAuthenticatedError, USER_EVENT, type UserSession } from '@adatechnology/user-contracts'
 
 import { DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS } from '../shared/constants'
 import { toUserProfile } from '../shared/toContract'
 import { hashToken } from '../shared/tokenHash'
-import type { UserDependencies } from './userModule.types'
+import { nowOf, runHook, type UserDependencies } from './userModule.types'
 
 export class RefreshSessionUseCase {
   constructor(private readonly dependencies: UserDependencies) {}
 
   async execute(params: { readonly refreshToken: string }): Promise<UserSession> {
+    const reuseGraceSeconds = this.dependencies.config.refreshToken?.reuseGraceSeconds
     const refreshExpiresInSeconds =
       this.dependencies.config.refreshToken?.expiresInSeconds ?? DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS
 
     const rotated = await this.dependencies.refreshTokenStore.rotate({
       tokenHash: hashToken(params.refreshToken),
       newExpiresInSeconds: refreshExpiresInSeconds,
+      ...(reuseGraceSeconds === undefined ? {} : { reuseGraceSeconds }),
     })
     if (!rotated) throw new NotAuthenticatedError()
 
+    if ('reusedForUserId' in rotated) {
+      // A loja padrão já revogou; repetir aqui cobre uma loja customizada que só sinaliza o reuso.
+      await this.dependencies.refreshTokenStore.revokeAllForUser({ userId: rotated.reusedForUserId })
+      await runHook({
+        dependencies: this.dependencies,
+        name: USER_EVENT.REFRESH_REUSE_DETECTED,
+        run: () =>
+          this.dependencies.hooks?.onRefreshReuseDetected?.({
+            type: USER_EVENT.REFRESH_REUSE_DETECTED,
+            occurredAt: nowOf(this.dependencies),
+            userId: rotated.reusedForUserId,
+          }),
+      })
+      throw new NotAuthenticatedError()
+    }
+
     const row = await this.dependencies.users.findByIdUnscoped({ id: rotated.userId })
-    if (!row || !row.isActive) throw new NotAuthenticatedError()
+    if (!row || !row.isActive) {
+      // Não deixa viva a sessão recém-emitida de quem não pode mais entrar.
+      await this.dependencies.refreshTokenStore.revoke({ tokenHash: hashToken(rotated.token) })
+      throw new NotAuthenticatedError()
+    }
 
     const profile = toUserProfile(row)
     const { accessToken, expiresInSeconds } = await this.dependencies.tokenService.sign(profile)

@@ -5,6 +5,7 @@
 import { EmailAlreadyExistsError, USER_EVENT, type UserProfile } from '@adatechnology/user-contracts'
 
 import { LOCAL_PROVIDER_ID } from '../shared/constants'
+import { isUniqueViolation } from '../shared/databaseErrors'
 import { toUserProfile } from '../shared/toContract'
 import { resolveScopeCompanyId } from '../shared/tenancy'
 import { nowOf, runHook, type UserDependencies } from './userModule.types'
@@ -26,15 +27,20 @@ export class CreateUserUseCase {
 
     const passwordHash = await Bun.password.hash(params.password)
 
-    const row = await this.dependencies.users.create({
-      companyId,
-      email: params.email,
-      name: params.name,
-      passwordHash,
-      role: params.role,
-      providerId: LOCAL_PROVIDER_ID,
-      isActive: true,
-    })
+    // O pré-check acima não fecha a corrida entre dois cadastros simultâneos; o índice único fecha.
+    const row = await this.dependencies.users
+      .create({
+        companyId,
+        email: params.email,
+        name: params.name,
+        passwordHash,
+        role: params.role,
+        providerId: LOCAL_PROVIDER_ID,
+        isActive: true,
+      })
+      .catch((error: unknown) => {
+        throw isUniqueViolation(error) ? new EmailAlreadyExistsError() : error
+      })
 
     await runHook({
       dependencies: this.dependencies,

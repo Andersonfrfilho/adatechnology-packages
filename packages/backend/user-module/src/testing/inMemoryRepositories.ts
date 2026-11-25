@@ -8,6 +8,8 @@
 
 import { randomUUID, createHash } from 'node:crypto'
 
+import type { RefreshRotationResult } from '@adatechnology/user-contracts'
+
 import type { NewPasswordResetTokenRow, NewUserRow, PasswordResetTokenRow, UserRow } from '../schema/schema'
 
 const EPOCH = new Date('2026-08-02T12:00:00.000Z')
@@ -21,11 +23,20 @@ function snapshot<TRow>(row: TRow | undefined): TRow | undefined {
   return row ? { ...row } : undefined
 }
 
-export function createInMemoryUsers(seed: UserRow[] = []) {
-  const rows: UserRow[] = [...seed]
+/**
+ * `audience` reproduz o `UserRepository(db, audience)`: duas instâncias sobre o MESMO `rows`
+ * (`createInMemoryUsers(seed, 'customers', sharedRows)`) enxergam populações separadas.
+ */
+export function createInMemoryUsers(seed: UserRow[] = [], audience = 'default', sharedRows?: UserRow[]) {
+  const rows: UserRow[] = sharedRows ?? [...seed]
 
   function matchesScope(row: UserRow, companyId: string | undefined): boolean {
-    return companyId === undefined ? row.companyId === null : row.companyId === companyId
+    const isSameCompany = companyId === undefined ? row.companyId === null : row.companyId === companyId
+    return isSameCompany && row.audience === audience
+  }
+
+  function findInAudience(id: string): UserRow | undefined {
+    return rows.find((row) => row.id === id && row.audience === audience && !row.deletedAt)
   }
 
   return {
@@ -36,12 +47,15 @@ export function createInMemoryUsers(seed: UserRow[] = []) {
         passwordHash: null,
         externalId: null,
         isActive: true,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
         lastSeenAt: null,
         deletedAt: null,
         createdAt: EPOCH,
         updatedAt: EPOCH,
         providerId: 'local',
         ...values,
+        audience,
         companyId: values.companyId ?? null,
       } as UserRow
       rows.push(row)
@@ -58,12 +72,37 @@ export function createInMemoryUsers(seed: UserRow[] = []) {
     async findByProviderExternalId(params: { providerId: string; externalId: string }): Promise<UserRow | undefined> {
       return snapshot(
         rows.find(
-          (row) => row.providerId === params.providerId && row.externalId === params.externalId && !row.deletedAt,
+          (row) =>
+            row.audience === audience &&
+            row.providerId === params.providerId &&
+            row.externalId === params.externalId &&
+            !row.deletedAt,
         ),
       )
     },
     async findByIdUnscoped(params: { id: string }): Promise<UserRow | undefined> {
-      return snapshot(rows.find((row) => row.id === params.id && !row.deletedAt))
+      return snapshot(findInAudience(params.id))
+    },
+    /** Mesma semântica do `UPDATE ... RETURNING` único do repositório real: sem ponto de suspensão no meio. */
+    async registerFailedLogin(params: {
+      id: string
+      now: Date
+      maxFailedAttempts: number
+      lockMinutes: number
+    }): Promise<{ failedLoginAttempts: number; lockedUntil: Date | null; didLock: boolean } | undefined> {
+      const row = findInAudience(params.id)
+      if (!row || (row.lockedUntil && row.lockedUntil > params.now)) return undefined
+      const isExpiredLock = row.lockedUntil !== null && row.lockedUntil <= params.now
+      row.failedLoginAttempts = isExpiredLock ? 1 : row.failedLoginAttempts + 1
+      const didLock = row.failedLoginAttempts >= params.maxFailedAttempts
+      row.lockedUntil = didLock ? new Date(params.now.getTime() + params.lockMinutes * 60_000) : null
+      return { failedLoginAttempts: row.failedLoginAttempts, lockedUntil: row.lockedUntil, didLock }
+    },
+    async registerSuccessfulLogin(params: { id: string; now: Date }): Promise<UserRow | undefined> {
+      const row = findInAudience(params.id)
+      if (!row || (row.lockedUntil && row.lockedUntil > params.now)) return undefined
+      Object.assign(row, { failedLoginAttempts: 0, lockedUntil: null, lastSeenAt: params.now })
+      return snapshot(row)
     },
     async update(params: {
       companyId: string | undefined
@@ -78,7 +117,7 @@ export function createInMemoryUsers(seed: UserRow[] = []) {
       return snapshot(row)
     },
     async updateById(params: { id: string; values: Partial<NewUserRow> }): Promise<UserRow | undefined> {
-      const row = rows.find((candidate) => candidate.id === params.id && !candidate.deletedAt)
+      const row = findInAudience(params.id)
       if (!row) return undefined
       Object.assign(row, params.values, { updatedAt: EPOCH })
       return snapshot(row)
@@ -135,26 +174,40 @@ export function createInMemoryPasswordResetTokens(seed: PasswordResetTokenRow[] 
   }
 }
 
-export function createInMemoryRefreshTokenStore() {
-  const rows = new Map<string, { userId: string; expiresAt: Date }>()
+export function createInMemoryRefreshTokenStore(options: { readonly now?: () => Date } = {}) {
+  const now = options.now ?? (() => new Date())
+  const rows = new Map<string, { userId: string; expiresAt: Date; revokedAt: Date | null }>()
 
   return {
     rows,
     async issue(params: { userId: string; expiresInSeconds: number }): Promise<string> {
       const rawToken = randomUUID()
       const tokenHash = createHash('sha256').update(rawToken).digest('hex')
-      rows.set(tokenHash, { userId: params.userId, expiresAt: new Date(Date.now() + params.expiresInSeconds * 1000) })
+      rows.set(tokenHash, {
+        userId: params.userId,
+        expiresAt: new Date(now().getTime() + params.expiresInSeconds * 1000),
+        revokedAt: null,
+      })
       return rawToken
     },
-    /** `Map.delete` antes de reemitir reproduz a semântica atômica do `DELETE ... RETURNING`. */
+    /** Marca `revokedAt` sem ponto de suspensão entre checar e gravar — o `UPDATE ... RETURNING` do real. */
     async rotate(params: {
       tokenHash: string
       newExpiresInSeconds: number
-    }): Promise<{ token: string; userId: string } | null> {
+      reuseGraceSeconds?: number
+    }): Promise<RefreshRotationResult> {
+      const current = now()
       const existing = rows.get(params.tokenHash)
-      if (!existing || existing.expiresAt <= new Date()) return null
-      rows.delete(params.tokenHash)
+      if (!existing || existing.expiresAt <= current) return null
 
+      if (existing.revokedAt) {
+        const graceMs = (params.reuseGraceSeconds ?? 10) * 1000
+        if (current.getTime() - existing.revokedAt.getTime() < graceMs) return null
+        await this.revokeAllForUser({ userId: existing.userId })
+        return { reusedForUserId: existing.userId }
+      }
+
+      existing.revokedAt = current
       const token = await this.issue({ userId: existing.userId, expiresInSeconds: params.newExpiresInSeconds })
       return { token, userId: existing.userId }
     },

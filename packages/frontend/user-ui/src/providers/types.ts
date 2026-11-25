@@ -13,6 +13,8 @@ export type UserProfile = {
   readonly companyId?: string
   readonly isActive: boolean
   readonly lastSeenAt?: string
+  /** ISO. Presente só enquanto a conta está bloqueada por tentativas de login falhas. */
+  readonly lockedUntil?: string
   /** URL assinada e de vida curta. Ausente = sem foto, ou sem armazenamento no host. */
   readonly avatarUrl?: string
 }
@@ -33,6 +35,12 @@ export const SESSION_STATUS = {
 export type SessionStatus = (typeof SESSION_STATUS)[keyof typeof SESSION_STATUS]
 
 export type SignInParams = {
+  readonly email: string
+  readonly password: string
+}
+
+export type SignUpParams = {
+  readonly name: string
   readonly email: string
   readonly password: string
 }
@@ -74,6 +82,11 @@ export type CreateTeamMemberInput = {
 
 export type UserApi = {
   readonly signIn: (params: SignInParams) => Promise<UserSession>
+  /**
+   * Cadastro público — OPCIONAL, e é a ausência que desliga o formulário. Só existe quando o host
+   * liga o cadastro no módulo; o papel é decidido no servidor, nunca enviado daqui.
+   */
+  readonly signUp?: (params: SignUpParams) => Promise<UserSession>
   readonly signOut: () => Promise<void>
   readonly getProfile: () => Promise<UserProfile>
   readonly updateProfile: (input: UpdateProfileInput) => Promise<UserProfile>
@@ -92,6 +105,11 @@ export type UserApi = {
   readonly createTeamMember?: (input: CreateTeamMemberInput) => Promise<UserProfile>
   /** Ausente, a tela não desenha a coluna de ação — desativar é destrutivo e nem todo produto quer. */
   readonly setTeamMemberActive?: (userId: string, isActive: boolean) => Promise<UserProfile>
+  /**
+   * Ausente, a tela não oferece destravar. Limpa o bloqueio por tentativas de login falhas sem
+   * mexer em papel nem situação (a rota administrativa aceita `unlock`).
+   */
+  readonly unlockTeamMember?: (userId: string) => Promise<UserProfile>
   /** Ausente esconde a acao de editar — nome e papel viram somente leitura. */
   readonly updateTeamMember?: (userId: string, input: UpdateTeamMemberInput) => Promise<UserProfile>
   /** Ausente quando o host nao plugou armazenamento — o controle de foto nem aparece. */

@@ -23,8 +23,7 @@ export type AuthProviderInterface<TCredentials = unknown> = {
 }
 
 export type AttributeMappingRule<TClaims extends Record<string, unknown>> =
-  | { readonly from: keyof TClaims }
-  | { readonly value: string }
+  { readonly from: keyof TClaims } | { readonly value: string }
 
 export type AttributeMapping<TClaims extends Record<string, unknown>> = {
   readonly email: AttributeMappingRule<TClaims>
@@ -45,10 +44,26 @@ export type RefreshTokenStorePort = {
   rotate(params: {
     readonly tokenHash: string
     readonly newExpiresInSeconds: number
-  }): Promise<{ readonly token: string; readonly userId: string } | null>
+    /**
+     * Janela, em segundos, em que reapresentar um token já rotacionado é tratado como corrida
+     * legítima (duas abas renovando juntas) e não como reuso. Ausente = o padrão da implementação.
+     */
+    readonly reuseGraceSeconds?: number
+  }): Promise<RefreshRotationResult>
   revoke(params: { readonly tokenHash: string }): Promise<void>
   revokeAllForUser(params: { readonly userId: string }): Promise<void>
 }
+
+/**
+ * - `{ token, userId }`: rotação feita.
+ * - `{ reusedForUserId }`: o token já tinha sido rotacionado antes — alguém o reapresentou. A loja
+ *   já revogou todas as sessões desse usuário; o caso de uso só avisa o host e recusa.
+ * - `null`: token desconhecido, expirado ou dentro da janela de graça — recusa simples.
+ *
+ * Uma loja customizada que nunca detecta reuso pode seguir devolvendo só `{ token, userId } | null`.
+ */
+export type RefreshRotationResult =
+  { readonly token: string; readonly userId: string } | { readonly reusedForUserId: string } | null
 
 /**
  * Forma **idêntica** à de `@adatechnology/notification-contracts` — redeclarada, e não importada,
@@ -141,6 +156,24 @@ export type RefreshTokenConfig = {
    * e da checagem de origem do host.
    */
   readonly sameSite?: RefreshCookieSameSite
+  /**
+   * Nome do cookie de refresh. Ausente = `user_refresh_token`.
+   *
+   * Duas instâncias do módulo na mesma origem (ex: uma por audiência) precisam de nomes diferentes,
+   * ou uma sobrescreve a sessão da outra. Apenas caracteres de token HTTP (`A-Z a-z 0-9 _ -`).
+   */
+  readonly cookieName?: string
+  /**
+   * `Path` do cookie. Ausente = `/`. Deve começar com `/` e não conter `;`. Restringir ao prefixo
+   * em que as rotas de autenticação da instância são montadas evita que o navegador envie o cookie
+   * às demais rotas.
+   */
+  readonly cookiePath?: string
+  /**
+   * Segundos de tolerância para reapresentar um token recém-rotacionado antes de contar como reuso
+   * (abas que renovam ao mesmo tempo). Ausente = 10. Use 0 para detecção estrita.
+   */
+  readonly reuseGraceSeconds?: number
 }
 
 export type PasswordResetEmailContent = {
@@ -175,8 +208,46 @@ export type KeycloakConfig = {
   readonly attributeMapping?: AttributeMapping<Record<string, unknown>>
 }
 
+/** Audiência usada quando `UserModuleConfig.audience` não é declarada — e a das linhas já existentes. */
+export const DEFAULT_USER_AUDIENCE = 'default'
+
+/**
+ * Bloqueio de conta por tentativas de login falhas. Ausente = desligado (comportamento de sempre).
+ *
+ * O contador e o bloqueio são gravados com um único `UPDATE ... RETURNING`, sem ler antes de
+ * escrever, então tentativas concorrentes não furam o limite.
+ */
+export type LockoutConfig = {
+  /** Falhas consecutivas que travam a conta. Inteiro >= 1. */
+  readonly maxFailedAttempts: number
+  /** Minutos de bloqueio. Inteiro >= 1. Passado o prazo, o contador recomeça do zero. */
+  readonly lockMinutes: number
+}
+
+/**
+ * Cadastro público (auto-serviço). Ausente = desligado: a rota nem é publicada.
+ *
+ * O papel e a empresa vêm daqui, nunca do corpo da requisição — quem se cadastra não escolhe o
+ * próprio nível de acesso.
+ */
+export type SignUpConfig = {
+  readonly role: string
+  /** Obrigatório em `tenancy.mode = 'multi'`: a rota é pública e não tem `AuthContext` de onde ler. */
+  readonly companyId?: string
+}
+
 export type UserModuleConfig = {
   readonly tenancy: TenancyConfig
+  /**
+   * Audiência desta instância. Ausente = `default`.
+   *
+   * Duas instâncias com audiências diferentes sobre o mesmo banco têm populações separadas: o mesmo
+   * e-mail pode existir nas duas, e uma sessão de uma não vale na outra. Sem `accessToken.audience`
+   * explícito, uma audiência diferente de `default` passa a ser também a `aud` do JWT.
+   */
+  readonly audience?: string
+  readonly lockout?: LockoutConfig
+  readonly signUp?: SignUpConfig
   readonly accessToken: AccessTokenConfig
   readonly refreshToken?: RefreshTokenConfig
   readonly passwordReset?: PasswordResetConfig
