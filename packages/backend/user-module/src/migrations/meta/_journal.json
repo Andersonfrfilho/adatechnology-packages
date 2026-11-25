@@ -15,6 +15,13 @@
       "when": 1787443200000,
       "tag": "0001_avatar_key",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787529600000,
+      "tag": "0002_audience_lockout_refresh_reuse",
+      "breakpoints": true
     }
   ]
 }

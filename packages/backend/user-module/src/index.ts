@@ -20,16 +20,23 @@ export type {
 export { runUserMigrations, userMigrationsFolder, USER_MIGRATIONS_TABLE } from './runMigrations'
 export type { RunUserMigrationsParams } from './runMigrations'
 
+export type { UserScope } from './repositories/conditions'
 export {
   userScopeCondition,
   userOwnedByCondition,
   userListCondition,
   userByEmailCondition,
   userByProviderExternalCondition,
+  userByIdInAudienceCondition,
 } from './repositories/conditions'
 
 export { UserRepository } from './repositories/UserRepository'
-export type { ListUsersQuery, ListUsersPage } from './repositories/UserRepository'
+export type {
+  ListUsersQuery,
+  ListUsersPage,
+  RegisterFailedLoginParams,
+  RegisterFailedLoginResult,
+} from './repositories/UserRepository'
 
 export { PasswordResetTokenRepository } from './repositories/PasswordResetTokenRepository'
 export { RefreshTokenRepository } from './repositories/RefreshTokenRepository'
@@ -44,6 +51,9 @@ export { RequestPasswordResetUseCase } from './use-cases/RequestPasswordReset.us
 export { ConfirmPasswordResetUseCase } from './use-cases/ConfirmPasswordReset.use-case'
 export { UpdateProfileUseCase } from './use-cases/UpdateProfile.use-case'
 export { RefreshSessionUseCase } from './use-cases/RefreshSession.use-case'
+export { UpdateUserUseCase } from './use-cases/UpdateUser.use-case'
+export type { UpdateUserParams } from './use-cases/UpdateUser.use-case'
+export { SignUpUseCase } from './use-cases/SignUp.use-case'
 export { SignOutUseCase } from './use-cases/SignOut.use-case'
 export { GetProfileUseCase } from './use-cases/GetProfile.use-case'
 export { ListUsersUseCase } from './use-cases/ListUsers.use-case'
@@ -59,6 +69,9 @@ export type { KeycloakVerifierPort } from './shared/keycloak.types'
 export {
   DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS,
   DEFAULT_RESET_TOKEN_EXPIRES_IN_SECONDS,
+  DEFAULT_REFRESH_COOKIE_NAME,
+  DEFAULT_REFRESH_COOKIE_PATH,
+  DEFAULT_REFRESH_REUSE_GRACE_SECONDS,
   LOCAL_PROVIDER_ID,
   KEYCLOAK_PROVIDER_ID,
 } from './shared/constants'
@@ -70,4 +83,7 @@ export {
   parseCookieHeader,
   buildRefreshTokenCookie,
   buildClearRefreshTokenCookie,
+  isValidRefreshCookieName,
+  isValidRefreshCookiePath,
 } from './http/cookies'
+export type { RefreshCookieNaming } from './http/cookies'

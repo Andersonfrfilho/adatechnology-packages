@@ -22,6 +22,7 @@ export function toUserProfile(row: UserRow, avatarUrl?: string): UserProfile {
     ...(row.companyId ? { companyId: row.companyId } : {}),
     isActive: row.isActive,
     ...(row.lastSeenAt ? { lastSeenAt: row.lastSeenAt } : {}),
+    ...(row.lockedUntil && row.lockedUntil.getTime() > Date.now() ? { lockedUntil: row.lockedUntil } : {}),
   }
 }
 

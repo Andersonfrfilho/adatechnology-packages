@@ -3,7 +3,7 @@
  */
 
 import { sql } from 'drizzle-orm'
-import { boolean, index, pgSchema, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, pgSchema, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
 
 export const userSchema = pgSchema('user')
 
@@ -14,6 +14,9 @@ export const users = userSchema.table(
     // Nulo em single-tenant — ver `TenancyConfig` em `user-contracts`. O host que roda multi-tenant
     // sempre preenche; o host single-tenant nunca preenche, e o índice único abaixo trata os dois.
     companyId: varchar('company_id', { length: 64 }),
+    // Audiência: separa populações dentro do mesmo banco (ex: equipe x clientes). Linhas anteriores à
+    // coluna ficam em `default`, que é também o valor de uma instância sem `audience` configurada.
+    audience: varchar('audience', { length: 64 }).notNull().default('default'),
     email: varchar('email', { length: 320 }).notNull(),
     name: varchar('name', { length: 160 }).notNull(),
     // Nulo para usuário só-Keycloak — não existe senha local para verificar.
@@ -26,6 +29,9 @@ export const users = userSchema.table(
     // URL no banco daria uma coluna cheia de links mortos.
     avatarKey: varchar('avatar_key', { length: 512 }),
     isActive: boolean('is_active').notNull().default(true),
+    // Bloqueio por tentativas falhas (`config.lockout`). Zerados e nulos enquanto o recurso está desligado.
+    failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -36,20 +42,20 @@ export const users = userSchema.table(
     // host (`NULLS NOT DISTINCT` só existe a partir do 15) e o resultado é o mesmo: um e-mail só
     // pode existir uma vez por empresa, e uma vez sozinho quando a empresa é nula (single-tenant).
     uniqueIndex('idx_users_company_email')
-      .on(table.companyId, table.email)
+      .on(table.companyId, table.audience, table.email)
       .where(sql`${table.companyId} is not null and ${table.deletedAt} is null`),
     uniqueIndex('idx_users_email_single_tenant')
-      .on(table.email)
+      .on(table.audience, table.email)
       .where(sql`${table.companyId} is null and ${table.deletedAt} is null`),
     // Mesma lógica para o par (provider, externalId): usuário local nunca tem externalId, então a
     // unicidade só faz sentido quando ele existe. O par é único **por empresa**, não global — em
     // multi-tenant, o mesmo `sub` do Keycloak pode ser pessoa de duas empresas, e cada uma precisa
     // do seu próprio usuário; unicidade global faria a segunda empresa herdar a sessão da primeira.
     uniqueIndex('idx_users_company_provider_external')
-      .on(table.companyId, table.providerId, table.externalId)
+      .on(table.companyId, table.audience, table.providerId, table.externalId)
       .where(sql`${table.externalId} is not null and ${table.companyId} is not null`),
     uniqueIndex('idx_users_provider_external_single_tenant')
-      .on(table.providerId, table.externalId)
+      .on(table.audience, table.providerId, table.externalId)
       .where(sql`${table.externalId} is not null and ${table.companyId} is null`),
     index('idx_users_company_active').on(table.companyId, table.isActive),
   ],
@@ -82,6 +88,8 @@ export const refreshTokens = userSchema.table('refresh_tokens', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  // Preenchido na rotação: a linha vira marcador, e reapresentá-la é o sinal de reuso. Logout apaga a linha.
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
