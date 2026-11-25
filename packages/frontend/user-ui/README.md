@@ -10,6 +10,10 @@ Capabilities are optional by absence: a method the host does not provide never d
   login lockout; a `Locked` badge shows while `UserProfile.lockedUntil` is set), `sendPasswordReset?`,
   `setTeamMemberAvatar?`: enable the matching `TeamWorkspace` controls.
 
+- `SignInScreen` / `SignInForm` `showRememberMe`: draws a "Lembrar de mim" checkbox (label key
+  `signInRememberMe`) and sends `rememberMe` in `SignInParams`; your `UserApi.signIn` must forward it
+  to `POST /auth/login`. Absent, the form is unchanged.
+
 ```tsx
 <UserProvider api={api}>
   <SignUpScreen onSignedUp={goHome} onSignInInstead={goToSignIn} />

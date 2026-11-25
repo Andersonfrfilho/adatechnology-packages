@@ -231,4 +231,10 @@ function validateModuleConfig(config: UserModuleConfig): void {
   if (refresh?.reuseGraceSeconds !== undefined && !(refresh.reuseGraceSeconds >= 0)) {
     throw new ConfigMissingError('refreshToken.reuseGraceSeconds')
   }
+  if (refresh?.rememberExpiresInSeconds !== undefined && !(refresh.rememberExpiresInSeconds > 0)) {
+    throw new ConfigMissingError('refreshToken.rememberExpiresInSeconds')
+  }
+  if (refresh?.sessionExpiresInSeconds !== undefined && !(refresh.sessionExpiresInSeconds > 0)) {
+    throw new ConfigMissingError('refreshToken.sessionExpiresInSeconds')
+  }
 }

@@ -56,17 +56,41 @@ export function parseCookieHeader(header: string | undefined): Readonly<Record<s
   return Object.fromEntries(entries.filter((entry): entry is readonly [string, string] => entry !== undefined))
 }
 
+/**
+ * A escolha "lembrar de mim" viaja no próprio valor do cookie (`m~<token>` / `s~<token>`), sem
+ * segundo cookie nem coluna nova: o refresh sabe qual validade repetir ao rotacionar. O token cru
+ * é hexadecimal, então `~` nunca aparece nele; cookie sem prefixo é o formato de sempre.
+ */
+const REMEMBER_PREFIX = 'm~'
+const SESSION_PREFIX = 's~'
+
+export type ParsedRefreshCookie = {
+  readonly token: string
+  /** `undefined` = cookie no formato antigo, sem escolha registrada. */
+  readonly rememberMe: boolean | undefined
+}
+
+export function parseRefreshCookieValue(value: string): ParsedRefreshCookie {
+  if (value.startsWith(REMEMBER_PREFIX)) return { token: value.slice(REMEMBER_PREFIX.length), rememberMe: true }
+  if (value.startsWith(SESSION_PREFIX)) return { token: value.slice(SESSION_PREFIX.length), rememberMe: false }
+  return { token: value, rememberMe: undefined }
+}
+
 export function buildRefreshTokenCookie(
   params: RefreshCookieNaming & {
     readonly token: string
     readonly maxAgeSeconds: number
     /** Ausente = `lax`, o comportamento de sempre. */
     readonly sameSite?: RefreshCookieSameSite
+    /** Ausente = cookie persistente no formato de sempre; `false` = cookie de sessão (sem `Max-Age`). */
+    readonly rememberMe?: boolean
   },
 ): string {
-  const value = encodeURIComponent(params.token)
+  const prefix = params.rememberMe === undefined ? '' : params.rememberMe ? REMEMBER_PREFIX : SESSION_PREFIX
+  const value = encodeURIComponent(`${prefix}${params.token}`)
   const name = params.name ?? REFRESH_TOKEN_COOKIE_NAME
-  return `${name}=${value}; ${attributesFor(params.sameSite, params.path)}; Max-Age=${params.maxAgeSeconds}`
+  const maxAge = params.rememberMe === false ? '' : `; Max-Age=${params.maxAgeSeconds}`
+  return `${name}=${value}; ${attributesFor(params.sameSite, params.path)}${maxAge}`
 }
 
 /**

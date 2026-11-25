@@ -25,16 +25,31 @@ import {
 import type { HttpResult, ModuleRoute, RequestContext } from '@adatechnology/module-http'
 
 import type { UserModule } from '../UserModule'
-import { buildClearRefreshTokenCookie, buildRefreshTokenCookie, parseCookieHeader } from './cookies'
+import {
+  buildClearRefreshTokenCookie,
+  buildRefreshTokenCookie,
+  parseCookieHeader,
+  parseRefreshCookieValue,
+  type ParsedRefreshCookie,
+} from './cookies'
 import { requireUser } from './requireUser'
 
 export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
   const { useCases, refreshCookie } = module
 
-  const buildSessionCookie = (session: Pick<UserSession, 'refreshToken' | 'refreshExpiresInSeconds'>): string =>
+  const readRefreshCookie = (cookieHeader: string | undefined): ParsedRefreshCookie | undefined => {
+    const raw = parseCookieHeader(cookieHeader)[refreshCookie.name]
+    return raw ? parseRefreshCookieValue(raw) : undefined
+  }
+
+  const buildSessionCookie = (
+    session: Pick<UserSession, 'refreshToken' | 'refreshExpiresInSeconds'>,
+    rememberMe?: boolean,
+  ): string =>
     buildRefreshTokenCookie({
       token: session.refreshToken,
       maxAgeSeconds: session.refreshExpiresInSeconds,
+      ...(rememberMe === undefined ? {} : { rememberMe }),
       sameSite: refreshCookie.sameSite,
       name: refreshCookie.name,
       path: refreshCookie.path,
@@ -161,13 +176,14 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
           email: body.email,
           password: body.password,
           ipAddress: context.ip,
+          ...(body.rememberMe === undefined ? {} : { rememberMe: body.rememberMe }),
         })
         return {
           kind: 'json',
           status: 200,
           body: { data: session },
           headers: {
-            'Set-Cookie': buildSessionCookie(session),
+            'Set-Cookie': buildSessionCookie(session, body.rememberMe),
           },
         }
       },
@@ -186,16 +202,19 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       operationId: 'refreshSession',
       summary: 'Rotaciona o refresh token e emite um novo access token',
       async handler(context) {
-        const refreshToken = parseCookieHeader(context.headers['cookie'])[refreshCookie.name]
-        if (!refreshToken) return { kind: 'empty', status: 401 }
+        const presented = readRefreshCookie(context.headers['cookie'])
+        if (!presented) return { kind: 'empty', status: 401 }
 
-        const session = await useCases.refreshSession.execute({ refreshToken })
+        const session = await useCases.refreshSession.execute({
+          refreshToken: presented.token,
+          ...(presented.rememberMe === undefined ? {} : { rememberMe: presented.rememberMe }),
+        })
         return {
           kind: 'json',
           status: 200,
           body: { data: session },
           headers: {
-            'Set-Cookie': buildSessionCookie(session),
+            'Set-Cookie': buildSessionCookie(session, presented.rememberMe),
           },
         }
       },
@@ -208,8 +227,8 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       operationId: 'signOut',
       summary: 'Revoga o refresh token da sessão atual',
       async handler(context) {
-        const refreshToken = parseCookieHeader(context.headers['cookie'])[refreshCookie.name]
-        if (refreshToken) await useCases.signOut.execute({ refreshToken })
+        const presented = readRefreshCookie(context.headers['cookie'])
+        if (presented) await useCases.signOut.execute({ refreshToken: presented.token })
         return {
           kind: 'empty',
           status: 204,

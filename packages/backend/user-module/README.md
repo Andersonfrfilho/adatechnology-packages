@@ -82,6 +82,20 @@ Defaults: `user_refresh_token` and `/`. The name accepts `A-Z a-z 0-9 _ -`; the 
 use the resolved policy (`userModule.refreshCookie`), and the logout cookie repeats the issued
 attributes. Two instances on one origin need different names.
 
+## Remember me (opt-in)
+
+`POST /auth/login` accepts an optional `rememberMe` boolean.
+
+| `rememberMe` | Cookie | Server-side refresh lifetime |
+|---|---|---|
+| absent | persistent, exactly as before | `refreshToken.expiresInSeconds` (30 days) |
+| `true` | persistent (`Max-Age`) | `refreshToken.rememberExpiresInSeconds` (default = `expiresInSeconds`) |
+| `false` | session cookie (no `Max-Age`; gone when the browser closes) | `refreshToken.sessionExpiresInSeconds` (default 24 h) |
+
+The choice rides in the cookie value (`m~<token>` / `s~<token>`), so refresh rotation repeats the same
+lifetime and no column or store change is needed; cookies without a prefix keep the old behaviour.
+The access token stays short-lived in every case. Apps that never send the field behave as before.
+
 ## Refresh rotation and reuse detection
 
 - Rotation is one `UPDATE refresh_tokens SET revoked_at = now WHERE token_hash = $1 AND revoked_at IS

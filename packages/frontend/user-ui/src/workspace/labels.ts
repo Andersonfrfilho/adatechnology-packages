@@ -11,6 +11,7 @@ export type UserLabels = {
   readonly email: string
   readonly password: string
   readonly signInSubmit: string
+  readonly signInRememberMe: string
   readonly forgotPasswordLink: string
   readonly signInGenericError: string
 
@@ -101,6 +102,7 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   email: 'E-mail',
   password: 'Senha',
   signInSubmit: 'Entrar',
+  signInRememberMe: 'Lembrar de mim',
   forgotPasswordLink: 'Esqueci minha senha',
   signInGenericError: 'Não foi possível entrar',
 

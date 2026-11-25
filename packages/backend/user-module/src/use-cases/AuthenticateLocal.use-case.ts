@@ -5,8 +5,8 @@
 import { InvalidCredentialsError, USER_EVENT, type UserSession } from '@adatechnology/user-contracts'
 
 import type { UserRow } from '../schema/schema'
-import { DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS } from '../shared/constants'
 import { verifyAgainstDummyHash } from '../shared/dummyPasswordHash'
+import { resolveRefreshExpiresInSeconds } from '../shared/refreshLifetime'
 import { resolveScopeCompanyId } from '../shared/tenancy'
 import { toUserProfile } from '../shared/toContract'
 import { nowOf, runHook, type UserDependencies } from './userModule.types'
@@ -34,6 +34,7 @@ export class AuthenticateLocalUseCase {
     readonly password: string
     readonly ipAddress?: string
     readonly companyId?: string
+    readonly rememberMe?: boolean
   }): Promise<UserSession> {
     const companyId = resolveScopeCompanyId({ tenancy: this.dependencies.config.tenancy, explicit: params.companyId })
     const attempt: LoginAttempt = { companyId, email: params.email, ipAddress: params.ipAddress ?? '' }
@@ -58,8 +59,10 @@ export class AuthenticateLocalUseCase {
 
     const profile = toUserProfile(signedInRow)
     const { accessToken, expiresInSeconds } = await this.dependencies.tokenService.sign(profile)
-    const refreshExpiresInSeconds =
-      this.dependencies.config.refreshToken?.expiresInSeconds ?? DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS
+    const refreshExpiresInSeconds = resolveRefreshExpiresInSeconds({
+      config: this.dependencies.config,
+      rememberMe: params.rememberMe,
+    })
     const refreshToken = await this.dependencies.refreshTokenStore.issue({
       userId: user.id,
       expiresInSeconds: refreshExpiresInSeconds,

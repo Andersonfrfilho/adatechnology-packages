@@ -17,19 +17,29 @@ export type SignInFormProps = {
   readonly loading?: boolean
   readonly error?: string
   readonly labels?: Partial<UserLabels>
+  /** Desenha a caixa "Lembrar de mim" e envia `rememberMe` no submit. Ausente = formulário de sempre. */
+  readonly showRememberMe?: boolean
 }
 
-export function SignInForm({ onSubmit, onForgotPassword, loading = false, error, labels: overrides }: SignInFormProps) {
+export function SignInForm({
+  onSubmit,
+  onForgotPassword,
+  loading = false,
+  error,
+  labels: overrides,
+  showRememberMe = false,
+}: SignInFormProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
 
   const handleSubmit = useCallback(
     async (event: FormEvent) => {
       event.preventDefault()
-      await onSubmit({ email: email.trim(), password })
+      await onSubmit({ email: email.trim(), password, ...(showRememberMe ? { rememberMe } : {}) })
     },
-    [email, password, onSubmit],
+    [email, password, rememberMe, showRememberMe, onSubmit],
   )
 
   return (
@@ -62,6 +72,21 @@ export function SignInForm({ onSubmit, onForgotPassword, loading = false, error,
           required
         />
       </div>
+      {showRememberMe ? (
+        <label
+          className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+          htmlFor="user-ui-sign-in-remember"
+        >
+          <input
+            id="user-ui-sign-in-remember"
+            type="checkbox"
+            className="h-4 w-4 rounded border-gray-300 dark:border-gray-700 text-brand-600 focus:ring-2 focus:ring-brand-500"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
+          />
+          {labels.signInRememberMe}
+        </label>
+      ) : null}
       {error ? (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
@@ -76,7 +101,11 @@ export function SignInForm({ onSubmit, onForgotPassword, loading = false, error,
         {labels.signInSubmit}
       </button>
       {onForgotPassword ? (
-        <button type="button" onClick={onForgotPassword} className="text-sm text-brand-600 dark:text-brand-400 underline">
+        <button
+          type="button"
+          onClick={onForgotPassword}
+          className="text-sm text-brand-600 dark:text-brand-400 underline"
+        >
           {labels.forgotPasswordLink}
         </button>
       ) : null}

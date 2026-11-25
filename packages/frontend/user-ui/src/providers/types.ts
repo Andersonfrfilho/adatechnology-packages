@@ -37,6 +37,11 @@ export type SessionStatus = (typeof SESSION_STATUS)[keyof typeof SESSION_STATUS]
 export type SignInParams = {
   readonly email: string
   readonly password: string
+  /**
+   * Só enviado quando a tela mostra a caixa "Lembrar de mim" (`showRememberMe`). Ausente = o host
+   * decide como sempre; o adaptador `UserApi` repassa o campo ao `POST /auth/login`.
+   */
+  readonly rememberMe?: boolean
 }
 
 export type SignUpParams = {
