@@ -426,6 +426,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
           ...(hooks ? { hooks } : {}),
           ...(providers.realtime ? { realtime: providers.realtime } : {}),
         }),
+        hooks,
       ),
     },
     // undefined quando features.flowEngine === false.
