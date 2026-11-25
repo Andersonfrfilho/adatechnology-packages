@@ -22,7 +22,7 @@ const whatsapp = createMetaWhatsAppModule({
       timeZone: 'America/Sao_Paulo',
       globalKeywords: [
         { keywords: ['menu', 'voltar ao início'], target: 'restart' },
-        { keywords: ['atendente', 'falar com pessoa'], target: 'handoff' },
+        { keywords: ['atendente', 'falar com pessoa'], target: 'handoff', match: 'word' },
       ],
       rejectionMessages: {
         'before-min-date': 'Essa data já passou. Pode mandar outra?',
@@ -215,6 +215,10 @@ põem a conversa na fila (`conversations.requestHuman` — dispara `onHumanReque
 `onConversationModeChanged`) e mandam a mensagem do horário. `actionParams.message` e
 `actionParams.outOfHoursMessage` no nó sobrescrevem os textos só ali. O contexto recebe
 `handoffWithinBusinessHours`, que um nó `condition` pode usar.
+
+Palavras globais (`globalKeywords`) casam a mensagem inteira por padrão (`match: 'exact'`). Com
+`match: 'word'` a entrada vale quando a palavra ou frase aparece inteira dentro da mensagem ("quero falar com
+o atendente"), sem acento e sem caixa; fragmento de outra palavra não conta e, havendo várias, vence a mais longa.
 
 Depois disso a conversa fica em silêncio até alguém assumir (`takeover`) ou devolver ao bot
 (`release`). Para reabrir o menu ao devolver:

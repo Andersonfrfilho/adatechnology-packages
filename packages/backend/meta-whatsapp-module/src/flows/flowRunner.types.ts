@@ -17,9 +17,14 @@ import type {
 /** `restart` volta ao início do fluxo de partida; `handoff` chama uma pessoa; `flow:<chave>` abre outro fluxo. */
 export type FlowGlobalKeywordTarget = 'restart' | 'handoff' | `flow:${string}`
 
+/** `exact`: a mensagem inteira é a palavra; `word`: a palavra aparece inteira dentro da mensagem. */
+export type FlowGlobalKeywordMatch = 'exact' | 'word'
+
 /** Palavras que valem em qualquer nó ("menu", "atendente"), comparadas sem acento e sem caixa. */
 export type FlowGlobalKeyword = {
   readonly keywords: readonly string[]
+  /** Padrão `exact`. Com `word`, "quero falar com o atendente" aciona "atendente"; a palavra mais longa vence. */
+  readonly match?: FlowGlobalKeywordMatch
   readonly target: FlowGlobalKeywordTarget
 }
 

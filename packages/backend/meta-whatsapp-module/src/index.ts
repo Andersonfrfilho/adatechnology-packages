@@ -137,6 +137,7 @@ export type {
   FlowRunnerConfig,
   FlowRunnerOutcome,
   FlowGlobalKeyword,
+  FlowGlobalKeywordMatch,
   FlowGlobalKeywordTarget,
   FlowHandoffConfig,
   FlowVariablesResolver,

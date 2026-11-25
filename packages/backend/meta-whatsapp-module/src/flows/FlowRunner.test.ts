@@ -224,6 +224,12 @@ describe('FlowRunner — global keywords and handoff', () => {
     expect(harness.row.flowKey).toBe('main')
   })
 
+  it('hands off when a word-mode keyword appears inside the message', async () => {
+    const harness = frontDesk({ globalKeywords: [{ keywords: ['atendente'], target: 'handoff', match: 'word' }] })
+    await harness.handle(textMessage('Quero falar com um atendente agora'))
+    expect(harness.row.humanRequestedAt).not.toBeNull()
+  })
+
   it('hands off by keyword with the out-of-hours message', async () => {
     const harness = frontDesk({
       globalKeywords: [{ keywords: ['atendente'], target: 'handoff' }],
