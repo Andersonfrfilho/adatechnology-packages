@@ -57,3 +57,14 @@ export type {
   UseTemplateEditorParams,
   UseTemplateEditorResult,
 } from './hooks/useTemplateEditor'
+
+export { useTemplateDefinitions } from './hooks/usePreferences'
+export {
+  groupTemplateEditorItems,
+  insertVariable,
+  isDraftDirty,
+  renderDefinitionPreview,
+  resolveEditorBody,
+  templateEditorItemId,
+} from './templateDefinitions.util'
+export type { TemplateEditorGroup } from './templateDefinitions.util'
