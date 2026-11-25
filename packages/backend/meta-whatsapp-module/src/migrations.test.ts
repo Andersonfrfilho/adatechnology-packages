@@ -6,12 +6,22 @@
  * editar qualquer uma delas faz o migrator reaplicar `CREATE TABLE` num banco que já tem a tabela.
  * Este teste prende isso: nomes originais, conteúdo byte a byte (sha256 do `migration.sql` publicado
  * na 0.1.0), ausência do layout antigo (`meta/_journal.json`, que o migrator 1.x recusa) e ordem.
+ *
+ * O pacote também publica `migrations-journal/` para o migrator do drizzle-orm 0.x, que exige o
+ * journal. As duas pastas têm o mesmo SQL byte a byte, e o `when` do journal é o timestamp do nome da
+ * pasta v1 — o mesmo `created_at` que o migrator 1.x grava.
  */
 
 import { describe, expect, it } from 'bun:test'
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+import {
+  META_WHATSAPP_MIGRATIONS_TABLE,
+  metaWhatsAppMigrationsFolder,
+  runMetaWhatsAppMigrations,
+} from './runMigrations'
 
 const MIGRATIONS_DIR = join(__dirname, 'migrations')
 
@@ -64,5 +74,108 @@ describe('migrations embarcadas', () => {
       return (sql.match(/\$[0-9]+/g) ?? []).map((match) => `${name}: ${match}`)
     })
     expect(offenders).toEqual([])
+  })
+})
+
+const JOURNAL_DIR = join(__dirname, 'migrations-journal')
+
+type JournalEntry = { readonly idx: number; readonly when: number; readonly tag: string; readonly breakpoints: boolean }
+
+function journalEntries(): readonly JournalEntry[] {
+  const journal = JSON.parse(readFileSync(join(JOURNAL_DIR, 'meta', '_journal.json'), 'utf8')) as {
+    entries: JournalEntry[]
+  }
+  return journal.entries
+}
+
+function folderMillis(name: string): number {
+  const stamp = name.slice(0, 14)
+  return Date.UTC(
+    Number(stamp.slice(0, 4)),
+    Number(stamp.slice(4, 6)) - 1,
+    Number(stamp.slice(6, 8)),
+    Number(stamp.slice(8, 10)),
+    Number(stamp.slice(10, 12)),
+    Number(stamp.slice(12, 14)),
+  )
+}
+
+describe('migrations-journal (drizzle-orm 0.x)', () => {
+  it('uma entrada por pasta v1, na mesma ordem, com o SQL idêntico byte a byte', () => {
+    const folders = migrationNames()
+    const entries = journalEntries()
+
+    expect(entries.map((entry) => entry.idx)).toEqual(folders.map((_, index) => index))
+    folders.forEach((folder, index) => {
+      const entry = entries[index]!
+      expect(entry.tag).toBe(`${String(index).padStart(4, '0')}_${folder.slice(15)}`)
+      expect(entry.breakpoints).toBe(true)
+      const v1 = readFileSync(join(MIGRATIONS_DIR, folder, 'migration.sql'))
+      const journal = readFileSync(join(JOURNAL_DIR, `${entry.tag}.sql`))
+      expect(journal.equals(v1)).toBe(true)
+    })
+  })
+
+  it('o `when` é o timestamp UTC do nome da pasta v1 — o `created_at` que o migrator 1.x grava', () => {
+    const folders = migrationNames()
+    journalEntries().forEach((entry, index) => {
+      expect(entry.when).toBe(folderMillis(folders[index]!))
+    })
+  })
+
+  it('não há SQL solto fora do journal — o migrator 0.x ignoraria o arquivo em silêncio', () => {
+    const tags = new Set(journalEntries().map((entry) => `${entry.tag}.sql`))
+    const files = readdirSync(JOURNAL_DIR).filter((name) => name.endsWith('.sql'))
+    expect(files.sort()).toEqual([...tags].sort())
+  })
+
+  it('o build copia as duas pastas para o dist', () => {
+    const config = readFileSync(join(__dirname, '..', 'tsup.config.ts'), 'utf8')
+    expect(config).toContain('src/migrations/*')
+    expect(config).toContain('src/migrations-journal/*')
+  })
+})
+
+describe('runMetaWhatsAppMigrations — escolha do formato', () => {
+  type MigrateCall = { readonly migrationsFolder: string; readonly migrationsTable?: string }
+
+  function recordingMigrate(refuseFolder?: (folder: string) => Error | undefined) {
+    const calls: MigrateCall[] = []
+    const migrate = async (_db: never, config: MigrateCall): Promise<void> => {
+      calls.push(config)
+      const refusal = refuseFolder?.(config.migrationsFolder)
+      if (refusal) throw refusal
+    }
+    return { calls, migrate }
+  }
+
+  it('sem `layout`, usa a pasta v1 — o comportamento de sempre para quem já consome', async () => {
+    const { calls, migrate } = recordingMigrate()
+    await runMetaWhatsAppMigrations({ db: {} as never, migrate })
+    expect(calls).toEqual([
+      { migrationsFolder: metaWhatsAppMigrationsFolder(), migrationsTable: META_WHATSAPP_MIGRATIONS_TABLE },
+    ])
+    expect(metaWhatsAppMigrationsFolder()).toBe(MIGRATIONS_DIR)
+  })
+
+  it('sem `layout`, cai para o journal quando o migrator 0.x recusa a pasta sem journal', async () => {
+    const { calls, migrate } = recordingMigrate((folder) =>
+      folder === MIGRATIONS_DIR ? new Error("Can't find meta/_journal.json file") : undefined,
+    )
+    await runMetaWhatsAppMigrations({ db: {} as never, migrate })
+    expect(calls.map((call) => call.migrationsFolder)).toEqual([MIGRATIONS_DIR, JOURNAL_DIR])
+  })
+
+  it('erro que não é a recusa do formato sobe sem tentar o outro', async () => {
+    const { calls, migrate } = recordingMigrate(() => new Error('connection refused'))
+    await expect(runMetaWhatsAppMigrations({ db: {} as never, migrate })).rejects.toThrow('connection refused')
+    expect(calls).toHaveLength(1)
+  })
+
+  it('`layout: journal` vai direto à pasta do journal', async () => {
+    const { calls, migrate } = recordingMigrate()
+    await runMetaWhatsAppMigrations({ db: {} as never, migrate, layout: 'journal' })
+    expect(calls.map((call) => call.migrationsFolder)).toEqual([JOURNAL_DIR])
+    expect(metaWhatsAppMigrationsFolder({ layout: 'journal' })).toBe(JOURNAL_DIR)
   })
 })

@@ -1,5 +1,6 @@
 import type { FlowActionKind, FlowNodeData } from './flow.types'
 import type { ConversationSession } from './conversation.types'
+import type { InteractiveButton, InteractiveListRow, InteractiveListSection } from './interactive'
 
 /**
  * Tetos da Meta para escolha interativa.
@@ -11,8 +12,18 @@ import type { ConversationSession } from './conversation.types'
 export const WHATSAPP_CHOICE_LIMIT = {
   BUTTONS: 3,
   BUTTON_TITLE_LENGTH: 20,
+  BUTTON_ID_LENGTH: 256,
+  /** Total de linhas somando todas as seções. */
   LIST_ROWS: 10,
+  LIST_SECTIONS: 10,
+  LIST_SECTION_TITLE_LENGTH: 24,
   LIST_ROW_TITLE_LENGTH: 24,
+  LIST_ROW_DESCRIPTION_LENGTH: 72,
+  LIST_ROW_ID_LENGTH: 200,
+  /** Texto do botão que abre a lista. */
+  LIST_BUTTON_LABEL_LENGTH: 20,
+  /** Corpo de mensagem interativa (botões ou lista). */
+  BODY_LENGTH: 1024,
 } as const
 
 // Separa "conversa" (agnóstica de canal) de "canal" (WhatsApp/Meta) — quem envia/recebe pela
@@ -43,6 +54,25 @@ export type SendTextOptions = {
   readonly previewUrl?: boolean | undefined
 }
 
+/**
+ * Lista interativa no canal. `rows` é a forma original (uma seção, título = `buttonLabel`); `sections`
+ * permite várias seções e é o que se usa daqui em diante. Nunca os dois.
+ */
+export type ChannelInteractiveListParams = {
+  to: string
+  body: string
+  buttonLabel: string
+} & (
+  | { rows: readonly InteractiveListRow[]; sections?: undefined }
+  | { rows?: undefined; sections: readonly InteractiveListSection[] }
+)
+
+export type ChannelInteractiveButtonsParams = {
+  to: string
+  body: string
+  buttons: readonly InteractiveButton[]
+}
+
 export interface ChannelAdapterInterface {
   sendText(to: string, body: string, options?: SendTextOptions): Promise<{ externalMessageId: string | null }>
   /**
@@ -56,12 +86,7 @@ export interface ChannelAdapterInterface {
     languageCode: string
     bodyParameters?: string[]
   }): Promise<{ externalMessageId: string | null }>
-  sendInteractiveList(params: {
-    to: string
-    body: string
-    buttonLabel: string
-    rows: { id: string; title: string }[]
-  }): Promise<{ externalMessageId: string | null }>
+  sendInteractiveList(params: ChannelInteractiveListParams): Promise<{ externalMessageId: string | null }>
   /**
    * Botão de resposta rápida — opcional porque a lista sempre serve de alternativa.
    *
@@ -69,11 +94,7 @@ export interface ChannelAdapterInterface {
    * que nem todo canal tem: quem não implementa continua caindo na lista, que é o que o WhatsApp
    * fazia antes. A Meta limita a 3 botões, e o provider recusa o quarto.
    */
-  sendInteractiveButtons?(params: {
-    to: string
-    body: string
-    buttons: { id: string; title: string }[]
-  }): Promise<{ externalMessageId: string | null }>
+  sendInteractiveButtons?(params: ChannelInteractiveButtonsParams): Promise<{ externalMessageId: string | null }>
   /**
    * Vitrine de produtos — opcional pelo mesmo motivo do botão: canal que não sabe enviar produto
    * continua funcionando, e a ausência do método é o que desliga o recurso, sem flag `hasCatalog`.

@@ -62,7 +62,12 @@ export {
   flowNodeDataSchema,
   flowGraphNodesSchema,
 } from './flow.types'
-export type { SendChannelMediaParams, SendTextOptions } from './providers'
+export type {
+  SendChannelMediaParams,
+  SendTextOptions,
+  ChannelInteractiveListParams,
+  ChannelInteractiveButtonsParams,
+} from './providers'
 export type {
   FlowNodeType,
   FlowQuestionType,
@@ -88,6 +93,8 @@ export type {
   MetaWhatsAppHooks,
   InboundContact,
   MessageHookOutcome,
+  ConversationModeChange,
+  ConversationModeChangeKind,
   InboundEffectRejectedDescriptor,
   InboundMediaDescriptor,
   TranscriptionDeferredDescriptor,
@@ -120,7 +127,20 @@ export {
   AudioNotIngestedError,
   MessageNotAudioError,
   TranscriptionDisabledError,
+  InteractiveLimitExceededError,
 } from './errors'
+
+export { listInteractiveLimitViolations, assertInteractiveWithinLimits } from './interactive'
+export type {
+  InteractiveButton,
+  InteractiveListRow,
+  InteractiveListSection,
+  InteractiveButtonsMessage,
+  InteractiveListMessage,
+  InteractiveMessage,
+  InteractiveLimitRule,
+  InteractiveLimitViolation,
+} from './interactive'
 
 export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './previewMedia.types'
 

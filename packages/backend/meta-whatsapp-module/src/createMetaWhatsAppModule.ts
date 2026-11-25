@@ -22,6 +22,7 @@ import { LogMessageUseCase, type MessageModerator } from './use-cases/LogMessage
 import { SendMessageUseCase } from './use-cases/SendMessage.use-case'
 import { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.use-case'
 import { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-case'
+import { RequestHumanConversationUseCase } from './use-cases/RequestHumanConversation.use-case'
 import { ListConversationsUseCase } from './use-cases/ListConversations.use-case'
 import { ListMessagesUseCase } from './use-cases/ListMessages.use-case'
 import { ListConversationDocumentsUseCase } from './use-cases/ListConversationDocuments.use-case'
@@ -51,6 +52,11 @@ import { WhatsAppChannelAdapter, type PreviewMediaSupport } from './channel/What
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
 import { IngestInboundMediaUseCase } from './channel/IngestInboundMedia.use-case'
 import { verifyWebhookChallenge, type NonceStoreInterface } from './channel/webhookSecurity'
+import {
+  InboundEffectsDispatcher,
+  ProcessInboundDispatchUseCase,
+  type InboundDispatchQueueInterface,
+} from './channel/inboundDispatch'
 import { TranscribeAudioUseCase, type TranscribeAudioDependencies } from './use-cases/TranscribeAudio.use-case'
 import { createTranscriptionPolicyResolver } from './use-cases/resolveTranscriptionPolicy'
 import { StorePreviewMediaUseCase } from './use-cases/StorePreviewMedia.use-case'
@@ -137,6 +143,13 @@ export interface MetaWhatsAppTranscriptionConfig {
 }
 
 export interface MetaWhatsAppModuleProviders {
+  /**
+   * Fila durável para os efeitos do webhook (hooks, realtime). Ausente, rodam dentro da requisição,
+   * como sempre. Presente, o webhook só persiste e enfileira; o worker do host chama
+   * `webhook.processInboundDispatch.execute(job)`. Ver docs/webhook-durability.md — qualquer fila
+   * com durabilidade e retentativa serve, inclusive uma tabela no Postgres.
+   */
+  inboundQueue?: InboundDispatchQueueInterface
   objectStorage?: ObjectStorageInterface
   // Cache do host, compartilhado entre instâncias (ver CacheInterface). Hoje serve os grafos de
   // fluxo, que são lidos a cada mensagem recebida.
@@ -240,6 +253,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     startState,
     hooks,
     realtime: providers.realtime,
+    ...(providers.inboundQueue ? { inboundQueue: providers.inboundQueue } : {}),
     redactInboundLocation: params.features?.redactInboundLocation ?? false,
   })
 
@@ -355,8 +369,10 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     conversations: {
       log: logMessage,
       send: sendMessage,
-      takeover: new TakeoverConversationUseCase(sessionRepository, providers.realtime),
-      release: new ReleaseConversationUseCase(sessionRepository, providers.realtime),
+      takeover: new TakeoverConversationUseCase(sessionRepository, providers.realtime, hooks),
+      release: new ReleaseConversationUseCase(sessionRepository, providers.realtime, hooks),
+      // Marca o pedido de atendimento (fila "aguardando atendimento") e dispara `onHumanRequested`.
+      requestHuman: new RequestHumanConversationUseCase(sessionRepository, providers.realtime, hooks),
       list: new ListConversationsUseCase(sessionRepository),
       listMessages: new ListMessagesUseCase(sessionRepository, messageRepository),
       listDocuments,
@@ -402,6 +418,16 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
       // GET de verificação da Meta — o host liga na sua rota e devolve o retorno como texto puro.
       verifyChallenge: (query: { mode: string | null; token: string | null; challenge: string | null }) =>
         verifyWebhookChallenge({ ...query, expectedToken: config.webhookVerifyToken }),
+      // Lado do worker de `providers.inboundQueue`: roda os efeitos de um job já enfileirado. Existe
+      // mesmo sem fila configurada — um worker de outra instância pode consumir a fila desta.
+      processInboundDispatch: new ProcessInboundDispatchUseCase(
+        new InboundEffectsDispatcher({
+          sessionRepository,
+          ...(hooks ? { hooks } : {}),
+          ...(providers.realtime ? { realtime: providers.realtime } : {}),
+        }),
+        hooks,
+      ),
     },
     // undefined quando features.flowEngine === false.
     flows: flowInterpreter

@@ -1,3 +1,5 @@
+import type { InteractiveLimitViolation } from './interactive'
+
 // Hierarquia de erros do módulo — não depende do framework de erros do host (nenhum DomainError
 // importado); o host mapeia estes para o seu próprio formato de resposta no exception filter.
 export class MetaWhatsAppError extends Error {
@@ -22,6 +24,7 @@ export const META_WHATSAPP_ERROR_CODES = {
   AUDIO_NOT_INGESTED: 'META_WHATSAPP_AUDIO_NOT_INGESTED',
   MESSAGE_NOT_AUDIO: 'META_WHATSAPP_MESSAGE_NOT_AUDIO',
   TRANSCRIPTION_DISABLED: 'META_WHATSAPP_TRANSCRIPTION_DISABLED',
+  INTERACTIVE_LIMIT_EXCEEDED: 'META_WHATSAPP_INTERACTIVE_LIMIT_EXCEEDED',
 } as const
 
 export class WindowExpiredError extends MetaWhatsAppError {
@@ -123,6 +126,22 @@ export class MessageNotAudioError extends MetaWhatsAppError {
       422,
       META_WHATSAPP_ERROR_CODES.MESSAGE_NOT_AUDIO,
       { messageId, type },
+    )
+  }
+}
+
+/**
+ * Mensagem interativa (botões ou lista) fora dos tetos da Meta. Lançado antes de qualquer chamada à
+ * rede, com TODAS as violações em `violations` — a Graph API recusaria a mensagem inteira e o cliente
+ * ficaria sem resposta. Nunca melhora com retentativa.
+ */
+export class InteractiveLimitExceededError extends MetaWhatsAppError {
+  constructor(public readonly violations: readonly InteractiveLimitViolation[]) {
+    super(
+      `Mensagem interativa fora dos limites do WhatsApp: ${violations.map((violation) => `${violation.path} (${violation.rule})`).join(', ')}.`,
+      422,
+      META_WHATSAPP_ERROR_CODES.INTERACTIVE_LIMIT_EXCEEDED,
+      { violations },
     )
   }
 }
