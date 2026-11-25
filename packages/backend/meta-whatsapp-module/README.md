@@ -64,6 +64,14 @@ e interpretados por `whatsapp.flows` (`FlowInterpreter`); ações do produto ent
 (`ConversationSimulatorPanel` + `createPreviewBridgeClient`) entrega pelo webhook real, assinado no
 servidor.
 
+`db` é a conexão Drizzle do host. Em drizzle-orm 1.x o tipo é o `PgAsyncDatabase` exato; em 0.36–0.45
+(onde `PgAsyncDatabase` não existe) o módulo checa contra a forma mínima `MetaWhatsAppDatabaseShape`
+(`select`, `insert`, `update`, `delete`, `execute`, `transaction`) — um `Pool` do `pg` não passa.
+
+Eventos de tempo real em `conv:<número>` (`message`, `message-status`, `mode-changed`,
+`human-requested`) trazem `companyId` no payload: o canal é por número, e o host com várias empresas
+não precisa buscar a sessão para saber de quem é o evento.
+
 Sem Redis: ver [`docs/postgres-only.md`](./docs/postgres-only.md) (nonce store e fila em tabela).
 Durabilidade do webhook: [`docs/webhook-durability.md`](./docs/webhook-durability.md).
 
@@ -192,15 +200,16 @@ whatsapp.flows!.registerDynamicChoiceProvider('free_slots', async ({ context, pa
 
 | No nó | O que o runner faz |
 |---|---|
-| `question` + `questionType` | valida (`date`, `int`, `money`, `cpf`, `text`) e guarda o valor convertido em `contextKey` (data `yyyy-mm-dd`, número) |
-| `validation` | `minDate: 'today'`, `afterContextKey`, `min`/`max`, `minLength`/`maxLength` |
+| `question` + `questionType` | valida (`date`, `time`, `int`, `money`, `cpf`, `text`) e guarda o valor convertido em `contextKey` (data `yyyy-mm-dd`, horário `HH:MM`, número) |
+| `validation` | `minDate: 'today'`, `afterContextKey`, `minTime`/`maxTime`, `windowsContextKey`, `min`/`max`, `minLength`/`maxLength` |
 | `skipKeywords` | a resposta pula a pergunta: `contextKey` recebe `null` |
 | resposta inválida | `fallbackMessage` (ou `rejectionMessages` / texto padrão) e repergunta; na `maxInvalidAnswers`ª (padrão 2) chama uma pessoa |
-| `menu` / `choice` | aceita toque, número ("2"), rótulo ou palavras do rótulo; `optionDetails` dá descrição e seção |
+| `menu` / `choice` | aceita toque, número ("2"), id, rótulo ou palavras do rótulo — o rótulo **como o cliente viu**, com `{{chave}}` já resolvido; `optionDetails` dá descrição e seção |
 | `next.byKeyword` | texto livre com a palavra (sem acento/caixa) vai ao destino — FAQ sem menu; na primeira mensagem também vale |
 | `dynamic_choice` | opções do provedor em `choiceProvider`, páginas de 9 + "ver mais", id escolhido em `contextKey` |
 | `directMessage` | enviado ao entrar no nó, com `{{chave}}` interpolado (contexto, variáveis do host, `contactName`, `contactFirstName`) |
 | `action` sem `actionKind` | nó de mensagem: envia o `directMessage` e segue |
+| action que devolve `next` | o handler escolhe o destino na hora (`return { next: 'lotado' }`) e vence o `next` do nó; declare os destinos possíveis em `possibleNext` para o editor desenhar esses caminhos (o runtime não lê a lista) |
 | `actionKind: 'handoff'` | `requestHuman` (dispara `onHumanRequested` e `onConversationModeChanged`) + mensagem conforme o horário; `handoffWithinBusinessHours` vai para o contexto |
 
 **Garantias de execução**
@@ -237,6 +246,47 @@ devolver ao bot (`whileAwaitingHuman: 'continue'` muda isso). Palavras globais c
 "menu" reabre o fluxo **sem** tirar o pedido da fila (a equipe ainda responde).
 `whatsapp.flows.runner.start({ companyId, whatsappNumber })` abre o fluxo sem esperar mensagem.
 Contexto reservado: `__flow` (tentativas e página da escolha dinâmica).
+
+**Horário (`questionType: 'time'`)** aceita `12:30`, `12h30`, `12h`, `9h` e guarda `HH:MM`. Número solto
+("12") é recusado. `minTime`/`maxTime` são inclusivos; `windowsContextKey` aponta a chave do contexto com
+as faixas permitidas — `[{ start: '11:00', end: '14:00' }]` ou `['11:00-14:00', '22:00-02:00']` (faixa
+que vira a meia-noite vale) — que uma action ou `resolveVariables` preenche antes da pergunta. Sem lista
+nessa chave, não há restrição. Motivos de recusa: `before-min-time`, `after-max-time`,
+`outside-allowed-windows`.
+
+**Validador do host** (`validateAnswer`): roda depois que a validação do pacote aceitou a resposta de uma
+pergunta (não de escolha, nunca de resposta pulada) e recebe o valor já convertido. Recusa conta como
+resposta inválida, com o mesmo mecanismo de nova tentativa e encaminhamento:
+
+```ts
+validateAnswer: async ({ companyId, node, value }) => {
+  if (node.questionType !== 'time') return undefined
+  const isFree = await agenda.isFree({ companyId, time: String(value) })
+  return isFree ? undefined : { isValid: false, message: 'Às {{time}} não temos vaga. Outro horário?' }
+},
+```
+
+Sem `message`, vale `rejectionMessages['rejected-by-host']`. Se o validador lançar, o erro vai para
+`onFlowRunnerError` (`stage: 'validate-answer'`) e a resposta é aceita.
+
+**Textos por empresa.** `defaultFallbackMessage`, cada `rejectionMessages[motivo]`,
+`nonTextAnswerMessage`, `handoff.message` e `handoff.outOfHoursMessage` aceitam texto fixo **ou** um
+resolvedor `(ctx) => string | undefined` (síncrono ou não), chamado a cada uso com
+`{ companyId, whatsappNumber, kind, rejection?, nodeId?, flowKey? }` — é como servir textos editados
+por empresa (modelos do módulo de notificação, idioma). `undefined` segue a cadeia de sempre (nó →
+motivo → padrão do host → padrão do pacote); erro do resolvedor vai para `onFlowRunnerError`
+(`stage: 'text'`) e vale o padrão. O texto devolvido aceita `{{chave}}`.
+
+```ts
+defaultFallbackMessage: ({ companyId }) => templates.text(companyId, 'bot.fallback'),
+rejectionMessages: {
+  'outside-allowed-windows': ({ companyId }) => templates.text(companyId, 'bot.time-outside-hours'),
+},
+handoff: {
+  // `kind` diz se é dentro ('handoff') ou fora ('handoff-out-of-hours') do horário.
+  message: ({ companyId, kind }) => templates.text(companyId, `bot.${kind}`),
+},
+```
 
 Guia completo: [`docs/front-desk-bot-with-flows.md`](./docs/front-desk-bot-with-flows.md).
 
