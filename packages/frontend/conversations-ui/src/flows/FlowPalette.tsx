@@ -1,14 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Plus, MessageCircleQuestion, GitBranch, Zap, Diamond, ChevronRight } from 'lucide-react'
+import { Plus, MessageCircleQuestion, GitBranch, Zap, Diamond, ChevronRight, ListChecks, MessageSquareText } from 'lucide-react'
 
 import { placeFloatingPanel, type FloatingPlacement } from './flowMenuPlacement'
-import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
+import { DEFAULT_FLOW_EDITOR_LABELS, DEFAULT_FLOW_RUNNER_FIELD_LABELS, type FlowEditorLabels } from './labels'
 import type { FlowActionKind, FlowQuestionType } from './flowGraph'
 
 export type NewNodeSpec =
   | { kind: 'question'; questionType: FlowQuestionType }
   | { kind: 'decision' }
   | { kind: 'condition' }
+  | { kind: 'dynamicChoice' }
+  | { kind: 'message' }
   | { kind: 'action'; actionKind: FlowActionKind }
 
 export interface FlowPaletteActionOption {
@@ -46,6 +48,7 @@ export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPalette
   const resolvedActionOptions = actionOptions ?? [
     { actionKind: 'handoff', label: labels.actionKindLabels.handoff ?? 'Encaminhar para atendimento' },
   ]
+  const runnerLabels = labels.runnerFields ?? DEFAULT_FLOW_RUNNER_FIELD_LABELS
   const [submenu, setSubmenu] = useState<'question' | 'action' | null>(null)
   const questionTriggerRef = useRef<HTMLButtonElement>(null)
   const actionTriggerRef = useRef<HTMLButtonElement>(null)
@@ -141,6 +144,26 @@ export function FlowPaletteMenu({ onSelect, labels, actionOptions }: FlowPalette
         data-cv-tooltip={labels.palette.conditionHint} aria-label={labels.palette.conditionHint}
       >
         <Diamond size={15} className="text-cyan-500" /> {labels.palette.condition}
+      </button>
+
+      <button
+        onMouseEnter={() => setSubmenu(null)}
+        onClick={() => select({ kind: 'dynamicChoice' })}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+        data-cv-tooltip={runnerLabels.paletteDynamicChoiceHint}
+        aria-label={runnerLabels.paletteDynamicChoiceHint}
+      >
+        <ListChecks size={15} className="text-teal-500" aria-hidden="true" /> {runnerLabels.paletteDynamicChoice}
+      </button>
+
+      <button
+        onMouseEnter={() => setSubmenu(null)}
+        onClick={() => select({ kind: 'message' })}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+        data-cv-tooltip={runnerLabels.paletteMessageHint}
+        aria-label={runnerLabels.paletteMessageHint}
+      >
+        <MessageSquareText size={15} className="text-orange-500" aria-hidden="true" /> {runnerLabels.paletteMessage}
       </button>
 
       <div className="relative">

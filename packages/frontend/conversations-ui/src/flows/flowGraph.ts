@@ -12,8 +12,10 @@ import type {
   FlowNodeNext,
   FlowNodeData,
   FlowGraphData,
+  FlowOptionDetail,
+  FlowAnswerValidation,
 } from '@adatechnology/meta-whatsapp-contracts'
-import { FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
+import { FLOW_ACTION_KIND, WHATSAPP_CHOICE_LIMIT } from '@adatechnology/meta-whatsapp-contracts'
 
 export type {
   FlowNodeType,
@@ -23,6 +25,8 @@ export type {
   FlowNodeNext,
   FlowNodeData,
   FlowGraphData,
+  FlowOptionDetail,
+  FlowAnswerValidation,
 }
 
 export const CONDITION_OPERATORS: FlowConditionOperator[] = ['>', '>=', '<', '<=', '==', '!=', 'contains']
@@ -48,6 +52,22 @@ export const BUILT_IN_ACTION_KINDS = FLOW_ACTION_KIND
  */
 export const PASS_THROUGH_ACTION_KINDS: readonly string[] = ['send_media']
 
+/**
+ * Ação que segue para o `next`. Nó de ação SEM `actionKind` é nó de mensagem: o runner do módulo
+ * envia o `directMessage` e continua, então ele precisa de saída no editor.
+ */
+export function isPassThroughAction(node: FlowNodeData): boolean {
+  if (node.type !== 'action') return false
+  return !node.actionKind || PASS_THROUGH_ACTION_KINDS.includes(node.actionKind)
+}
+
+/** Handle do card para uma rota de `next.byKeyword` — `kw:<palavra>`, separado dos ids de opção. */
+export const KEYWORD_HANDLE_PREFIX = 'kw:'
+export const keywordHandle = (keyword: string): string => `${KEYWORD_HANDLE_PREFIX}${keyword}`
+export function keywordOfHandle(handle: string): string | undefined {
+  return handle.startsWith(KEYWORD_HANDLE_PREFIX) ? handle.slice(KEYWORD_HANDLE_PREFIX.length) : undefined
+}
+
 export const CROSS_FLOW_PREFIX = 'flow:'
 export const isCrossFlowTarget = (target: string): boolean => target.startsWith(CROSS_FLOW_PREFIX)
 export const crossFlowKey = (target: string): string => target.slice(CROSS_FLOW_PREFIX.length)
@@ -65,36 +85,63 @@ export function estimateNodeHeight(node: FlowNodeData): number {
   const rowCount =
     node.type === 'action'
       ? // Ação de passagem desenha uma linha de saída; terminal não desenha nenhuma.
-        node.actionKind && PASS_THROUGH_ACTION_KINDS.includes(node.actionKind)
+        isPassThroughAction(node)
         ? 1
         : 0
       : node.type === 'condition'
         ? 2
         : node.type === 'menu' || node.questionType === 'choice'
-          ? (node.options?.length ?? 0) + 1
-          : 1
+          ? (node.options?.length ?? 0) + 1 + keywordCount(node)
+          : 1 + keywordCount(node)
   return HEADER_HEIGHT + BODY_HEIGHT + PADDING + rowCount * ROW_HEIGHT
 }
 
-// Limites reais da API do WhatsApp para mensagens interativas: até 3 opções o bot envia
-// BOTÕES (título ≤ 20 chars); com 4+ envia LISTA (até 10 itens, título ≤ 24 chars).
-export const WHATSAPP_LIMITS = {
-  MAX_BUTTONS: 3,
-  MAX_LIST_ROWS: 10,
-  BUTTON_TITLE_MAX: 20,
-  LIST_ROW_TITLE_MAX: 24,
-  BODY_MAX: 1024,
-} as const
-
-export function rendersAsButtons(options: [string, string][] | undefined): boolean {
-  return (options?.length ?? 0) <= WHATSAPP_LIMITS.MAX_BUTTONS
+function keywordCount(node: FlowNodeData): number {
+  return typeof node.next === 'object' && node.next?.byKeyword ? Object.keys(node.next.byKeyword).length : 0
 }
 
-export function targetsOf(node: FlowNodeData): { target: string; optionId?: string; isDefault?: boolean }[] {
+/**
+ * Limites da Meta, lidos do contrato (`WHATSAPP_CHOICE_LIMIT`) — o mesmo número que o módulo usa
+ * para recusar a mensagem. Antes eram uma cópia local, e duas cópias divergem sem nada acusar.
+ * Nome mantido para não quebrar quem já importa.
+ */
+export const WHATSAPP_LIMITS = {
+  MAX_BUTTONS: WHATSAPP_CHOICE_LIMIT.BUTTONS,
+  MAX_LIST_ROWS: WHATSAPP_CHOICE_LIMIT.LIST_ROWS,
+  BUTTON_TITLE_MAX: WHATSAPP_CHOICE_LIMIT.BUTTON_TITLE_LENGTH,
+  LIST_ROW_TITLE_MAX: WHATSAPP_CHOICE_LIMIT.LIST_ROW_TITLE_LENGTH,
+  LIST_ROW_DESCRIPTION_MAX: WHATSAPP_CHOICE_LIMIT.LIST_ROW_DESCRIPTION_LENGTH,
+  LIST_SECTION_TITLE_MAX: WHATSAPP_CHOICE_LIMIT.LIST_SECTION_TITLE_LENGTH,
+  BODY_MAX: WHATSAPP_CHOICE_LIMIT.BODY_LENGTH,
+} as const
+
+/** Caracteres como o contrato conta: por code point, então um emoji vale 1 (e não 2, como `.length`). */
+export function countCharacters(text: string): number {
+  return Array.from(text).length
+}
+
+/**
+ * Botão com até 3 opções simples; opção com descrição ou seção força lista — é a mesma regra do
+ * runner do módulo, para a prévia mostrar o que o cliente vai ver.
+ */
+export function rendersAsButtons(
+  options: [string, string][] | undefined,
+  optionDetails?: Record<string, FlowOptionDetail>,
+): boolean {
+  const hasDetails = (options ?? []).some(
+    ([id]) => !!optionDetails?.[id]?.description || !!optionDetails?.[id]?.section,
+  )
+  return !hasDetails && (options?.length ?? 0) <= WHATSAPP_LIMITS.MAX_BUTTONS
+}
+
+export function targetsOf(
+  node: FlowNodeData,
+): { target: string; optionId?: string; keyword?: string; isDefault?: boolean }[] {
   if (!node.next) return []
   if (typeof node.next === 'string') return [{ target: node.next }]
   return [
     ...Object.entries(node.next.byAnswer).map(([optionId, target]) => ({ target, optionId })),
+    ...Object.entries(node.next.byKeyword ?? {}).map(([keyword, target]) => ({ target, keyword })),
     { target: node.next.default, isDefault: true },
   ]
 }
@@ -123,6 +170,9 @@ export function validateGraph(
     deadEndQuestion: (id: string) => string
     conditionIncomplete: (id: string) => string
     conditionBranchMissing: (id: string, branch: string) => string
+    // Opcionais para não quebrar quem monta os textos à mão; ausentes, vale o texto padrão.
+    descriptionTooLong?: (id: string, label: string) => string
+    dynamicChoiceWithoutProvider?: (id: string) => string
   },
 ): GraphIssue[] {
   const issues: GraphIssue[] = []
@@ -156,12 +206,19 @@ export function validateGraph(
         if (!byAnswer[optionId]) {
           issues.push({ severity: 'warning', nodeId: node.id, message: issueText.optionWithoutTarget(node.id, label) })
         }
-        const usesButtons = rendersAsButtons(options)
-        if (usesButtons && label.length > WHATSAPP_LIMITS.BUTTON_TITLE_MAX) {
+        const usesButtons = rendersAsButtons(options, node.optionDetails)
+        if (usesButtons && countCharacters(label) > WHATSAPP_LIMITS.BUTTON_TITLE_MAX) {
           issues.push({ severity: 'error', nodeId: node.id, message: issueText.buttonTitleTooLong(node.id, label) })
         }
-        if (!usesButtons && label.length > WHATSAPP_LIMITS.LIST_ROW_TITLE_MAX) {
+        if (!usesButtons && countCharacters(label) > WHATSAPP_LIMITS.LIST_ROW_TITLE_MAX) {
           issues.push({ severity: 'error', nodeId: node.id, message: issueText.listTitleTooLong(node.id, label) })
+        }
+        const description = node.optionDetails?.[optionId]?.description ?? ''
+        if (countCharacters(description) > WHATSAPP_LIMITS.LIST_ROW_DESCRIPTION_MAX) {
+          const message =
+            issueText.descriptionTooLong?.(node.id, label) ??
+            `“${label}” em ${node.id}: a descrição passa de ${WHATSAPP_LIMITS.LIST_ROW_DESCRIPTION_MAX} caracteres.`
+          issues.push({ severity: 'error', nodeId: node.id, message })
         }
       }
       if (options.length > WHATSAPP_LIMITS.MAX_LIST_ROWS) {
@@ -169,8 +226,14 @@ export function validateGraph(
       }
     }
 
+    if (node.type === 'dynamic_choice' && !node.choiceProvider) {
+      const message =
+        issueText.dynamicChoiceWithoutProvider?.(node.id) ?? `${node.id}: escolha dinâmica sem provedor de opções.`
+      issues.push({ severity: 'error', nodeId: node.id, message })
+    }
+
     const bodyText = node.question ?? node.directMessage ?? ''
-    if (bodyText.length > WHATSAPP_LIMITS.BODY_MAX) {
+    if (countCharacters(bodyText) > WHATSAPP_LIMITS.BODY_MAX) {
       issues.push({ severity: 'error', nodeId: node.id, message: issueText.bodyTooLong(node.id) })
     }
 

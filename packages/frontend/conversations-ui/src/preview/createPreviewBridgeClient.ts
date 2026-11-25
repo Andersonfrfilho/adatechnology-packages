@@ -15,12 +15,12 @@
  * porque token, cookie e cabeçalho de sessão são do produto, não da biblioteca.
  */
 
-import type { InboundMediaType, InteractiveReplyOption } from '@adatechnology/meta-whatsapp-contracts/testing'
+import type { InboundMediaType, PreviewInboundCommand } from '@adatechnology/meta-whatsapp-contracts/testing'
+import { DEFAULT_PREVIEW_CONTACT } from '@adatechnology/meta-whatsapp-contracts'
 import {
   createPreviewMediaPoster,
   defaultMediaUploadUrl,
   type PreviewWebhookClient,
-  type SendPreviewMediaParams,
 } from './createPreviewWebhookClient'
 import type { PreviewUploadedMedia } from './createPreviewMediaUploader'
 
@@ -28,13 +28,11 @@ import type { PreviewUploadedMedia } from './createPreviewMediaUploader'
  * Comando semântico entregue ao host. É deliberadamente o QUE o cliente fez, não o payload da Meta:
  * se o navegador mandasse o payload pronto, a rota viraria um injetor de webhook arbitrário para
  * quem tivesse sessão. Mandando a intenção, o servidor é quem escolhe a forma.
+ *
+ * O tipo mora no contrato: o servidor monta o payload com `buildPreviewInboundPayload` (ou
+ * `webhook.buildPreviewPayload` do módulo, que já põe o `phone_number_id` certo).
  */
-export type PreviewInboundCommand =
-  | { readonly kind: 'text'; readonly from: string; readonly text: string }
-  | { readonly kind: 'buttonReply'; readonly from: string; readonly reply: InteractiveReplyOption }
-  | { readonly kind: 'listReply'; readonly from: string; readonly reply: InteractiveReplyOption }
-  | { readonly kind: 'audio'; readonly from: string; readonly mediaId: string }
-  | ({ readonly kind: 'media'; readonly from: string } & SendPreviewMediaParams)
+export type { PreviewInboundCommand }
 
 export type SendPreviewInboundCommand = (command: PreviewInboundCommand) => Promise<void>
 
@@ -46,7 +44,11 @@ export class PreviewBridgeRejectedError extends Error {
 }
 
 export type CreatePreviewBridgeClientParams = {
-  readonly from: string
+  /**
+   * Número do contato simulado. Padrão `DEFAULT_PREVIEW_CONTACT` (começa com `0`, que nenhum número
+   * real usa): com `features.previewContacts` ligado, o módulo responde sem chamar a Meta.
+   */
+  readonly from?: string
   /**
    * Entrega o comando. Use quando o host já tem um cliente HTTP com sessão, interceptors e refresh
    * de token — reimplementar isso aqui só duplicaria a autenticação do produto.
@@ -108,7 +110,7 @@ function resolveBridgeUpload(
 
 export function createPreviewBridgeClient(params: CreatePreviewBridgeClientParams): PreviewWebhookClient {
   const send = params.sendCommand ?? buildFetchSender(params)
-  const from = params.from
+  const from = params.from ?? DEFAULT_PREVIEW_CONTACT
   const uploadMedia = resolveBridgeUpload(params)
 
   return {

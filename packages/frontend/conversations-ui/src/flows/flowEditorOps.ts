@@ -17,7 +17,7 @@ import type { FlowGraphData, FlowNodeData, FlowNodeNext } from '@adatechnology/m
 
 // A constante vem do `flowGraph`, que já a define, e não do contracts: duas fontes do mesmo prefixo
 // divergem em silêncio, e o sintoma seria salto entre fluxos que o motor do bot não reconhece.
-import { CROSS_FLOW_PREFIX, crossFlowTargetsOf } from './flowGraph'
+import { CROSS_FLOW_PREFIX, crossFlowTargetsOf, keywordOfHandle } from './flowGraph'
 
 const NAMESPACE_SEPARATOR = '::'
 
@@ -152,12 +152,26 @@ export function applyConnection(node: FlowNodeData, resolved: ResolvedConnection
   if (resolved.handle === 'next') return { ...node, next: resolved.targetValue }
 
   if (resolved.handle === '__default') {
-    return { ...node, next: { byAnswer: currentNext?.byAnswer ?? {}, default: resolved.targetValue } }
+    return { ...node, next: { ...currentNext, byAnswer: currentNext?.byAnswer ?? {}, default: resolved.targetValue } }
+  }
+
+  const keyword = keywordOfHandle(resolved.handle)
+  if (keyword !== undefined) {
+    return {
+      ...node,
+      next: {
+        ...currentNext,
+        byAnswer: currentNext?.byAnswer ?? {},
+        byKeyword: { ...(currentNext?.byKeyword ?? {}), [keyword]: resolved.targetValue },
+        default: currentNext?.default ?? '',
+      },
+    }
   }
 
   return {
     ...node,
     next: {
+      ...currentNext,
       byAnswer: { ...(currentNext?.byAnswer ?? {}), [resolved.handle]: resolved.targetValue },
       default: currentNext?.default ?? '',
     },
@@ -189,12 +203,18 @@ export function clearConnection(node: FlowNodeData, handle: string): FlowNodeDat
   }
 
   if (handle === '__default') {
-    return { ...node, next: { byAnswer: node.next.byAnswer ?? {}, default: '' } }
+    return { ...node, next: { ...node.next, byAnswer: node.next.byAnswer ?? {}, default: '' } }
+  }
+
+  const keyword = keywordOfHandle(handle)
+  if (keyword !== undefined) {
+    return { ...node, next: { ...node.next, byKeyword: { ...(node.next.byKeyword ?? {}), [keyword]: '' } } }
   }
 
   return {
     ...node,
     next: {
+      ...node.next,
       byAnswer: { ...(node.next.byAnswer ?? {}), [handle]: '' },
       default: node.next.default ?? '',
     },

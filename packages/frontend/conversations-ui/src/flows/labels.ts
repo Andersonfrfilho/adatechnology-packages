@@ -1,5 +1,38 @@
 import type { FlowConditionOperator, FlowNodeType, FlowQuestionType } from './flowGraph'
 
+/** Campos do runner de fluxo do módulo (validação, palavras-chave, descrições, escolha dinâmica). */
+export interface FlowRunnerFieldLabels {
+  section: string
+  fallbackMessage: string
+  fallbackPlaceholder: string
+  maxInvalidAnswers: string
+  maxInvalidAnswersHint: string
+  minDateToday: string
+  afterContextKey: string
+  minValue: string
+  maxValue: string
+  minLength: string
+  maxLength: string
+  skipKeywords: string
+  skipKeywordsHint: string
+  keywordRoutes: string
+  keywordRoutesHint: string
+  addKeywordRoute: string
+  removeKeywordRoute: string
+  keywordPlaceholder: string
+  optionDescription: string
+  optionSection: string
+  listButtonLabel: string
+  choiceProvider: string
+  choiceProviderHint: string
+  contextKey: string
+  placeholdersHint: string
+  paletteDynamicChoice: string
+  paletteDynamicChoiceHint: string
+  paletteMessage: string
+  paletteMessageHint: string
+}
+
 export interface FlowEditorLabels {
   legend: Record<FlowNodeType, string>
   startNodeTooltip: string
@@ -11,6 +44,8 @@ export interface FlowEditorLabels {
   actionKindLabels: Record<string, string>
   conditionOperatorLabels: Record<FlowConditionOperator, string>
   questionTypeLabels: Record<FlowQuestionType, string>
+  /** Opcional para não quebrar quem monta os textos à mão; ausente, vale o padrão pt-BR. */
+  runnerFields?: FlowRunnerFieldLabels
   nodePanel: {
     title: string
     contextKey: string
@@ -158,6 +193,40 @@ export interface FlowValidationLabels {
   deadEndQuestion: (id: string) => string
   conditionIncomplete: (id: string) => string
   conditionBranchMissing: (id: string, branch: string) => string
+  descriptionTooLong?: (id: string, label: string) => string
+  dynamicChoiceWithoutProvider?: (id: string) => string
+}
+
+export const DEFAULT_FLOW_RUNNER_FIELD_LABELS: FlowRunnerFieldLabels = {
+  section: 'Resposta do cliente',
+  fallbackMessage: 'Mensagem quando a resposta não serve',
+  fallbackPlaceholder: 'Ex.: Não entendi. Escolha uma das opções.',
+  maxInvalidAnswers: 'Tentativas antes de chamar uma pessoa',
+  maxInvalidAnswersHint: 'Vazio = padrão do bot (2).',
+  minDateToday: 'Só aceitar de hoje em diante',
+  afterContextKey: 'Depois da data guardada em',
+  minValue: 'Mínimo',
+  maxValue: 'Máximo',
+  minLength: 'Mínimo de caracteres',
+  maxLength: 'Máximo de caracteres',
+  skipKeywords: 'Palavras que pulam a pergunta',
+  skipKeywordsHint: 'Separadas por vírgula. Ex.: pular, não sei',
+  keywordRoutes: 'Palavras-chave (texto livre)',
+  keywordRoutesHint: 'Se a mensagem contiver a palavra, segue para o destino — sem acento e sem maiúscula.',
+  addKeywordRoute: 'Adicionar palavra-chave',
+  removeKeywordRoute: 'Remover palavra-chave',
+  keywordPlaceholder: 'horário',
+  optionDescription: 'Descrição (lista)',
+  optionSection: 'Seção',
+  listButtonLabel: 'Texto do botão da lista',
+  choiceProvider: 'Provedor de opções',
+  choiceProviderHint: 'Chave registrada pelo sistema (registerDynamicChoiceProvider).',
+  contextKey: 'Guardar a escolha em',
+  placeholdersHint: 'Use {{chave}} para inserir respostas anteriores, ex.: {{contactFirstName}}.',
+  paletteDynamicChoice: 'Escolha dinâmica',
+  paletteDynamicChoiceHint: 'Opções calculadas na hora pelo sistema, com "ver mais"',
+  paletteMessage: 'Mensagem',
+  paletteMessageHint: 'Envia um texto e segue para o próximo passo',
 }
 
 // Paridade de texto com financiamento-imobiliario-bot/apps/web/src/locales/modules/flows.ts —
@@ -169,6 +238,7 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     action: 'Ação (simulação/atendimento)',
     menu: 'Menu',
     condition: 'Condição',
+    dynamic_choice: 'Escolha dinâmica',
   },
   startNodeTooltip: 'Início do fluxo',
   detachedNodeTooltip: 'Sem ligação de entrada — o bot não chega neste nó. Puxe um fio de outro card até ele.',
@@ -197,6 +267,7 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     cpf: 'CPF',
     choice: 'Escolha (botões/lista)',
   },
+  runnerFields: DEFAULT_FLOW_RUNNER_FIELD_LABELS,
   nodePanel: {
     title: 'Editar nó',
     contextKey: 'Chave (contexto)',
@@ -304,6 +375,8 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     conditionIncomplete: (id) => `Nó "${id}": condição incompleta — defina variável, operador e valor.`,
     conditionBranchMissing: (id, branch) =>
       `Nó "${id}": ramo "${branch === 'true' ? 'Verdadeiro' : 'Falso'}" sem destino definido.`,
+    descriptionTooLong: (id, label) => `Nó "${id}": a descrição de "${label}" passa de 72 caracteres.`,
+    dynamicChoiceWithoutProvider: (id) => `Nó "${id}": escolha dinâmica sem provedor de opções.`,
   },
   workspace: {
     title: 'Fluxos do Bot',
@@ -352,6 +425,7 @@ export function mergeFlowEditorLabels(override?: Partial<FlowEditorLabels>): Flo
       ...override.conditionOperatorLabels,
     },
     questionTypeLabels: { ...DEFAULT_FLOW_EDITOR_LABELS.questionTypeLabels, ...override.questionTypeLabels },
+    runnerFields: { ...DEFAULT_FLOW_RUNNER_FIELD_LABELS, ...override.runnerFields },
     nodePanel: { ...DEFAULT_FLOW_EDITOR_LABELS.nodePanel, ...override.nodePanel },
     quickAdd: { ...DEFAULT_FLOW_EDITOR_LABELS.quickAdd, ...override.quickAdd },
     legendPanel: { ...DEFAULT_FLOW_EDITOR_LABELS.legendPanel, ...override.legendPanel },

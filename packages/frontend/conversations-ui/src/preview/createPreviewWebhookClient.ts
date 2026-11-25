@@ -25,6 +25,7 @@ import {
   type InboundMediaType,
   type InteractiveReplyOption,
 } from '@adatechnology/meta-whatsapp-contracts/testing'
+import { DEFAULT_PREVIEW_CONTACT } from '@adatechnology/meta-whatsapp-contracts'
 import { createPreviewMediaUploader, type PreviewUploadedMedia } from './createPreviewMediaUploader'
 
 export type PreviewWebhookClient = {
@@ -64,7 +65,9 @@ export type SendPreviewMediaParams = {
 export type CreatePreviewWebhookClientParams = {
   readonly webhookUrl: string
   readonly appSecret: string
-  readonly from: string
+  /** Padrão `DEFAULT_PREVIEW_CONTACT` — ver `createPreviewBridgeClient`. */
+  readonly from?: string
+  /** O `phone_number_id` do host. Sem ele o webhook descarta a entrega no filtro de número. */
   readonly phoneNumberId?: string
   /**
    * Rota que guarda o áudio gravado. Por padrão, `/v1/preview/media` na mesma origem do webhook.
@@ -209,7 +212,7 @@ export function createPreviewWebhookClient(params: CreatePreviewWebhookClientPar
     ...(params.fetchImplementation ? { fetchImplementation: params.fetchImplementation } : {}),
   })
 
-  const envelope = { from: params.from, phoneNumberId: params.phoneNumberId }
+  const envelope = { from: params.from ?? DEFAULT_PREVIEW_CONTACT, phoneNumberId: params.phoneNumberId }
 
   return {
     sendText: (text) => sendPayload(buildInboundTextPayload({ ...envelope, text })),

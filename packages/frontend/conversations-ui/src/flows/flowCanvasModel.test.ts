@@ -356,9 +356,10 @@ describe('estimateNodeHeight em nó de ação', () => {
     expect(passThrough).toBeGreaterThan(terminal)
   })
 
-  it('ação sem kind conta como terminal, em vez de estourar', () => {
+  // Ação sem kind é nó de mensagem: o runner envia o texto e segue, então o card tem uma saída.
+  it('ação sem kind conta como passagem (nó de mensagem)', () => {
     expect(estimateNodeHeight({ id: 'c', type: 'action' })).toBe(
-      estimateNodeHeight({ id: 'd', type: 'action', actionKind: 'handoff' }),
+      estimateNodeHeight({ id: 'd', type: 'action', actionKind: 'send_media' }),
     )
   })
 })
