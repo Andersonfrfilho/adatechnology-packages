@@ -33,6 +33,3 @@ export type { MediaSample, MediaSampleName } from './mediaSamples'
 
 export { signWebhookPayload, toSignedWebhookRequest } from './inboundPayloads'
 export type { SignWebhookPayloadParams, SignedWebhookRequest, ToSignedWebhookRequestParams } from './inboundPayloads'
-
-export { RecordingChannelAdapter } from './RecordingChannelAdapter'
-export type { RecordedChannelSend, RecordingChannelAdapterOptions } from './RecordingChannelAdapter'

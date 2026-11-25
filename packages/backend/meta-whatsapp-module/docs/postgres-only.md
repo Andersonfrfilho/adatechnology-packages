@@ -125,8 +125,7 @@ const whatsapp = createMetaWhatsAppModule({
   config,
   nonceStore: createPostgresNonceStore(sql),
   providers: { inboundQueue: createPostgresInboundQueue(sql) },
-  features: { flowEngine: false },
-  hooks: { onMessageReceived: runBotEngine },
+  hooks,
 })
 
 // No worker (mesmo processo ou outro):

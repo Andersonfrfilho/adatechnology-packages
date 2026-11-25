@@ -6,13 +6,29 @@ import { DEFAULT_FALLBACK_LIST_LABEL, SendMessageUseCase } from './SendMessage.u
 import type { LogMessageParams, LogMessageUseCase } from './LogMessage.use-case'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { MessageRow } from '../schema/schema'
-import { RecordingChannelAdapter } from '../testing/RecordingChannelAdapter'
 
 const COMPANY_ID = '22222222-2222-2222-2222-222222222222'
 
+type ChannelCall = { readonly method: string; readonly params: unknown }
+
+/** Dublê do canal: registra cada chamada e devolve um id sintético. */
+function recordingChannel() {
+  const calls: ChannelCall[] = []
+  const record = (method: string) => async (params: unknown) => {
+    calls.push({ method, params })
+    return { externalMessageId: `wamid.${calls.length}` }
+  }
+  const channel = {
+    sendInteractiveList: record('sendInteractiveList'),
+    sendInteractiveButtons: record('sendInteractiveButtons'),
+  } as unknown as ChannelAdapterInterface
+  return { channel, calls }
+}
+
 function buildUseCase(options: { hoursSinceLastInbound?: number | undefined; channel?: ChannelAdapterInterface } = {}) {
   const logged: LogMessageParams[] = []
-  const channel = options.channel ?? new RecordingChannelAdapter()
+  const recording = recordingChannel()
+  const channel = options.channel ?? recording.channel
   const sessionRepository = {
     hoursSinceLastInbound: async () => ('hoursSinceLastInbound' in options ? options.hoursSinceLastInbound : 1),
   } as unknown as SessionRepository
@@ -22,7 +38,7 @@ function buildUseCase(options: { hoursSinceLastInbound?: number | undefined; cha
       return { id: 'msg-1' } as MessageRow
     },
   } as unknown as LogMessageUseCase
-  return { useCase: new SendMessageUseCase(channel, sessionRepository, logMessage), logged, channel }
+  return { useCase: new SendMessageUseCase(channel, sessionRepository, logMessage), logged, calls: recording.calls }
 }
 
 function params(interactive: InteractiveMessage) {
@@ -47,12 +63,12 @@ const LIST: InteractiveMessage = {
 
 describe('SendMessageUseCase.sendInteractive', () => {
   it('envia a lista com seções e grava o histórico com as opções oferecidas', async () => {
-    const { useCase, logged, channel } = buildUseCase()
+    const { useCase, logged, calls } = buildUseCase()
 
     await useCase.sendInteractive(params(LIST))
 
-    expect((channel as RecordingChannelAdapter).sent[0]).toMatchObject({
-      kind: 'interactive-list',
+    expect(calls[0]).toEqual({
+      method: 'sendInteractiveList',
       params: { to: '5511999990000', body: 'Qual horário?', buttonLabel: 'Ver horários', sections: LIST.sections },
     })
     expect(logged[0]).toMatchObject({
@@ -61,19 +77,19 @@ describe('SendMessageUseCase.sendInteractive', () => {
       type: 'interactive',
       content: 'Qual horário?',
       payload: { interactive: LIST },
-      waMessageId: 'sandbox.1',
+      waMessageId: 'wamid.1',
       status: 'sent',
     })
   })
 
   it('envia botões pelo método de botão quando o canal tem', async () => {
-    const { useCase, channel } = buildUseCase()
+    const { useCase, calls } = buildUseCase()
 
     await useCase.sendInteractive(
       params({ kind: 'buttons', body: 'Confirma?', buttons: [{ id: 'sim', title: '✅ Sim' }] }),
     )
 
-    expect((channel as RecordingChannelAdapter).sent[0]?.kind).toBe('interactive-buttons')
+    expect(calls[0]?.method).toBe('sendInteractiveButtons')
   })
 
   it('canal sem botão: os botões saem como lista', async () => {
@@ -99,19 +115,19 @@ describe('SendMessageUseCase.sendInteractive', () => {
   })
 
   it('fora dos limites: erro tipado antes da janela e da rede', async () => {
-    const { useCase, logged, channel } = buildUseCase({ hoursSinceLastInbound: undefined })
+    const { useCase, logged, calls } = buildUseCase({ hoursSinceLastInbound: undefined })
 
     const tooLong: InteractiveMessage = { ...LIST, kind: 'list', buttonLabel: 'x'.repeat(21) }
     await expect(useCase.sendInteractive(params(tooLong))).rejects.toBeInstanceOf(InteractiveLimitExceededError)
 
-    expect((channel as RecordingChannelAdapter).sent).toEqual([])
+    expect(calls).toEqual([])
     expect(logged).toEqual([])
   })
 
   it('janela fechada: WindowExpiredError, nada enviado', async () => {
-    const { useCase, channel } = buildUseCase({ hoursSinceLastInbound: 30 })
+    const { useCase, calls } = buildUseCase({ hoursSinceLastInbound: 30 })
 
     await expect(useCase.sendInteractive(params(LIST))).rejects.toBeInstanceOf(WindowExpiredError)
-    expect((channel as RecordingChannelAdapter).sent).toEqual([])
+    expect(calls).toEqual([])
   })
 })

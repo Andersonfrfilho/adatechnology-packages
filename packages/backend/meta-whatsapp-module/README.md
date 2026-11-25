@@ -4,8 +4,8 @@ Módulo de conversa sobre WhatsApp Cloud API: schema e migrations próprios (`me
 repositórios, use cases (envio, transcript, atendimento humano, fluxos) e webhook — tudo atrás de
 portas que o host injeta. Tipos e portas vivem em `@adatechnology/meta-whatsapp-contracts`.
 
-O módulo não lê `process.env` nem abre conexão: `db`, credenciais, storage, cache, fila e canal
-chegam por parâmetro.
+O módulo não lê `process.env` nem abre conexão: `db`, credenciais, storage, cache e fila chegam por
+parâmetro.
 
 ## Instalação
 
@@ -51,40 +51,19 @@ const whatsapp = createMetaWhatsAppModule({
   db,
   config: { phoneNumberId, accessToken, webhookVerifyToken, appSecret },
   nonceStore,                        // anti-replay do webhook (Redis, Postgres…)
-  features: { flowEngine: false },   // host com motor de conversa próprio
   providers: { objectStorage, realtime, inboundQueue },
   hooks: { onMessageReceived, onConversationModeChanged },
 })
 ```
 
+As conversas automáticas são grafos de fluxo editados no editor do `@adatechnology/conversations-ui`
+e interpretados por `whatsapp.flows` (`FlowInterpreter`); ações do produto entram por
+`whatsapp.flows.registerFlowAction`. O simulador de conversa do mesmo pacote
+(`ConversationSimulatorPanel` + `createPreviewBridgeClient`) entrega pelo webhook real, assinado no
+servidor.
+
 Sem Redis: ver [`docs/postgres-only.md`](./docs/postgres-only.md) (nonce store e fila em tabela).
 Durabilidade do webhook: [`docs/webhook-durability.md`](./docs/webhook-durability.md).
-
-## Canal injetável (sandbox, simulador, teste)
-
-Sem `providers.channel`, o módulo monta o adaptador da Graph API a partir de `config` (comportamento
-padrão). Com ele, todo envio e a busca de mídia passam pelo canal do host, e `config.accessToken` é
-dispensável:
-
-```ts
-import { RecordingChannelAdapter } from '@adatechnology/meta-whatsapp-module/testing'
-
-const channel = new RecordingChannelAdapter({
-  onSend: (send) => simulatorScreen.push(send), // ex.: SSE para a tela do simulador
-})
-
-const sandbox = createMetaWhatsAppModule({
-  db,
-  config: { phoneNumberId: 'sandbox', webhookVerifyToken, appSecret },
-  nonceStore,
-  providers: { channel },
-})
-
-channel.sent // [{ kind: 'text', to, body, externalMessageId: 'sandbox.1' }, …]
-```
-
-Qualquer implementação de `ChannelAdapterInterface` serve. Para simular a entrada, os builders de
-payload e `signWebhookPayload` estão no mesmo export `./testing`.
 
 ## Mensagens interativas
 
