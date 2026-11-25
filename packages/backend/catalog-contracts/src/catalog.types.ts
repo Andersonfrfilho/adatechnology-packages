@@ -7,6 +7,8 @@
  * quebram em compile-time quando o contrato muda, em vez de divergirem em produção.
  */
 
+import type { AvailabilitySchedule } from './availabilitySchedule'
+
 export type CatalogId = string
 export type ProductId = string
 export type SectionId = string
@@ -38,8 +40,10 @@ export type Product = {
   /**
    * Centavos inteiros, nunca decimal nem string formatada — arredondamento de valor de venda não
    * pode acontecer por acidente de ponto flutuante. A moeda é do consumidor, não do produto.
+   * `null` = preço sob consulta: o produto existe e é listado, mas não tem valor publicado (e por
+   * isso não sobe para a Meta). Zero é um preço — grátis —, não ausência de preço.
    */
-  readonly priceInCents: number
+  readonly priceInCents: number | null
   readonly imageUrl: string | null
   readonly catalogId: CatalogId | null
   readonly catalogName?: string
@@ -65,6 +69,15 @@ export type Product = {
   readonly preparationTimeMinutes?: number | null
   /** Ficha técnica para quem produz — separado de `description`, que é o que o cliente lê. */
   readonly preparationInstructions?: string | null
+
+  /** Janela de dias/horário em que o produto é vendido. `null`/ausente = sem restrição. */
+  readonly availabilitySchedule?: AvailabilitySchedule | null
+  /**
+   * Dados livres do host (capacidade, "o que inclui", alérgenos…). O módulo não interpreta; a
+   * validação é do host, pela porta `ProductAttributesValidatorPort`. **Sai também na projeção de
+   * cliente** — não guardar aqui nada que o cliente final não possa ver.
+   */
+  readonly attributes?: Readonly<Record<string, unknown>>
 
   readonly externalId?: string | null
   readonly syncStatus?: ProductSyncStatus | null
@@ -108,7 +121,8 @@ export type PaginatedResponse<TItem> = {
 export type CreateProductInput = {
   readonly name: string
   readonly description?: string
-  readonly priceInCents: number
+  /** `null` = preço sob consulta. Explícito (sem default) para não nascer "sob consulta" por esquecimento. */
+  readonly priceInCents: number | null
   readonly costPriceInCents?: number
   readonly unit?: string
   readonly brand?: string
@@ -123,6 +137,10 @@ export type CreateProductInput = {
   readonly preparationTimeMinutes?: number
   readonly preparationInstructions?: string
   readonly sortOrder?: number
+  /** No update, `null` remove a restrição. */
+  readonly availabilitySchedule?: AvailabilitySchedule | null
+  /** No update, substitui o objeto inteiro (não faz merge por chave). */
+  readonly attributes?: Readonly<Record<string, unknown>>
 }
 
 export type UpdateProductInput = Partial<CreateProductInput> & {
