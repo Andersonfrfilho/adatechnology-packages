@@ -2,6 +2,7 @@ import { WhatsAppWindowExpiredError as ProviderWindowExpiredError } from '@adate
 import type { WhatsAppMessageProvider } from '@adatechnology/meta-whatsapp-provider'
 import {
   WindowExpiredError,
+  isPreviewContact,
   type ChannelAdapterInterface,
   type ChannelInteractiveButtonsParams,
   type ChannelInteractiveListParams,
@@ -28,6 +29,16 @@ export type PreviewMediaSupport = {
   readonly defaultMimeType?: string
 }
 
+/**
+ * Respostas a contatos do simulador (`isPreviewContact`). Ligado, todo envio para um número que
+ * começa com `0` volta `preview.<uuid>` sem chamar a Meta — janela, transcript, SSE e status seguem
+ * iguais, então o simulador vê exatamente o que o cliente veria. Nenhum `wa_id` real começa com `0`.
+ */
+export type PreviewContactsSupport = {
+  readonly isEnabled: boolean
+  readonly generateId?: () => string
+}
+
 // T5.2 — implementa a porta ChannelAdapterInterface sobre o meta-whatsapp-provider. A camada de
 // conversa fala só com esta porta e nunca com a Graph API, o que é o que permite trocar o canal
 // (ou usar um dublê em teste) sem tocar no motor de fluxo.
@@ -42,7 +53,14 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
      * que atualizar o pacote não abre nada em quem não pediu.
      */
     private readonly previewMedia?: PreviewMediaSupport,
+    private readonly previewContacts?: PreviewContactsSupport,
   ) {}
+
+  /** `preview.<uuid>` quando o destino é contato do simulador e o recurso está ligado. */
+  private previewMessageId(to: string): string | undefined {
+    if (!this.previewContacts?.isEnabled || !isPreviewContact(to)) return undefined
+    return `preview.${this.previewContacts.generateId?.() ?? globalThis.crypto.randomUUID()}`
+  }
 
   private async translateErrors<TResult>(operation: () => Promise<TResult>): Promise<TResult> {
     try {
@@ -54,6 +72,8 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
   }
 
   async sendText(to: string, body: string): Promise<{ externalMessageId: string | null }> {
+    const previewId = this.previewMessageId(to)
+    if (previewId) return { externalMessageId: previewId }
     const result = await this.translateErrors(() => this.messages.sendText(to, body))
     return { externalMessageId: result.waMessageId }
   }
@@ -62,6 +82,8 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     externalMessageId: string | null
     mediaId?: string | undefined
   }> {
+    const previewId = this.previewMessageId(params.to)
+    if (previewId) return { externalMessageId: previewId }
     const result = await this.translateErrors(() => this.messages.sendMedia(params))
     return { externalMessageId: result.waMessageId, mediaId: result.mediaId }
   }
@@ -72,11 +94,15 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     languageCode: string
     bodyParameters?: string[]
   }): Promise<{ externalMessageId: string | null }> {
+    const previewId = this.previewMessageId(params.to)
+    if (previewId) return { externalMessageId: previewId }
     const result = await this.translateErrors(() => this.messages.sendTemplate(params))
     return { externalMessageId: result.waMessageId }
   }
 
   async sendInteractiveList(params: ChannelInteractiveListParams): Promise<{ externalMessageId: string | null }> {
+    const previewId = this.previewMessageId(params.to)
+    if (previewId) return { externalMessageId: previewId }
     // Seção sem título herda o rótulo do botão — é o que a forma `rows` sempre fez, e a Meta só
     // exige título próprio quando há mais de uma seção.
     const sections = (params.sections ?? [{ rows: params.rows ?? [] }]).map((section) => ({
@@ -99,6 +125,8 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
   }
 
   async sendInteractiveButtons(params: ChannelInteractiveButtonsParams): Promise<{ externalMessageId: string | null }> {
+    const previewId = this.previewMessageId(params.to)
+    if (previewId) return { externalMessageId: previewId }
     const result = await this.translateErrors(() =>
       this.messages.sendInteractiveButtons({
         to: params.to,
@@ -116,6 +144,8 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     footerText?: string
     sections: { title: string; retailerIds: string[] }[]
   }): Promise<{ externalMessageId: string | null }> {
+    const previewId = this.previewMessageId(params.to)
+    if (previewId) return { externalMessageId: previewId }
     const result = await this.translateErrors(() =>
       this.messages.sendProductListMessage({
         to: params.to,
