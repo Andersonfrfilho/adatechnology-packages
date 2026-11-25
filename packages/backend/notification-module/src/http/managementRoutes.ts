@@ -239,16 +239,32 @@ export function buildManagementRoutes(params: {
       path: '/notification-templates/:id/restore-default',
       scope: 'admin',
       operationId: 'restoreDefaultNotificationTemplate',
-      summary: 'Restaura o modelo padrão de e-mail (grava uma versão nova com o conteúdo original)',
+      summary: 'Restaura o texto padrão do template (grava uma versão nova com o conteúdo original)',
       async handler(context) {
         const { companyId } = requireCompany(context)
+        const id = context.params.id ?? ''
         const row = await params.module.useCases.listTemplates
           .execute({ companyId })
-          .then((all) => all.find((template) => template.id === context.params.id))
-        // Só a chave padrão tem "padrão" a restaurar; qualquer outra id é "não encontrado".
-        if (!row || row.key !== STANDARD_EMAIL_TEMPLATE_KEY) throw new TemplateIdNotFoundError(context.params.id ?? '')
-        const template = await params.module.standardEmail.restoreDefault({ companyId, locale: row.locale })
+          .then((all) => all.find((template) => template.id === id))
+        if (!row) throw new TemplateIdNotFoundError(id)
+        // Modelo padrão de e-mail tem caminho próprio; as demais chaves usam a definição do host.
+        const template =
+          row.key === STANDARD_EMAIL_TEMPLATE_KEY
+            ? await params.module.standardEmail.restoreDefault({ companyId, locale: row.locale })
+            : await params.module.useCases.restoreTemplateDefault.execute({ companyId, id })
         return { kind: 'json', status: 201, body: { data: template } }
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/notification-template-definitions',
+      scope: 'admin',
+      operationId: 'listNotificationTemplateDefinitions',
+      summary: 'Templates declarados pelo host, com rótulo, variáveis, texto padrão e versão atual',
+      async handler(context) {
+        const items = await params.module.useCases.listTemplateEditorItems.execute(requireCompany(context))
+        return { kind: 'json', status: 200, body: { data: items } }
       },
     },
 

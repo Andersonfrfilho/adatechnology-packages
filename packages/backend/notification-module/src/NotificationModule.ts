@@ -12,6 +12,8 @@ import {
   ConfigMissingError,
   STANDARD_EMAIL_TEMPLATE_KEY,
   STANDARD_EMAIL_VARIABLES,
+  assertTemplateDefinitions,
+  buildTemplateVariableCatalog,
   type ChannelDrivers,
   type NotificationHooks,
 } from '@adatechnology/notification-contracts'
@@ -23,6 +25,7 @@ import type {
   QueuePort,
   RealtimeNotifierPort,
   RecipientResolverPort,
+  TemplateDefinition,
   TemplateRendererPort,
   TemplateVariableCatalog,
 } from '@adatechnology/notification-contracts'
@@ -63,6 +66,12 @@ import {
   SeedDefaultTemplatesUseCase,
   UpsertTemplateUseCase,
 } from './use-cases/Template.use-cases'
+import {
+  EnsureTemplateDefinitionsUseCase,
+  ListTemplateEditorItemsUseCase,
+  RenderTemplateTextUseCase,
+  RestoreTemplateDefaultUseCase,
+} from './use-cases/TemplateDefinition.use-cases'
 import { GetCategoryPoliciesUseCase, UpdateCategoryPoliciesUseCase } from './use-cases/CategoryPolicy.use-cases'
 
 export type NotificationModuleFeatures = {
@@ -84,6 +93,13 @@ export type NotificationModuleConfig = {
    * lista clicável do editor. Ausente, qualquer `{{campo}}` continua sendo aceito.
    */
   readonly templateVariables?: TemplateVariableCatalog
+  /**
+   * Templates que o host declara (rótulo, descrição, variáveis, texto padrão). Habilita
+   * `ensureTemplateDefinitions`, `listTemplateEditorItems`, `restoreTemplateDefault` e
+   * `renderTemplateText`. As variáveis daqui entram no catálogo; `templateVariables` do host, quando
+   * traz a mesma chave, prevalece.
+   */
+  readonly templateDefinitions?: readonly TemplateDefinition[]
 }
 
 export type NotificationModuleProviders = {
@@ -138,6 +154,10 @@ export type NotificationModule = {
     readonly getCategoryPolicies: GetCategoryPoliciesUseCase
     readonly updateCategoryPolicies: UpdateCategoryPoliciesUseCase
     readonly seedDefaultTemplates: SeedDefaultTemplatesUseCase
+    readonly ensureTemplateDefinitions: EnsureTemplateDefinitionsUseCase
+    readonly listTemplateEditorItems: ListTemplateEditorItemsUseCase
+    readonly restoreTemplateDefault: RestoreTemplateDefaultUseCase
+    readonly renderTemplateText: RenderTemplateTextUseCase
   }
   /** O modelo padrão de e-mail: cadastro (semente), resolução, renderização e restauração. */
   readonly standardEmail: StandardEmailService
@@ -204,11 +224,17 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
     retryAttempts: params.config.retry?.attempts ?? 5,
     retryBackoffSeconds: params.config.retry?.backoffSeconds ?? 30,
     // O mesmo catalogo que valida o `upsert` e alimenta a tela: aqui ele diz o que e anexo.
-    templateVariables: params.config.templateVariables ?? {},
+    templateVariables: {
+      ...buildTemplateVariableCatalog(params.config.templateDefinitions ?? []),
+      ...params.config.templateVariables,
+    },
   })
 
   // O catálogo do modelo padrão é do SDK: o host não o sobrescreve (a validação do `upsert` e a tela o conhecem).
+  const templateDefinitions = params.config.templateDefinitions ?? []
+  assertTemplateDefinitions(templateDefinitions)
   const templateVariables: TemplateVariableCatalog = {
+    ...buildTemplateVariableCatalog(templateDefinitions),
     ...params.config.templateVariables,
     [STANDARD_EMAIL_TEMPLATE_KEY]: STANDARD_EMAIL_VARIABLES,
   }
@@ -257,6 +283,15 @@ export function createNotificationModule(params: CreateNotificationModuleParams)
       getCategoryPolicies: new GetCategoryPoliciesUseCase(categoryPolicies),
       updateCategoryPolicies: new UpdateCategoryPoliciesUseCase(categoryPolicies),
       seedDefaultTemplates: new SeedDefaultTemplatesUseCase(upsertTemplate),
+      ensureTemplateDefinitions: new EnsureTemplateDefinitionsUseCase(templates, templateDefinitions),
+      listTemplateEditorItems: new ListTemplateEditorItemsUseCase(templates, templateDefinitions),
+      restoreTemplateDefault: new RestoreTemplateDefaultUseCase(templates, templateDefinitions),
+      renderTemplateText: new RenderTemplateTextUseCase(
+        templates,
+        templateDefinitions,
+        templateRenderer,
+        params.config.defaultLocale,
+      ),
     },
     standardEmail: new StandardEmailService(templates, params.providers.logger),
     templateVariables,

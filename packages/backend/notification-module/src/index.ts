@@ -54,6 +54,14 @@ export {
   SeedDefaultTemplatesUseCase,
 } from './use-cases/Template.use-cases'
 
+export {
+  EnsureTemplateDefinitionsUseCase,
+  ListTemplateEditorItemsUseCase,
+  RenderTemplateTextUseCase,
+  RestoreTemplateDefaultUseCase,
+} from './use-cases/TemplateDefinition.use-cases'
+export type { RenderedTemplateText } from './use-cases/TemplateDefinition.use-cases'
+
 export { StandardEmailService } from './use-cases/StandardEmail.use-cases'
 export {
   STANDARD_EMAIL_ERROR_CODES,
