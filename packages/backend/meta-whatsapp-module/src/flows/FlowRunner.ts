@@ -46,7 +46,14 @@ import {
   DEFAULT_START_FLOW_KEY,
 } from './flowRunner.constant'
 import { matchGlobalKeyword } from './matchGlobalKeyword'
-import type { FlowGlobalKeywordTarget, FlowRunnerConfig, FlowRunnerOutcome } from './flowRunner.types'
+import type {
+  FlowConfigText,
+  FlowGlobalKeywordTarget,
+  FlowRunnerConfig,
+  FlowRunnerOutcome,
+  FlowTextContext,
+} from './flowRunner.types'
+import { resolveFlowConfigText } from './resolveFlowConfigText'
 
 export type FlowRunnerDependencies = {
   readonly interpreter: FlowInterpreter
@@ -84,6 +91,12 @@ type RunFromParams = {
 }
 
 type FlowStage = FlowRunnerErrorDetails['stage']
+
+/** Por que a resposta foi recusada, e o texto pontual do validador do host, se ele mandou um. */
+type FlowInvalidAnswer = {
+  readonly rejection?: FlowAnswerRejection
+  readonly message?: string
+}
 
 export type HandleFlowMessageParams = {
   readonly companyId: string
@@ -332,8 +345,11 @@ export class FlowRunner {
     const page = dynamic?.page ?? 0
 
     if (inbound.kind === 'unsupported') {
-      const text = this.dependencies.config.nonTextAnswerMessage ?? DEFAULT_FLOW_TEXT.NON_TEXT_ANSWER
-      await this.say(turn, text, context)
+      const text = await this.configText(turn, node, {
+        chain: [this.dependencies.config.nonTextAnswerMessage],
+        kind: 'non-text-answer',
+      })
+      await this.say(turn, text ?? DEFAULT_FLOW_TEXT.NON_TEXT_ANSWER, context)
       return this.awaitAnswer(turn, graph, node, context, page)
     }
 
@@ -344,6 +360,7 @@ export class FlowRunner {
       context,
       clock: this.clock(),
       ...(dynamic ? { dynamicOptions: dynamic.options } : {}),
+      ...(isChoiceNode(node) ? { options: this.renderedOptions(turn, node, context) } : {}),
     })
 
     if (decision.kind === 'jump') return this.jumpTo(turn, graph, decision.target, withRuntime(context, {}))
@@ -357,7 +374,15 @@ export class FlowRunner {
         enterInitialNode: false,
       })
     }
-    if (decision.kind === 'invalid') return this.handleInvalid(turn, graph, node, context, decision.rejection)
+    if (decision.kind === 'invalid') {
+      return this.handleInvalid(turn, graph, node, context, { rejection: decision.rejection })
+    }
+
+    const hostRejection = await this.validateWithHost(turn, node, context, {
+      answer: inbound.answer,
+      value: decision.value,
+    })
+    if (hostRejection) return this.handleInvalid(turn, graph, node, context, hostRejection)
 
     await this.runFrom(turn, {
       graph,
@@ -366,6 +391,68 @@ export class FlowRunner {
       userAnswer: decision.userAnswer,
       ...(decision.value !== undefined ? { answerValue: decision.value } : {}),
       enterInitialNode: false,
+    })
+  }
+
+  /** Títulos como o cliente os viu (`{{chave}}` resolvido): é contra eles que o texto digitado casa. */
+  private renderedOptions(
+    turn: FlowTurn,
+    node: FlowNodeData,
+    context: Record<string, unknown>,
+  ): (readonly [string, string])[] {
+    const variables = { ...context, ...turn.baseVariables }
+    return (node.options ?? []).map(([id, title]) => [id, this.renderer.interpolate(title, variables)] as const)
+  }
+
+  /**
+   * Validador do host, só para pergunta (escolha já casou com opção) e nunca para resposta pulada.
+   * Falha do validador não pode prender o cliente na pergunta: reporta e aceita.
+   */
+  private async validateWithHost(
+    turn: FlowTurn,
+    node: FlowNodeData,
+    context: Record<string, unknown>,
+    answer: { answer: string; value: unknown },
+  ): Promise<FlowInvalidAnswer | undefined> {
+    const validator = this.dependencies.config.validateAnswer
+    if (!validator || isChoiceNode(node) || node.type === 'dynamic_choice' || answer.value === null) return undefined
+    try {
+      const result = await validator({
+        companyId: turn.companyId,
+        session: turn.session,
+        node,
+        answer: answer.answer.trim(),
+        value: answer.value ?? answer.answer,
+        context,
+      })
+      if (!result || result.isValid) return undefined
+      return { rejection: 'rejected-by-host', ...(result.message ? { message: result.message } : {}) }
+    } catch (error) {
+      await this.report(turn, turn.session.flowKey, node.id, 'validate-answer', error)
+      return undefined
+    }
+  }
+
+  private configText(
+    turn: FlowTurn,
+    node: FlowNodeData | undefined,
+    params: {
+      chain: readonly (FlowConfigText | undefined)[]
+      kind: FlowTextContext['kind']
+      rejection?: FlowAnswerRejection
+    },
+  ): Promise<string | undefined> {
+    return resolveFlowConfigText({
+      chain: params.chain,
+      context: {
+        companyId: turn.companyId,
+        whatsappNumber: turn.session.whatsappNumber,
+        kind: params.kind,
+        flowKey: turn.session.flowKey,
+        ...(node ? { nodeId: node.id } : {}),
+        ...(params.rejection ? { rejection: params.rejection } : {}),
+      },
+      onError: (error) => this.report(turn, turn.session.flowKey, node?.id ?? null, 'text', error),
     })
   }
 
@@ -379,7 +466,7 @@ export class FlowRunner {
     graph: FlowGraphData,
     node: FlowNodeData,
     context: Record<string, unknown>,
-    rejection: FlowAnswerRejection | undefined,
+    invalid: FlowInvalidAnswer,
   ): Promise<void> {
     const runtime = runtimeOf(context)
     const attempts = (runtime.invalidAnswers ?? 0) + 1
@@ -387,18 +474,26 @@ export class FlowRunner {
     if (attempts >= limit) return this.handOff(turn, withRuntime(context, {}))
 
     const updated = withRuntime(context, { ...runtime, invalidAnswers: attempts })
-    await this.say(turn, this.fallbackText(node, rejection), updated)
+    await this.say(turn, await this.fallbackText(turn, node, invalid), updated)
     await this.awaitAnswer(turn, graph, node, updated, runtime.dynamic?.nodeId === node.id ? runtime.dynamic.page : 0)
   }
 
-  private fallbackText(node: FlowNodeData, rejection: FlowAnswerRejection | undefined): string {
+  /** Precedência: texto do validador do host, `fallbackMessage` do nó, texto do motivo, padrão do host, do pacote. */
+  private async fallbackText(turn: FlowTurn, node: FlowNodeData, invalid: FlowInvalidAnswer): Promise<string> {
     const { config } = this.dependencies
-    return (
-      node.fallbackMessage ??
-      (rejection ? config.rejectionMessages?.[rejection] : undefined) ??
-      config.defaultFallbackMessage ??
-      DEFAULT_FLOW_TEXT.FALLBACK
-    )
+    const fixed = invalid.message ?? node.fallbackMessage
+    if (fixed !== undefined) return fixed
+    const { rejection } = invalid
+    const byRejection = rejection
+      ? await this.configText(turn, node, {
+          chain: [config.rejectionMessages?.[rejection]],
+          kind: 'rejection',
+          rejection,
+        })
+      : undefined
+    if (byRejection !== undefined) return byRejection
+    const fallback = await this.configText(turn, node, { chain: [config.defaultFallbackMessage], kind: 'fallback' })
+    return fallback ?? DEFAULT_FLOW_TEXT.FALLBACK
   }
 
   private async handOff(turn: FlowTurn, context: Record<string, unknown>): Promise<void> {

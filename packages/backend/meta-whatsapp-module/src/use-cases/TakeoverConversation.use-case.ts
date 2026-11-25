@@ -24,6 +24,7 @@ export class TakeoverConversationUseCase {
   async execute(params: TakeoverConversationParams): Promise<void> {
     await this.sessionRepository.takeover(params.companyId, params.whatsappNumber, params.agentUserId)
     this.realtime?.emit(`conv:${params.whatsappNumber}`, 'mode-changed', {
+      companyId: params.companyId,
       mode: 'human',
       assignedUserId: params.agentUserId,
     })

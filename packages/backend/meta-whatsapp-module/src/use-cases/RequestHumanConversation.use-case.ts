@@ -32,6 +32,7 @@ export class RequestHumanConversationUseCase {
     if (!session) throw new SessionNotFoundError(params.whatsappNumber)
 
     this.realtime?.emit(`conv:${params.whatsappNumber}`, 'human-requested', {
+      companyId: params.companyId,
       humanRequestedAt: session.humanRequestedAt?.toISOString() ?? null,
     })
     this.realtime?.emit('global', 'data-changed', {})

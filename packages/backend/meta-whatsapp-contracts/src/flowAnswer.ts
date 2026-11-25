@@ -45,6 +45,11 @@ export type FlowAnswerRejection =
   | 'above-max'
   | 'too-short'
   | 'too-long'
+  | 'before-min-time'
+  | 'after-max-time'
+  | 'outside-allowed-windows'
+  /** Recusada pelo validador do host (`FlowRunnerConfig.validateAnswer`). */
+  | 'rejected-by-host'
 
 export type FlowAnswerResult =
   | { readonly isValid: true; readonly value: string | number | null; readonly isSkipped: boolean }
@@ -171,6 +176,48 @@ export function parseFlowCpf(text: string): string | undefined {
   return checkDigit(9) === Number(digits[9]) && checkDigit(10) === Number(digits[10]) ? digits : undefined
 }
 
+/**
+ * Horário digitado → `HH:MM`, ou `undefined`. Aceita `12:30`, `12h30`, `12h`, `9h`, `9hs` e `12:30h`.
+ * Número solto ("12") é recusado: sem `h` ou `:` pode ser quantidade, não hora.
+ */
+export function parseFlowTime(text: string): string | undefined {
+  const match = /^(\d{1,2})\s*(?::\s*(\d{2})\s*(?:h|hs|hrs?)?|(?:h|hs|hrs?)\s*(\d{2})?)$/i.exec(text.trim())
+  if (!match) return undefined
+  const hours = Number(match[1])
+  const minutes = Number(match[2] ?? match[3] ?? '0')
+  if (hours > 23 || minutes > 59) return undefined
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+/** Faixa de horário permitida. `start > end` atravessa a meia-noite (`22:00`–`02:00`). */
+export type FlowTimeWindow = { readonly start: string; readonly end: string }
+
+function toTimeWindow(value: unknown): FlowTimeWindow | undefined {
+  if (typeof value === 'string') {
+    const [start, end] = value.split('-').map((part) => parseFlowTime(part))
+    return start && end ? { start, end } : undefined
+  }
+  if (typeof value !== 'object' || value === null) return undefined
+  const { start, end } = value as Record<string, unknown>
+  const parsedStart = typeof start === 'string' ? parseFlowTime(start) : undefined
+  const parsedEnd = typeof end === 'string' ? parseFlowTime(end) : undefined
+  return parsedStart && parsedEnd ? { start: parsedStart, end: parsedEnd } : undefined
+}
+
+/**
+ * Faixas lidas do contexto: lista de `{ start, end }` ou de `'HH:MM-HH:MM'`. Item malformado é
+ * ignorado; `undefined` quando a chave não traz lista — sem lista, não há restrição de faixa.
+ */
+export function readFlowTimeWindows(value: unknown): FlowTimeWindow[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  return value.map(toTimeWindow).filter((window): window is FlowTimeWindow => window !== undefined)
+}
+
+export function isWithinFlowTimeWindow(time: string, window: FlowTimeWindow): boolean {
+  if (window.start <= window.end) return time >= window.start && time <= window.end
+  return time >= window.start || time <= window.end
+}
+
 function reject(rejection: FlowAnswerRejection): FlowAnswerResult {
   return { isValid: false, rejection }
 }
@@ -201,6 +248,23 @@ function checkDate(params: {
   return accept(date)
 }
 
+function checkTime(params: {
+  readonly answer: string
+  readonly validation: FlowAnswerValidation
+  readonly context: Readonly<Record<string, unknown>>
+}): FlowAnswerResult {
+  const time = parseFlowTime(params.answer)
+  if (!time) return reject('invalid-format')
+  const { minTime, maxTime, windowsContextKey } = params.validation
+  if (minTime && time < minTime) return reject('before-min-time')
+  if (maxTime && time > maxTime) return reject('after-max-time')
+  const windows = windowsContextKey ? readFlowTimeWindows(params.context[windowsContextKey]) : undefined
+  if (windows && !windows.some((window) => isWithinFlowTimeWindow(time, window))) {
+    return reject('outside-allowed-windows')
+  }
+  return accept(time)
+}
+
 function checkText(answer: string, validation: FlowAnswerValidation): FlowAnswerResult {
   const length = Array.from(answer).length
   if (validation.minLength !== undefined && length < validation.minLength) return reject('too-short')
@@ -216,7 +280,7 @@ export type ValidateFlowAnswerParams = {
 }
 
 /**
- * Valida e converte a resposta: data vira `yyyy-mm-dd`, inteiro e dinheiro viram número, CPF vira
+ * Valida e converte a resposta: data vira `yyyy-mm-dd`, horário vira `HH:MM`, inteiro e dinheiro viram número, CPF vira
  * os 11 dígitos, texto volta aparado. Palavra de `skipKeywords` aceita com valor `null`.
  *
  * `choice` não passa por aqui: escolha é casar com opção (`matchFlowChoice`), não validar formato.
@@ -232,6 +296,8 @@ export function validateFlowAnswer(params: ValidateFlowAnswerParams): FlowAnswer
   switch (params.node.questionType) {
     case 'date':
       return checkDate({ answer, validation, context: params.context, clock: params.clock })
+    case 'time':
+      return checkTime({ answer, validation, context: params.context })
     case 'int': {
       const value = parseFlowInteger(answer)
       return value === undefined ? reject('invalid-format') : checkRange(value, validation)
