@@ -53,6 +53,9 @@ export const whatsAppMessageSchema = z.object({
   document: whatsAppMediaSchema.optional(),
   sticker: whatsAppMediaSchema.optional(),
   interactive: whatsAppInteractiveSchema.optional(),
+  // Botão de resposta rápida de TEMPLATE (`type: 'button'`): diferente do interativo, vem com o texto
+  // do botão e o `payload` definido no template.
+  button: z.object({ payload: z.string().optional(), text: z.string() }).optional(),
   // Pedido enviado pelo carrinho do catálogo (WhatsApp Commerce)
   order: whatsAppOrderSchema.optional(),
   // Coordenada enviada pelo botão "Localização" do app do cliente

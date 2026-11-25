@@ -22,6 +22,7 @@ import type {
 } from '@adatechnology/meta-whatsapp-contracts'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { SessionRow } from '../schema/schema'
+import type { FlowRunner } from '../flows/FlowRunner'
 
 export type InboundMediaDescriptor = {
   sourceMediaId: string
@@ -120,6 +121,8 @@ export class InboundEffectsDispatcher {
       sessionRepository: SessionRepository
       hooks?: MetaWhatsAppHooks
       realtime?: RealtimeNotifierInterface
+      /** Presente quando `features.flowRunner` está ligado: o módulo dirige o fluxo depois do hook. */
+      flowRunner?: Pick<FlowRunner, 'handle'>
     },
   ) {}
 
@@ -160,10 +163,13 @@ export class InboundEffectsDispatcher {
     // 'handled' = o host já respondeu e assumiu a mensagem; o módulo não segue com o fluxo.
     if (outcome?.outcome === 'handled') return
 
-    // 'continue' (ou sem hook): quem dirige o motor de fluxo é o host via runFlowStep — o
-    // webhook só entrega o sinal. Expor a resposta extraída evita que cada host reimplemente
-    // a lógica de "qual é a resposta do cliente" para interativo vs texto.
-    void extractAnswer(message)
+    // 'continue' (ou sem hook): com o runner ligado, o módulo dirige o fluxo; sem ele, o host
+    // continua dono da conversa, como sempre.
+    await this.params.flowRunner?.handle({
+      companyId,
+      message,
+      ...(job.profileName === undefined ? {} : { profileName: job.profileName }),
+    })
   }
 
   async runStatusEffects(job: InboundStatusEffectsJob): Promise<void> {

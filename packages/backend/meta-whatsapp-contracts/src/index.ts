@@ -61,6 +61,7 @@ export {
   flowNodeNextSchema,
   flowNodeDataSchema,
   flowGraphNodesSchema,
+  flowAnswerValidationSchema,
 } from './flow.types'
 export type {
   SendChannelMediaParams,
@@ -75,6 +76,8 @@ export type {
   FlowConditionOperator,
   FlowNodeNext,
   FlowNodeData,
+  FlowAnswerValidation,
+  FlowOptionDetail,
   FlowGraphData,
   FlowGraphSummary,
   LiveFlowPosition,
@@ -99,6 +102,7 @@ export type {
   InboundMediaDescriptor,
   TranscriptionDeferredDescriptor,
   UnhandledWebhookEventDescriptor,
+  FlowRunnerErrorDetails,
 } from './events'
 
 export { WHATSAPP_CHOICE_LIMIT } from './providers'
@@ -113,6 +117,9 @@ export type {
   FlowActionHandler,
   FlowActionResult,
   FlowActionRegistry,
+  DynamicChoiceOption,
+  DynamicChoicePage,
+  DynamicChoiceProvider,
 } from './providers'
 
 export {
@@ -128,7 +135,9 @@ export {
   MessageNotAudioError,
   TranscriptionDisabledError,
   InteractiveLimitExceededError,
+  FlowRunnerError,
 } from './errors'
+export type { FlowRunnerFailureReason } from './errors'
 
 export { listInteractiveLimitViolations, assertInteractiveWithinLimits } from './interactive'
 export type {
@@ -145,3 +154,37 @@ export type {
 export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './previewMedia.types'
 
 export { hashWaMessageId } from './waMessageId'
+
+export {
+  normalizeFlowText,
+  matchesFlowKeyword,
+  matchFlowKeywordRoute,
+  matchFlowChoice,
+  formatFlowDate,
+  interpolateFlowText,
+  listFlowPlaceholders,
+} from './flowText'
+export type { FlowDateOrder, InterpolateFlowTextOptions } from './flowText'
+
+export {
+  FLOW_DATE_LOCALE_PT_BR,
+  FLOW_DATE_LOCALE_EN_US,
+  todayInTimeZone,
+  parseFlowDate,
+  parseFlowInteger,
+  parseFlowMoney,
+  parseFlowCpf,
+  validateFlowAnswer,
+} from './flowAnswer'
+export type {
+  FlowDateLocale,
+  FlowAnswerRejection,
+  FlowAnswerResult,
+  FlowClock,
+  ValidateFlowAnswerParams,
+} from './flowAnswer'
+
+export { isWithinBusinessHours } from './businessHours'
+export type { BusinessHours, BusinessHoursWindow, BusinessWeekday } from './businessHours'
+
+export { PREVIEW_CONTACT_PREFIX, DEFAULT_PREVIEW_CONTACT, toPreviewContact, isPreviewContact } from './previewContact'

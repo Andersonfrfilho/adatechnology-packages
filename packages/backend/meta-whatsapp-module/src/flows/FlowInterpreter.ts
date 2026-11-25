@@ -13,6 +13,11 @@ export interface FlowStepInput {
   graph: FlowGraphData
   currentNodeId: string
   userAnswer?: string
+  /**
+   * Valor a guardar em `contextKey` no lugar do texto cru — a data já convertida, o número já lido.
+   * `userAnswer` continua sendo o que escolhe o ramo (`byAnswer`).
+   */
+  answerValue?: unknown
   context: Record<string, unknown>
   session: ConversationSession
   channel: ChannelAdapterInterface
@@ -39,6 +44,17 @@ export type FlowRunResult = (
 }
 
 const DEFAULT_MAX_STEPS = 50
+
+export type FlowRunOptions = {
+  maxSteps?: number
+  /**
+   * Chamado ao entrar em cada nó, com o contexto daquele momento — é onde o runner envia o
+   * `directMessage`. Uma ação que devolve contexto já está refletida no nó seguinte.
+   */
+  onNodeEntered?: (node: FlowNodeData, context: Record<string, unknown>) => Promise<void>
+  /** Também dispara `onNodeEntered` para o nó de partida (início de fluxo, salto por palavra-chave). */
+  enterInitialNode?: boolean
+}
 
 function evaluateCondition(node: FlowNodeData, context: Record<string, unknown>): boolean {
   if (!node.conditionContextKey || !node.conditionOperator || !node.conditionValue) return false
@@ -97,6 +113,8 @@ export class FlowInterpreter {
     }
 
     if (node.type === 'action') {
+      // Nó de ação sem `actionKind` é nó de mensagem: o `directMessage` já saiu na entrada, segue.
+      if (!node.actionKind) return this.moveTo(input, resolveNext(node, undefined))
       const handler = node.actionKind ? this.actionHandlers.get(node.actionKind) : undefined
       if (!handler) return { kind: 'terminal', context: input.context }
 
@@ -114,14 +132,15 @@ export class FlowInterpreter {
       return this.moveTo({ ...input, context: contextAfterAction }, nextNodeId)
     }
 
-    const isChoice = node.type === 'menu' || node.questionType === 'choice'
+    const isChoice = node.type === 'menu' || node.type === 'dynamic_choice' || node.questionType === 'choice'
 
     // Sem resposta do usuário ainda: este é o nó atual, aguardando input — não avança.
     if (input.userAnswer === undefined) {
       return { kind: 'awaiting-answer', nodeId: input.currentNodeId, context: input.context }
     }
 
-    const updatedContext = node.contextKey ? { ...input.context, [node.contextKey]: input.userAnswer } : input.context
+    const storedValue = input.answerValue !== undefined ? input.answerValue : input.userAnswer
+    const updatedContext = node.contextKey ? { ...input.context, [node.contextKey]: storedValue } : input.context
     const answerId = isChoice ? input.userAnswer : undefined
     const nextNodeId = resolveNext(node, answerId)
 
@@ -145,9 +164,11 @@ export class FlowInterpreter {
   // erro de autoria e deveria ser barrado na publicação. Como validateGraph (no editor) hoje
   // detecta nó inalcançável mas NÃO detecta ciclo, um grafo cíclico é publicável — então o
   // runtime precisa sobreviver a ele em vez de travar o processo que atende o webhook.
-  async run(input: FlowStepInput, options?: { maxSteps?: number }): Promise<FlowRunResult> {
+  async run(input: FlowStepInput, options?: FlowRunOptions): Promise<FlowRunResult> {
     const maxSteps = options?.maxSteps ?? DEFAULT_MAX_STEPS
     const visited: string[] = [input.currentNodeId]
+    const initialNode = input.graph.nodes[input.currentNodeId]
+    if (options?.enterInitialNode && initialNode) await options.onNodeEntered?.(initialNode, input.context)
 
     let current: FlowStepInput = input
     let steps = 0
@@ -159,10 +180,18 @@ export class FlowInterpreter {
       if (result.kind !== 'advanced') return { ...result, visited, steps }
 
       visited.push(result.nodeId)
+      const enteredNode = current.graph.nodes[result.nodeId]
+      if (enteredNode) await options?.onNodeEntered?.(enteredNode, result.context)
       // Só a primeira iteração consome a resposta do cliente; daí em diante o laço percorre
       // nós automáticos (condição/ação). Manter userAnswer faria a mesma resposta ser
       // reaplicada em cada pergunta seguinte, pulando-as sem o cliente ter respondido.
-      current = { ...current, currentNodeId: result.nodeId, context: result.context, userAnswer: undefined }
+      current = {
+        ...current,
+        currentNodeId: result.nodeId,
+        context: result.context,
+        userAnswer: undefined,
+        answerValue: undefined,
+      }
     }
 
     return { kind: 'max-steps-exceeded', context: current.context, visited, steps }

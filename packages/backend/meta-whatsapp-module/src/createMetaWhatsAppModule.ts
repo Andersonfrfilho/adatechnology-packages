@@ -1,9 +1,15 @@
 import { WhatsAppMessageProvider } from '@adatechnology/meta-whatsapp-provider'
+import {
+  buildPreviewInboundPayload,
+  type PreviewInboundCommand,
+  type PreviewPayloadEnvelope,
+} from '@adatechnology/meta-whatsapp-contracts/testing'
 import type { MetaWhatsAppDatabase } from './database.types'
-import { FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
+import { ConfigMissingError, FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
 import type {
   CatalogPort,
   ChannelAdapterInterface,
+  DynamicChoiceProvider,
   FlowActionHandler,
   FlowActionKind,
   MetaWhatsAppHooks,
@@ -44,6 +50,10 @@ import {
   GetLiveFlowPositionsUseCase,
 } from './use-cases/FlowGraph.use-cases'
 import { FlowInterpreter } from './flows/FlowInterpreter'
+import { FlowRunner } from './flows/FlowRunner'
+import { FlowHandoff } from './flows/FlowHandoff'
+import { PostgresAdvisoryFlowTurnLock, type FlowTurnLockInterface } from './flows/flowTurnLock'
+import type { FlowRunnerConfig } from './flows/flowRunner.types'
 import { createSendMediaAction } from './flows/createSendMediaAction'
 import { createSendProductListAction } from './flows/createSendProductListAction'
 import { FlowMediaRepository } from './repositories/FlowMediaRepository'
@@ -115,6 +125,26 @@ export interface MetaWhatsAppModuleFeatures {
    * fila do host. Linhas já gravadas se redigem com `conversations.redactInboundLocations`.
    */
   redactInboundLocation?: boolean
+
+  /**
+   * O módulo dirige a conversa pelo grafo publicado depois do `onMessageReceived` devolver
+   * `'continue'`: pergunta, valida, avança, grava e encaminha. `true` usa os padrões; o objeto
+   * configura (fluxo de partida, palavras globais, horário de atendimento, textos — ver
+   * `FlowRunnerConfig`).
+   *
+   * **Desligado por omissão**: host que já dirige o próprio fluxo depois do `'continue'` passaria a
+   * receber duas respostas. Exige `flowEngine` (padrão ligado).
+   */
+  flowRunner?: boolean | FlowRunnerConfig
+
+  /**
+   * Respostas a contatos do simulador (número começando com `0`, ver `isPreviewContact`) não chamam
+   * a Meta: o canal devolve `preview.<uuid>` e o resto (janela, transcript, SSE) segue igual.
+   *
+   * **Desligado por omissão.** Nenhum número real começa com `0`, mas ligar é declarar que este
+   * ambiente atende simulador — decisão visível onde o módulo é montado, como `previewMedia`.
+   */
+  previewContacts?: boolean
 }
 
 /**
@@ -168,6 +198,11 @@ export interface MetaWhatsAppModuleProviders {
    * transcrever um áudio já salvo significa ler os bytes de volta.
    */
   transcription?: MetaWhatsAppTranscriptionConfig
+  /**
+   * Um turno do runner por conversa. Padrão: `pg_advisory_xact_lock` no `db` do módulo (uma conexão
+   * do pool por conversa em atendimento simultâneo). Troque por um lock distribuído próprio se preferir.
+   */
+  flowTurnLock?: FlowTurnLockInterface
 }
 
 export interface CreateMetaWhatsAppModuleParams {
@@ -209,7 +244,11 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
         }
       : undefined
 
-  const channel: ChannelAdapterInterface = new WhatsAppChannelAdapter(messageProvider, previewMediaSupport)
+  const channel: ChannelAdapterInterface = new WhatsAppChannelAdapter(
+    messageProvider,
+    previewMediaSupport,
+    params.features?.previewContacts ? { isEnabled: true } : undefined,
+  )
 
   const sessionRepository = new SessionRepository(db)
   const messageRepository = new MessageRepository(db)
@@ -243,6 +282,48 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     documentRepository,
   )
 
+  const requestHuman = new RequestHumanConversationUseCase(sessionRepository, providers.realtime, hooks)
+
+  // Só existe se a flag estiver ligada — não adianta o host "não usar" um interpretador que
+  // ainda assim ficou instanciado e exposto na API pública do módulo.
+  const flowInterpreter = flowEngineEnabled ? new FlowInterpreter() : undefined
+  const flowRunnerFeature = params.features?.flowRunner ?? false
+  const flowRunnerConfig: FlowRunnerConfig | undefined =
+    flowInterpreter && flowRunnerFeature ? (flowRunnerFeature === true ? {} : flowRunnerFeature) : undefined
+  const flowHandoff = flowRunnerConfig
+    ? new FlowHandoff({
+        requestHuman,
+        sendMessage,
+        startState,
+        config: flowRunnerConfig.handoff ?? {},
+        now: flowRunnerConfig.now ?? (() => new Date()),
+        interpolation: flowRunnerConfig.formatValue ? { formatValue: flowRunnerConfig.formatValue } : {},
+        ...(hooks ? { hooks } : {}),
+      })
+    : undefined
+  const flowRunner =
+    flowInterpreter && flowRunnerConfig && flowHandoff
+      ? new FlowRunner({
+          interpreter: flowInterpreter,
+          flowGraphRepository,
+          sessionRepository,
+          sendMessage,
+          channel,
+          handoff: flowHandoff,
+          lock: providers.flowTurnLock ?? new PostgresAdvisoryFlowTurnLock(db),
+          startState,
+          config: flowRunnerConfig,
+          ...(hooks ? { hooks } : {}),
+        })
+      : undefined
+  // O nó `handoff` que o editor oferece passa a fazer algo: fila de atendimento + aviso ao cliente.
+  if (flowInterpreter && flowRunner && flowHandoff) {
+    flowInterpreter.registerFlowAction(
+      FLOW_ACTION_KIND.HANDOFF,
+      flowHandoff.createActionHandler((turn) => flowRunner.variablesFor(turn)),
+    )
+  }
+
   const receiveWebhook = new ReceiveWebhookUseCase({
     appSecret: config.appSecret,
     phoneNumberId: config.phoneNumberId,
@@ -255,11 +336,8 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     realtime: providers.realtime,
     ...(providers.inboundQueue ? { inboundQueue: providers.inboundQueue } : {}),
     redactInboundLocation: params.features?.redactInboundLocation ?? false,
+    ...(flowRunner ? { flowRunner } : {}),
   })
-
-  // Só existe se a flag estiver ligada — não adianta o host "não usar" um interpretador que
-  // ainda assim ficou instanciado e exposto na API pública do módulo.
-  const flowInterpreter = flowEngineEnabled ? new FlowInterpreter() : undefined
 
   // `send_media` é a única action que o pacote registra sozinho — as demais dependem de regra do
   // produto. Condicionada a `getObject` porque sem os bytes o handler não teria o que enviar:
@@ -372,7 +450,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
       takeover: new TakeoverConversationUseCase(sessionRepository, providers.realtime, hooks),
       release: new ReleaseConversationUseCase(sessionRepository, providers.realtime, hooks),
       // Marca o pedido de atendimento (fila "aguardando atendimento") e dispara `onHumanRequested`.
-      requestHuman: new RequestHumanConversationUseCase(sessionRepository, providers.realtime, hooks),
+      requestHuman,
       list: new ListConversationsUseCase(sessionRepository),
       listMessages: new ListMessagesUseCase(sessionRepository, messageRepository),
       listDocuments,
@@ -416,6 +494,17 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     webhook: {
       receive: receiveWebhook,
       // GET de verificação da Meta — o host liga na sua rota e devolve o retorno como texto puro.
+      /**
+       * Comando do simulador (ponte do `conversations-ui`) → payload da Meta com o `phone_number_id`
+       * DESTE módulo. Montar com o padrão do builder fazia o filtro de número descartar a entrega.
+       * Quem assina e entrega em `receive` é a rota do host.
+       */
+      buildPreviewPayload: (command: PreviewInboundCommand, envelope?: Omit<PreviewPayloadEnvelope, 'phoneNumberId'>) =>
+        buildPreviewInboundPayload(command, {
+          ...(config.wabaId ? { wabaId: config.wabaId } : {}),
+          ...envelope,
+          phoneNumberId: config.phoneNumberId,
+        }),
       verifyChallenge: (query: { mode: string | null; token: string | null; challenge: string | null }) =>
         verifyWebhookChallenge({ ...query, expectedToken: config.webhookVerifyToken }),
       // Lado do worker de `providers.inboundQueue`: roda os efeitos de um job já enfileirado. Existe
@@ -425,6 +514,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
           sessionRepository,
           ...(hooks ? { hooks } : {}),
           ...(providers.realtime ? { realtime: providers.realtime } : {}),
+          ...(flowRunner ? { flowRunner } : {}),
         }),
         hooks,
       ),
@@ -435,6 +525,12 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
           interpreter: flowInterpreter,
           registerFlowAction: (kind: FlowActionKind, handler: FlowActionHandler) =>
             flowInterpreter.registerFlowAction(kind, handler),
+          // undefined quando `features.flowRunner` está desligado — o host dirige a conversa.
+          runner: flowRunner,
+          registerDynamicChoiceProvider: (key: string, provider: DynamicChoiceProvider) => {
+            if (!flowRunner) throw new ConfigMissingError('features.flowRunner')
+            flowRunner.registerDynamicChoiceProvider(key, provider)
+          },
           get: new GetFlowGraphUseCase(flowGraphRepository),
           list: new ListFlowGraphsUseCase(flowGraphRepository),
           create: new CreateFlowGraphUseCase(flowGraphRepository),

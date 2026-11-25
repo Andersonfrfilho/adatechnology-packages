@@ -2,14 +2,14 @@ import { useState, type ReactNode } from 'react'
 import { Plus, Trash2, Save, X, AlertTriangle, AlertCircle } from 'lucide-react'
 import { FlowWhatsAppPreview } from './FlowWhatsAppPreview'
 import { nodeLabel } from './FlowNodeCard'
-import { CROSS_FLOW_PREFIX, CONDITION_OPERATORS, BUILT_IN_ACTION_KINDS, PASS_THROUGH_ACTION_KINDS } from './flowGraph'
-import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
+import { CROSS_FLOW_PREFIX, CONDITION_OPERATORS, BUILT_IN_ACTION_KINDS, isPassThroughAction as passesThrough } from './flowGraph'
+import { DEFAULT_FLOW_EDITOR_LABELS, DEFAULT_FLOW_RUNNER_FIELD_LABELS, type FlowEditorLabels } from './labels'
+import { FlowRunnerFields } from './FlowRunnerFields'
 import type { FlowGraphData, FlowNodeData, GraphIssue } from './flowGraph'
+import { PANEL_FIELD_CLASSNAME } from './flowPanelStyles'
 
-const SELECT_CLASSNAME =
-  'border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
-const INPUT_CLASSNAME =
-  'border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all'
+const SELECT_CLASSNAME = PANEL_FIELD_CLASSNAME
+const INPUT_CLASSNAME = PANEL_FIELD_CLASSNAME
 
 function truncateLabel(value: string, max = 60): string {
   if (!value) return '—'
@@ -21,6 +21,7 @@ function WhatsAppTextField({
   value,
   onValueChange,
   options,
+  optionDetails,
   placeholder,
   labels,
 }: {
@@ -28,6 +29,7 @@ function WhatsAppTextField({
   value: string
   onValueChange: (value: string) => void
   options?: [string, string][]
+  optionDetails?: FlowNodeData['optionDetails']
   placeholder?: string
   labels: FlowEditorLabels
 }) {
@@ -46,7 +48,7 @@ function WhatsAppTextField({
       <div>
         <label className="text-xs font-medium text-gray-500 dark:text-gray-400">{labels.nodePanel.preview}</label>
         <div className="mt-1">
-          <FlowWhatsAppPreview body={value} options={options} labels={labels.nodePanel} />
+          <FlowWhatsAppPreview body={value} options={options} optionDetails={optionDetails} labels={labels.nodePanel} />
         </div>
       </div>
     </div>
@@ -102,8 +104,9 @@ export function FlowNodePanel({
   const isFixedLogic = draft.type === 'entrada_choice'
   const isAction = draft.type === 'action'
   const isSendMedia = isAction && draft.actionKind === BUILT_IN_ACTION_KINDS.SEND_MEDIA
-  const isPassThroughAction = isAction && Boolean(draft.actionKind && PASS_THROUGH_ACTION_KINDS.includes(draft.actionKind))
+  const isPassThroughAction = passesThrough(draft)
   const isCondition = draft.type === 'condition'
+  const isDynamicChoice = draft.type === 'dynamic_choice'
   const isStart = graph.startNodeId === node.id
   const nodeIssues = issues.filter((i) => i.nodeId === node.id)
   // Chaves já usadas por perguntas deste fluxo — sugestão pro campo de variável da condição,
@@ -238,7 +241,7 @@ export function FlowNodePanel({
           </div>
         )}
 
-        {!isFixedLogic && !isAction && !isCondition && (
+        {!isFixedLogic && !isAction && !isCondition && !isDynamicChoice && (
           <div>
             <label className="text-xs font-medium text-gray-500 dark:text-gray-400">
               {labels.nodePanel.questionType}
@@ -263,7 +266,8 @@ export function FlowNodePanel({
           <WhatsAppTextField
             label={labels.nodePanel.question}
             value={draft.question ?? ''}
-            options={draft.questionType === 'choice' ? draft.options : undefined}
+            options={draft.questionType === 'choice' || draft.type === 'menu' ? draft.options : undefined}
+            optionDetails={draft.optionDetails}
             onValueChange={(value) => setDraft((prev) => ({ ...prev, question: value }))}
             labels={labels}
           />
@@ -385,6 +389,16 @@ export function FlowNodePanel({
               ))}
             </div>
           </div>
+        )}
+
+        {!isFixedLogic && !isAction && !isCondition && (
+          <FlowRunnerFields
+            draft={draft}
+            onDraftChange={setDraft}
+            renderTargetOptions={nextNodeOptions}
+            knownContextKeys={knownContextKeys}
+            labels={labels.runnerFields ?? DEFAULT_FLOW_RUNNER_FIELD_LABELS}
+          />
         )}
 
         {/* Ação de passagem também escolhe destino: sem isto, o material era enviado e a conversa

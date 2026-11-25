@@ -17,7 +17,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react'
 
-import type { FlowEditorLabels } from './labels'
+import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
 import type { FlowNodeType } from './flowGraph'
 
 export type FlowLegendEdgeSample = {
@@ -88,7 +88,7 @@ export function FlowLegend({ labels, edgeSamples, nodeSwatches }: FlowLegendProp
               <li key={swatch.type} className="flex items-center gap-2">
                 <span className={`h-3 w-5 shrink-0 rounded border-2 ${swatch.className}`} aria-hidden="true" />
                 <span className="text-[11px] leading-tight text-gray-600 dark:text-gray-300">
-                  {labels.legend[swatch.type]}
+                  {labels.legend[swatch.type] ?? DEFAULT_FLOW_EDITOR_LABELS.legend.dynamic_choice}
                 </span>
               </li>
             ))}

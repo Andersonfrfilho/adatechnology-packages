@@ -14,9 +14,10 @@ import {
   ShoppingBag,
   RotateCcw,
   type LucideIcon,
+  ListChecks,
 } from 'lucide-react'
-import type { FlowEditorLabels } from './labels'
-import { PASS_THROUGH_ACTION_KINDS, type FlowNodeData, type GraphIssue } from './flowGraph'
+import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
+import { isPassThroughAction, keywordHandle, type FlowNodeData, type GraphIssue } from './flowGraph'
 
 /**
  * Diâmetro dos pontos de ligação.
@@ -32,6 +33,7 @@ export const NODE_TYPE_COLOR: Record<FlowNodeData['type'], string> = {
   action: 'border-orange-300 bg-orange-50 dark:bg-orange-950/40 dark:border-orange-800',
   menu: 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 dark:border-emerald-800',
   condition: 'border-cyan-300 bg-cyan-50 dark:bg-cyan-950/40 dark:border-cyan-800',
+  dynamic_choice: 'border-teal-300 bg-teal-50 dark:bg-teal-950/40 dark:border-teal-800',
 }
 
 const NODE_TYPE_ICON: Record<FlowNodeData['type'], LucideIcon> = {
@@ -40,6 +42,7 @@ const NODE_TYPE_ICON: Record<FlowNodeData['type'], LucideIcon> = {
   action: Zap,
   menu: GitBranch,
   condition: Diamond,
+  dynamic_choice: ListChecks,
 }
 
 // Ícone por função da ação — o host estende via `actionKindIcons` (FlowNodeCardData) para
@@ -116,15 +119,18 @@ function selfLoopHandles(node: FlowNodeData): Set<string> {
   for (const [optionId, target] of Object.entries(node.next.byAnswer ?? {})) {
     if (target === node.id) loops.add(optionId)
   }
+  for (const [keyword, target] of Object.entries(node.next.byKeyword ?? {})) {
+    if (target === node.id) loops.add(keywordHandle(keyword))
+  }
   if (node.next.default === node.id) loops.add('__default')
 
   return loops
 }
 
 function sourceRows(node: FlowNodeData, labels: FlowEditorLabels): SourceRowSpec[] {
-  // Ação de passagem tem saída; ação terminal, não — ver `PASS_THROUGH_ACTION_KINDS`.
+  // Ação de passagem tem saída; ação terminal, não — ver `isPassThroughAction`.
   if (node.type === 'action') {
-    return node.actionKind && PASS_THROUGH_ACTION_KINDS.includes(node.actionKind)
+    return isPassThroughAction(node)
       ? [{ id: 'next', label: labels.nodePanel.nextRowLabel, isDefault: false, isSelfLoop: false }]
       : []
   }
@@ -136,12 +142,25 @@ function sourceRows(node: FlowNodeData, labels: FlowEditorLabels): SourceRowSpec
       { id: 'false', label: labels.nodePanel.conditionFalse, isDefault: false, isSelfLoop: loops.has('false') },
     ]
   }
+  // Palavra-chave é uma saída a mais: "horário" leva à resposta sem o cliente tocar em opção.
+  const keywordRows = Object.keys(typeof node.next === 'object' ? (node.next.byKeyword ?? {}) : {}).map((keyword) => ({
+    id: keywordHandle(keyword),
+    label: `“${keyword}”`,
+    isDefault: false,
+    isSelfLoop: loops.has(keywordHandle(keyword)),
+  }))
   const isChoice = node.type === 'menu' || node.questionType === 'choice'
-  if (!isChoice)
+  if (!isChoice && typeof node.next !== 'object')
     return [{ id: 'next', label: labels.nodePanel.nextRowLabel, isDefault: false, isSelfLoop: loops.has('next') }]
+  if (!isChoice)
+    return [
+      ...keywordRows,
+      { id: '__default', label: labels.nodePanel.nextRowLabel, isDefault: true, isSelfLoop: loops.has('__default') },
+    ]
   const options = node.options ?? []
   return [
     ...options.map(([id, label]) => ({ id, label, isDefault: false, isSelfLoop: loops.has(id) })),
+    ...keywordRows,
     { id: '__default', label: labels.edgeFallbackLabel, isDefault: true, isSelfLoop: loops.has('__default') },
   ]
 }
@@ -278,7 +297,7 @@ export function FlowNodeCard({ data }: NodeProps) {
         <span className="flex items-center gap-1.5 uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400 text-xs">
           <Icon size={12} strokeWidth={2.5} />
           {isStart && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" data-cv-tooltip={labels.startNodeTooltip} />}
-          {labels.legend[node.type]}
+          {labels.legend[node.type] ?? DEFAULT_FLOW_EDITOR_LABELS.legend.dynamic_choice}
         </span>
         <div className="flex items-center gap-1">
           {hasError && (

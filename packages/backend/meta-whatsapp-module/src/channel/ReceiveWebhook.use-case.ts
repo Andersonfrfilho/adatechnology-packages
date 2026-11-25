@@ -13,6 +13,7 @@ import {
 } from '@adatechnology/meta-whatsapp-contracts'
 import { INBOUND_LOCATION_CONTENT } from '../inboundLocation.constant'
 import type { MessageRepository } from '../repositories/MessageRepository'
+import type { FlowRunner } from '../flows/FlowRunner'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
 import type { RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
@@ -133,12 +134,15 @@ export class ReceiveWebhookUseCase {
       inboundQueue?: InboundDispatchQueueInterface
       /** Não grava `location` no transcript; ver `MetaWhatsAppModuleFeatures.redactInboundLocation`. */
       redactInboundLocation?: boolean
+      /** Runner de fluxo (`features.flowRunner`); ausente, o host dirige a conversa. */
+      flowRunner?: Pick<FlowRunner, 'handle'>
     },
   ) {
     this.dispatcher = new InboundEffectsDispatcher({
       sessionRepository: params.sessionRepository,
       ...(params.hooks ? { hooks: params.hooks } : {}),
       ...(params.realtime ? { realtime: params.realtime } : {}),
+      ...(params.flowRunner ? { flowRunner: params.flowRunner } : {}),
     })
   }
 

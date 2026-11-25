@@ -19,6 +19,7 @@ import {
   isCrossFlowTarget,
   slugifyNodeId,
   targetsOf,
+  keywordHandle,
   type FlowGraphData,
   type FlowNodeData,
 } from './flowGraph'
@@ -206,7 +207,8 @@ export function buildFlowEdges(params: {
     for (const [nodeId, node] of Object.entries(graph.nodes)) {
       const live = (liveCounts[nodeId] ?? 0) > 0
 
-      for (const { target, optionId, isDefault } of targetsOf(node)) {
+      for (const { target, optionId: answerId, keyword, isDefault } of targetsOf(node)) {
+        const optionId = keyword !== undefined ? keywordHandle(keyword) : answerId
         // Destino vazio é estado NORMAL, não anomalia: apagar um nó zera quem apontava para ele, e
         // `targetsOf` devolve o `default` mesmo em branco. Emitir a aresta criaria ligação para um nó
         // que não existe — o React Flow a descarta em silêncio, então o sintoma seria uma opção que
@@ -341,6 +343,16 @@ export function newNodeFromSpec(spec: NewNodeSpec, existingIds: ReadonlySet<stri
   if (spec.kind === 'condition') {
     const id = slugifyNodeId('nova_condicao', existingIds)
     return { id, type: 'condition', conditionOperator: '>' }
+  }
+
+  if (spec.kind === 'dynamicChoice') {
+    const id = slugifyNodeId('nova_escolha_dinamica', existingIds)
+    return { id, type: 'dynamic_choice', contextKey: id, question: '' }
+  }
+
+  if (spec.kind === 'message') {
+    const id = slugifyNodeId('nova_mensagem', existingIds)
+    return { id, type: 'action', directMessage: '' }
   }
 
   const id = slugifyNodeId('nova_acao', existingIds)

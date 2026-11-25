@@ -64,7 +64,9 @@ export type SendPreviewMediaParams = {
 export type CreatePreviewWebhookClientParams = {
   readonly webhookUrl: string
   readonly appSecret: string
+  /** Usado como veio. Para contato de simulador, ver `createPreviewBridgeClient` (`from` + `features.previewContacts`). */
   readonly from: string
+  /** O `phone_number_id` do host. Sem ele o webhook descarta a entrega no filtro de número. */
   readonly phoneNumberId?: string
   /**
    * Rota que guarda o áudio gravado. Por padrão, `/v1/preview/media` na mesma origem do webhook.

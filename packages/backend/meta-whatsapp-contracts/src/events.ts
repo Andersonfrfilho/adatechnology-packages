@@ -125,6 +125,12 @@ export interface MetaWhatsAppHooks {
    * a mudança não é desfeita, mas o host fica sabendo que a auditoria não foi escrita.
    */
   onConversationModeChanged?: (change: ConversationModeChange) => Promise<void> | void
+  /**
+   * Falha do runner de fluxo DEPOIS de a posição da conversa já ter sido gravada (tipicamente o
+   * envio da pergunta). Entregue aqui em vez de propagada: relançar faria a fila reprocessar a mesma
+   * mensagem como resposta ao nó seguinte. Ausente, o erro é relançado.
+   */
+  onFlowRunnerError?: (error: unknown, details: FlowRunnerErrorDetails) => Promise<void> | void
 }
 
 export type ConversationModeChangeKind = 'takeover' | 'release' | 'human-requested'
@@ -182,4 +188,17 @@ export type InboundEffectRejectedDescriptor = {
   /** Código da recusa (`WHATSAPP_NETWORK_ERROR` e `WHATSAPP_TIMEOUT` nunca aparecem: são retriáveis). */
   readonly code: string
   readonly error: unknown
+}
+
+export type FlowRunnerErrorDetails = {
+  readonly companyId: string
+  readonly whatsappNumber: string
+  readonly flowKey: string | null
+  readonly nodeId: string | null
+  /**
+   * Em que passo falhou: enviar o nó, saltar de fluxo, ciclo de nós automáticos, o encaminhamento
+   * (fila ou ganchos), ou qualquer outro ponto do turno depois de a mensagem ter sido marcada como
+   * tratada (`turn`) — nesse caso ela não é reprocessada.
+   */
+  readonly stage: 'render' | 'cross-flow' | 'max-steps' | 'handoff' | 'turn'
 }
