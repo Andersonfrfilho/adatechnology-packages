@@ -13,17 +13,33 @@ import {
   STANDARD_EMAIL_TEMPLATE_KEY,
   STANDARD_EMAIL_VARIABLES,
 } from '@adatechnology/notification-contracts'
+import type { TemplateDefinition } from '@adatechnology/notification-contracts'
 
 import type { NotificationModule } from '../NotificationModule'
 import type { TemplateRepository } from '../repositories/TemplateRepository'
 import { buildTemplateRow, createInMemoryTemplates } from '../testing/inMemoryRepositories'
 import { StandardEmailService } from '../use-cases/StandardEmail.use-cases'
 import { DeactivateTemplateUseCase, ListTemplatesUseCase, UpsertTemplateUseCase } from '../use-cases/Template.use-cases'
+import {
+  ListTemplateEditorItemsUseCase,
+  RestoreTemplateDefaultUseCase,
+} from '../use-cases/TemplateDefinition.use-cases'
 import { createNotificationRoutes } from './routes'
 
 const COMPANY = randomUUID()
 const OTHER_COMPANY = randomUUID()
 const HOST_CATALOG = { 'order.ready': [{ name: 'orderNumber', example: '1', required: true }] }
+
+const DEFINITIONS: TemplateDefinition[] = [
+  {
+    key: 'welcome',
+    channel: 'whatsapp',
+    locale: 'pt-BR',
+    label: 'Boas-vindas',
+    body: 'Olá {{name}}',
+    variables: [{ name: 'name', example: 'Ana', required: true }],
+  },
+]
 
 function build(seed = [] as ReturnType<typeof buildTemplateRow>[]) {
   const store = createInMemoryTemplates(seed)
@@ -34,6 +50,8 @@ function build(seed = [] as ReturnType<typeof buildTemplateRow>[]) {
       listTemplates: new ListTemplatesUseCase(repository),
       upsertTemplate: new UpsertTemplateUseCase(repository, catalog),
       deactivateTemplate: new DeactivateTemplateUseCase(repository),
+      restoreTemplateDefault: new RestoreTemplateDefaultUseCase(repository, DEFINITIONS),
+      listTemplateEditorItems: new ListTemplateEditorItemsUseCase(repository, DEFINITIONS),
     },
     standardEmail: new StandardEmailService(repository),
     templateVariables: catalog,
@@ -142,5 +160,30 @@ describe('GET /notification-template-variables', () => {
 
     expect(Object.keys(payload.data).sort()).toEqual(['notification.standard-email', 'order.ready'])
     expect(payload.data[STANDARD_EMAIL_TEMPLATE_KEY]?.map((variable) => variable.name)).toContain('rodapePlataforma')
+  })
+})
+
+describe('templates declarados pelo host', () => {
+  it('restore-default de chave declarada grava versão nova com o texto padrão', async () => {
+    const edited = buildTemplateRow({ companyId: COMPANY, key: 'welcome', channel: 'whatsapp', body: 'editado' })
+    const { router, store } = build([edited])
+
+    const response = await router.handle(
+      new Request(`http://localhost/v1/notification-templates/${edited.id}/restore-default`, { method: 'POST' }),
+    )
+
+    expect(response.status).toBe(201)
+    expect(store.rows).toHaveLength(2)
+    expect(store.rows[1]?.body).toBe('Olá {{name}}')
+  })
+
+  it('GET /notification-template-definitions lista metadados e estado', async () => {
+    const { router } = build()
+
+    const response = await router.handle(new Request('http://localhost/v1/notification-template-definitions'))
+    const payload = (await response.json()) as { data: { key: string; label: string; isCustomized: boolean }[] }
+
+    expect(response.status).toBe(200)
+    expect(payload.data).toMatchObject([{ key: 'welcome', label: 'Boas-vindas', isCustomized: false }])
   })
 })
