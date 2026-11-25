@@ -7,6 +7,7 @@
 
 import type {
   CatalogHooks,
+  ProductAttributesValidatorPort,
   CatalogModuleConfig,
   ClockPort,
   LoggerPort,
@@ -36,6 +37,7 @@ export type CatalogDependencies = CatalogRepositories & {
   readonly imageStorage?: ProductImageStoragePort
   readonly metaSync?: MetaCatalogSyncPort
   readonly productSuggestion?: ProductSuggestionPort
+  readonly attributesValidator?: ProductAttributesValidatorPort
   readonly webhookNonceStore?: WebhookNonceStorePort
   readonly vision?: ProductVisionPort
   /**

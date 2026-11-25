@@ -2,8 +2,8 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { PRODUCT_AVAILABILITY, PRODUCT_SYNC_STATUS } from '@adatechnology/catalog-contracts'
-import type { CatalogModuleConfig, ProductAvailability } from '@adatechnology/catalog-contracts'
+import { isAvailableAt, PRODUCT_AVAILABILITY, PRODUCT_SYNC_STATUS } from '@adatechnology/catalog-contracts'
+import type { AvailabilitySchedule, CatalogModuleConfig, ProductAvailability } from '@adatechnology/catalog-contracts'
 
 /**
  * Só deriva quando o host pediu **e** o produto controla estoque. `inventory: null` significa
@@ -50,3 +50,40 @@ export function requiresMetaResync(changedFields: readonly string[]): boolean {
 }
 
 export const PENDING_SYNC = PRODUCT_SYNC_STATUS.PENDING
+
+export const UNAVAILABLE_REASON = {
+  INACTIVE: 'inactive',
+  OUT_OF_STOCK: 'out_of_stock',
+  OUTSIDE_SCHEDULE: 'outside_schedule',
+} as const
+export type UnavailableReason = (typeof UNAVAILABLE_REASON)[keyof typeof UNAVAILABLE_REASON]
+
+export type ProductAvailabilityVerdict =
+  | { readonly available: true }
+  | { readonly available: false; readonly reason: UnavailableReason }
+
+/**
+ * "Pode ser vendido neste instante": ativo, não pausado/esgotado (`availability`) e dentro da
+ * agenda. Os três são independentes — a agenda diz *quando*, `availability` diz *se agora há*.
+ */
+export function evaluateProductAvailability(params: {
+  readonly row: {
+    readonly active: boolean
+    readonly availability: string
+    readonly availabilitySchedule: AvailabilitySchedule | null
+  }
+  readonly at: Date
+  readonly defaultTimeZone?: string
+}): ProductAvailabilityVerdict {
+  const { row } = params
+  if (!row.active) return { available: false, reason: UNAVAILABLE_REASON.INACTIVE }
+  if (row.availability === PRODUCT_AVAILABILITY.OUT_OF_STOCK) {
+    return { available: false, reason: UNAVAILABLE_REASON.OUT_OF_STOCK }
+  }
+  const inSchedule = isAvailableAt({
+    schedule: row.availabilitySchedule,
+    at: params.at,
+    ...(params.defaultTimeZone ? { defaultTimeZone: params.defaultTimeZone } : {}),
+  })
+  return inSchedule ? { available: true } : { available: false, reason: UNAVAILABLE_REASON.OUTSIDE_SCHEDULE }
+}

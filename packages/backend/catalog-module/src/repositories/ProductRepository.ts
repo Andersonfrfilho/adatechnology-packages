@@ -49,6 +49,8 @@ export const CUSTOMER_FACING_PRODUCT_COLUMNS = {
   active: products.active,
   sortOrder: products.sortOrder,
   availability: products.availability,
+  availabilitySchedule: products.availabilitySchedule,
+  attributes: products.attributes,
 } as const
 
 /** Linha sem as colunas de margem — o que a projeção de cliente devolve. */
@@ -186,6 +188,32 @@ export class ProductRepository {
       .where(productOwnedByCondition(params))
       .limit(1)
     return row
+  }
+
+  /**
+   * Candidatos à janela de disponibilidade: ativos, do escopo pedido. A agenda é avaliada em
+   * memória pelo use-case (fuso/virada de dia não cabem num WHERE portável), então o teto
+   * `limit` existe para uma base grande não virar leitura sem fim.
+   */
+  async listActive(params: {
+    companyId: string
+    catalogId?: string
+    sectionId?: string
+    limit: number
+  }): Promise<ProductRow[]> {
+    return this.db
+      .select()
+      .from(products)
+      .where(
+        and(
+          productListCondition(params),
+          eq(products.active, true),
+          params.catalogId ? eq(products.catalogId, params.catalogId) : undefined,
+          params.sectionId ? eq(products.sectionId, params.sectionId) : undefined,
+        ),
+      )
+      .orderBy(asc(products.sortOrder), asc(products.name))
+      .limit(params.limit)
   }
 
   async listForCustomer(query: {

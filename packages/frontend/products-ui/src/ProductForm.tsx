@@ -4,6 +4,9 @@ import type { Product, Catalog, Section, CreateProductInput, ProductSuggestion }
 import { DEFAULT_UNIT_OPTIONS, PRODUCT_OPTIONAL_FIELD } from './providers/types'
 import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './providers/ProductsProvider'
 import { ImageUpload } from './ImageUpload'
+import { AttributesEditor } from './AttributesEditor'
+import { AvailabilityScheduleEditor, type AvailabilityScheduleDraft } from './AvailabilityScheduleEditor'
+import { DEFAULT_PRICE_ON_REQUEST_LABEL, attributesToEntries, buildSchedule, entriesToAttributes, validateSchedule, type AttributeEntry } from './lib/productFields'
 import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
 
 const SUGGESTION_MIN_QUERY_LENGTH = 2
@@ -47,6 +50,10 @@ type FormState = {
   preparationInstructions: string
   sortOrder: string
   active: boolean
+  priceOnRequest: boolean
+  hasSchedule: boolean
+  schedule: AvailabilityScheduleDraft
+  attributes: readonly AttributeEntry[]
 }
 
 const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
@@ -127,6 +134,15 @@ export function ProductForm({
     preparationInstructions: initialValues?.preparationInstructions ?? '',
     sortOrder: initialValues?.sortOrder?.toString() ?? '0',
     active: initialValues?.active ?? true,
+    priceOnRequest: initialValues?.priceInCents === null,
+    hasSchedule: Boolean(initialValues?.availabilitySchedule),
+    schedule: {
+      weekdays: initialValues?.availabilitySchedule?.weekdays ?? [],
+      from: initialValues?.availabilitySchedule?.from ?? '',
+      until: initialValues?.availabilitySchedule?.until ?? '',
+      timeZone: initialValues?.availabilitySchedule?.timeZone ?? '',
+    },
+    attributes: attributesToEntries(initialValues?.attributes),
   })
 
   const [submitting, setSubmitting] = useState(false)
@@ -149,7 +165,7 @@ export function ProductForm({
     return url
   }, [uploadImage])
 
-  const updateField = useCallback((field: keyof FormState, value: string | boolean | MoneyField) => {
+  const updateField = useCallback((field: keyof FormState, value: FormState[keyof FormState]) => {
     setForm(prev => ({ ...prev, [field]: value }))
     setErrors(prev => {
       const next = { ...prev }
@@ -240,13 +256,18 @@ export function ProductForm({
       newErrors.name = 'Nome é obrigatório'
     }
 
-    if (form.price.amountInCents <= 0) {
+    if (!form.priceOnRequest && form.price.amountInCents <= 0) {
       newErrors.price = 'Preço deve ser maior que zero'
+    }
+
+    if (isFieldEnabled(PRODUCT_OPTIONAL_FIELD.AVAILABILITY_SCHEDULE) && form.hasSchedule) {
+      const scheduleError = validateSchedule(form.schedule)
+      if (scheduleError) newErrors.schedule = scheduleError
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }, [form])
+  }, [form, isFieldEnabled])
 
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault()
@@ -259,7 +280,7 @@ export function ProductForm({
       await onSubmit({
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-        priceInCents: form.price.amountInCents,
+        priceInCents: isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PRICE_ON_REQUEST) && form.priceOnRequest ? null : form.price.amountInCents,
         ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.COST_PRICE) && form.costPrice.amountInCents > 0
           ? { costPriceInCents: form.costPrice.amountInCents }
           : {}),
@@ -285,12 +306,23 @@ export function ProductForm({
         ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SORT_ORDER)
           ? { sortOrder: Number.parseInt(form.sortOrder, 10) || 0 }
           : {}),
+        // Ao editar, desligar a agenda manda `null` para remover; ao criar, simplesmente não envia.
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.AVAILABILITY_SCHEDULE)
+          ? form.hasSchedule
+            ? { availabilitySchedule: buildSchedule(form.schedule) }
+            : initialValues?.id
+              ? { availabilitySchedule: null }
+              : {}
+          : {}),
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ATTRIBUTES)
+          ? { attributes: entriesToAttributes(form.attributes) }
+          : {}),
         active: form.active,
       })
     } finally {
       setSubmitting(false)
     }
-  }, [form, isFieldEnabled, onSubmit, validate])
+  }, [form, initialValues?.id, isFieldEnabled, onSubmit, validate])
 
   const isEditing = !!initialValues?.id
   const showCostPrice = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.COST_PRICE)
@@ -301,6 +333,10 @@ export function ProductForm({
   const showPreparationTime = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_TIME)
   const showPreparationInstructions = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PREPARATION_INSTRUCTIONS)
   const showSortOrder = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SORT_ORDER)
+  const showPriceOnRequest = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PRICE_ON_REQUEST)
+  const showSchedule = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.AVAILABILITY_SCHEDULE)
+  const showAttributes = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ATTRIBUTES)
+  const isPriceOnRequest = showPriceOnRequest && form.priceOnRequest
   const moneyPlaceholder = formatMoney(0, moneyFormat)
   const unitOptions = config.unitOptions ?? DEFAULT_UNIT_OPTIONS
   const marginShortcuts = config.marginShortcutPercents ?? []
@@ -363,12 +399,23 @@ export function ProductForm({
           <label className={LABEL_CLASS}>Preço de venda *</label>
           <input
             type="text"
-            value={form.price.text}
+            value={isPriceOnRequest ? '' : form.price.text}
             onChange={(e) => handleMoneyChange('price', e.target.value)}
-            className={`${INPUT_CLASS} ${errors.price ? 'border-red-300 bg-red-50' : ''}`}
-            placeholder={moneyPlaceholder}
+            disabled={isPriceOnRequest}
+            className={`${INPUT_CLASS} ${errors.price ? 'border-red-300 bg-red-50' : ''} disabled:opacity-50`}
+            placeholder={isPriceOnRequest ? (config.priceOnRequestLabel ?? DEFAULT_PRICE_ON_REQUEST_LABEL) : moneyPlaceholder}
           />
           {errors.price && <p className="mt-1 text-xs text-red-500">{errors.price}</p>}
+          {showPriceOnRequest && (
+            <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={form.priceOnRequest}
+                onChange={(e) => updateField('priceOnRequest', e.target.checked)}
+              />
+              Preço sob consulta
+            </label>
+          )}
         </div>
         {showCostPrice && (
           <div>
@@ -569,6 +616,31 @@ export function ProductForm({
             placeholder="Instruções para quem produz o item..."
           />
         </div>
+      )}
+
+      {showSchedule && (
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={form.hasSchedule}
+              onChange={(e) => updateField('hasSchedule', e.target.checked)}
+            />
+            Vender apenas em dias/horários específicos
+          </label>
+          {form.hasSchedule && (
+            <AvailabilityScheduleEditor
+              value={form.schedule}
+              onChange={(schedule) => updateField('schedule', schedule)}
+              locale={config.locale}
+              {...(errors.schedule ? { error: errors.schedule } : {})}
+            />
+          )}
+        </div>
+      )}
+
+      {showAttributes && (
+        <AttributesEditor entries={form.attributes} onChange={(entries) => updateField('attributes', entries)} />
       )}
 
       <div className="flex items-center gap-3">

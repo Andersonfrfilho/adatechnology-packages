@@ -49,6 +49,8 @@ export function toProduct(row: ProductRow, projection: ProductProjection = 'admi
     sectionId: row.sectionId,
     preparationTimeMinutes: row.preparationTimeMinutes,
     preparationInstructions: row.preparationInstructions,
+    availabilitySchedule: row.availabilitySchedule ?? null,
+    attributes: row.attributes ?? {},
     externalId: row.externalId,
     syncStatus: (row.syncStatus as ProductSyncStatus | null) ?? null,
     syncError: row.syncError,

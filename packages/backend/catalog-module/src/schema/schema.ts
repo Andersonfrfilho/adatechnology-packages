@@ -3,7 +3,8 @@
  */
 
 import { sql } from 'drizzle-orm'
-import { boolean, index, integer, pgSchema, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, jsonb, pgSchema, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
+import type { AvailabilitySchedule } from '@adatechnology/catalog-contracts'
 
 // Schema Postgres dedicado — o módulo nunca escreve no `public` do host (regra §3).
 export const catalogSchema = pgSchema('catalog')
@@ -71,7 +72,8 @@ export const products = catalogSchema.table(
     description: text('description'),
     // Centavos inteiros — `numeric` seria mais correto para dinheiro em geral, mas preço de
     // varejo não tem fração de centavo e `integer` remove a classe de bug de ponto flutuante.
-    priceInCents: integer('price_in_cents').notNull(),
+    // `null` = preço sob consulta (a coluna era NOT NULL; linhas existentes seguem válidas).
+    priceInCents: integer('price_in_cents'),
     // Margem: nunca sai na projeção destinada ao cliente final (ver ProductRepository).
     costPriceInCents: integer('cost_price_in_cents'),
     unit: varchar('unit', { length: 16 }),
@@ -102,6 +104,10 @@ export const products = catalogSchema.table(
     availability: varchar('availability', { length: 16 }).notNull().default('in stock'),
     preparationTimeMinutes: integer('preparation_time_minutes'),
     preparationInstructions: text('preparation_instructions'),
+    // Dias da semana + janela de horário + fuso (`AvailabilitySchedule`). `null` = sem restrição.
+    availabilitySchedule: jsonb('availability_schedule').$type<AvailabilitySchedule>(),
+    // Objeto livre do host; o módulo não interpreta o conteúdo.
+    attributes: jsonb('attributes').$type<Record<string, unknown>>().notNull().default({}),
     externalId: varchar('external_id', { length: 128 }),
     syncStatus: SYNC_STATUS,
     syncError: SYNC_ERROR,

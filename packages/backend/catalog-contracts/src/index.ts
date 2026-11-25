@@ -30,6 +30,8 @@ export type {
 export {
   createProductSchema,
   updateProductSchema,
+  productAttributesSchema,
+  availableProductsQuerySchema,
   createCatalogSchema,
   updateCatalogSchema,
   createSectionSchema,
@@ -48,10 +50,12 @@ export type {
   ListProductsQuery,
   ListCatalogsQuery,
   BulkImportRow,
+  AvailableProductsQuery,
 } from './schemas'
 
 export type {
   ProductImageStoragePort,
+  ProductAttributesValidatorPort,
   MetaProductPayload,
   MetaSyncOutcome,
   MetaCatalogSyncPort,
@@ -68,6 +72,17 @@ export type {
   CatalogWebhookConfig,
   WebhookNonceStorePort,
 } from './providers'
+
+export {
+  WEEKDAY,
+  WEEKDAYS,
+  DEFAULT_SCHEDULE_TIME_ZONE,
+  availabilityScheduleSchema,
+  isAvailableAt,
+  isValidTimeZone,
+  localTimeParts,
+} from './availabilitySchedule'
+export type { AvailabilitySchedule, Weekday } from './availabilitySchedule'
 
 export { CATALOG_EVENT } from './events'
 export type {
