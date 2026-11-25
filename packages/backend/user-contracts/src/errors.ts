@@ -19,6 +19,7 @@ export const USER_ERROR_CODE = {
   PROVIDER_DISABLED: 'USER_PROVIDER_DISABLED',
   CONFIG_MISSING: 'USER_CONFIG_MISSING',
   AVATAR_REJECTED: 'USER_AVATAR_REJECTED',
+  PASSWORD_NOT_LOCAL: 'USER_PASSWORD_NOT_LOCAL',
 } as const
 
 export type UserErrorCode = (typeof USER_ERROR_CODE)[keyof typeof USER_ERROR_CODE]
@@ -122,6 +123,18 @@ export class WeakPasswordError extends UserError {
       code: USER_ERROR_CODE.WEAK_PASSWORD,
     })
     this.name = 'WeakPasswordError'
+  }
+}
+
+/** A pessoa entra por provedor externo (Keycloak...): a senha não é do módulo para trocar. */
+export class PasswordNotLocalError extends UserError {
+  constructor() {
+    super({
+      message: 'User signs in through an external provider',
+      statusCode: 409,
+      code: USER_ERROR_CODE.PASSWORD_NOT_LOCAL,
+    })
+    this.name = 'PasswordNotLocalError'
   }
 }
 

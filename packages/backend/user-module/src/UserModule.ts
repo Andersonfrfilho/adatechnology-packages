@@ -41,6 +41,7 @@ import { SignOutUseCase } from './use-cases/SignOut.use-case'
 import { SignUpUseCase } from './use-cases/SignUp.use-case'
 import { UpdateProfileUseCase } from './use-cases/UpdateProfile.use-case'
 import { UpdateUserUseCase } from './use-cases/UpdateUser.use-case'
+import { SetUserPasswordUseCase } from './use-cases/SetUserPassword.use-case'
 import type { UserDependencies } from './use-cases/userModule.types'
 
 const RESET_TOKEN_PLACEHOLDER = '{token}'
@@ -71,6 +72,7 @@ export type UserModule = {
     readonly confirmPasswordReset: ConfirmPasswordResetUseCase
     readonly updateProfile: UpdateProfileUseCase
     readonly updateUser: UpdateUserUseCase
+    readonly setUserPassword: SetUserPasswordUseCase
     readonly signUp: SignUpUseCase
     readonly refreshSession: RefreshSessionUseCase
     readonly signOut: SignOutUseCase
@@ -179,6 +181,7 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
       confirmPasswordReset: new ConfirmPasswordResetUseCase(dependencies),
       updateProfile: new UpdateProfileUseCase(dependencies),
       updateUser: new UpdateUserUseCase(dependencies),
+      setUserPassword: new SetUserPasswordUseCase(dependencies),
       signUp: new SignUpUseCase(dependencies),
       refreshSession: new RefreshSessionUseCase(dependencies),
       signOut: new SignOutUseCase(dependencies),

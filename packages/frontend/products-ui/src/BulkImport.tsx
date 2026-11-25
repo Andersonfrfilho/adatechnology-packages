@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, type ChangeEvent } from 'react'
 import type { BulkImportResult } from './providers/types'
+import { parseCSV } from './lib/csv'
 
 export type BulkImportProps = {
   readonly onImport: (file: File) => Promise<BulkImportResult>
@@ -8,53 +9,6 @@ export type BulkImportProps = {
 type PreviewRow = {
   row: number
   cells: string[]
-}
-
-function parseCSV(text: string): string[][] {
-  const rows: string[][] = []
-  let current = ''
-  let inQuotes = false
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-    const next = text[i + 1]
-
-    if (inQuotes) {
-      if (char === '"' && next === '"') {
-        current += '"'
-        i++
-      } else if (char === '"') {
-        inQuotes = false
-      } else {
-        current += char
-      }
-    } else {
-      if (char === '"') {
-        inQuotes = true
-      } else if (char === ',') {
-        rows[rows.length - 1]?.push(current.trim())
-        current = ''
-      } else if (char === '\n' || (char === '\r' && next === '\n')) {
-        rows[rows.length - 1]?.push(current.trim())
-        rows.push([])
-        current = ''
-        if (char === '\r') i++
-      } else if (char === '\r') {
-        rows[rows.length - 1]?.push(current.trim())
-        rows.push([])
-        current = ''
-      } else {
-        current += char
-      }
-    }
-  }
-
-  if (current) {
-    if (rows.length === 0) rows.push([])
-    rows[rows.length - 1]?.push(current.trim())
-  }
-
-  return rows.filter((row) => row.some((cell) => cell.length > 0))
 }
 
 export function BulkImport({ onImport }: BulkImportProps) {
@@ -83,7 +37,8 @@ export function BulkImport({ onImport }: BulkImportProps) {
       try {
         const text = reader.result as string
         const rows = parseCSV(text)
-        const previewRows = rows.slice(0, 5).map((cells, index) => ({
+        // A primeira linha é o cabeçalho; a prévia mostra só dados.
+        const previewRows = rows.slice(1, 6).map((cells, index) => ({
           row: index + 1,
           cells,
         }))

@@ -161,8 +161,13 @@ export function createInMemoryProducts(seed: ProductRow[] = []) {
   }
 }
 
-export function createInMemoryCatalogs(seed: CatalogRow[] = []) {
+/** `products` opcional: com ele, `list` conta os produtos vivos de cada catálogo como o Postgres. */
+export function createInMemoryCatalogs(seed: CatalogRow[] = [], products?: { readonly rows: readonly ProductRow[] }) {
   const rows: CatalogRow[] = [...seed]
+  const countProducts = (catalog: CatalogRow): number =>
+    (products?.rows ?? []).filter(
+      (product) => product.catalogId === catalog.id && product.companyId === catalog.companyId && !product.deletedAt,
+    ).length
 
   return {
     rows,
@@ -193,7 +198,12 @@ export function createInMemoryCatalogs(seed: CatalogRow[] = []) {
           !row.deletedAt &&
           (query.search ? row.name.toLowerCase().includes(query.search.toLowerCase()) : true),
       )
-      return { rows: filtered.map((row) => ({ ...row, productCount: 0 })), total: filtered.length }
+      return { rows: filtered.map((row) => ({ ...row, productCount: countProducts(row) })), total: filtered.length }
+    },
+    async findNamesByIds(params: { companyId: string; ids: readonly string[] }) {
+      return rows
+        .filter((row) => row.companyId === params.companyId && params.ids.includes(row.id) && !row.deletedAt)
+        .map((row) => ({ id: row.id, name: row.name }))
     },
     async update(params: { companyId: string; id: string; values: Partial<NewCatalogRow> }) {
       const row = rows.find((candidate) => candidate.companyId === params.companyId && candidate.id === params.id)

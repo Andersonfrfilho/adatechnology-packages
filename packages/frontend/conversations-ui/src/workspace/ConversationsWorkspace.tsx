@@ -17,10 +17,10 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Check, CheckCheck, FlaskConical, Hourglass, Mail, MessagesSquare } from 'lucide-react'
+import { Check, CheckCheck, FlaskConical, Hourglass, Mail, MessagesSquare, UserPlus } from 'lucide-react'
 
 import { ICON_SIZE_ACTION, ICON_SIZE_INLINE } from '../icon.constant'
-import type { ConversationContextEntry } from '../ConversationContextPanel'
+import type { ConversationContextEntry, ConversationContextPanelLabels } from '../ConversationContextPanel'
 import type { ConversationHeaderUtility } from '../ConversationHeader'
 import type { QuickReply } from '../MessageComposer'
 import type { RichComposerVariable } from '../RichMessageComposer'
@@ -57,6 +57,18 @@ export type SimulatorTransportParams = {
  */
 export type SimulatorTransportFactory = (params: SimulatorTransportParams) => ConversationSimulatorClient
 
+/**
+ * Contato de teste que o host cria para abrir o simulador sem conversa selecionada. `handle` é o
+ * identificador no canal (no WhatsApp, um número de teste começando com `0`, que nenhum país usa).
+ */
+export type SimulatorTestContact = {
+  readonly handle: string
+  /** Ausente = WhatsApp. */
+  readonly channel?: ConversationChannel
+  /** Id da conversa quando o host já o conhece. Ausente, usa `handle` e o transcript começa vazio. */
+  readonly conversationId?: string
+}
+
 export interface ConversationsWorkspaceSimulator {
   /**
    * Um transporte por canal — o workspace monta o painel com o da conversa selecionada.
@@ -84,6 +96,27 @@ export interface ConversationsWorkspaceSimulator {
   readonly uploadMedia?: (file: File) => Promise<PreviewUploadedMedia>
   /** Recarrega o transcript a cada N ms. Serve a host sem stream. */
   readonly pollIntervalMs?: number
+  /**
+   * Liga "Novo contato de teste" no cabeçalho da página: o host devolve o contato e o simulador
+   * abre sem conversa selecionada. Quando a conversa dele aparece na lista, ela é selecionada.
+   * Ausente, o simulador só abre sobre uma conversa existente.
+   */
+  readonly createTestContact?: () => SimulatorTestContact | Promise<SimulatorTestContact>
+  /** Rótulo do botão de novo contato. Padrão: "Novo contato de teste". */
+  readonly newContactLabel?: string
+}
+
+type SimulatorTarget = {
+  readonly key: string
+  readonly conversationId: string
+  readonly channel: ConversationChannel
+  readonly handle: string
+  /** `false` enquanto a conversa do contato de teste ainda não existe no servidor. */
+  readonly persisted: boolean
+}
+
+function handleOf(conversation: ConversationSummary): string {
+  return conversation.contactId ?? conversation.whatsappNumber
 }
 
 export interface ConversationsWorkspaceProps {
@@ -141,6 +174,8 @@ export interface ConversationsWorkspaceProps {
   /** Nota de voz. Ausente, o microfone não aparece. */
   readonly onRecordAudio?: (conversation: ConversationSummary, file: File) => Promise<void>
   readonly contextEntriesOf?: (context: Record<string, unknown> | undefined) => readonly ConversationContextEntry[]
+  /** Vocabulário do painel de contexto (`title`, `empty`, `notCollected`...). */
+  readonly contextLabels?: Partial<ConversationContextPanelLabels>
   readonly onAttach?: (conversation: ConversationSummary, file: File) => Promise<void>
   readonly extraUtilitiesFor?: (conversation: ConversationSummary) => readonly ConversationHeaderUtility[]
   readonly renderFilters?: (inbox: UseConversationsInboxResult) => ReactNode
@@ -179,6 +214,7 @@ export function ConversationsWorkspace({
   onSendAttachments,
   onRecordAudio,
   contextEntriesOf,
+  contextLabels,
   onAttach,
   extraUtilitiesFor,
   renderFilters,
@@ -198,6 +234,7 @@ export function ConversationsWorkspace({
     ...(serverPaginated ? { serverPaginated } : {}),
   })
   const [simulatorOpen, setSimulatorOpen] = useState(false)
+  const [testContact, setTestContact] = useState<SimulatorTestContact | undefined>(undefined)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [openedFromLink, setOpenedFromLink] = useState<string | undefined>(undefined)
 
@@ -216,22 +253,67 @@ export function ConversationsWorkspace({
   }, [initialConversationId, initialWhatsappNumber, openedFromLink, inbox])
 
   const selected = inbox.selectedConversation
+
+  // O contato de teste vira conversa de verdade no primeiro envio; achando-a na lista, ela passa a
+  // ser a selecionada e o painel segue sobre ela.
+  useEffect(() => {
+    if (!testContact) return
+    const created = inbox.conversations.find((conversation) => handleOf(conversation) === testContact.handle)
+    if (!created) return
+    inbox.selectConversation(created.id)
+    setTestContact(undefined)
+  }, [testContact, inbox])
+
   const conversations = useConversations()
-  const selectedId = selected?.id
-  const channel = selected?.channel ?? DEFAULT_CONVERSATION_CHANNEL
-  const handle = selected ? (selected.contactId ?? selected.whatsappNumber) : ''
+  const target: SimulatorTarget | undefined = selected
+    ? {
+        key: selected.id,
+        conversationId: selected.id,
+        channel: selected.channel ?? DEFAULT_CONVERSATION_CHANNEL,
+        handle: handleOf(selected),
+        persisted: true,
+      }
+    : testContact
+      ? {
+          key: `test-contact:${testContact.handle}`,
+          // Sem id conhecido, o próprio identificador: é a chave do stream por conversa (`conv:<número>`).
+          conversationId: testContact.conversationId ?? testContact.handle,
+          channel: testContact.channel ?? DEFAULT_CONVERSATION_CHANNEL,
+          handle: testContact.handle,
+          persisted: testContact.conversationId !== undefined,
+        }
+      : undefined
+  const channel = target?.channel ?? DEFAULT_CONVERSATION_CHANNEL
+  const targetConversationId = target?.conversationId
+  const handle = target?.handle ?? ''
   const transport = simulator?.transports?.[channel]
-  const simulatorEnabled = Boolean(
-    simulator && (simulator.enabled ?? true) && (simulator.render ?? transport),
-  )
-  const showSimulator = simulatorEnabled && simulatorOpen && Boolean(selected)
+  const simulatorAvailable = Boolean(simulator && (simulator.enabled ?? true))
+  const simulatorEnabled = simulatorAvailable && Boolean(simulator?.render ?? transport)
+  const showSimulator = simulatorEnabled && simulatorOpen && Boolean(target)
+  const canCreateTestContact = simulatorAvailable && Boolean(simulator?.createTestContact)
 
   // O transporte é recriado só quando a conversa (ou o canal dela) muda: identidade nova a cada
   // render reiniciaria a leitura do transcript dentro do painel a cada digitação.
   const simulatorClient = useMemo(
-    () => (transport && selectedId ? transport({ conversationId: selectedId, channel, handle }) : undefined),
-    [transport, selectedId, channel, handle],
+    () =>
+      transport && targetConversationId !== undefined
+        ? transport({ conversationId: targetConversationId, channel, handle })
+        : undefined,
+    [transport, targetConversationId, channel, handle],
   )
+
+  async function handleCreateTestContact(): Promise<void> {
+    const contact = await simulator?.createTestContact?.()
+    if (!contact) return
+    inbox.clearSelection()
+    setTestContact(contact)
+    setSimulatorOpen(true)
+  }
+
+  function closeSimulator(): void {
+    setSimulatorOpen(false)
+    setTestContact(undefined)
+  }
 
   const paneUtilities = useMemo(() => {
     if (!selected) return undefined
@@ -313,6 +395,18 @@ export function ConversationsWorkspace({
               <span className="cv-only-wide">{labels.markAllAsRead}</span>
             </button>
           ) : null}
+          {canCreateTestContact ? (
+            <button
+              type="button"
+              onClick={() => void handleCreateTestContact()}
+              data-cv-tooltip={simulator?.newContactLabel ?? labels.newTestContact}
+              aria-label={simulator?.newContactLabel ?? labels.newTestContact}
+              className="cv-workspace-toggle"
+            >
+              <UserPlus size={ICON_SIZE_ACTION} aria-hidden="true" />
+              <span className="cv-only-wide">{simulator?.newContactLabel ?? labels.newTestContact}</span>
+            </button>
+          ) : null}
           {renderHeaderActions?.(inbox)}
         </div>
       </header>
@@ -340,7 +434,7 @@ export function ConversationsWorkspace({
           separação por espaço lê mais rápido que por borda. */}
       <div
         className={`cv-workspace-grid${showSimulator ? ' cv-workspace-grid--with-simulator' : ''}`}
-        data-detail={selected ? 'open' : 'closed'}
+        data-detail={selected || showSimulator ? 'open' : 'closed'}
       >
         <ConversationsInboxList
           inbox={inbox}
@@ -385,6 +479,7 @@ export function ConversationsWorkspace({
               onBack={inbox.clearSelection}
               {...(paneUtilities ? { extraUtilities: paneUtilities } : {})}
               {...(contextEntriesOf ? { contextEntriesOf } : {})}
+              {...(contextLabels ? { contextLabels } : {})}
               {...(quickReplies ? { quickReplies } : {})}
               {...(quickReplyVariablesFor ? { quickReplyVariablesFor } : {})}
               {...(renderAboveTranscript ? { renderAboveTranscript } : {})}
@@ -395,24 +490,28 @@ export function ConversationsWorkspace({
           )}
         </section>
 
-        {showSimulator && selected ? (
+        {showSimulator && target ? (
           // `min-height:0` junto do `min-width:0`: sem isso a linha do grid cresce com o conteúdo do
           // painel, o scroll interno nunca ativa e quem rola passa a ser a página inteira.
           <div className="cv-workspace-simulator">
             {simulator?.render ? (
-              simulator.render({ conversationId: selected.id, channel, close: () => setSimulatorOpen(false) })
+              simulator.render({ conversationId: target.conversationId, channel, close: closeSimulator })
             ) : simulatorClient && conversations ? (
               // `key` pela conversa: trocar de contato sem remontar deixaria o transcript e o campo
               // de texto do contato anterior na tela.
               <ConversationSimulatorPanel
-                key={selected.id}
+                key={target.key}
                 client={simulatorClient}
                 sse={conversations.sse}
-                conversationId={selected.id}
+                conversationId={target.conversationId}
                 channel={channel}
                 displayHandle={formatContactHandle({ handle, channel })}
-                loadMessages={(conversationId) => conversations.api.fetchMessages(conversationId)}
-                onClose={() => setSimulatorOpen(false)}
+                // Contato de teste sem conversa ainda: nada a ler. O eco local mostra o que foi
+                // enviado até a conversa aparecer na lista e o painel passar para ela.
+                loadMessages={(conversationId) =>
+                  target.persisted ? conversations.api.fetchMessages(conversationId) : Promise.resolve([])
+                }
+                onClose={closeSimulator}
                 {...(simulator?.labels ? { labels: simulator.labels } : {})}
                 {...(simulator?.uploadMedia ? { uploadMedia: simulator.uploadMedia } : {})}
                 {...(simulator?.pollIntervalMs ? { pollIntervalMs: simulator.pollIntervalMs } : {})}

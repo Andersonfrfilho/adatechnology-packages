@@ -55,6 +55,10 @@ contrato compartilhado possível e impede os dois de divergirem.
 
 - `401` sem identidade, `403` com identidade e sem escopo — a distinção diz ao cliente se ele faz
   login ou pede acesso
+- Escopo: com `requiredScopes`, basta a identidade ter **um** deles (senão `403`). Sem declarar,
+  rota `user` aceita a pessoa, e rota `admin`/`service` exige que a identidade traga **ao menos um
+  escopo** — sessão comum com `scopes: []` não opera rota administrativa (correção de segurança na
+  0.2.0; antes, qualquer identidade autenticada passava)
 - `ZodError` vira `400` com **todos** os problemas de uma vez
 - Erro desconhecido vira `500` genérico, sem stack para o cliente
 - `details` do erro de domínio fica no log, nunca na resposta

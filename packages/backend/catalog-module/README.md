@@ -66,6 +66,30 @@ if (http.match(request)) return http.handle(request)
 | Catálogos | `GET/POST /catalogs`, `PUT/DELETE /catalogs/:id` |
 | Seções | `GET/POST /sections`, `PUT/DELETE /sections/:id` |
 
+### Escopos
+
+| Rota | Escopo exigido (basta um) |
+|---|---|
+| `GET` (listar, detalhe, disponibilidade, seções, pendências de sync) | `catalog:read` ou `catalog:write` |
+| Toda mutação (criar, editar, remover, estoque, importação, imagem, sync) | `catalog:write` |
+
+Sem um deles a rota responde `403`; sem identidade, `401`. Se o vocabulário do host é outro, troque
+na montagem — lista vazia aceita qualquer identidade que traga algum escopo:
+
+```ts
+createCatalogRoutes({ module: catalog, scopes: { read: ['admin', 'staff'], write: ['admin'] } })
+```
+
+⚠️ Até a 0.2.x as rotas `admin` não declaravam escopo e **qualquer identidade autenticada** lia e
+escrevia o catálogo. Ao atualizar, o `authResolver` do host precisa devolver `catalog:read`/
+`catalog:write` (ou o host passa `scopes`).
+
+### Formato da listagem
+
+`GET /products` e `GET /catalogs` respondem `{ data, pagination: { total, page, pageSize, totalPages } }`.
+Cada produto traz `catalogName` quando tem catálogo, e cada catálogo traz `productCount` (produtos
+não removidos). O `products-ui` lê esse formato direto com `createCatalogModuleProductsApi`.
+
 Para uWebSockets, troque por `mountModuleRoutes` de `@adatechnology/module-http/uws` — as duas
 rotas passam pelo mesmo despachante, e há teste de paridade garantindo respostas idênticas.
 

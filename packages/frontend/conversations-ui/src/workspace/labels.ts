@@ -16,6 +16,7 @@ export interface ConversationsWorkspaceLabels {
   readonly selectAll: string
   readonly emptyList: string
   readonly emptyDetail: string
+  readonly newTestContact: string
   readonly bulkSelected: (count: number) => string
   readonly bulkClear: string
   readonly bulkFinalize: string
@@ -67,6 +68,7 @@ export const DEFAULT_CONVERSATIONS_WORKSPACE_LABELS: ConversationsWorkspaceLabel
   selectAll: 'Selecionar todas',
   emptyList: 'Nenhuma conversa encontrada.',
   emptyDetail: 'Selecione uma conversa.',
+  newTestContact: 'Novo contato de teste',
   bulkSelected: (count) => `${count} selecionada${count === 1 ? '' : 's'}`,
   bulkClear: 'Limpar seleção',
   bulkFinalize: 'Finalizar',

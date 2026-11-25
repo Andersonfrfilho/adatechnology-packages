@@ -59,3 +59,69 @@ describe('requiredScopes em rota de pessoa', () => {
     expect(result).toMatchObject({ status: 401 })
   })
 })
+
+/**
+ * SEGURANÇA: rota `admin`/`service` é administrativa por definição. Com `requiredScopes` declarado,
+ * só quem tem um deles passa; sem declarar, ainda assim uma sessão sem escopo nenhum não passa.
+ */
+describe('escopo em rota administrativa', () => {
+  function buildRoute(overrides: Partial<ModuleRoute>): ModuleRoute {
+    return {
+      method: 'DELETE',
+      path: '/coisas/:id',
+      scope: 'admin',
+      operationId: 'removerCoisa',
+      summary: 'Remove',
+      async handler() {
+        return { kind: 'empty', status: 204 }
+      },
+      ...overrides,
+    }
+  }
+
+  function dispatchAs(route: ModuleRoute, auth: { userId?: string; scopes: string[] } | undefined) {
+    return dispatchRoute({
+      compiledRoutes: compileRoutes([route], ''),
+      request: { method: 'DELETE', pathname: '/coisas/1', query: {}, headers: {} },
+      authResolver: {
+        async resolve() {
+          return auth ? { companyId: 'c', ...auth } : undefined
+        },
+      },
+    })
+  }
+
+  const declared = buildRoute({ requiredScopes: ['coisas:admin'] })
+  const undeclared = buildRoute({})
+
+  it('401 sem identidade', async () => {
+    expect(await dispatchAs(declared, undefined)).toMatchObject({ status: 401 })
+  })
+
+  it('403 com identidade sem o escopo declarado', async () => {
+    expect(await dispatchAs(declared, { userId: 'u', scopes: ['coisas:read'] })).toMatchObject({ status: 403 })
+  })
+
+  it('200 com o escopo declarado', async () => {
+    expect(await dispatchAs(declared, { userId: 'u', scopes: ['coisas:admin'] })).toMatchObject({ status: 204 })
+  })
+
+  it('sem requiredScopes, sessão sem escopo nenhum recebe 403', async () => {
+    expect(await dispatchAs(undeclared, { userId: 'u', scopes: [] })).toMatchObject({ status: 403 })
+  })
+
+  it('sem requiredScopes, qualquer escopo do host basta', async () => {
+    expect(await dispatchAs(undeclared, { scopes: ['host:admin'] })).toMatchObject({ status: 204 })
+  })
+
+  it('service segue a mesma regra', async () => {
+    const service = buildRoute({ scope: 'service' })
+    expect(await dispatchAs(service, { scopes: [] })).toMatchObject({ status: 403 })
+    expect(await dispatchAs(service, { scopes: ['robot'] })).toMatchObject({ status: 204 })
+  })
+
+  it('user sem requiredScopes continua aceitando a pessoa sem escopo', async () => {
+    const userRoute = buildRoute({ scope: 'user' })
+    expect(await dispatchAs(userRoute, { userId: 'u', scopes: [] })).toMatchObject({ status: 204 })
+  })
+})

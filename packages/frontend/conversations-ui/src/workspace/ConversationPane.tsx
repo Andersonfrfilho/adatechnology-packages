@@ -8,7 +8,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { AudioRecorderButton } from '../AudioRecorderButton'
-import { ConversationContextPanel, type ConversationContextEntry } from '../ConversationContextPanel'
+import {
+  ConversationContextPanel,
+  type ConversationContextEntry,
+  type ConversationContextPanelLabels,
+} from '../ConversationContextPanel'
 import { ConversationDocumentsPanel } from '../ConversationDocumentsPanel'
 import { ConversationHeader, type ConversationHeaderUtility } from '../ConversationHeader'
 import { ConversationWallpaper } from '../Wallpaper'
@@ -50,6 +54,8 @@ export interface ConversationPaneProps {
   readonly extraUtilities?: readonly ConversationHeaderUtility[]
   /** Traduz o contexto cru do produto nas linhas do painel. Ausente, o painel não aparece. */
   readonly contextEntriesOf?: (context: Record<string, unknown> | undefined) => readonly ConversationContextEntry[]
+  /** Vocabulário do painel de contexto (`title`, `empty`, `notCollected`...). */
+  readonly contextLabels?: Partial<ConversationContextPanelLabels>
   readonly quickReplies?: readonly QuickReply[]
   /**
    * Recebe o contexto junto porque o dado que interessa à variável (o nome que o bot perguntou,
@@ -131,6 +137,7 @@ export function ConversationPane({
   onBack,
   extraUtilities,
   contextEntriesOf,
+  contextLabels,
   quickReplies,
   quickReplyVariablesFor,
   flowLabel,
@@ -355,7 +362,11 @@ export function ConversationPane({
       />
 
       {(contextEntries && contextEntries.length > 0) || flowLabel ? (
-        <ConversationContextPanel entries={contextEntries ?? []} {...(flowLabel ? { flowLabel } : {})} />
+        <ConversationContextPanel
+          entries={contextEntries ?? []}
+          {...(flowLabel ? { flowLabel } : {})}
+          {...(contextLabels ? { labels: contextLabels } : {})}
+        />
       ) : null}
       <ConversationDocumentsPanel conversationId={conversation.id} open={documentsOpen} />
 

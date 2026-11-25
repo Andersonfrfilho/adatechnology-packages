@@ -33,6 +33,17 @@ describe('buildRefreshTokenCookie', () => {
     expect(cookie).toContain('SameSite=None')
   })
 
+  it('emite `Strict` quando o host pede', () => {
+    const cookie = buildRefreshTokenCookie({
+      token,
+      maxAgeSeconds: 60,
+      sameSite: REFRESH_COOKIE_SAME_SITE.STRICT,
+    })
+
+    expect(cookie).toContain('SameSite=Strict')
+    expect(buildClearRefreshTokenCookie(REFRESH_COOKIE_SAME_SITE.STRICT)).toContain('SameSite=Strict')
+  })
+
   it('`Secure` e `HttpOnly` nos dois valores — `None` é recusado sem `Secure`', () => {
     for (const sameSite of Object.values(REFRESH_COOKIE_SAME_SITE)) {
       const cookie = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, sameSite })

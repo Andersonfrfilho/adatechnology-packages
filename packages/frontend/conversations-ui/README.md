@@ -3,6 +3,29 @@
 Telas de conversa parametrizáveis por endpoint, tema e capacidades. Subpaths: `.` (inbox/mensagens),
 `/flows`, `/whatsapp`, `/preview`, `/participant` e `/styles.css`.
 
+## Workspace: simulador e painel de contexto
+
+```tsx
+<ConversationsWorkspace
+  simulator={{
+    transports: { whatsapp: ({ conversationId, handle }) => createBridgeClient({ conversationId, handle }) },
+    // Liga "Novo contato de teste" no cabeçalho: abre o simulador sem conversa selecionada.
+    createTestContact: () => ({ handle: `0${Date.now()}` }),
+  }}
+  contextEntriesOf={(context) => toEntries(context)}
+  contextLabels={{ title: 'Dados da reserva', empty: 'Nada informado ainda.', notCollected: 'a informar' }}
+/>
+```
+
+- **Novo contato de teste:** `createTestContact` devolve `{ handle, channel?, conversationId? }`. O painel
+  abre com o transporte do canal, sem conversa selecionada; quando a conversa do contato aparece na lista
+  (primeiro envio), ela é selecionada e o painel segue sobre ela. Sem a prop, o botão não existe.
+- **Número de teste:** número só de dígitos começando com `0` (nenhum país usa) não é mascarado como
+  telefone: aparece como "Contato de teste 1234" na lista, no cabeçalho e no simulador
+  (`isTestContactNumber`, `TEST_CONTACT_LABEL`).
+- **`contextLabels`** troca o vocabulário do painel de contexto embutido (`title`, `empty`,
+  `notCollected`, ...), sem precisar desenhar o resumo em `renderAboveTranscript`.
+
 ## Visão do participante (`/participant`)
 
 Tela de conversa do lado de **quem conversa com a empresa** (app de campo, portal do cliente). Não usa

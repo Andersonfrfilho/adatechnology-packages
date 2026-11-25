@@ -92,6 +92,21 @@ if (http.match(request)) return http.handle(request)
 | Templates | `GET/PUT /notification-templates` |
 | Webhook de recibo | `POST /notification-webhooks/:driver` |
 
+### Escopos
+
+| Rotas | Escopo exigido (basta um) |
+|---|---|
+| `admin`: modelos (`/notification-templates*`, definições, variáveis) e políticas de categoria | `notification:admin` |
+| `service`: `POST /notifications` (envio por máquina) | `notification:send` ou `notification:admin` |
+| `user`: inbox, devices, preferências | a pessoa autenticada; o objeto é sempre dela |
+
+Sem o escopo a rota responde `403`. Vocabulário diferente no host:
+`createNotificationRoutes({ module, scopes: { admin: ['admin'], service: ['robot'] } })`.
+
+⚠️ Até a 0.5.x as rotas `admin`/`service` não declaravam escopo e **qualquer pessoa logada** editava
+modelos e políticas. Ao atualizar, o `authResolver` precisa devolver `notification:admin` a quem
+administra (ou o host passa `scopes`).
+
 O mesmo `createModuleFetchRouter` monta o `catalog-module`: **um router para as duas tabelas**.
 Para uWebSockets, troque por `mountModuleRoutes` de `@adatechnology/module-http/uws`.
 

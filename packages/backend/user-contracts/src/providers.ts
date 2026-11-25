@@ -142,6 +142,11 @@ export const REFRESH_COOKIE_SAME_SITE = {
   LAX: 'lax',
   /** A tela vive em outro site. Exige HTTPS — o cookie já sai `Secure` sempre. */
   NONE: 'none',
+  /**
+   * Tela e api no MESMO site e sem navegação vinda de fora autenticada: o cookie não acompanha nem
+   * o link clicado em outro site, então a primeira abertura por link externo chega sem sessão.
+   */
+  STRICT: 'strict',
 } as const
 
 export type RefreshCookieSameSite = (typeof REFRESH_COOKIE_SAME_SITE)[keyof typeof REFRESH_COOKIE_SAME_SITE]

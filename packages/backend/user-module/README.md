@@ -57,11 +57,25 @@ field. Use case: `userModule.useCases.updateUser.execute({ id, role, isActive, u
 - `onUserUpdated` carries `changes` (`role`, `isActive`, `unlocked`, `sessionsRevoked`) for auditing.
 - `role` is a single free-form string per user (the host owns the vocabulary).
 
+## Admin sets another user's password
+
+`PUT /admin/users/:id/password` (scope `user:admin`), body `{ password }` (same rules as sign-up),
+answers `204`. Use case: `userModule.useCases.setUserPassword.execute({ id, password, companyId, actorUserId })`.
+
+- Revokes every refresh token of that user and clears a pending lockout.
+- Only local accounts: a user from an external provider (Keycloak) gets `409 USER_PASSWORD_NOT_LOCAL`.
+- `onPasswordChanged` fires with `changedByUserId` (the admin) for the audit trail. Self-service
+  reset keeps firing it without that field.
+
 ## Refresh cookie name and path
 
 ```ts
 config.refreshToken = { cookieName: 'staff_refresh', cookiePath: '/staff', sameSite: 'lax' }
 ```
+
+`sameSite` accepts `lax` (default), `none` (screen on another site; HTTPS) and `strict` (same site, and
+the cookie is not sent on navigation coming from another site, so the first open through an external
+link arrives without a session). The cookie is always `Secure; HttpOnly`.
 
 Defaults: `user_refresh_token` and `/`. The name accepts `A-Z a-z 0-9 _ -`; the path must start with
 `/` and contain no `;`, spaces or commas. Invalid values fail at boot. Login, refresh and logout all

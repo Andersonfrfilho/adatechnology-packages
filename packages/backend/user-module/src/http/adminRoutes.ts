@@ -4,7 +4,9 @@
 
 import {
   createUserSchema,
+  setUserPasswordSchema,
   updateUserSchema,
+  type SetUserPasswordInput,
   type CreateUserInput,
   type UpdateUserInput,
 } from '@adatechnology/user-contracts'
@@ -126,6 +128,26 @@ export function buildAdminRoutes(module: UserModule): ModuleRoute[] {
           companyId: context.auth?.companyId,
         })
         return { kind: 'json', status: 200, body: { data: profile } }
+      },
+    },
+
+    {
+      method: 'PUT',
+      path: '/admin/users/:id/password',
+      scope: 'admin',
+      requiredScopes: [USER_ADMIN_SCOPE],
+      bodySchema: setUserPasswordSchema,
+      operationId: 'setUserPassword',
+      summary: 'Define a senha de outra pessoa (conta local), escopo administrativo; revoga as sessões dela',
+      async handler(context) {
+        const body = context.body as SetUserPasswordInput
+        await useCases.setUserPassword.execute({
+          id: context.params.id ?? '',
+          password: body.password,
+          ...(context.auth?.companyId ? { companyId: context.auth.companyId } : {}),
+          ...(context.auth?.userId ? { actorUserId: context.auth.userId } : {}),
+        })
+        return { kind: 'empty', status: 204 }
       },
     },
 
