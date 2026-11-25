@@ -227,7 +227,8 @@ await whatsapp.flows!.runner!.start({ companyId, whatsappNumber })
 ## 6. Testar no simulador sem gastar mensagem
 
 Com `features.previewContacts: true` (só em ambiente de teste), o simulador do `conversations-ui`
-conversa pelo número `DEFAULT_PREVIEW_CONTACT` (começa com `0`) e o módulo responde sem chamar a Meta.
+conversa pelo número `DEFAULT_PREVIEW_CONTACT` (começa com `0`) quando o cliente do simulador recebe
+`from: DEFAULT_PREVIEW_CONTACT` — os dois lados precisam estar ligados — e o módulo responde sem chamar a Meta.
 A rota da ponte assina com o app secret: **exige sessão autenticada e nunca vai para produção**.
 
 ```ts

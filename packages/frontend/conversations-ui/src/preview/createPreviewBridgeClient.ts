@@ -16,7 +16,6 @@
  */
 
 import type { InboundMediaType, PreviewInboundCommand } from '@adatechnology/meta-whatsapp-contracts/testing'
-import { DEFAULT_PREVIEW_CONTACT } from '@adatechnology/meta-whatsapp-contracts'
 import {
   createPreviewMediaPoster,
   defaultMediaUploadUrl,
@@ -45,10 +44,14 @@ export class PreviewBridgeRejectedError extends Error {
 
 export type CreatePreviewBridgeClientParams = {
   /**
-   * Número do contato simulado. Padrão `DEFAULT_PREVIEW_CONTACT` (começa com `0`, que nenhum número
-   * real usa): com `features.previewContacts` ligado, o módulo responde sem chamar a Meta.
+   * Número do contato simulado, usado como veio — trocar o número abre outra conversa.
+   *
+   * Contato de simulador sem chamar a Meta é opt-in nas DUAS pontas: aqui
+   * `from: DEFAULT_PREVIEW_CONTACT` (começa com `0`, que nenhum número real usa) e, no servidor,
+   * `features.previewContacts: true`. Só um dos lados ligado não serve: sem a flag, o servidor tentaria
+   * responder pela Meta a um número que não existe.
    */
-  readonly from?: string
+  readonly from: string
   /**
    * Entrega o comando. Use quando o host já tem um cliente HTTP com sessão, interceptors e refresh
    * de token — reimplementar isso aqui só duplicaria a autenticação do produto.
@@ -110,7 +113,7 @@ function resolveBridgeUpload(
 
 export function createPreviewBridgeClient(params: CreatePreviewBridgeClientParams): PreviewWebhookClient {
   const send = params.sendCommand ?? buildFetchSender(params)
-  const from = params.from ?? DEFAULT_PREVIEW_CONTACT
+  const from = params.from
   const uploadMedia = resolveBridgeUpload(params)
 
   return {

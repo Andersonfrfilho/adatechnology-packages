@@ -8,6 +8,7 @@ import { describe, expect, it } from 'bun:test'
 
 import { createPreviewBridgeClient, PreviewBridgeRejectedError } from './createPreviewBridgeClient'
 import type { PreviewInboundCommand } from './createPreviewBridgeClient'
+import { DEFAULT_PREVIEW_CONTACT } from '@adatechnology/meta-whatsapp-contracts'
 
 const FROM = '5511999999999'
 
@@ -88,5 +89,27 @@ describe('createPreviewBridgeClient', () => {
 
   it('recusa configuração sem forma de entregar, em vez de falhar só no primeiro envio', () => {
     expect(() => createPreviewBridgeClient({ from: FROM })).toThrow(/sendCommand.*endpointUrl/)
+  })
+})
+
+describe('createPreviewBridgeClient — contato simulado', () => {
+  it('usa o `from` exatamente como o host passou (sem trocar para o contato de simulador)', async () => {
+    const commands: PreviewInboundCommand[] = []
+    const client = createPreviewBridgeClient({
+      from: '5511999990000',
+      sendCommand: async (command) => void commands.push(command),
+    })
+    await client.sendText('oi')
+    expect(commands[0]?.from).toBe('5511999990000')
+  })
+
+  it('contato de simulador é opt-in: passar DEFAULT_PREVIEW_CONTACT', async () => {
+    const commands: PreviewInboundCommand[] = []
+    const client = createPreviewBridgeClient({
+      from: DEFAULT_PREVIEW_CONTACT,
+      sendCommand: async (command) => void commands.push(command),
+    })
+    await client.sendText('oi')
+    expect(commands[0]?.from).toBe(DEFAULT_PREVIEW_CONTACT)
   })
 })

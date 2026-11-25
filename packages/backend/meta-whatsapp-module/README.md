@@ -240,7 +240,10 @@ Guia completo: [`docs/front-desk-bot-with-flows.md`](./docs/front-desk-bot-with-
 
 Com `features.previewContacts`, envio para número que começa com `0` (`isPreviewContact`; nenhum
 `wa_id` real começa com zero) volta `preview.<uuid>` sem chamar a Meta. Janela, transcript, SSE e
-status seguem iguais. O simulador do `conversations-ui` usa `DEFAULT_PREVIEW_CONTACT` por padrão.
+status seguem iguais. É opt-in nas duas pontas: o servidor liga `features.previewContacts` e o
+simulador do `conversations-ui` passa `from: DEFAULT_PREVIEW_CONTACT` (o `from` continua obrigatório e
+é usado como veio — quem não muda nada continua com o mesmo contato e a mesma conversa). Só um lado
+ligado não serve: sem a flag, o servidor responderia pela Meta a um número que não existe.
 
 Na rota da ponte do simulador, monte o payload com o `phone_number_id` deste módulo — com o padrão
 do builder, o filtro de número descartava a entrega. **A rota assina com o app secret: exige a sessão

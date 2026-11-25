@@ -16,7 +16,7 @@ import {
   type LucideIcon,
   ListChecks,
 } from 'lucide-react'
-import type { FlowEditorLabels } from './labels'
+import { DEFAULT_FLOW_EDITOR_LABELS, type FlowEditorLabels } from './labels'
 import { isPassThroughAction, keywordHandle, type FlowNodeData, type GraphIssue } from './flowGraph'
 
 /**
@@ -297,7 +297,7 @@ export function FlowNodeCard({ data }: NodeProps) {
         <span className="flex items-center gap-1.5 uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400 text-xs">
           <Icon size={12} strokeWidth={2.5} />
           {isStart && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" data-cv-tooltip={labels.startNodeTooltip} />}
-          {labels.legend[node.type]}
+          {labels.legend[node.type] ?? DEFAULT_FLOW_EDITOR_LABELS.legend.dynamic_choice}
         </span>
         <div className="flex items-center gap-1">
           {hasError && (

@@ -37,7 +37,11 @@ export interface FlowRunnerFieldLabels {
 }
 
 export interface FlowEditorLabels {
-  legend: Record<FlowNodeType, string>
+  /**
+   * `dynamic_choice` é opcional para não quebrar quem já monta a legenda inteira à mão; ausente, vale
+   * o texto padrão.
+   */
+  legend: Record<Exclude<FlowNodeType, 'dynamic_choice'>, string> & { dynamic_choice?: string }
   startNodeTooltip: string
   detachedNodeTooltip: string
   liveCountTooltip: (count: number) => string

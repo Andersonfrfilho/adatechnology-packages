@@ -13,7 +13,7 @@ import {
   type FlowGraphData,
 } from './flowGraph'
 import { applyConnection, clearConnection } from './flowEditorOps'
-import { DEFAULT_FLOW_EDITOR_LABELS } from './labels'
+import { DEFAULT_FLOW_EDITOR_LABELS, mergeFlowEditorLabels } from './labels'
 
 describe('editor limits come from the contract', () => {
   it('mirrors WHATSAPP_CHOICE_LIMIT', () => {
@@ -103,5 +103,14 @@ describe('validateGraph — unmatched choice', () => {
   it('does not warn when the node follows default', () => {
     const issues = validateGraph(base('default'), DEFAULT_FLOW_EDITOR_LABELS.validation)
     expect(issues.some((issue) => issue.message.includes('Caso contrário'))).toBe(false)
+  })
+})
+
+describe('labels — hosts that build the legend by hand', () => {
+  it('accepts a legend without dynamic_choice and merges the default', () => {
+    const legend = { question: 'Q', entrada_choice: 'E', action: 'A', menu: 'M', condition: 'C' }
+    const merged = mergeFlowEditorLabels({ legend })
+    expect(merged.legend.dynamic_choice).toBe(DEFAULT_FLOW_EDITOR_LABELS.legend.dynamic_choice)
+    expect(merged.legend.menu).toBe('M')
   })
 })

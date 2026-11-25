@@ -45,6 +45,8 @@ meta-whatsapp: module-side flow runner, answer validation, keyword routing, hand
   routes, option descriptions/sections, list button label and dynamic choice provider; palette entries
   for dynamic choice and message nodes; keyword routes drawn as card outputs; limits read from
   `WHATSAPP_CHOICE_LIMIT` with code point counting; WhatsApp preview shows sections and descriptions;
-  simulator clients default `from` to `DEFAULT_PREVIEW_CONTACT`; "Resposta fora das opções" field and
+  simulator clients keep `from` required and unchanged (pass `from: DEFAULT_PREVIEW_CONTACT` together
+  with the server's `features.previewContacts` to opt in); `legend.dynamic_choice` is optional with a
+  default label; "Resposta fora das opções" field and
   a warning when a choice node's `default` would be ignored. BREAKING (behaviour): an action node
   without `actionKind` now has an output (message node).
