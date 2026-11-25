@@ -35,15 +35,22 @@ export class RequestHumanConversationUseCase {
       humanRequestedAt: session.humanRequestedAt?.toISOString() ?? null,
     })
     this.realtime?.emit('global', 'data-changed', {})
-    await this.hooks?.onHumanRequested?.(toSessionContract(session))
-    await this.hooks?.onConversationModeChanged?.({
-      companyId: params.companyId,
-      whatsappNumber: params.whatsappNumber,
-      kind: 'human-requested',
-      mode: session.mode as SessionMode,
-      assignedUserId: session.assignedUserId,
-      actorId: params.actorId ?? null,
-      occurredAt: new Date(),
-    })
+    // Os dois ganchos rodam sempre: o aviso à equipe falhar não pode apagar a trilha de auditoria
+    // (nem o contrário). A primeira falha sobe depois que os dois tiveram a chance de rodar.
+    const outcomes = await Promise.allSettled([
+      (async () => this.hooks?.onHumanRequested?.(toSessionContract(session)))(),
+      (async () =>
+        this.hooks?.onConversationModeChanged?.({
+          companyId: params.companyId,
+          whatsappNumber: params.whatsappNumber,
+          kind: 'human-requested',
+          mode: session.mode as SessionMode,
+          assignedUserId: session.assignedUserId,
+          actorId: params.actorId ?? null,
+          occurredAt: new Date(),
+        }))(),
+    ])
+    const failure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected')
+    if (failure) throw failure.reason
   }
 }

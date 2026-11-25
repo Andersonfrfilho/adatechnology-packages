@@ -105,6 +105,21 @@ describe('onConversationModeChanged', () => {
     expect(changes[0]).toMatchObject({ kind: 'human-requested', mode: 'bot', assignedUserId: null, actorId: null })
   })
 
+  it('requestHuman: falha no aviso à equipe não apaga a trilha de auditoria', async () => {
+    const { repository } = buildRepository()
+    const changes: ConversationModeChange[] = []
+    const useCase = new RequestHumanConversationUseCase(repository, undefined, {
+      onHumanRequested: async () => {
+        throw new Error('notifier down')
+      },
+      onConversationModeChanged: async (change) => void changes.push(change),
+    })
+
+    await expect(useCase.execute({ companyId: COMPANY_ID, whatsappNumber: NUMBER })).rejects.toThrow('notifier down')
+    expect(changes).toHaveLength(1)
+    expect(changes[0]?.kind).toBe('human-requested')
+  })
+
   it('requestHuman em conversa inexistente: SessionNotFoundError', async () => {
     const { repository } = buildRepository({ isSessionMissing: true })
     const useCase = new RequestHumanConversationUseCase(repository)
