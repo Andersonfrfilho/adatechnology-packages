@@ -20,6 +20,7 @@ import {
   slugifyNodeId,
   targetsOf,
   keywordHandle,
+  possibleNextHandle,
   type FlowGraphData,
   type FlowNodeData,
 } from './flowGraph'
@@ -207,7 +208,7 @@ export function buildFlowEdges(params: {
     for (const [nodeId, node] of Object.entries(graph.nodes)) {
       const live = (liveCounts[nodeId] ?? 0) > 0
 
-      for (const { target, optionId: answerId, keyword, isDefault } of targetsOf(node)) {
+      for (const { target, optionId: answerId, keyword, isDefault, isPossible } of targetsOf(node)) {
         const optionId = keyword !== undefined ? keywordHandle(keyword) : answerId
         // Destino vazio é estado NORMAL, não anomalia: apagar um nó zera quem apontava para ele, e
         // `targetsOf` devolve o `default` mesmo em branco. Emitir a aresta criaria ligação para um nó
@@ -237,6 +238,20 @@ export function buildFlowEdges(params: {
         // caber: por baixo some atrás do card, por cima o cobre. Quem mostra isso é o ícone de
         // repetição na linha de saída, dentro do card (ver `FlowNodeCard`).
         if (source === edgeTarget) continue
+
+        // Caminho que a action PODE escolher: tracejado como o fallback, nunca animado.
+        if (isPossible) {
+          edges.push({
+            id: `${source}->${edgeTarget}-possible`,
+            source,
+            target: edgeTarget,
+            sourceHandle: possibleNextHandle(target),
+            kind: 'fallback',
+            crossFlow,
+            live: false,
+          })
+          continue
+        }
 
         if (isDefault) {
           edges.push({

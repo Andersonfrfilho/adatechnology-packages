@@ -8,7 +8,7 @@
 
 import type { ReactNode } from 'react'
 import type { FlowAnswerValidation, FlowNodeData } from './flowGraph'
-import type { FlowRunnerFieldLabels } from './labels'
+import { OPTIONAL_RUNNER_FIELD_LABEL_DEFAULTS, type FlowRunnerFieldLabels } from './labels'
 import { FlowKeywordRoutesField } from './FlowKeywordRoutesField'
 import { PANEL_FIELD_CLASSNAME, PANEL_HINT_CLASSNAME, PANEL_LABEL_CLASSNAME } from './flowPanelStyles'
 
@@ -50,7 +50,67 @@ function NumberField(props: {
   )
 }
 
-function ValidationFields({ draft, onDraftChange, knownContextKeys, labels }: FlowRunnerFieldsProps) {
+function ContextKeyField(props: {
+  label: string
+  hint?: string
+  value: string | undefined
+  knownContextKeys: readonly string[]
+  onValueChange: (value: string | undefined) => void
+}) {
+  return (
+    <div>
+      <label className={PANEL_LABEL_CLASSNAME}>{props.label}</label>
+      <input
+        value={props.value ?? ''}
+        list="runner-context-keys"
+        onChange={(event) => props.onValueChange(event.target.value || undefined)}
+        className={`w-full mt-1 ${PANEL_FIELD_CLASSNAME}`}
+      />
+      <datalist id="runner-context-keys">
+        {props.knownContextKeys.map((key) => (
+          <option key={key} value={key} />
+        ))}
+      </datalist>
+      {props.hint && <p className={PANEL_HINT_CLASSNAME}>{props.hint}</p>}
+    </div>
+  )
+}
+
+function TimeValidationFields({ draft, onDraftChange, knownContextKeys, labels }: FlowRunnerFieldsProps) {
+  const validation = draft.validation ?? {}
+  const update = (patch: Partial<FlowAnswerValidation>) => onDraftChange((previous) => withValidation(previous, patch))
+  const defaults = OPTIONAL_RUNNER_FIELD_LABEL_DEFAULTS
+  const timeInput = (label: string, value: string | undefined, onValueChange: (value: string | undefined) => void) => (
+    <div className="flex-1">
+      <label className={PANEL_LABEL_CLASSNAME}>{label}</label>
+      <input
+        type="time"
+        value={value ?? ''}
+        onChange={(event) => onValueChange(event.target.value || undefined)}
+        className={`w-full mt-1 ${PANEL_FIELD_CLASSNAME}`}
+      />
+    </div>
+  )
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        {timeInput(labels.minTime ?? defaults.minTime, validation.minTime, (minTime) => update({ minTime }))}
+        {timeInput(labels.maxTime ?? defaults.maxTime, validation.maxTime, (maxTime) => update({ maxTime }))}
+      </div>
+      <ContextKeyField
+        label={labels.timeWindowsContextKey ?? defaults.timeWindowsContextKey}
+        hint={labels.timeWindowsContextKeyHint ?? defaults.timeWindowsContextKeyHint}
+        value={validation.windowsContextKey}
+        knownContextKeys={knownContextKeys}
+        onValueChange={(windowsContextKey) => update({ windowsContextKey })}
+      />
+    </div>
+  )
+}
+
+function ValidationFields(props: FlowRunnerFieldsProps) {
+  const { draft, onDraftChange, knownContextKeys, labels } = props
   const validation = draft.validation ?? {}
   const update = (patch: Partial<FlowAnswerValidation>) => onDraftChange((previous) => withValidation(previous, patch))
 
@@ -65,23 +125,17 @@ function ValidationFields({ draft, onDraftChange, knownContextKeys, labels }: Fl
           />
           {labels.minDateToday}
         </label>
-        <div>
-          <label className={PANEL_LABEL_CLASSNAME}>{labels.afterContextKey}</label>
-          <input
-            value={validation.afterContextKey ?? ''}
-            list="runner-context-keys"
-            onChange={(event) => update({ afterContextKey: event.target.value || undefined })}
-            className={`w-full mt-1 ${PANEL_FIELD_CLASSNAME}`}
-          />
-          <datalist id="runner-context-keys">
-            {knownContextKeys.map((key) => (
-              <option key={key} value={key} />
-            ))}
-          </datalist>
-        </div>
+        <ContextKeyField
+          label={labels.afterContextKey}
+          value={validation.afterContextKey}
+          knownContextKeys={knownContextKeys}
+          onValueChange={(afterContextKey) => update({ afterContextKey })}
+        />
       </div>
     )
   }
+
+  if (draft.questionType === 'time') return <TimeValidationFields {...props} />
 
   if (draft.questionType === 'int' || draft.questionType === 'money') {
     return (
