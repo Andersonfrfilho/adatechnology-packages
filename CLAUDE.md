@@ -4,29 +4,29 @@ Unified monorepo for backend NestJS libraries (`packages/backend/`) and frontend
 
 ## Structure Overview
 
+**Catálogo completo de capacidades: [docs/CATALOGO.md](docs/CATALOGO.md).** Antes de escrever código num app, procure lá pela necessidade (atendimento WhatsApp, robô/fluxo, simulador de conversa, painel de conversas, login e equipe, cadastro de clientes, catálogo, notificações e modelos, agenda, upload, log, nota fiscal, pagamentos, calendários). Simulador de conversa, motor de fluxos e editor de modelos já existem aqui; não reimplemente.
+
 ```
 packages/
-├── backend/
-│   ├── nestjs/
-│   │   ├── logger/              @adatechnology/nestjs-logger (published)
-│   │   ├── cache/               @adatechnology/nestjs-cache (published)
-│   │   ├── http-client/         @adatechnology/nestjs-http-client (published)
-│   │   ├── auth-keycloak/       @adatechnology/nestjs-auth-keycloak (published)
-│   │   └── keycloak-admin/      @adatechnology/nestjs-keycloak-admin (published)
-│   ├── logger/                  @adatechnology/logger (published, Bun/Node)
-│   ├── cache/                   @adatechnology/cache (published, Bun/Node)
-│   ├── http-client/             @adatechnology/http-client (published, Bun/Node)
-│   ├── auth-keycloak/           @adatechnology/auth-keycloak (published, Bun/Node)
-│   ├── shared/                  @adatechnology/shared (internal)
-│   ├── fiscal-provider/         @adatechnology/fiscal-provider (published)
-│   │   └── example/
-│   │       ├── api/             NestJS backend demo
-│   │       └── web/             React frontend demo (Vite)
-│   └── example/                 Generic NestJS test app
-│
-└── frontend/
-    └── logger-client/           @adatechnology/logger-client (isomorphic, published)
+├── backend/    65 pastas, 63 pacotes (@adatechnology/*)
+│   ├── Trios contracts / module / provider+ui: conversation, meta-whatsapp, notification, user,
+│   │   customer, catalog, scheduling, recommendation, payment, expense, infra
+│   ├── Providers (stateless): email, push, object-storage, rabbitmq, audio-transcription,
+│   │   text-moderation, product-vision, google/microsoft/caldav-calendar, mercadopago/hotmart-payment,
+│   │   ifood/food99/opendelivery-marketplace, fiscal, evolution-whatsapp, meta-graph-core/-catalog
+│   ├── Infra e utilitários: module-http, drizzle-provider, logger, http-client, cache, auth-keycloak,
+│   │   keycloak-jwt, keycloak-admin, secret-envelope, identity-reconciliation, media-processor, cargo-placement
+│   ├── nestjs-* (logger, cache, http-client, auth-keycloak, keycloak-admin) e shared / nestjs-package (privados)
+│   └── example/bun-app, meta-business/catalog (cópia da doc da Meta; não é pacote)
+├── frontend/   15 pastas: conversations-ui (inbox, editor de fluxos, simulador), notification-ui/-client,
+│               user-ui, customers-ui, products-ui, recommendations-ui, scheduling-ui, infra-ui,
+│               web-chat-widget, web-booking-widget, image-cutout, document-intake, logger-client, example
+└── mcp/        audio-transcription-mcp, expense-mcp
 ```
+
+### Catálogo é obrigatório
+
+Todo PR que cria um pacote ou adiciona uma capacidade a um pacote existente **atualiza a entrada correspondente em `docs/CATALOGO.md` no mesmo PR**: versão, o que o consumidor ganha, entradas (fábricas e componentes exportados), infra necessária, compatibilidade e, na seção de necessidades, a linha "necessidade → pacote". Sem isso o próximo agente reescreve à mão o que já existe.
 
 ## Common Commands
 
@@ -66,6 +66,8 @@ pnpm changeset publish          # Publish to npm
 - Always use `workspace:*` for references
 
 ## Adding a New Package
+
+> Qualquer pacote novo (ou capacidade nova num pacote) entra em `docs/CATALOGO.md` no mesmo PR. Ver "Catálogo é obrigatório" acima.
 
 ### Backend NestJS Library
 ```bash
