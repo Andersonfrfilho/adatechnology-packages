@@ -80,6 +80,11 @@ export type FlowNodeData = {
   skipKeywords?: string[]
   /** Tentativas inválidas antes do encaminhamento a uma pessoa. Ausente, vale o padrão do runner (2). */
   maxInvalidAnswers?: number
+  /**
+   * Resposta que não casa com nenhuma opção: `reask` (padrão do runner) repergunta e conta tentativa;
+   * `default` segue para `next.default` guardando o texto cru — o comportamento do interpretador puro.
+   */
+  unmatchedChoice?: 'reask' | 'default'
   /** Nó `dynamic_choice`: chave do provedor de opções registrado pelo host. */
   choiceProvider?: string
   directMessage?: string
@@ -158,6 +163,7 @@ export const flowNodeDataSchema = z
     validation: flowAnswerValidationSchema.optional(),
     skipKeywords: z.array(z.string()).optional(),
     maxInvalidAnswers: z.number().int().positive().optional(),
+    unmatchedChoice: z.enum(['reask', 'default']).optional(),
     choiceProvider: z.string().optional(),
     directMessage: z.string().optional(),
     fallbackMessage: z.string().optional(),

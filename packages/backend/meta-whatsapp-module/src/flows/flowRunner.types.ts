@@ -53,8 +53,16 @@ export type FlowRunnerConfig = {
   /** Rótulo da linha que pede a próxima página de um `dynamic_choice`. */
   readonly seeMoreLabel?: string
   readonly dateLocale?: FlowDateLocale
-  /** Fuso de "hoje" na validação de data. Padrão UTC. */
+  /**
+   * Fuso de "hoje" na validação de data (IANA). Obrigatório — ou derivado de
+   * `handoff.businessHours.timeZone` quando o horário é fixo: servidor em UTC aceitaria "hoje" errado
+   * entre 21h e meia-noite no Brasil.
+   */
   readonly timeZone?: string
+  /** Resposta que não casa com opção: `reask` (padrão) ou `default` (segue `next.default`). O nó sobrescreve. */
+  readonly unmatchedChoice?: 'reask' | 'default'
+  /** Resposta em áudio, imagem, localização… num nó que espera texto: avisa e repergunta, sem contar tentativa. */
+  readonly nonTextAnswerMessage?: string
   readonly handoff?: FlowHandoffConfig
   /**
    * Conversa que pediu atendimento e saiu do fluxo: `silent` (padrão) não responde até alguém
@@ -71,4 +79,4 @@ export type FlowRunnerConfig = {
   readonly now?: () => Date
 }
 
-export type FlowRunnerOutcome = 'handled' | 'no-session' | 'human-mode' | 'awaiting-human' | 'no-flow'
+export type FlowRunnerOutcome = 'handled' | 'duplicate' | 'no-session' | 'human-mode' | 'awaiting-human' | 'no-flow'

@@ -52,6 +52,7 @@ import {
 import { FlowInterpreter } from './flows/FlowInterpreter'
 import { FlowRunner } from './flows/FlowRunner'
 import { FlowHandoff } from './flows/FlowHandoff'
+import { PostgresAdvisoryFlowTurnLock, type FlowTurnLockInterface } from './flows/flowTurnLock'
 import type { FlowRunnerConfig } from './flows/flowRunner.types'
 import { createSendMediaAction } from './flows/createSendMediaAction'
 import { createSendProductListAction } from './flows/createSendProductListAction'
@@ -197,6 +198,11 @@ export interface MetaWhatsAppModuleProviders {
    * transcrever um áudio já salvo significa ler os bytes de volta.
    */
   transcription?: MetaWhatsAppTranscriptionConfig
+  /**
+   * Um turno do runner por conversa. Padrão: `pg_advisory_xact_lock` no `db` do módulo (uma conexão
+   * do pool por conversa em atendimento simultâneo). Troque por um lock distribuído próprio se preferir.
+   */
+  flowTurnLock?: FlowTurnLockInterface
 }
 
 export interface CreateMetaWhatsAppModuleParams {
@@ -292,6 +298,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
         config: flowRunnerConfig.handoff ?? {},
         now: flowRunnerConfig.now ?? (() => new Date()),
         interpolation: flowRunnerConfig.formatValue ? { formatValue: flowRunnerConfig.formatValue } : {},
+        ...(hooks ? { hooks } : {}),
       })
     : undefined
   const flowRunner =
@@ -303,6 +310,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
           sendMessage,
           channel,
           handoff: flowHandoff,
+          lock: providers.flowTurnLock ?? new PostgresAdvisoryFlowTurnLock(db),
           startState,
           config: flowRunnerConfig,
           ...(hooks ? { hooks } : {}),

@@ -173,6 +173,7 @@ export function validateGraph(
     // Opcionais para não quebrar quem monta os textos à mão; ausentes, vale o texto padrão.
     descriptionTooLong?: (id: string, label: string) => string
     dynamicChoiceWithoutProvider?: (id: string) => string
+    choiceDefaultIgnored?: (id: string) => string
   },
 ): GraphIssue[] {
   const issues: GraphIssue[] = []
@@ -220,6 +221,15 @@ export function validateGraph(
             `“${label}” em ${node.id}: a descrição passa de ${WHATSAPP_LIMITS.LIST_ROW_DESCRIPTION_MAX} caracteres.`
           issues.push({ severity: 'error', nodeId: node.id, message })
         }
+      }
+      // Com o runner em `reask` (padrão), resposta fora das opções repergunta: um "caso contrário"
+      // apontando para outro nó nunca seria seguido. Aviso, não erro — o host pode ligar `default`.
+      const defaultTarget = typeof node.next === 'object' && node.next ? node.next.default : ''
+      if (defaultTarget && defaultTarget !== node.id && node.unmatchedChoice !== 'default') {
+        const message =
+          issueText.choiceDefaultIgnored?.(node.id) ??
+          `Nó "${node.id}": "caso contrário" só é seguido com "resposta fora das opções" = seguir o caso contrário.`
+        issues.push({ severity: 'warning', nodeId: node.id, message })
       }
       if (options.length > WHATSAPP_LIMITS.MAX_LIST_ROWS) {
         issues.push({ severity: 'error', nodeId: node.id, message: issueText.tooManyOptions(node.id, options.length) })

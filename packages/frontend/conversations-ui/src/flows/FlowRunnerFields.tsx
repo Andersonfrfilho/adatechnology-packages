@@ -32,7 +32,11 @@ function withValidation(node: FlowNodeData, patch: Partial<FlowAnswerValidation>
   return { ...node, validation: Object.keys(cleaned).length > 0 ? (cleaned as FlowAnswerValidation) : undefined }
 }
 
-function NumberField(props: { label: string; value: number | undefined; onValueChange: (value: number | undefined) => void }) {
+function NumberField(props: {
+  label: string
+  value: number | undefined
+  onValueChange: (value: number | undefined) => void
+}) {
   return (
     <div className="flex-1">
       <label className={PANEL_LABEL_CLASSNAME}>{props.label}</label>
@@ -91,8 +95,16 @@ function ValidationFields({ draft, onDraftChange, knownContextKeys, labels }: Fl
   if (!draft.questionType || draft.questionType === 'text') {
     return (
       <div className="flex gap-2">
-        <NumberField label={labels.minLength} value={validation.minLength} onValueChange={(minLength) => update({ minLength })} />
-        <NumberField label={labels.maxLength} value={validation.maxLength} onValueChange={(maxLength) => update({ maxLength })} />
+        <NumberField
+          label={labels.minLength}
+          value={validation.minLength}
+          onValueChange={(minLength) => update({ minLength })}
+        />
+        <NumberField
+          label={labels.maxLength}
+          value={validation.maxLength}
+          onValueChange={(maxLength) => update({ maxLength })}
+        />
       </div>
     )
   }
@@ -139,7 +151,13 @@ function OptionDetailsField({ draft, onDraftChange, labels }: FlowRunnerFieldsPr
   )
 }
 
-function TextField(props: { label: string; value: string; hint?: string; placeholder?: string; onValueChange: (value: string) => void }) {
+function TextField(props: {
+  label: string
+  value: string
+  hint?: string
+  placeholder?: string
+  onValueChange: (value: string) => void
+}) {
   return (
     <div>
       <label className={PANEL_LABEL_CLASSNAME}>{props.label}</label>
@@ -171,7 +189,9 @@ export function FlowRunnerFields(props: FlowRunnerFieldsProps) {
             label={labels.choiceProvider}
             hint={labels.choiceProviderHint}
             value={draft.choiceProvider ?? ''}
-            onValueChange={(value) => onDraftChange((previous) => ({ ...previous, choiceProvider: value || undefined }))}
+            onValueChange={(value) =>
+              onDraftChange((previous) => ({ ...previous, choiceProvider: value || undefined }))
+            }
           />
           <TextField
             label={labels.contextKey}
@@ -183,6 +203,22 @@ export function FlowRunnerFields(props: FlowRunnerFieldsProps) {
 
       {isQuestion && <ValidationFields {...props} />}
       {isChoice && <OptionDetailsField {...props} />}
+      {isChoice && (
+        <div>
+          <label className={PANEL_LABEL_CLASSNAME}>{labels.unmatchedChoice}</label>
+          <select
+            value={draft.unmatchedChoice ?? 'reask'}
+            onChange={(event) => {
+              const value = event.target.value === 'default' ? 'default' : undefined
+              onDraftChange((previous) => ({ ...previous, unmatchedChoice: value }))
+            }}
+            className={`w-full mt-1 ${PANEL_FIELD_CLASSNAME}`}
+          >
+            <option value="reask">{labels.unmatchedChoiceReask}</option>
+            <option value="default">{labels.unmatchedChoiceDefault}</option>
+          </select>
+        </div>
+      )}
       {(isChoice || isDynamic) && (
         <TextField
           label={labels.listButtonLabel}
@@ -196,7 +232,10 @@ export function FlowRunnerFields(props: FlowRunnerFieldsProps) {
           hint={labels.skipKeywordsHint}
           value={(draft.skipKeywords ?? []).join(', ')}
           onValueChange={(value) => {
-            const keywords = value.split(',').map((keyword) => keyword.trim()).filter(Boolean)
+            const keywords = value
+              .split(',')
+              .map((keyword) => keyword.trim())
+              .filter(Boolean)
             onDraftChange((previous) => ({ ...previous, skipKeywords: keywords.length > 0 ? keywords : undefined }))
           }}
         />
@@ -213,7 +252,10 @@ export function FlowRunnerFields(props: FlowRunnerFieldsProps) {
           label={labels.maxInvalidAnswers}
           value={draft.maxInvalidAnswers}
           onValueChange={(value) =>
-            onDraftChange((previous) => ({ ...previous, maxInvalidAnswers: value && value > 0 ? Math.floor(value) : undefined }))
+            onDraftChange((previous) => ({
+              ...previous,
+              maxInvalidAnswers: value && value > 0 ? Math.floor(value) : undefined,
+            }))
           }
         />
         <p className={PANEL_HINT_CLASSNAME}>{labels.maxInvalidAnswersHint}</p>

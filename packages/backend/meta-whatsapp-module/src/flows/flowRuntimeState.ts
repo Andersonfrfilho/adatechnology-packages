@@ -8,6 +8,8 @@
 import { FLOW_RUNTIME_CONTEXT_KEY } from './flowRunner.constant'
 
 export type FlowRuntimeState = {
+  /** Última mensagem do cliente já tratada — reentrega e retentativa da fila param aqui. */
+  readonly lastInboundId?: string
   readonly invalidAnswers?: number
   readonly dynamic?: { readonly nodeId: string; readonly page: number; readonly options: [string, string][] }
 }

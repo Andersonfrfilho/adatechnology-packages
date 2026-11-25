@@ -76,3 +76,32 @@ describe('validateGraph — runner fields', () => {
     expect(messages).toContain('Nó "slot": escolha dinâmica sem provedor de opções.')
   })
 })
+
+describe('validateGraph — unmatched choice', () => {
+  const base = (unmatchedChoice?: 'reask' | 'default'): FlowGraphData => ({
+    key: 'main',
+    label: 'main',
+    startNodeId: 'menu',
+    version: 1,
+    nodes: {
+      menu: {
+        id: 'menu',
+        type: 'menu',
+        options: [['a', 'A']],
+        ...(unmatchedChoice ? { unmatchedChoice } : {}),
+        next: { byAnswer: { a: 'other' }, default: 'other' },
+      },
+      other: { id: 'other', type: 'action' },
+    },
+  })
+
+  it('warns when a choice default would be ignored by the runner', () => {
+    const issues = validateGraph(base(), DEFAULT_FLOW_EDITOR_LABELS.validation)
+    expect(issues.some((issue) => issue.severity === 'warning' && issue.message.includes('Caso contrário'))).toBe(true)
+  })
+
+  it('does not warn when the node follows default', () => {
+    const issues = validateGraph(base('default'), DEFAULT_FLOW_EDITOR_LABELS.validation)
+    expect(issues.some((issue) => issue.message.includes('Caso contrário'))).toBe(false)
+  })
+})

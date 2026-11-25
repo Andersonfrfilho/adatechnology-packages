@@ -167,7 +167,11 @@ const whatsapp = createMetaWhatsAppModule({
       resolveVariables: async ({ session }) => ({ unitName: await units.nameFor(session.companyId) }),
     },
   },
-  hooks: { onFlowRunnerError: (error, details) => logger.error('flow_runner_failed', { ...details }) },
+  hooks: {
+    // Nunca o número inteiro no log (é dado pessoal): etapa, fluxo, nó e os 4 últimos dígitos.
+    onFlowRunnerError: (error, { stage, flowKey, nodeId, whatsappNumber }) =>
+      logger.error('flow_runner_failed', { stage, flowKey, nodeId, contact: `****${whatsappNumber.slice(-4)}` }),
+  },
 })
 
 // Ação do produto: o contexto devolvido aparece no nó seguinte por {{code}}.
@@ -199,8 +203,34 @@ whatsapp.flows!.registerDynamicChoiceProvider('free_slots', async ({ context, pa
 | `action` sem `actionKind` | nó de mensagem: envia o `directMessage` e segue |
 | `actionKind: 'handoff'` | `requestHuman` (dispara `onHumanRequested` e `onConversationModeChanged`) + mensagem conforme o horário; `handoffWithinBusinessHours` vai para o contexto |
 
+**Garantias de execução**
+
+- **Um turno por conversa de cada vez.** O runner roda dentro de `pg_advisory_xact_lock` por
+  empresa+número (`PostgresAdvisoryFlowTurnLock`, padrão): duas mensagens do mesmo cliente nunca leem a
+  mesma posição. Custa uma conexão do pool por conversa em atendimento simultâneo; troque por outro
+  lock em `providers.flowTurnLock`.
+- **No máximo uma vez por mensagem.** A primeira escrita do turno grava o id da mensagem
+  (`__flow.lastInboundId`) antes de qualquer envio; reentrega da Meta ou retentativa da fila devolve
+  `'duplicate'` sem reenviar nem reavisar a equipe. Erro depois dessa escrita **não sobe** — vai para
+  `onFlowRunnerError` (ou é descartado sem o gancho) e a conversa fica no último ponto gravado. Erro
+  antes dela (leitura do grafo, banco fora) sobe, e a retentativa é segura.
+- **Fuso obrigatório.** `timeZone` (ou `handoff.businessHours.timeZone`, quando fixo) define "hoje";
+  sem ele o módulo falha na montagem. Servidor em UTC aceitaria "hoje" errado entre 21h e meia-noite.
+- **Variáveis do host vencem.** Em `{{chave}}`, `resolveVariables`, `contactName` e `contactFirstName`
+  têm precedência sobre as respostas guardadas no contexto — uma resposta não troca o nome que o
+  sistema conhece. Use chaves distintas para o que o cliente responde.
+- **Áudio, imagem e afins** num nó que espera texto recebem `nonTextAnswerMessage` e a pergunta de novo,
+  sem contar tentativa. Quem transcreve áudio responde pelo `onMessageReceived`. Botão de template
+  (`type: 'button'`) vale pelo texto do botão.
+- **Resposta fora das opções**: `unmatchedChoice: 'reask'` (padrão) repergunta e conta tentativa;
+  `'default'` (no runner ou no nó) segue `next.default` guardando o texto — o comportamento do
+  interpretador puro. O editor avisa quando um `default` ficaria sem efeito.
+- **Grafo removido**: conversa parada num fluxo que não existe mais volta ao início do fluxo de partida
+  e o erro sai em `onFlowRunnerError`.
+
 Depois de um encaminhamento que encerra o fluxo, a conversa fica em silêncio até alguém assumir ou
-devolver ao bot (`whileAwaitingHuman: 'continue'` muda isso); palavras globais continuam valendo.
+devolver ao bot (`whileAwaitingHuman: 'continue'` muda isso). Palavras globais continuam valendo:
+"menu" reabre o fluxo **sem** tirar o pedido da fila (a equipe ainda responde).
 `whatsapp.flows.runner.start({ companyId, whatsappNumber })` abre o fluxo sem esperar mensagem.
 Contexto reservado: `__flow` (tentativas e página da escolha dinâmica).
 
@@ -213,7 +243,9 @@ Com `features.previewContacts`, envio para número que começa com `0` (`isPrevi
 status seguem iguais. O simulador do `conversations-ui` usa `DEFAULT_PREVIEW_CONTACT` por padrão.
 
 Na rota da ponte do simulador, monte o payload com o `phone_number_id` deste módulo — com o padrão
-do builder, o filtro de número descartava a entrega:
+do builder, o filtro de número descartava a entrega. **A rota assina com o app secret: exige a sessão
+autenticada do painel e nunca é registrada em produção** (quem a alcança forja mensagens de qualquer
+número). Registre-a só onde `features.previewContacts` está ligado:
 
 ```ts
 const payload = whatsapp.webhook.buildPreviewPayload(command) // command: PreviewInboundCommand

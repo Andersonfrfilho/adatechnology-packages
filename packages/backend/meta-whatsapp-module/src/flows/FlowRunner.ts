@@ -10,6 +10,7 @@
  */
 
 import {
+  ConfigMissingError,
   FLOW_DATE_LOCALE_PT_BR,
   FlowRunnerError,
   isCrossFlowTarget,
@@ -22,6 +23,7 @@ import {
   type FlowClock,
   type FlowGraphData,
   type FlowNodeData,
+  type FlowRunnerErrorDetails,
   type MetaWhatsAppHooks,
   type SessionState,
   type WhatsAppMessage,
@@ -29,13 +31,15 @@ import {
 import type { FlowGraphRepository } from '../repositories/FlowGraphRepository'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { SendMessageUseCase } from '../use-cases/SendMessage.use-case'
-import { extractAnswer, toSessionContract } from '../channel/inboundDispatch'
+import { toSessionContract } from '../channel/inboundDispatch'
 import type { FlowInterpreter } from './FlowInterpreter'
 import type { FlowHandoff } from './FlowHandoff'
 import type { FlowOutboundMessage } from './buildFlowChoiceMessage'
-import { resolveFlowAnswer } from './resolveFlowAnswer'
+import { isChoiceNode, resolveFlowAnswer } from './resolveFlowAnswer'
 import { FlowQuestionRenderer } from './FlowQuestionRenderer'
 import { runtimeOf, withRuntime } from './flowRuntimeState'
+import type { FlowTurnLockInterface } from './flowTurnLock'
+import { readFlowInbound, type FlowInbound } from './readFlowInbound'
 import {
   DEFAULT_FLOW_TEXT,
   DEFAULT_MAX_CROSS_FLOW_JUMPS,
@@ -51,16 +55,23 @@ export type FlowRunnerDependencies = {
   readonly sendMessage: SendMessageUseCase
   readonly channel: ChannelAdapterInterface
   readonly handoff: FlowHandoff
+  readonly lock: FlowTurnLockInterface
   readonly startState: SessionState
   readonly config: FlowRunnerConfig
   readonly hooks?: Pick<MetaWhatsAppHooks, 'onFlowRunnerError'>
 }
 
-/** Uma mensagem sendo atendida: o que não muda entre os passos. */
+/**
+ * Uma mensagem sendo atendida. `isClaimed` vira `true` na primeira escrita do turno, que já grava o
+ * id da mensagem: dali em diante nenhum erro sobe (a fila repetiria o turno e reenviaria o que já
+ * saiu) — vai para `onFlowRunnerError`.
+ */
 type FlowTurn = {
   readonly companyId: string
   readonly session: ConversationSession
   readonly baseVariables: Readonly<Record<string, unknown>>
+  readonly inboundId?: string
+  isClaimed: boolean
 }
 
 type RunFromParams = {
@@ -71,6 +82,8 @@ type RunFromParams = {
   readonly answerValue?: unknown
   readonly enterInitialNode: boolean
 }
+
+type FlowStage = FlowRunnerErrorDetails['stage']
 
 export type HandleFlowMessageParams = {
   readonly companyId: string
@@ -91,34 +104,90 @@ function contactVariables(profileName: string | undefined): Record<string, unkno
   return { contactName: profileName, contactFirstName: profileName.trim().split(/\s+/)[0] ?? profileName }
 }
 
+/** Fuso do runner: o configurado, ou o do horário de atendimento fixo. Sem nenhum, falha no boot. */
+export function resolveFlowTimeZone(config: FlowRunnerConfig): string {
+  const businessHours = config.handoff?.businessHours
+  const timeZone = config.timeZone ?? (typeof businessHours === 'object' ? businessHours.timeZone : undefined)
+  if (!timeZone) throw new ConfigMissingError('features.flowRunner.timeZone')
+  new Intl.DateTimeFormat('en-US', { timeZone })
+  return timeZone
+}
+
 export class FlowRunner {
   private readonly renderer: FlowQuestionRenderer
+  private readonly timeZone: string
   // Variáveis da mensagem em curso, por sessão: é como a action `handoff` (que só recebe a sessão)
   // enxerga o nome do contato sem que ele precise ir para o contexto gravado.
   private readonly turnVariables = new WeakMap<ConversationSession, Readonly<Record<string, unknown>>>()
 
   constructor(private readonly dependencies: FlowRunnerDependencies) {
     this.renderer = new FlowQuestionRenderer(dependencies.config)
+    this.timeZone = resolveFlowTimeZone(dependencies.config)
   }
 
   registerDynamicChoiceProvider(key: string, provider: DynamicChoiceProvider): void {
     this.renderer.registerDynamicChoiceProvider(key, provider)
   }
 
-  /** Variáveis para `{{chave}}`: contato, host e contexto, nessa ordem de precedência crescente. */
+  /**
+   * Variáveis para `{{chave}}`. As do host (`resolveVariables`, `contactName`, `contactFirstName`)
+   * vencem as respostas do cliente: um `contextKey` chamado `contactName` não pode trocar o nome que
+   * o sistema conhece pelo que o cliente digitou.
+   */
   variablesFor(params: { session: ConversationSession; context: Record<string, unknown> }): Record<string, unknown> {
-    return { ...(this.turnVariables.get(params.session) ?? {}), ...params.context }
+    return { ...params.context, ...(this.turnVariables.get(params.session) ?? {}) }
   }
 
-  async handle(params: HandleFlowMessageParams): Promise<FlowRunnerOutcome> {
+  /** Atende uma mensagem. Um turno por conversa de cada vez (`lock`); reentrega da mesma mensagem é ignorada. */
+  handle(params: HandleFlowMessageParams): Promise<FlowRunnerOutcome> {
+    const key = { companyId: params.companyId, whatsappNumber: params.message.from }
+    return this.dependencies.lock.withLock(key, () => this.handleLocked(params))
+  }
+
+  /** Abre um fluxo para a conversa sem esperar mensagem — ex.: ao devolver a conversa ao bot. */
+  start(params: StartFlowParams): Promise<FlowRunnerOutcome> {
+    const key = { companyId: params.companyId, whatsappNumber: params.whatsappNumber }
+    return this.dependencies.lock.withLock(key, async () => {
+      const row = await this.dependencies.sessionRepository.getContext(params.companyId, params.whatsappNumber)
+      if (!row) return 'no-session'
+      const turn = await this.openTurn({
+        companyId: params.companyId,
+        session: toSessionContract(row),
+        ...(params.profileName ? { profileName: params.profileName } : {}),
+      })
+      const graph = await this.loadGraph(params.companyId, params.flowKey ?? this.startFlowKey())
+      if (!graph) return 'no-flow'
+      turn.isClaimed = true
+      return this.guard(turn, async () => {
+        await this.runFrom(turn, {
+          graph,
+          nodeId: graph.startNodeId,
+          context: { ...turn.session.context },
+          enterInitialNode: true,
+        })
+        return 'handled'
+      })
+    })
+  }
+
+  private async handleLocked(params: HandleFlowMessageParams): Promise<FlowRunnerOutcome> {
     const row = await this.dependencies.sessionRepository.getContext(params.companyId, params.message.from)
     if (!row) return 'no-session'
     if (row.mode === 'human') return 'human-mode'
-    const turn = await this.openTurn(params.companyId, toSessionContract(row), params.profileName)
+    const session = toSessionContract(row)
+    if (runtimeOf(session.context).lastInboundId === params.message.id) return 'duplicate'
 
-    const answer = extractAnswer(params.message)
-    const isInteractiveReply = params.message.type === 'interactive'
-    const globalTarget = !isInteractiveReply && answer !== undefined ? this.globalKeywordTarget(answer) : undefined
+    const turn = await this.openTurn({
+      companyId: params.companyId,
+      session,
+      inboundId: params.message.id,
+      ...(params.profileName ? { profileName: params.profileName } : {}),
+    })
+    return this.guard(turn, () => this.route(turn, readFlowInbound(params.message)))
+  }
+
+  private async route(turn: FlowTurn, inbound: FlowInbound): Promise<FlowRunnerOutcome> {
+    const globalTarget = inbound.kind === 'text' ? this.globalKeywordTarget(inbound.answer) : undefined
     if (globalTarget) return this.applyGlobalTarget(turn, globalTarget)
 
     const whileAwaitingHuman = this.dependencies.config.whileAwaitingHuman ?? 'silent'
@@ -126,46 +195,75 @@ export class FlowRunner {
       return 'awaiting-human'
     }
 
-    const graph = await this.loadGraph(params.companyId, turn.session.flowKey ?? this.startFlowKey())
+    const savedFlowKey = turn.session.flowKey
+    const savedGraph = await this.loadGraph(turn.companyId, savedFlowKey ?? this.startFlowKey())
+    const isStale = !savedGraph && savedFlowKey !== null && savedFlowKey !== this.startFlowKey()
+    const graph = savedGraph ?? (isStale ? await this.loadGraph(turn.companyId, this.startFlowKey()) : undefined)
     if (!graph) return 'no-flow'
-    const node = turn.session.currentNodeId ? graph.nodes[turn.session.currentNodeId] : undefined
-    const context = { ...turn.session.context }
 
-    if (!node) {
-      const start = graph.nodes[graph.startNodeId]
-      const target =
-        start && answer !== undefined ? this.keywordJumpAtStart(start, answer, isInteractiveReply) : undefined
-      if (target) await this.jumpTo(turn, graph, target, context)
-      else await this.runFrom(turn, { graph, nodeId: graph.startNodeId, context, enterInitialNode: true })
+    await this.claim(turn)
+    if (isStale)
+      await this.report(
+        turn,
+        savedFlowKey,
+        turn.session.currentNodeId,
+        'cross-flow',
+        new FlowRunnerError('flow-not-found', savedFlowKey),
+      )
+
+    const node = !isStale && turn.session.currentNodeId ? graph.nodes[turn.session.currentNodeId] : undefined
+    const context = { ...turn.session.context }
+    if (node) {
+      await this.answerNode({ turn, graph, node, context, inbound })
       return 'handled'
     }
 
-    await this.answerNode({ turn, graph, node, context, answer, isInteractiveReply })
+    const start = graph.nodes[graph.startNodeId]
+    const target = start && inbound.kind !== 'unsupported' ? this.keywordJumpAtStart(start, inbound) : undefined
+    if (target) await this.jumpTo(turn, graph, target, context)
+    else await this.runFrom(turn, { graph, nodeId: graph.startNodeId, context, enterInitialNode: true })
     return 'handled'
   }
 
-  /** Abre um fluxo para a conversa sem esperar mensagem — ex.: ao devolver a conversa ao bot. */
-  async start(params: StartFlowParams): Promise<FlowRunnerOutcome> {
-    const row = await this.dependencies.sessionRepository.getContext(params.companyId, params.whatsappNumber)
-    if (!row) return 'no-session'
-    const turn = await this.openTurn(params.companyId, toSessionContract(row), params.profileName)
-    const graph = await this.loadGraph(params.companyId, params.flowKey ?? this.startFlowKey())
-    if (!graph) return 'no-flow'
-    await this.runFrom(turn, {
-      graph,
-      nodeId: graph.startNodeId,
+  private async guard(turn: FlowTurn, work: () => Promise<FlowRunnerOutcome>): Promise<FlowRunnerOutcome> {
+    try {
+      return await work()
+    } catch (error) {
+      if (!turn.isClaimed) throw error
+      await this.report(turn, turn.session.flowKey, turn.session.currentNodeId, 'turn', error)
+      return 'handled'
+    }
+  }
+
+  /** Primeira escrita do turno: grava o id da mensagem antes de qualquer efeito externo. */
+  private async claim(turn: FlowTurn): Promise<void> {
+    if (turn.isClaimed) return
+    await this.save(turn, {
+      flowKey: turn.session.flowKey,
+      nodeId: turn.session.currentNodeId,
       context: { ...turn.session.context },
-      enterInitialNode: true,
     })
-    return 'handled'
+    turn.isClaimed = true
   }
 
-  private async openTurn(companyId: string, session: ConversationSession, profileName?: string): Promise<FlowTurn> {
+  private async openTurn(params: {
+    companyId: string
+    session: ConversationSession
+    inboundId?: string
+    profileName?: string
+  }): Promise<FlowTurn> {
+    const { session, profileName } = params
     const resolver = this.dependencies.config.resolveVariables
     const hostVariables = resolver ? await resolver({ session, ...(profileName ? { profileName } : {}) }) : {}
     const baseVariables = { ...contactVariables(profileName), ...hostVariables }
     this.turnVariables.set(session, baseVariables)
-    return { companyId, session, baseVariables }
+    return {
+      companyId: params.companyId,
+      session,
+      baseVariables,
+      ...(params.inboundId ? { inboundId: params.inboundId } : {}),
+      isClaimed: false,
+    }
   }
 
   private startFlowKey(): string {
@@ -177,7 +275,7 @@ export class FlowRunner {
     return {
       now: config.now?.() ?? new Date(),
       locale: config.dateLocale ?? FLOW_DATE_LOCALE_PT_BR,
-      ...(config.timeZone ? { timeZone: config.timeZone } : {}),
+      timeZone: this.timeZone,
     }
   }
 
@@ -190,20 +288,34 @@ export class FlowRunner {
     return keywords.find((entry) => matchesFlowKeyword(answer, entry.keywords))?.target
   }
 
-  private keywordJumpAtStart(start: FlowNodeData, answer: string, isInteractiveReply: boolean): string | undefined {
-    const decision = resolveFlowAnswer({ node: start, answer, isInteractiveReply, context: {}, clock: this.clock() })
+  private keywordJumpAtStart(start: FlowNodeData, inbound: FlowInbound): string | undefined {
+    if (inbound.kind === 'unsupported') return undefined
+    const decision = resolveFlowAnswer({
+      node: start,
+      answer: inbound.answer,
+      isInteractiveReply: inbound.kind === 'reply',
+      context: {},
+      clock: this.clock(),
+    })
     return decision.kind === 'jump' ? decision.target : undefined
   }
 
+  /**
+   * Palavra global vale mesmo com a conversa aguardando atendimento. Reiniciar NÃO tira o pedido da
+   * fila (`humanRequestedAt` continua): a equipe ainda responde, e o cliente pode usar o bot enquanto
+   * espera; quando o fluxo terminar, o runner volta ao silêncio.
+   */
   private async applyGlobalTarget(turn: FlowTurn, target: FlowGlobalKeywordTarget): Promise<FlowRunnerOutcome> {
     const context = withRuntime({ ...turn.session.context }, {})
     if (target === 'handoff') {
+      await this.claim(turn)
       await this.handOff(turn, context)
       return 'handled'
     }
     const flowKey = target === 'restart' ? this.startFlowKey() : crossFlowKey(target)
     const graph = await this.loadGraph(turn.companyId, flowKey)
     if (!graph) return 'no-flow'
+    await this.claim(turn)
     await this.runFrom(turn, { graph, nodeId: graph.startNodeId, context, enterInitialNode: true })
     return 'handled'
   }
@@ -213,24 +325,38 @@ export class FlowRunner {
     graph: FlowGraphData
     node: FlowNodeData
     context: Record<string, unknown>
-    answer: string | undefined
-    isInteractiveReply: boolean
+    inbound: FlowInbound
   }): Promise<void> {
-    const { turn, graph, node, context } = params
+    const { turn, graph, node, context, inbound } = params
     const runtime = runtimeOf(context)
     const dynamic = runtime.dynamic?.nodeId === node.id ? runtime.dynamic : undefined
+    const page = dynamic?.page ?? 0
+
+    if (inbound.kind === 'unsupported') {
+      const text = this.dependencies.config.nonTextAnswerMessage ?? DEFAULT_FLOW_TEXT.NON_TEXT_ANSWER
+      await this.say(turn, text, context)
+      return this.awaitAnswer(turn, graph, node, context, page)
+    }
+
     const decision = resolveFlowAnswer({
       node,
-      answer: params.answer,
-      isInteractiveReply: params.isInteractiveReply,
+      answer: inbound.answer,
+      isInteractiveReply: inbound.kind === 'reply',
       context,
       clock: this.clock(),
       ...(dynamic ? { dynamicOptions: dynamic.options } : {}),
     })
 
     if (decision.kind === 'jump') return this.jumpTo(turn, graph, decision.target, withRuntime(context, {}))
-    if (decision.kind === 'see-more') {
-      return this.awaitAnswer(turn, graph, node, context, (dynamic?.page ?? 0) + 1)
+    if (decision.kind === 'see-more') return this.awaitAnswer(turn, graph, node, context, page + 1)
+    if (decision.kind === 'invalid' && this.followsDefaultWhenUnmatched(node)) {
+      return this.runFrom(turn, {
+        graph,
+        nodeId: node.id,
+        context: withRuntime(context, {}),
+        userAnswer: inbound.answer,
+        enterInitialNode: false,
+      })
     }
     if (decision.kind === 'invalid') return this.handleInvalid(turn, graph, node, context, decision.rejection)
 
@@ -242,6 +368,11 @@ export class FlowRunner {
       ...(decision.value !== undefined ? { answerValue: decision.value } : {}),
       enterInitialNode: false,
     })
+  }
+
+  private followsDefaultWhenUnmatched(node: FlowNodeData): boolean {
+    if (!isChoiceNode(node)) return false
+    return (node.unmatchedChoice ?? this.dependencies.config.unmatchedChoice ?? 'reask') === 'default'
   }
 
   private async handleInvalid(
@@ -275,7 +406,7 @@ export class FlowRunner {
     const isWithinHours = await this.dependencies.handoff.request({
       companyId: turn.companyId,
       whatsappNumber: turn.session.whatsappNumber,
-      variables: { ...turn.baseVariables, ...context },
+      variables: { ...context, ...turn.baseVariables },
     })
     await this.save(turn, {
       flowKey: null,
@@ -382,7 +513,7 @@ export class FlowRunner {
   }
 
   private async say(turn: FlowTurn, template: string, context: Record<string, unknown>): Promise<void> {
-    const body = this.renderer.interpolate(template, { ...turn.baseVariables, ...context })
+    const body = this.renderer.interpolate(template, { ...context, ...turn.baseVariables })
     if (body.trim().length > 0) await this.send(turn, { kind: 'text', body })
   }
 
@@ -401,10 +532,15 @@ export class FlowRunner {
     turn: FlowTurn,
     progress: { flowKey: string | null; nodeId: string | null; context: Record<string, unknown> },
   ): Promise<void> {
+    // Toda escrita do turno carrega o id da mensagem: é o que faz a retentativa parar no `duplicate`.
+    const runtime = runtimeOf(progress.context)
+    const context = turn.inboundId
+      ? withRuntime(progress.context, { ...runtime, lastInboundId: turn.inboundId })
+      : progress.context
     return this.dependencies.sessionRepository.saveFlowProgress(turn.companyId, turn.session.whatsappNumber, {
       flowKey: progress.flowKey,
       currentNodeId: progress.nodeId,
-      context: progress.context,
+      context,
     })
   }
 
@@ -418,21 +554,23 @@ export class FlowRunner {
     await this.report(turn, fromFlowKey, null, 'cross-flow', new FlowRunnerError('flow-not-found', target))
   }
 
+  /**
+   * Nunca relança: só é chamado depois de o turno ter sido gravado, e relançar faria a fila repetir
+   * uma mensagem já marcada como tratada. Sem gancho, o erro é descartado (a conversa fica no último
+   * ponto gravado e a próxima mensagem do cliente segue dali); gancho que falha também não derruba.
+   */
   private async report(
     turn: FlowTurn,
     flowKey: string | null,
     nodeId: string | null,
-    stage: 'render' | 'cross-flow' | 'max-steps',
+    stage: FlowStage,
     error: unknown,
   ): Promise<void> {
-    const hook = this.dependencies.hooks?.onFlowRunnerError
-    if (!hook) throw error
-    await hook(error, {
-      companyId: turn.companyId,
-      whatsappNumber: turn.session.whatsappNumber,
-      flowKey,
-      nodeId,
-      stage,
-    })
+    const details = { companyId: turn.companyId, whatsappNumber: turn.session.whatsappNumber, flowKey, nodeId, stage }
+    try {
+      await this.dependencies.hooks?.onFlowRunnerError?.(error, details)
+    } catch {
+      // Gancho de observabilidade com defeito não pode transformar um erro reportado em mensagem reprocessada.
+    }
   }
 }

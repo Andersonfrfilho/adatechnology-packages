@@ -195,6 +195,10 @@ export type FlowRunnerErrorDetails = {
   readonly whatsappNumber: string
   readonly flowKey: string | null
   readonly nodeId: string | null
-  /** Em que passo falhou: enviar o nó, saltar de fluxo, ou ciclo de nós automáticos. */
-  readonly stage: 'render' | 'cross-flow' | 'max-steps'
+  /**
+   * Em que passo falhou: enviar o nó, saltar de fluxo, ciclo de nós automáticos, o encaminhamento
+   * (fila ou ganchos), ou qualquer outro ponto do turno depois de a mensagem ter sido marcada como
+   * tratada (`turn`) — nesse caso ela não é reprocessada.
+   */
+  readonly stage: 'render' | 'cross-flow' | 'max-steps' | 'handoff' | 'turn'
 }

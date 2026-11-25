@@ -25,7 +25,12 @@ function withRoutes(node: FlowNodeData, routes: [string, string][]): FlowNodeDat
   return { ...node, next: routes.length > 0 ? { ...rest, byKeyword: Object.fromEntries(routes) } : rest }
 }
 
-export function FlowKeywordRoutesField({ draft, onDraftChange, renderTargetOptions, labels }: FlowKeywordRoutesFieldProps) {
+export function FlowKeywordRoutesField({
+  draft,
+  onDraftChange,
+  renderTargetOptions,
+  labels,
+}: FlowKeywordRoutesFieldProps) {
   const routes: [string, string][] =
     typeof draft.next === 'object' && draft.next?.byKeyword ? Object.entries(draft.next.byKeyword) : []
 
@@ -42,7 +47,12 @@ export function FlowKeywordRoutesField({ draft, onDraftChange, renderTargetOptio
   }
 
   function removeRoute(index: number) {
-    onDraftChange((previous) => withRoutes(previous, routes.filter((_, routeIndex) => routeIndex !== index)))
+    onDraftChange((previous) =>
+      withRoutes(
+        previous,
+        routes.filter((_, routeIndex) => routeIndex !== index),
+      ),
+    )
   }
 
   return (

@@ -16,6 +16,7 @@ import {
   type FlowActionHandler,
   type FlowNodeData,
   type InterpolateFlowTextOptions,
+  type MetaWhatsAppHooks,
   type SessionState,
 } from '@adatechnology/meta-whatsapp-contracts'
 import type { RequestHumanConversationUseCase } from '../use-cases/RequestHumanConversation.use-case'
@@ -30,6 +31,7 @@ export type FlowHandoffDependencies = {
   readonly config: FlowHandoffConfig
   readonly now: () => Date
   readonly interpolation: InterpolateFlowTextOptions
+  readonly hooks?: Pick<MetaWhatsAppHooks, 'onFlowRunnerError'>
 }
 
 export type RequestFlowHandoffParams = {
@@ -50,7 +52,13 @@ export class FlowHandoff {
   /** Devolve se caiu dentro do horário — vai para o contexto como `handoffWithinBusinessHours`. */
   async request(params: RequestFlowHandoffParams): Promise<boolean> {
     const { requestHuman, sendMessage, startState, interpolation } = this.dependencies
-    await requestHuman.execute({ companyId: params.companyId, whatsappNumber: params.whatsappNumber })
+    // Falha na fila ou nos ganchos (`onHumanRequested`, auditoria) não pode deixar o cliente sem
+    // resposta: reporta e segue para a mensagem. Retentativa não reavisa — o turno já foi gravado.
+    try {
+      await requestHuman.execute({ companyId: params.companyId, whatsappNumber: params.whatsappNumber })
+    } catch (error) {
+      await this.reportFailure(error, params)
+    }
 
     const isWithinHours = await this.isWithinHours(params.companyId)
     const template = this.messageFor(isWithinHours, params.node)
@@ -82,6 +90,20 @@ export class FlowHandoff {
         node,
       })
       return { context: { handoffWithinBusinessHours: isWithinHours } }
+    }
+  }
+
+  private async reportFailure(error: unknown, params: RequestFlowHandoffParams): Promise<void> {
+    try {
+      await this.dependencies.hooks?.onFlowRunnerError?.(error, {
+        companyId: params.companyId,
+        whatsappNumber: params.whatsappNumber,
+        flowKey: null,
+        nodeId: params.node?.id ?? null,
+        stage: 'handoff',
+      })
+    } catch {
+      // Gancho de observabilidade com defeito não pode impedir o aviso ao cliente.
     }
   }
 

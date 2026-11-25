@@ -50,7 +50,8 @@ export class FlowQuestionRenderer {
 
   async prepare(params: PrepareFlowQuestionParams): Promise<PreparedFlowQuestion> {
     const { node, context } = params
-    const variables = { ...params.variables, ...context }
+    // Variáveis do host vencem as respostas do cliente (ver `FlowRunner.variablesFor`).
+    const variables = { ...context, ...params.variables }
     const body = this.interpolate(
       node.question ?? this.config.choicePrompt ?? DEFAULT_FLOW_TEXT.CHOICE_PROMPT,
       variables,

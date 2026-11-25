@@ -186,7 +186,7 @@ describe('FlowRunner — validation, actions and cross-flow', () => {
       { kind: 'text', body: 'Escolha uma das opções.' },
       expect.objectContaining({ kind: 'interactive' }),
     ])
-    expect(harness.row.context[FLOW_RUNTIME_CONTEXT_KEY]).toEqual({ invalidAnswers: 1 })
+    expect(harness.row.context[FLOW_RUNTIME_CONTEXT_KEY]).toMatchObject({ invalidAnswers: 1 })
 
     await harness.handle(textMessage('qualquer coisa'))
     expect(harness.humanRequests).toHaveLength(1)

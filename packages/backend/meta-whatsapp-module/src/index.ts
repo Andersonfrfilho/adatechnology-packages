@@ -127,6 +127,11 @@ export type { FlowStepInput, FlowStepResult, FlowRunResult, FlowRunOptions } fro
 export { FlowRunner } from './flows/FlowRunner'
 export type { FlowRunnerDependencies, HandleFlowMessageParams, StartFlowParams } from './flows/FlowRunner'
 export { FlowHandoff } from './flows/FlowHandoff'
+export { PostgresAdvisoryFlowTurnLock, InProcessFlowTurnLock } from './flows/flowTurnLock'
+export type { FlowTurnLockInterface, FlowTurnLockKey } from './flows/flowTurnLock'
+export { resolveFlowTimeZone } from './flows/FlowRunner'
+export { readFlowInbound } from './flows/readFlowInbound'
+export type { FlowInbound } from './flows/readFlowInbound'
 export type { FlowHandoffDependencies, RequestFlowHandoffParams } from './flows/FlowHandoff'
 export type {
   FlowRunnerConfig,

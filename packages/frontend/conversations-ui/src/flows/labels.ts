@@ -23,6 +23,9 @@ export interface FlowRunnerFieldLabels {
   optionDescription: string
   optionSection: string
   listButtonLabel: string
+  unmatchedChoice: string
+  unmatchedChoiceReask: string
+  unmatchedChoiceDefault: string
   choiceProvider: string
   choiceProviderHint: string
   contextKey: string
@@ -195,6 +198,7 @@ export interface FlowValidationLabels {
   conditionBranchMissing: (id: string, branch: string) => string
   descriptionTooLong?: (id: string, label: string) => string
   dynamicChoiceWithoutProvider?: (id: string) => string
+  choiceDefaultIgnored?: (id: string) => string
 }
 
 export const DEFAULT_FLOW_RUNNER_FIELD_LABELS: FlowRunnerFieldLabels = {
@@ -219,6 +223,9 @@ export const DEFAULT_FLOW_RUNNER_FIELD_LABELS: FlowRunnerFieldLabels = {
   optionDescription: 'Descrição (lista)',
   optionSection: 'Seção',
   listButtonLabel: 'Texto do botão da lista',
+  unmatchedChoice: 'Resposta fora das opções',
+  unmatchedChoiceReask: 'Perguntar de novo (padrão)',
+  unmatchedChoiceDefault: 'Seguir o "Caso contrário"',
   choiceProvider: 'Provedor de opções',
   choiceProviderHint: 'Chave registrada pelo sistema (registerDynamicChoiceProvider).',
   contextKey: 'Guardar a escolha em',
@@ -377,6 +384,8 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
       `Nó "${id}": ramo "${branch === 'true' ? 'Verdadeiro' : 'Falso'}" sem destino definido.`,
     descriptionTooLong: (id, label) => `Nó "${id}": a descrição de "${label}" passa de 72 caracteres.`,
     dynamicChoiceWithoutProvider: (id) => `Nó "${id}": escolha dinâmica sem provedor de opções.`,
+    choiceDefaultIgnored: (id) =>
+      `Nó "${id}": o bot repergunta quando a resposta não casa com uma opção, então "Caso contrário" não é seguido. Para seguir, mude "Resposta fora das opções".`,
   },
   workspace: {
     title: 'Fluxos do Bot',

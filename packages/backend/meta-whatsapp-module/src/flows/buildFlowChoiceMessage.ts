@@ -14,6 +14,7 @@ import {
   type InteractiveListSection,
   type InteractiveMessage,
 } from '@adatechnology/meta-whatsapp-contracts'
+import { DEFAULT_FLOW_TEXT } from './flowRunner.constant'
 
 export type FlowChoiceOption = {
   readonly id: string
@@ -50,12 +51,29 @@ function groupSections(options: readonly FlowChoiceOption[]): InteractiveListSec
   }))
 }
 
+/**
+ * Texto numerado, cortado no teto de mensagem de texto (4096). Linhas que não cabem saem e o texto
+ * termina em "…": melhor uma lista incompleta que a Meta recusar a mensagem inteira. Quem precisa de
+ * muitas opções usa `dynamic_choice`, que pagina.
+ */
 function asNumberedText(params: BuildFlowChoiceMessageParams): FlowOutboundMessage {
   const lines = params.options.map((option, index) => {
     const description = option.description ? ` — ${option.description}` : ''
     return `${index + 1}. ${option.title}${description}`
   })
-  return { kind: 'text', body: `${params.body}\n\n${lines.join('\n')}` }
+  const limit = WHATSAPP_CHOICE_LIMIT.TEXT_BODY_LENGTH
+  const full = `${params.body}\n\n${lines.join('\n')}`
+  if (Array.from(full).length <= limit) return { kind: 'text', body: full }
+
+  const truncated = `\n${DEFAULT_FLOW_TEXT.MORE_OPTIONS_TRUNCATED}`
+  let body = `${params.body}\n`
+  for (const line of lines) {
+    const candidate = `${body}\n${line}`
+    if (Array.from(candidate).length + truncated.length > limit) break
+    body = candidate
+  }
+  const withMarker = `${body}${truncated}`
+  return { kind: 'text', body: Array.from(withMarker).slice(0, limit).join('') }
 }
 
 export function buildFlowChoiceMessage(params: BuildFlowChoiceMessageParams): FlowOutboundMessage {

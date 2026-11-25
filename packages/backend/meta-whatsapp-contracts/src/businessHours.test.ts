@@ -38,3 +38,27 @@ describe('preview contact', () => {
     expect(toPreviewContact('0123')).toBe('0123')
   })
 })
+
+describe('isWithinBusinessHours — windows crossing midnight', () => {
+  const NIGHT: BusinessHours = {
+    timeZone: 'America/Sao_Paulo',
+    windows: [{ weekday: 5, start: '22:00', end: '02:00' }],
+  }
+
+  it('covers late friday and early saturday', () => {
+    // Sexta 2026-11-27 23:00 e sábado 01:59 em São Paulo.
+    expect(isWithinBusinessHours(NIGHT, new Date('2026-11-28T02:00:00Z'))).toBe(true)
+    expect(isWithinBusinessHours(NIGHT, new Date('2026-11-28T04:59:00Z'))).toBe(true)
+    expect(isWithinBusinessHours(NIGHT, new Date('2026-11-28T05:00:00Z'))).toBe(false)
+    expect(isWithinBusinessHours(NIGHT, new Date('2026-11-27T21:00:00Z'))).toBe(false)
+  })
+
+  it('treats an empty window as closed', () => {
+    expect(
+      isWithinBusinessHours(
+        { timeZone: 'UTC', windows: [{ weekday: 3, start: '09:00', end: '09:00' }] },
+        new Date('2026-11-25T09:00:00Z'),
+      ),
+    ).toBe(false)
+  })
+})

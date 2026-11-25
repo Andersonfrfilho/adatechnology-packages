@@ -41,7 +41,9 @@ const whatsapp = createMetaWhatsAppModule({
   hooks: {
     // Sem hook, ou devolvendo 'continue', o runner atende. 'handled' = o host já respondeu.
     onMessageReceived: async () => ({ outcome: 'continue' }),
-    onFlowRunnerError: (error, details) => logger.error('flow_runner_failed', { ...details }),
+    // Sem o número inteiro no log: etapa, fluxo, nó e os 4 últimos dígitos.
+    onFlowRunnerError: (error, { stage, flowKey, nodeId, whatsappNumber }) =>
+      logger.error('flow_runner_failed', { stage, flowKey, nodeId, contact: `****${whatsappNumber.slice(-4)}` }),
     onHumanRequested: async (session) => notifyTeam(session.companyId),
   },
 })
@@ -226,10 +228,11 @@ await whatsapp.flows!.runner!.start({ companyId, whatsappNumber })
 
 Com `features.previewContacts: true` (só em ambiente de teste), o simulador do `conversations-ui`
 conversa pelo número `DEFAULT_PREVIEW_CONTACT` (começa com `0`) e o módulo responde sem chamar a Meta.
-Na rota da ponte:
+A rota da ponte assina com o app secret: **exige sessão autenticada e nunca vai para produção**.
 
 ```ts
-app.post('/v1/preview/inbound', requireSession, async (request) => {
+// Registrada só fora de produção, atrás da sessão do painel.
+if (environment.isPreviewEnabled) app.post('/v1/preview/inbound', requireSession, async (request) => {
   const payload = whatsapp.webhook.buildPreviewPayload(request.body)
   const rawBody = JSON.stringify(payload)
   await whatsapp.webhook.receive.execute({ companyId, rawBody, signatureHeader: signWithAppSecret(rawBody) })

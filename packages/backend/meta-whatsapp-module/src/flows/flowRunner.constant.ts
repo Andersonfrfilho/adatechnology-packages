@@ -13,6 +13,8 @@ export const DEFAULT_FLOW_TEXT = {
   CHOICE_PROMPT: 'Escolha uma opção:',
   LIST_BUTTON_LABEL: 'Ver opções',
   SEE_MORE: 'Ver mais',
+  NON_TEXT_ANSWER: 'Por aqui eu entendo só texto. Pode escrever a resposta?',
+  MORE_OPTIONS_TRUNCATED: '…',
   HANDOFF: 'Vou chamar uma pessoa da equipe para continuar por aqui.',
   HANDOFF_OUT_OF_HOURS:
     'Nossa equipe está fora do horário agora. Sua mensagem ficou registrada e respondemos assim que voltarmos.',

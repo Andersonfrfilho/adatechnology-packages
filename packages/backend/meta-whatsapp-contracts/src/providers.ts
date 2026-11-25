@@ -24,6 +24,8 @@ export const WHATSAPP_CHOICE_LIMIT = {
   LIST_BUTTON_LABEL_LENGTH: 20,
   /** Corpo de mensagem interativa (botões ou lista). */
   BODY_LENGTH: 1024,
+  /** Corpo de mensagem de texto simples. */
+  TEXT_BODY_LENGTH: 4096,
 } as const
 
 // Separa "conversa" (agnóstica de canal) de "canal" (WhatsApp/Meta) — quem envia/recebe pela
