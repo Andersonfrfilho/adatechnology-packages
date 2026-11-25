@@ -208,3 +208,31 @@ export type FlowActionHandler = (params: {
 export interface FlowActionRegistry {
   registerFlowAction(kind: FlowActionKind, handler: FlowActionHandler): void
 }
+
+/** Opção que um provedor de `dynamic_choice` devolve. `id` vai para o contexto; `title` é o que o cliente lê. */
+export type DynamicChoiceOption = {
+  readonly id: string
+  readonly title: string
+  readonly description?: string
+}
+
+export type DynamicChoicePage = {
+  readonly options: readonly DynamicChoiceOption[]
+  /** Há mais opções depois desta página — o runner acrescenta "ver mais". */
+  readonly hasMore: boolean
+}
+
+/**
+ * Opções de um nó `dynamic_choice`, calculadas na hora (horários livres, unidades próximas, itens do
+ * cadastro). O host registra por chave e o nó aponta a chave em `choiceProvider`.
+ *
+ * `page` começa em 0. `pageSize` é quantas opções cabem numa lista junto com o "ver mais" — devolver
+ * mais que isso faz o runner cortar.
+ */
+export type DynamicChoiceProvider = (params: {
+  readonly node: FlowNodeData
+  readonly session: ConversationSession
+  readonly context: Readonly<Record<string, unknown>>
+  readonly page: number
+  readonly pageSize: number
+}) => Promise<DynamicChoicePage>

@@ -25,3 +25,6 @@ export type {
   InboundMediaType,
   InteractiveReplyOption,
 } from './inboundPayloads'
+
+export { buildPreviewInboundPayload } from './previewCommand'
+export type { PreviewInboundCommand, PreviewMediaCommandFields, PreviewPayloadEnvelope } from './previewCommand'

@@ -5,7 +5,7 @@
 // assume nenhum caso de negócio específico.
 import { z } from 'zod'
 
-export type FlowNodeType = 'question' | 'entrada_choice' | 'action' | 'menu' | 'condition'
+export type FlowNodeType = 'question' | 'entrada_choice' | 'action' | 'menu' | 'condition' | 'dynamic_choice'
 export type FlowQuestionType = 'text' | 'money' | 'date' | 'int' | 'cpf' | 'choice'
 export type FlowActionKind = string
 
@@ -19,7 +19,35 @@ export const FLOW_ACTION_KIND = {
   SEND_MEDIA: 'send_media',
 } as const
 export type FlowConditionOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'contains'
-export type FlowNodeNext = string | { byAnswer: Record<string, string>; default: string }
+/**
+ * `byKeyword`: texto livre que casa com a palavra-chave (sem acento, sem caixa) leva ao destino. É o
+ * que permite responder "qual o horário?" num menu sem o cliente tocar em opção nenhuma.
+ */
+export type FlowNodeNext =
+  string | { byAnswer: Record<string, string>; byKeyword?: Record<string, string>; default: string }
+
+/**
+ * Regras da resposta de uma pergunta. Todas opcionais; o tipo (`questionType`) diz qual se aplica.
+ *
+ * - `date`: `minDate: 'today'` (ou `yyyy-mm-dd`) recusa data anterior; `afterContextKey` exige data
+ *   posterior à guardada naquela chave (saída depois da entrada).
+ * - `int` / `money`: `min` e `max` inclusivos.
+ * - `text`: `minLength` e `maxLength`, em caracteres.
+ */
+export type FlowAnswerValidation = {
+  minDate?: string
+  afterContextKey?: string
+  min?: number
+  max?: number
+  minLength?: number
+  maxLength?: number
+}
+
+/** Descrição (cinza, abaixo do título) e seção de uma opção quando ela sai como linha de lista. */
+export type FlowOptionDetail = {
+  description?: string
+  section?: string
+}
 
 // Destinos "flow:<key>" são saltos para outro fluxo — mesma convenção usada pelo editor visual
 // (conversations-ui/flows/flowGraph.ts); backend e frontend precisam concordar no formato.
@@ -42,6 +70,18 @@ export type FlowNodeData = {
   // nunca os interpreta — é o que permite um nó de ação ser configurado pelo editor sem que o
   // vocabulário do produto (o antigo `simulationTemplate`) vaze para dentro do contrato.
   actionParams?: Record<string, unknown>
+  /** Por id de opção. Opção com descrição ou seção sai em lista, mesmo com até 3 opções. */
+  optionDetails?: Record<string, FlowOptionDetail>
+  /** Texto do botão que abre a lista. Ausente, vale o padrão do runner. */
+  listButtonLabel?: string
+  /** Regras da resposta (ver `FlowAnswerValidation`). */
+  validation?: FlowAnswerValidation
+  /** Respostas que pulam a pergunta: a chave recebe `null` e o fluxo segue pelo `default`. */
+  skipKeywords?: string[]
+  /** Tentativas inválidas antes do encaminhamento a uma pessoa. Ausente, vale o padrão do runner (2). */
+  maxInvalidAnswers?: number
+  /** Nó `dynamic_choice`: chave do provedor de opções registrado pelo host. */
+  choiceProvider?: string
   directMessage?: string
   fallbackMessage?: string
   conditionContextKey?: string
@@ -85,19 +125,40 @@ export interface LiveFlowPosition {
 // do editor não pode ficar irrecuperável numa versão mais antiga do módulo.
 export const flowNodeNextSchema = z.union([
   z.string(),
-  z.object({ byAnswer: z.record(z.string(), z.string()), default: z.string() }),
+  z.object({
+    byAnswer: z.record(z.string(), z.string()),
+    byKeyword: z.record(z.string(), z.string()).optional(),
+    default: z.string(),
+  }),
 ])
+
+export const flowAnswerValidationSchema = z.object({
+  minDate: z.union([z.literal('today'), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).optional(),
+  afterContextKey: z.string().optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  minLength: z.number().int().nonnegative().optional(),
+  maxLength: z.number().int().positive().optional(),
+})
 
 export const flowNodeDataSchema = z
   .object({
     id: z.string(),
-    type: z.enum(['question', 'entrada_choice', 'action', 'menu', 'condition']),
+    type: z.enum(['question', 'entrada_choice', 'action', 'menu', 'condition', 'dynamic_choice']),
     contextKey: z.string().optional(),
     questionType: z.enum(['text', 'money', 'date', 'int', 'cpf', 'choice']).optional(),
     question: z.string().optional(),
     options: z.array(z.tuple([z.string(), z.string()])).optional(),
     actionKind: z.string().optional(),
     actionParams: z.record(z.string(), z.unknown()).optional(),
+    optionDetails: z
+      .record(z.string(), z.object({ description: z.string().optional(), section: z.string().optional() }))
+      .optional(),
+    listButtonLabel: z.string().optional(),
+    validation: flowAnswerValidationSchema.optional(),
+    skipKeywords: z.array(z.string()).optional(),
+    maxInvalidAnswers: z.number().int().positive().optional(),
+    choiceProvider: z.string().optional(),
     directMessage: z.string().optional(),
     fallbackMessage: z.string().optional(),
     conditionContextKey: z.string().optional(),
