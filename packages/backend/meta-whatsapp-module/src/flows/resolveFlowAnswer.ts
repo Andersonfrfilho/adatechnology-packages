@@ -29,6 +29,11 @@ export type ResolveFlowAnswerParams = {
   readonly isInteractiveReply: boolean
   readonly context: Readonly<Record<string, unknown>>
   readonly clock: FlowClock
+  /**
+   * Opções do nó de escolha como o cliente as viu (`{{chave}}` já resolvido). Ausente, `node.options`
+   * cru — o texto digitado casaria com o título ainda com a marcação.
+   */
+  readonly options?: readonly (readonly [string, string])[]
   /** Opções exibidas na última página de um `dynamic_choice` (id, título), incluindo "ver mais". */
   readonly dynamicOptions?: readonly (readonly [string, string])[]
 }
@@ -52,7 +57,7 @@ function matchOption(
 }
 
 function resolveChoice(params: ResolveFlowAnswerParams, answer: string): FlowAnswerDecision {
-  const optionId = matchOption(answer, params.node.options ?? [], params.isInteractiveReply)
+  const optionId = matchOption(answer, params.options ?? params.node.options ?? [], params.isInteractiveReply)
   if (optionId) return { kind: 'answer', userAnswer: optionId }
   const target = keywordRoute(params.node, answer, params.isInteractiveReply)
   return target ? { kind: 'jump', target } : { kind: 'invalid' }

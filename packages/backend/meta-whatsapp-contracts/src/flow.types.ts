@@ -6,7 +6,7 @@
 import { z } from 'zod'
 
 export type FlowNodeType = 'question' | 'entrada_choice' | 'action' | 'menu' | 'condition' | 'dynamic_choice'
-export type FlowQuestionType = 'text' | 'money' | 'date' | 'int' | 'cpf' | 'choice'
+export type FlowQuestionType = 'text' | 'money' | 'date' | 'time' | 'int' | 'cpf' | 'choice'
 export type FlowActionKind = string
 
 // Os únicos `actionKind` que o próprio pacote implementa — todo o resto é do host. Ficam aqui, e
@@ -31,12 +31,18 @@ export type FlowNodeNext =
  *
  * - `date`: `minDate: 'today'` (ou `yyyy-mm-dd`) recusa data anterior; `afterContextKey` exige data
  *   posterior à guardada naquela chave (saída depois da entrada).
+ * - `time`: `minTime` e `maxTime` (`HH:MM`, inclusivos); `windowsContextKey` aponta a chave do contexto
+ *   com as faixas permitidas (`[{ start: '11:00', end: '14:00' }]` ou `['11:00-14:00']`), que o host
+ *   preenche antes da pergunta (uma action, `resolveVariables`) — faixa que vira a meia-noite vale.
  * - `int` / `money`: `min` e `max` inclusivos.
  * - `text`: `minLength` e `maxLength`, em caracteres.
  */
 export type FlowAnswerValidation = {
   minDate?: string
   afterContextKey?: string
+  minTime?: string
+  maxTime?: string
+  windowsContextKey?: string
   min?: number
   max?: number
   minLength?: number
@@ -76,6 +82,12 @@ export type FlowNodeData = {
   listButtonLabel?: string
   /** Regras da resposta (ver `FlowAnswerValidation`). */
   validation?: FlowAnswerValidation
+  /**
+   * Destinos que o handler da action PODE devolver em `next` (ids de nó ou `flow:<chave>`). O runtime
+   * não lê — quem decide é o handler; serve para o editor desenhar esses caminhos e não acusar o nó
+   * de destino como inalcançável.
+   */
+  possibleNext?: string[]
   /** Respostas que pulam a pergunta: a chave recebe `null` e o fluxo segue pelo `default`. */
   skipKeywords?: string[]
   /** Tentativas inválidas antes do encaminhamento a uma pessoa. Ausente, vale o padrão do runner (2). */
@@ -140,6 +152,15 @@ export const flowNodeNextSchema = z.union([
 export const flowAnswerValidationSchema = z.object({
   minDate: z.union([z.literal('today'), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).optional(),
   afterContextKey: z.string().optional(),
+  minTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
+  maxTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
+  windowsContextKey: z.string().optional(),
   min: z.number().optional(),
   max: z.number().optional(),
   minLength: z.number().int().nonnegative().optional(),
@@ -151,7 +172,7 @@ export const flowNodeDataSchema = z
     id: z.string(),
     type: z.enum(['question', 'entrada_choice', 'action', 'menu', 'condition', 'dynamic_choice']),
     contextKey: z.string().optional(),
-    questionType: z.enum(['text', 'money', 'date', 'int', 'cpf', 'choice']).optional(),
+    questionType: z.enum(['text', 'money', 'date', 'time', 'int', 'cpf', 'choice']).optional(),
     question: z.string().optional(),
     options: z.array(z.tuple([z.string(), z.string()])).optional(),
     actionKind: z.string().optional(),
@@ -161,6 +182,7 @@ export const flowNodeDataSchema = z
       .optional(),
     listButtonLabel: z.string().optional(),
     validation: flowAnswerValidationSchema.optional(),
+    possibleNext: z.array(z.string()).optional(),
     skipKeywords: z.array(z.string()).optional(),
     maxInvalidAnswers: z.number().int().positive().optional(),
     unmatchedChoice: z.enum(['reask', 'default']).optional(),

@@ -106,7 +106,12 @@ export type {
   MetaWhatsAppMigrationsLayout,
   MetaWhatsAppMigrationsFolderParams,
 } from './runMigrations'
-export type { MetaWhatsAppDatabase, DrizzleMigrateFunction } from './database.types'
+export type {
+  MetaWhatsAppDatabase,
+  MetaWhatsAppDatabaseFor,
+  MetaWhatsAppDatabaseShape,
+  DrizzleMigrateFunction,
+} from './database.types'
 
 export { SessionRepository } from './repositories/SessionRepository'
 export type { ListConversationsFilters } from './repositories/SessionRepository'
@@ -141,7 +146,14 @@ export type {
   FlowGlobalKeywordTarget,
   FlowHandoffConfig,
   FlowVariablesResolver,
+  FlowTextKind,
+  FlowTextContext,
+  FlowTextResolver,
+  FlowConfigText,
+  FlowAnswerValidator,
+  FlowAnswerValidatorResult,
 } from './flows/flowRunner.types'
+export { resolveFlowConfigText } from './flows/resolveFlowConfigText'
 export {
   DEFAULT_FLOW_TEXT,
   DEFAULT_START_FLOW_KEY,
