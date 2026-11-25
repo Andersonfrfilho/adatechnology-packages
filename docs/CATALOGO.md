@@ -77,6 +77,14 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`meta-catalog-provider`](#adatechnologymeta-catalog-provider) | catálogo da Meta Commerce | `MetaCatalogProvider` |
 | [`recommendation-module`](#adatechnologyrecommendation-module) | itens patrocinados ou curados, campanhas e métricas | `createRecommendationModule` |
 
+### Blog, novidades e conteúdo
+
+| Pacote | O que resolve | Entrada |
+|---|---|---|
+| [`content-module`](#adatechnologycontent-module) | posts em Markdown com slug, capa, tags, SEO, rascunho, agendamento e arquivo; rotas de painel e públicas; RSS, Atom e sitemap | `createContentModule`, `createContentRoutes` |
+| [`content-ui`](#adatechnologycontent-ui) | painel (lista e editor com prévia ao vivo) e site público (lista, página do post, compartilhar) | `ContentWorkspace`, `PostListPage`, `PostPage` |
+| [`content-contracts`](#adatechnologycontent-contracts) | Markdown seguro (servidor e navegador), slug, tempo de leitura, feed e sitemap sem o módulo | `renderMarkdownToHtml`, `parseMarkdown`, `buildRssFeed` |
+
 ### Notificações e modelos de mensagem/e-mail
 
 | Pacote | O que resolve | Entrada |
@@ -87,7 +95,49 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`push-provider`](#adatechnologypush-provider) | Expo, FCM e Web Push | `createPushProvider` |
 | [`notification-client`](#adatechnologynotification-client) | cliente HTTP, SSE e registro de dispositivo para web e mobile | `createNotificationClient` |
 
-### Agenda e reservas
+### Conteúdo: blog, novidades e notícias
+
+### @adatechnology/content-contracts
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0` pelo changeset) · `packages/backend/content-contracts`
+- **Para quê:** Contratos do trio de conteúdo: post, schemas, erros, portas, e os utilitários puros que servidor e navegador compartilham.
+- **O que você ganha:**
+  - Markdown → AST fechado (sem nó de HTML cru) e → HTML escapado: `parseMarkdown`, `renderMarkdownToHtml`, `markdownToPlainText`; links só `http(s)`/`mailto`/`tel`/relativo com `rel="noopener noreferrer"`, imagem só `http(s)`/relativo
+  - `slugify`, `isValidSlug`, `normalizeTags`, `estimateReadingTimeMinutes`, `buildExcerpt`
+  - `buildRssFeed`, `buildAtomFeed`, `buildSitemapXml`, `buildPostUrl` (funções puras, servem site estático)
+  - Portas `ContentImageStoragePort` (mesma forma do `ProductImageStoragePort`), `ClockPort`, `LoggerPort`; gancho `onPostChanged`
+- **Entradas:** `src/index.ts`
+- **Precisa de:** Nenhuma.
+- **Compatibilidade:** Isomórfico (Bun, Node, navegador).
+- **Usado por:** nenhum ainda.
+
+### @adatechnology/content-module
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/backend/content-module` · subpaths: `./http/fetch`, `./http/uws`, `./openapi`
+- **Para quê:** Blog, novidades e notícias com banco: posts com slug único por empresa, Markdown, capa, tags, SEO, rascunho/agendado/publicado/arquivado.
+- **O que você ganha:**
+  - Use-cases: criar, editar, arquivar (o "excluir"), publicar agora ou agendar (`publishedAt` futuro fica público no instante, sem cron), despublicar, listar no painel (status/tag/busca, paginado), ler público por slug, listar publicados por tag, listar tags, upload de capa
+  - Rotas por `createContentRoutes`: painel com escopo `content:admin` (configurável em `adminScopes`) e `/public/*` sem identidade, empresa resolvida pela porta `PublicCompanyResolverPort`; respostas públicas com `Cache-Control`
+  - RSS (`/public/feed.xml`), Atom (`/public/atom.xml`) e entradas de sitemap (`/public/sitemap-entries`) quando há `config.feed`
+  - Capacidade por ausência: sem `imageStorage` não há upload; sem `config.feed` não há feed; sem resolver público não há rota pública
+  - `createInMemoryPostStore` para teste do host
+- **Entradas:** `createContentModule` em `src/ContentModule.ts`; `createContentRoutes`; `runContentMigrations`; `contentOpenApiPaths` em `./openapi`
+- **Precisa de:** PostgreSQL (Drizzle). Capa por upload: um storage S3 (ex.: `catalog-image-storage-provider`, que tem a mesma forma de porta). Peers: `drizzle-orm`.
+- **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `content`; journal `content_migrations` no formato clássico (`meta/_journal.json`).
+- **Usado por:** nenhum ainda.
+
+### @adatechnology/content-ui
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/content-ui` · subpath: `./styles.css`
+- **Para quê:** Telas de blog/novidades com API injetada: painel e site público.
+- **O que você ganha:**
+  - Painel: `ContentWorkspace` (tela composta), `PostList` (filtros, selos de status ícone+palavra+cor, paginação), `PostEditor` (título, slug, resumo, Markdown com prévia ao vivo, capa por upload ou URL, tags, SEO, publicar/agendar/despublicar/arquivar, aviso de alteração não salva)
+  - Público: `PostCard`, `PostListPage` (paginação e filtro de tag por link), `PostPage` (capa, data, tempo de leitura, corpo, compartilhar), `ShareButtons` (WhatsApp, Facebook, X, LinkedIn por URL simples, copiar link, Web Share nativo)
+  - Corpo renderizado do AST em elementos React, sem `dangerouslySetInnerHTML`; `buildPostMeta` para o `<head>` do host; `renderLink` para o roteador do host
+  - Tema por variáveis `--adc-*`; `pt-BR` e `en`; headless `usePostEditor`, `usePostList`, `useUnsavedChangesGuard`
+- **Entradas:** `src/index.ts`
+- **Precisa de:** API compatível com `content-module` (interfaces `ContentAdminApi`, `ContentPublicApi`). Peers: `react`, `react-dom`.
+- **Compatibilidade:** React 18+.
+- **Usado por:** nenhum ainda.
+
+## Agenda e reservas
 
 | Pacote | O que resolve | Entrada |
 |---|---|---|
