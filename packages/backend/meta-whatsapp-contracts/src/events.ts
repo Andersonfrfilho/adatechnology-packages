@@ -4,7 +4,7 @@ import type {
   WhatsAppStatus,
   WhatsAppTemplateStatusUpdate,
 } from './webhook.types'
-import type { ConversationSession } from './conversation.types'
+import type { ConversationSession, SessionMode } from './conversation.types'
 
 export type MessageHookOutcome = { outcome: 'handled' } | { outcome: 'continue' }
 
@@ -116,6 +116,30 @@ export interface MetaWhatsAppHooks {
    * Sem implementar, a recusa fica só no `payload` da mensagem e ninguém é avisado na hora.
    */
   onInboundEffectRejected?: (details: InboundEffectRejectedDescriptor) => Promise<void> | void
+  /**
+   * A conversa mudou de dono: um atendente assumiu (`takeover`), devolveu ao bot (`release`) ou
+   * alguém pediu atendimento humano (`human-requested`). Carrega quem fez (`actorId`) para o host
+   * gravar trilha de auditoria.
+   *
+   * Dispara DEPOIS de a mudança estar gravada. Erro lançado aqui sobe para quem chamou o use case —
+   * a mudança não é desfeita, mas o host fica sabendo que a auditoria não foi escrita.
+   */
+  onConversationModeChanged?: (change: ConversationModeChange) => Promise<void> | void
+}
+
+export type ConversationModeChangeKind = 'takeover' | 'release' | 'human-requested'
+
+export type ConversationModeChange = {
+  readonly companyId: string
+  readonly whatsappNumber: string
+  readonly kind: ConversationModeChangeKind
+  /** Modo da conversa depois da mudança. `human-requested` não troca o modo — repete o atual. */
+  readonly mode: SessionMode
+  /** Atendente responsável depois da mudança; `null` com o bot. */
+  readonly assignedUserId: string | null
+  /** Quem fez a mudança, como o host o identifica. `null` = o próprio sistema (bot, fluxo, cliente). */
+  readonly actorId: string | null
+  readonly occurredAt: Date
 }
 
 export type UnhandledWebhookEventDescriptor = {
