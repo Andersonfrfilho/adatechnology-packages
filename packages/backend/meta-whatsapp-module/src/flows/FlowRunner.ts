@@ -15,7 +15,6 @@ import {
   FlowRunnerError,
   isCrossFlowTarget,
   crossFlowKey,
-  matchesFlowKeyword,
   type ChannelAdapterInterface,
   type ConversationSession,
   type DynamicChoiceProvider,
@@ -46,6 +45,7 @@ import {
   DEFAULT_MAX_INVALID_ANSWERS,
   DEFAULT_START_FLOW_KEY,
 } from './flowRunner.constant'
+import { matchGlobalKeyword } from './matchGlobalKeyword'
 import type { FlowGlobalKeywordTarget, FlowRunnerConfig, FlowRunnerOutcome } from './flowRunner.types'
 
 export type FlowRunnerDependencies = {
@@ -284,8 +284,7 @@ export class FlowRunner {
   }
 
   private globalKeywordTarget(answer: string): FlowGlobalKeywordTarget | undefined {
-    const keywords = this.dependencies.config.globalKeywords ?? []
-    return keywords.find((entry) => matchesFlowKeyword(answer, entry.keywords))?.target
+    return matchGlobalKeyword(answer, this.dependencies.config.globalKeywords ?? [])
   }
 
   private keywordJumpAtStart(start: FlowNodeData, inbound: FlowInbound): string | undefined {

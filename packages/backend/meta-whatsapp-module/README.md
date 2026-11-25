@@ -153,7 +153,7 @@ const whatsapp = createMetaWhatsAppModule({
       timeZone: 'America/Sao_Paulo',
       globalKeywords: [
         { keywords: ['menu', 'início'], target: 'restart' },
-        { keywords: ['atendente', 'pessoa'], target: 'handoff' },
+        { keywords: ['atendente', 'pessoa'], target: 'handoff', match: 'word' },
       ],
       handoff: {
         message: 'Já chamei alguém da equipe, {{contactFirstName}}.',
@@ -227,6 +227,10 @@ whatsapp.flows!.registerDynamicChoiceProvider('free_slots', async ({ context, pa
   interpretador puro. O editor avisa quando um `default` ficaria sem efeito.
 - **Grafo removido**: conversa parada num fluxo que não existe mais volta ao início do fluxo de partida
   e o erro sai em `onFlowRunnerError`.
+
+Palavra global: `match: 'exact'` (padrão) só vale quando a mensagem inteira é a palavra; `match: 'word'` vale
+quando a palavra (ou frase) aparece inteira dentro da mensagem ("quero falar com o atendente"), sem acento e
+sem caixa, e nunca como pedaço de outra palavra. Havendo várias, vence a mais longa.
 
 Depois de um encaminhamento que encerra o fluxo, a conversa fica em silêncio até alguém assumir ou
 devolver ao bot (`whileAwaitingHuman: 'continue'` muda isso). Palavras globais continuam valendo:

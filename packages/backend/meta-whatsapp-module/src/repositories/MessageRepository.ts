@@ -1,4 +1,4 @@
-import { and, count, eq, lt, sql } from 'drizzle-orm'
+import { and, count, desc, eq, lt, sql } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
 import type {
   MessageDirection,
@@ -265,11 +265,13 @@ export class MessageRepository {
     const conditions = [eq(messages.companyId, params.companyId), eq(messages.sessionId, params.sessionId)]
     if (params.before) conditions.push(lt(messages.createdAt, new Date(params.before)))
 
-    return this.db
+    // Pega as N mais novas (DESC + limit) e devolve em ordem cronológica: ASC + limit devolveria as mais antigas.
+    const newestFirst = await this.db
       .select()
       .from(messages)
       .where(and(...conditions))
-      .orderBy(messages.createdAt)
+      .orderBy(desc(messages.createdAt), desc(messages.id))
       .limit(params.limit ?? DEFAULT_LIMIT)
+    return newestFirst.reverse()
   }
 }
