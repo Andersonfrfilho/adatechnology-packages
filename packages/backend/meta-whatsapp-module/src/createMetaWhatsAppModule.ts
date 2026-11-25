@@ -1,6 +1,6 @@
 import { WhatsAppMessageProvider } from '@adatechnology/meta-whatsapp-provider'
 import type { MetaWhatsAppDatabase } from './database.types'
-import { FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
+import { ConfigMissingError, FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
 import type {
   CatalogPort,
   ChannelAdapterInterface,
@@ -22,6 +22,7 @@ import { LogMessageUseCase, type MessageModerator } from './use-cases/LogMessage
 import { SendMessageUseCase } from './use-cases/SendMessage.use-case'
 import { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.use-case'
 import { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-case'
+import { RequestHumanConversationUseCase } from './use-cases/RequestHumanConversation.use-case'
 import { ListConversationsUseCase } from './use-cases/ListConversations.use-case'
 import { ListMessagesUseCase } from './use-cases/ListMessages.use-case'
 import { ListConversationDocumentsUseCase } from './use-cases/ListConversationDocuments.use-case'
@@ -58,7 +59,11 @@ import { TRANSCRIPTION_MODE, type AudioTranscriber, type TranscriptionMode } fro
 
 export interface MetaWhatsAppModuleConfig {
   phoneNumberId: string
-  accessToken: string
+  /**
+   * Token da Graph API. Obrigatório quando o módulo monta o canal padrão; dispensável quando o host
+   * injeta `providers.channel` (sandbox, simulador, teste), que não fala com a Meta.
+   */
+  accessToken?: string
   webhookVerifyToken: string
   appSecret: string
   wabaId?: string
@@ -137,6 +142,14 @@ export interface MetaWhatsAppTranscriptionConfig {
 }
 
 export interface MetaWhatsAppModuleProviders {
+  /**
+   * Canal de envio. Ausente, o módulo monta o `WhatsAppChannelAdapter` sobre a Graph API com
+   * `config` — o comportamento de sempre. Injetado, TODO envio (texto, mídia, template, interativo,
+   * ações de fluxo) e a busca de mídia passam por ele: é o que permite sandbox, simulador e teste
+   * sem chamar a Meta. `features.previewMedia` só vale para o canal padrão; um canal injetado
+   * resolve a própria mídia em `fetchMediaAsBase64`.
+   */
+  channel?: ChannelAdapterInterface
   objectStorage?: ObjectStorageInterface
   // Cache do host, compartilhado entre instâncias (ver CacheInterface). Hoje serve os grafos de
   // fluxo, que são lidos a cada mensagem recebida.
@@ -177,13 +190,6 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
   const startState = params.startState ?? 'start'
   const flowEngineEnabled = params.features?.flowEngine ?? true
 
-  const messageProvider = new WhatsAppMessageProvider({
-    accessToken: config.accessToken,
-    phoneNumberId: config.phoneNumberId,
-    wabaId: config.wabaId,
-    apiVersion: config.apiVersion,
-    baseUrl: config.baseUrl,
-  })
   /**
    * Só monta o suporte quando as DUAS condições existem: o host pediu e o storage sabe ler de volta.
    * Ligar o flag sem storage legível daria um canal que aceita o id do simulador e falha ao buscar.
@@ -196,7 +202,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
         }
       : undefined
 
-  const channel: ChannelAdapterInterface = new WhatsAppChannelAdapter(messageProvider, previewMediaSupport)
+  const channel: ChannelAdapterInterface = providers.channel ?? createGraphApiChannel(config, previewMediaSupport)
 
   const sessionRepository = new SessionRepository(db)
   const messageRepository = new MessageRepository(db)
@@ -355,8 +361,10 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     conversations: {
       log: logMessage,
       send: sendMessage,
-      takeover: new TakeoverConversationUseCase(sessionRepository, providers.realtime),
-      release: new ReleaseConversationUseCase(sessionRepository, providers.realtime),
+      takeover: new TakeoverConversationUseCase(sessionRepository, providers.realtime, hooks),
+      release: new ReleaseConversationUseCase(sessionRepository, providers.realtime, hooks),
+      // Marca o pedido de atendimento (fila "aguardando atendimento") e dispara `onHumanRequested`.
+      requestHuman: new RequestHumanConversationUseCase(sessionRepository, providers.realtime, hooks),
       list: new ListConversationsUseCase(sessionRepository),
       listMessages: new ListMessagesUseCase(sessionRepository, messageRepository),
       listDocuments,
@@ -427,3 +435,18 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
 }
 
 export type MetaWhatsAppModule = ReturnType<typeof createMetaWhatsAppModule>
+
+function createGraphApiChannel(
+  config: MetaWhatsAppModuleConfig,
+  previewMediaSupport: PreviewMediaSupport | undefined,
+): ChannelAdapterInterface {
+  if (!config.accessToken) throw new ConfigMissingError('accessToken')
+  const messageProvider = new WhatsAppMessageProvider({
+    accessToken: config.accessToken,
+    phoneNumberId: config.phoneNumberId,
+    wabaId: config.wabaId,
+    apiVersion: config.apiVersion,
+    baseUrl: config.baseUrl,
+  })
+  return new WhatsAppChannelAdapter(messageProvider, previewMediaSupport)
+}

@@ -1,10 +1,15 @@
 import type { SessionRepository } from '../repositories/SessionRepository'
-import type { RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
+import type { MetaWhatsAppHooks, RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
 
 export type TakeoverConversationParams = {
   companyId: string
   whatsappNumber: string
   agentUserId: string
+  /**
+   * Quem executou a ação, quando não é o próprio atendente (ex.: supervisor atribuindo a conversa a
+   * outra pessoa). Omitido, o ator é `agentUserId`.
+   */
+  actorId?: string
 }
 
 // T3.3 — atendente assume a conversa (tira do bot). Emite evento para os clientes de admin
@@ -13,6 +18,7 @@ export class TakeoverConversationUseCase {
   constructor(
     private readonly sessionRepository: SessionRepository,
     private readonly realtime?: RealtimeNotifierInterface,
+    private readonly hooks?: Pick<MetaWhatsAppHooks, 'onConversationModeChanged'>,
   ) {}
 
   async execute(params: TakeoverConversationParams): Promise<void> {
@@ -22,5 +28,14 @@ export class TakeoverConversationUseCase {
       assignedUserId: params.agentUserId,
     })
     this.realtime?.emit('global', 'data-changed', {})
+    await this.hooks?.onConversationModeChanged?.({
+      companyId: params.companyId,
+      whatsappNumber: params.whatsappNumber,
+      kind: 'takeover',
+      mode: 'human',
+      assignedUserId: params.agentUserId,
+      actorId: params.actorId ?? params.agentUserId,
+      occurredAt: new Date(),
+    })
   }
 }

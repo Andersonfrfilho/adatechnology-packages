@@ -88,8 +88,13 @@ export {
 export type { AudioTranscriber, TranscriptionMode, TranscriptionStatus } from './transcription.types'
 
 export { SettingsRepository } from './repositories/SettingsRepository'
-export { SendMessageUseCase } from './use-cases/SendMessage.use-case'
-export type { SendTextParams, SendMediaParams, SendTemplateParams } from './use-cases/SendMessage.use-case'
+export { SendMessageUseCase, DEFAULT_FALLBACK_LIST_LABEL } from './use-cases/SendMessage.use-case'
+export type {
+  SendTextParams,
+  SendMediaParams,
+  SendTemplateParams,
+  SendInteractiveParams,
+} from './use-cases/SendMessage.use-case'
 
 export {
   runMetaWhatsAppMigrations,
@@ -141,6 +146,8 @@ export { TakeoverConversationUseCase } from './use-cases/TakeoverConversation.us
 export type { TakeoverConversationParams } from './use-cases/TakeoverConversation.use-case'
 export { ReleaseConversationUseCase } from './use-cases/ReleaseConversation.use-case'
 export type { ReleaseConversationParams } from './use-cases/ReleaseConversation.use-case'
+export { RequestHumanConversationUseCase } from './use-cases/RequestHumanConversation.use-case'
+export type { RequestHumanConversationParams } from './use-cases/RequestHumanConversation.use-case'
 export { LogMessageUseCase } from './use-cases/LogMessage.use-case'
 export type { LogMessageParams, MessageModerator } from './use-cases/LogMessage.use-case'
 export { DocumentRepository } from './repositories/DocumentRepository'
