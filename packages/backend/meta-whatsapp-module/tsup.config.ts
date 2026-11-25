@@ -15,5 +15,7 @@ export default defineConfig({
   // do build, e runMetaWhatsAppMigrations() acha a pasta via __dirname relativo ao pacote publicado.
   // rm antes do cp: sem isso a pasta acumula migrations de builds anteriores, e uma renomeada
   // (ou um layout de journal trocado) fica convivendo com a versão nova no pacote publicado.
-  onSuccess: 'rm -rf dist/migrations && mkdir -p dist/migrations && cp -r src/migrations/* dist/migrations/',
+  // São DUAS pastas, uma por formato de migrator do drizzle (ver `runMigrations.ts`).
+  onSuccess:
+    'rm -rf dist/migrations dist/migrations-journal && mkdir -p dist/migrations dist/migrations-journal && cp -r src/migrations/* dist/migrations/ && cp -r src/migrations-journal/* dist/migrations-journal/',
 })

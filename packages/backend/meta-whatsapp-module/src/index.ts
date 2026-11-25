@@ -96,7 +96,11 @@ export {
   metaWhatsAppMigrationsFolder,
   META_WHATSAPP_MIGRATIONS_TABLE,
 } from './runMigrations'
-export type { RunMetaWhatsAppMigrationsParams } from './runMigrations'
+export type {
+  RunMetaWhatsAppMigrationsParams,
+  MetaWhatsAppMigrationsLayout,
+  MetaWhatsAppMigrationsFolderParams,
+} from './runMigrations'
 export type { MetaWhatsAppDatabase, DrizzleMigrateFunction } from './database.types'
 
 export { SessionRepository } from './repositories/SessionRepository'
