@@ -18,3 +18,7 @@ meta-whatsapp: migrations for drizzle-orm 0.x, interactive messages and mode cha
 - **contracts**: `ChannelAdapterInterface.sendInteractiveList` accepts `sections` (rows with optional
   `description`); new `WHATSAPP_CHOICE_LIMIT` entries, `listInteractiveLimitViolations`,
   `assertInteractiveWithinLimits`, `InteractiveLimitExceededError`, `ConversationModeChange`.
+- **module**: `webhook.processInboundDispatch` (queue worker) handles deterministic Meta rejections
+  like the inline path — reported through `onInboundEffectRejected`, not rethrown — so a retry does
+  not re-run hooks and re-send. `requestHuman` runs `onHumanRequested` and `onConversationModeChanged`
+  independently; a failure in one no longer skips the other (the first error is rethrown after both).
