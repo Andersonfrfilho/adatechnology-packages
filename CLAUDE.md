@@ -4,13 +4,13 @@ Unified monorepo for backend NestJS libraries (`packages/backend/`) and frontend
 
 ## Structure Overview
 
-**Catálogo completo de capacidades: [docs/CATALOGO.md](docs/CATALOGO.md).** Antes de escrever código num app, procure lá pela necessidade (atendimento WhatsApp, robô/fluxo, simulador de conversa, painel de conversas, login e equipe, cadastro de clientes, catálogo, notificações e modelos, agenda, upload, log, nota fiscal, pagamentos, calendários). Simulador de conversa, motor de fluxos e editor de modelos já existem aqui; não reimplemente.
+**Catálogo completo de capacidades: [docs/CATALOGO.md](docs/CATALOGO.md).** Antes de escrever código num app, procure lá pela necessidade (atendimento WhatsApp, robô/fluxo, simulador de conversa, painel de conversas, login e equipe, cadastro de clientes, catálogo, notificações e modelos, agenda, upload, log, nota fiscal, pagamentos, calendários, blog/novidades). Simulador de conversa, motor de fluxos e editor de modelos já existem aqui; não reimplemente.
 
 ```
 packages/
 ├── backend/    65 pastas, 63 pacotes (@adatechnology/*)
 │   ├── Trios contracts / module / provider+ui: conversation, meta-whatsapp, notification, user,
-│   │   customer, catalog, scheduling, recommendation, payment, expense, infra
+│   │   customer, catalog, scheduling, recommendation, payment, expense, infra, content
 │   ├── Providers (stateless): email, push, object-storage, rabbitmq, audio-transcription,
 │   │   text-moderation, product-vision, google/microsoft/caldav-calendar, mercadopago/hotmart-payment,
 │   │   ifood/food99/opendelivery-marketplace, fiscal, evolution-whatsapp, meta-graph-core/-catalog
@@ -19,7 +19,7 @@ packages/
 │   ├── nestjs-* (logger, cache, http-client, auth-keycloak, keycloak-admin) e shared / nestjs-package (privados)
 │   └── example/bun-app, meta-business/catalog (cópia da doc da Meta; não é pacote)
 ├── frontend/   15 pastas: conversations-ui (inbox, editor de fluxos, simulador), notification-ui/-client,
-│               user-ui, customers-ui, products-ui, recommendations-ui, scheduling-ui, infra-ui,
+│               user-ui, customers-ui, products-ui, content-ui, recommendations-ui, scheduling-ui, infra-ui,
 │               web-chat-widget, web-booking-widget, image-cutout, document-intake, logger-client, example
 └── mcp/        audio-transcription-mcp, expense-mcp
 ```
