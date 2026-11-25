@@ -181,7 +181,7 @@ export { parseWhatsAppFormatting, waToHTML, htmlToWA, waToHTMLInline } from './l
 export { WhatsAppMessagePreview } from './lib/WhatsAppMessagePreview'
 export type { WhatsAppMessagePreviewProps } from './lib/WhatsAppMessagePreview'
 export { WHATSAPP_MARKER_BY_ACTION } from './lib/composer-formatting'
-export { formatPhone, phoneInitials } from './lib/phone'
+export { formatPhone, phoneInitials, isTestContactNumber, TEST_CONTACT_LABEL } from './lib/phone'
 // `formatDateTime` e `isSameDay` já eram usados pelas bolhas e pelo divisor de data; exportá-los
 // evita que cada host mantenha a própria cópia e acabe com timeline e transcript divergindo.
 export { formatTimestamp, formatFileSize, formatDateTime, isSameDay } from './lib/format'
@@ -299,6 +299,7 @@ export type {
   ConversationsWorkspaceSimulator,
   SimulatorTransportFactory,
   SimulatorTransportParams,
+  SimulatorTestContact,
   ConversationsWorkspaceLabels,
   ConversationPaneProps,
   ConversationsInboxListProps,

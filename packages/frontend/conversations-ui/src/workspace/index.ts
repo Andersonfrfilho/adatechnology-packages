@@ -4,6 +4,7 @@ export type {
   ConversationsWorkspaceSimulator,
   SimulatorTransportFactory,
   SimulatorTransportParams,
+  SimulatorTestContact,
 } from './ConversationsWorkspace'
 export { ConversationPane } from './ConversationPane'
 export type { ConversationPaneProps } from './ConversationPane'

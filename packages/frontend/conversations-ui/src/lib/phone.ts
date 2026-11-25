@@ -1,5 +1,18 @@
+/** Rótulo do número de teste do simulador, no lugar de uma máscara de telefone que não existe. */
+export const TEST_CONTACT_LABEL = 'Contato de teste'
+
+/**
+ * Nenhum código de país começa com 0, então um número só de dígitos começando com 0 não é telefone
+ * de verdade: é o contato de teste do simulador. Formatá-lo como telefone inventa um DDD.
+ */
+export function isTestContactNumber(number: string): boolean {
+  return /^0\d{3,}$/.test(number.replace(/[\s()+-]/g, ''))
+}
+
 export function formatPhone(number: string): string {
   const digits = number.replace(/\D/g, '')
+
+  if (isTestContactNumber(number)) return `${TEST_CONTACT_LABEL} ${digits.slice(-4)}`
 
   if (digits.length === 13) {
     return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9, 13)}`
