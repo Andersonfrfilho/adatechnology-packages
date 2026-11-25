@@ -85,6 +85,8 @@ export type RefreshReuseDetectedEvent = BaseEvent & {
 export type PasswordChangedEvent = BaseEvent & {
   readonly type: typeof USER_EVENT.PASSWORD_CHANGED
   readonly userId: string
+  /** Quem definiu a senha, quando foi um administrador. Ausente na redefinição pela própria pessoa. */
+  readonly changedByUserId?: string
 }
 
 export type PasswordResetRequestedEvent = BaseEvent & {

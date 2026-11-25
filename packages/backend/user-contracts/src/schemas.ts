@@ -46,6 +46,13 @@ export const createUserSchema = z.object({
 
 export type CreateUserInput = z.infer<typeof createUserSchema>
 
+/** Senha definida pelo administrador para outra pessoa. Mesmas regras do cadastro. */
+export const setUserPasswordSchema = z.object({
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+})
+
+export type SetUserPasswordInput = z.infer<typeof setUserPasswordSchema>
+
 /**
  * `accessToken`, não `code`/`state`: o módulo verifica localmente um token já emitido pelo
  * Keycloak (`@adatechnology/auth-keycloak`, verificação via JWKS) — a troca do `code` da

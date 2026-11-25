@@ -52,6 +52,8 @@ export { ConfirmPasswordResetUseCase } from './use-cases/ConfirmPasswordReset.us
 export { UpdateProfileUseCase } from './use-cases/UpdateProfile.use-case'
 export { RefreshSessionUseCase } from './use-cases/RefreshSession.use-case'
 export { UpdateUserUseCase } from './use-cases/UpdateUser.use-case'
+export { SetUserPasswordUseCase } from './use-cases/SetUserPassword.use-case'
+export type { SetUserPasswordParams } from './use-cases/SetUserPassword.use-case'
 export type { UpdateUserParams } from './use-cases/UpdateUser.use-case'
 export { SignUpUseCase } from './use-cases/SignUp.use-case'
 export { SignOutUseCase } from './use-cases/SignOut.use-case'

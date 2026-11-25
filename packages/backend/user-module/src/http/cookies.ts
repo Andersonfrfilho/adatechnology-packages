@@ -30,12 +30,13 @@ export function isValidRefreshCookiePath(path: string): boolean {
 }
 
 /**
- * `Secure` sempre, nos dois valores: `SameSite=None` é recusado pelo navegador sem ele, e num
+ * `Secure` sempre, em todos os valores: `SameSite=None` é recusado pelo navegador sem ele, e num
  * cookie de refresh trafegar em texto claro nunca foi opção.
  */
 const SAME_SITE_ATTRIBUTE: Readonly<Record<RefreshCookieSameSite, string>> = {
   [REFRESH_COOKIE_SAME_SITE.LAX]: 'SameSite=Lax',
   [REFRESH_COOKIE_SAME_SITE.NONE]: 'SameSite=None',
+  [REFRESH_COOKIE_SAME_SITE.STRICT]: 'SameSite=Strict',
 }
 
 function attributesFor(sameSite: RefreshCookieSameSite | undefined, path: string | undefined): string {
