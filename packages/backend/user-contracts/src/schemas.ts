@@ -14,6 +14,8 @@ const PASSWORD_MAX_LENGTH = 128
 export const localCredentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(320),
   password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+  /** Ausente = comportamento de sempre; `false` = cookie de sessão; `true` = cookie persistente longo. */
+  rememberMe: z.boolean().optional(),
 })
 
 export type LocalCredentials = z.infer<typeof localCredentialsSchema>

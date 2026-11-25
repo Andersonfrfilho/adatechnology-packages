@@ -26,13 +26,26 @@ const SESSION: UserSession = {
   user: { id: 'u1', email: 'a@example.com', name: 'A', role: 'staff', isActive: true },
 }
 
-async function buildRoutes(config: UserModuleConfig): Promise<readonly ModuleRoute[]> {
+type Captured = { login?: Record<string, unknown>; refresh?: Record<string, unknown> }
+
+async function buildRoutes(config: UserModuleConfig, captured: Captured = {}): Promise<readonly ModuleRoute[]> {
   const module = await createUserModule({ db: {} as unknown as UserDatabase, config })
   const stubbed: UserModule = {
     ...module,
     useCases: {
       ...module.useCases,
-      refreshSession: { execute: async () => SESSION } as unknown as UserModule['useCases']['refreshSession'],
+      refreshSession: {
+        execute: async (params: Record<string, unknown>) => {
+          captured.refresh = params
+          return SESSION
+        },
+      } as unknown as UserModule['useCases']['refreshSession'],
+      authenticateLocal: {
+        execute: async (params: Record<string, unknown>) => {
+          captured.login = params
+          return SESSION
+        },
+      } as unknown as UserModule['useCases']['authenticateLocal'],
       signUp: { execute: async () => SESSION } as unknown as UserModule['useCases']['signUp'],
       signOut: { execute: async () => undefined } as unknown as UserModule['useCases']['signOut'],
     },
@@ -133,5 +146,58 @@ describe('cookie de refresh configurável nas rotas', () => {
     const result = await route!.handler(contextWith({ cookie: 'user_refresh_token=antigo' }))
 
     expect(setCookieOf(result)).toStartWith('user_refresh_token=novo-refresh; Path=/;')
+  })
+})
+
+describe('lembrar de mim nas rotas', () => {
+  const credentials = { email: 'a@example.com', password: 'senha-forte-123' }
+
+  it('login sem rememberMe: cookie idêntico ao de sempre e caso de uso sem o campo', async () => {
+    const captured: Captured = {}
+    const route = find(await buildRoutes(BASE_CONFIG, captured), 'POST', '/auth/login')
+
+    const result = await route!.handler(contextWith({}, credentials))
+
+    expect(setCookieOf(result)).toBe(
+      'user_refresh_token=novo-refresh; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600',
+    )
+    expect(captured.login).not.toHaveProperty('rememberMe')
+  })
+
+  it('login com rememberMe true: cookie persistente marcado', async () => {
+    const captured: Captured = {}
+    const route = find(await buildRoutes(BASE_CONFIG, captured), 'POST', '/auth/login')
+
+    const result = await route!.handler(contextWith({}, { ...credentials, rememberMe: true }))
+
+    expect(setCookieOf(result)).toStartWith('user_refresh_token=m~novo-refresh;')
+    expect(setCookieOf(result)).toContain('Max-Age=3600')
+    expect(captured.login).toMatchObject({ rememberMe: true })
+  })
+
+  it('login com rememberMe false: cookie de sessão, sem Max-Age', async () => {
+    const route = find(await buildRoutes(BASE_CONFIG), 'POST', '/auth/login')
+
+    const result = await route!.handler(contextWith({}, { ...credentials, rememberMe: false }))
+
+    expect(setCookieOf(result)).toStartWith('user_refresh_token=s~novo-refresh;')
+    expect(setCookieOf(result)).not.toContain('Max-Age')
+  })
+
+  it('refresh mantém a escolha: lembrado segue persistente, de sessão segue sem Max-Age', async () => {
+    const captured: Captured = {}
+    const route = find(await buildRoutes(BASE_CONFIG, captured), 'POST', '/auth/refresh')
+
+    const remembered = await route!.handler(contextWith({ cookie: 'user_refresh_token=m~antigo' }))
+    expect(captured.refresh).toEqual({ refreshToken: 'antigo', rememberMe: true })
+    expect(setCookieOf(remembered)).toStartWith('user_refresh_token=m~novo-refresh;')
+    expect(setCookieOf(remembered)).toContain('Max-Age=3600')
+
+    const sessionOnly = await route!.handler(contextWith({ cookie: 'user_refresh_token=s~antigo' }))
+    expect(captured.refresh).toEqual({ refreshToken: 'antigo', rememberMe: false })
+    expect(setCookieOf(sessionOnly)).not.toContain('Max-Age')
+
+    await route!.handler(contextWith({ cookie: 'user_refresh_token=antigo' }))
+    expect(captured.refresh).toEqual({ refreshToken: 'antigo' })
   })
 })

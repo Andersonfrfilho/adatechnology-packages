@@ -156,3 +156,67 @@ describe('ListUsersUseCase', () => {
     expect(page.pagination.total).toBe(3)
   })
 })
+
+describe('lembrar de mim', () => {
+  const HOUR = 3600
+  const CONFIG = {
+    tenancy: { mode: 'single', defaultCompanyId: 'company-a' },
+    accessToken: { secret: 'test-secret-test-secret-test-secret' },
+    refreshToken: {
+      expiresInSeconds: 30 * 24 * HOUR,
+      rememberExpiresInSeconds: 90 * 24 * HOUR,
+      sessionExpiresInSeconds: 2 * HOUR,
+    },
+  } as const
+
+  async function signInWith(dependencies: UserDependencies, rememberMe?: boolean) {
+    await new CreateUserUseCase(dependencies).execute({
+      email: 'ana@example.com',
+      name: 'Ana',
+      password: 'senha-forte-123',
+      role: 'agent',
+    })
+    return new AuthenticateLocalUseCase(dependencies).execute({
+      email: 'ana@example.com',
+      password: 'senha-forte-123',
+      ...(rememberMe === undefined ? {} : { rememberMe }),
+    })
+  }
+
+  it('sem rememberMe a validade é a de sempre (padrão 30 dias), com ou sem config extra', async () => {
+    const plain = await signInWith(buildDependencies())
+    expect(plain.refreshExpiresInSeconds).toBe(30 * 24 * HOUR)
+
+    const configured = await signInWith(buildDependencies({ config: CONFIG }))
+    expect(configured.refreshExpiresInSeconds).toBe(30 * 24 * HOUR)
+  })
+
+  it('rememberMe true usa a validade longa configurada; sem config usa a padrão', async () => {
+    expect((await signInWith(buildDependencies({ config: CONFIG }), true)).refreshExpiresInSeconds).toBe(90 * 24 * HOUR)
+    expect((await signInWith(buildDependencies(), true)).refreshExpiresInSeconds).toBe(30 * 24 * HOUR)
+  })
+
+  it('rememberMe false usa a validade curta de sessão (padrão 24 h)', async () => {
+    expect((await signInWith(buildDependencies({ config: CONFIG }), false)).refreshExpiresInSeconds).toBe(2 * HOUR)
+    expect((await signInWith(buildDependencies(), false)).refreshExpiresInSeconds).toBe(24 * HOUR)
+  })
+
+  it('o refresh repete a escolha: lembrado continua longo, de sessão continua curto', async () => {
+    const dependencies = buildDependencies({ config: CONFIG })
+    const remembered = await signInWith(dependencies, true)
+    const refreshed = await new RefreshSessionUseCase(dependencies).execute({
+      refreshToken: remembered.refreshToken,
+      rememberMe: true,
+    })
+    expect(refreshed.refreshExpiresInSeconds).toBe(90 * 24 * HOUR)
+
+    const sessionOnly = await new RefreshSessionUseCase(dependencies).execute({
+      refreshToken: refreshed.refreshToken,
+      rememberMe: false,
+    })
+    expect(sessionOnly.refreshExpiresInSeconds).toBe(2 * HOUR)
+
+    const legacy = await new RefreshSessionUseCase(dependencies).execute({ refreshToken: sessionOnly.refreshToken })
+    expect(legacy.refreshExpiresInSeconds).toBe(30 * 24 * HOUR)
+  })
+})

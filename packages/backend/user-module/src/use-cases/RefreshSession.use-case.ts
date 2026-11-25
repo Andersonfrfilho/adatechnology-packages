@@ -4,7 +4,7 @@
 
 import { NotAuthenticatedError, USER_EVENT, type UserSession } from '@adatechnology/user-contracts'
 
-import { DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS } from '../shared/constants'
+import { resolveRefreshExpiresInSeconds } from '../shared/refreshLifetime'
 import { toUserProfile } from '../shared/toContract'
 import { hashToken } from '../shared/tokenHash'
 import { nowOf, runHook, type UserDependencies } from './userModule.types'
@@ -12,10 +12,12 @@ import { nowOf, runHook, type UserDependencies } from './userModule.types'
 export class RefreshSessionUseCase {
   constructor(private readonly dependencies: UserDependencies) {}
 
-  async execute(params: { readonly refreshToken: string }): Promise<UserSession> {
+  async execute(params: { readonly refreshToken: string; readonly rememberMe?: boolean }): Promise<UserSession> {
     const reuseGraceSeconds = this.dependencies.config.refreshToken?.reuseGraceSeconds
-    const refreshExpiresInSeconds =
-      this.dependencies.config.refreshToken?.expiresInSeconds ?? DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS
+    const refreshExpiresInSeconds = resolveRefreshExpiresInSeconds({
+      config: this.dependencies.config,
+      rememberMe: params.rememberMe,
+    })
 
     const rotated = await this.dependencies.refreshTokenStore.rotate({
       tokenHash: hashToken(params.refreshToken),

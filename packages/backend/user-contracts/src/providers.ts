@@ -174,6 +174,13 @@ export type RefreshTokenConfig = {
    * (abas que renovam ao mesmo tempo). Ausente = 10. Use 0 para detecção estrita.
    */
   readonly reuseGraceSeconds?: number
+  /** Validade do refresh de quem marcou "lembrar de mim". Ausente = `expiresInSeconds` (30 dias). */
+  readonly rememberExpiresInSeconds?: number
+  /**
+   * Validade, no servidor, do refresh de quem entrou SEM "lembrar de mim" (o cookie some ao fechar o
+   * navegador). Ausente = 24 h. Só vale quando o cliente envia `rememberMe: false`.
+   */
+  readonly sessionExpiresInSeconds?: number
 }
 
 export type PasswordResetEmailContent = {

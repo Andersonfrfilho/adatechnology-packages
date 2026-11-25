@@ -8,6 +8,7 @@ import { REFRESH_COOKIE_SAME_SITE } from '@adatechnology/user-contracts'
 import {
   buildClearRefreshTokenCookie,
   buildRefreshTokenCookie,
+  parseRefreshCookieValue,
   isValidRefreshCookieName,
   isValidRefreshCookiePath,
   parseCookieHeader,
@@ -102,5 +103,34 @@ describe('nome e caminho configuráveis do cookie', () => {
     expect(isValidRefreshCookiePath('/staff/auth')).toBe(true)
     expect(isValidRefreshCookiePath('staff')).toBe(false)
     expect(isValidRefreshCookiePath('/a; Domain=x')).toBe(false)
+  })
+})
+
+describe('lembrar de mim no cookie de refresh', () => {
+  it('sem a escolha o cookie é exatamente o de sempre', () => {
+    expect(buildRefreshTokenCookie({ token, maxAgeSeconds: 60 })).toBe(
+      `${REFRESH_TOKEN_COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=60`,
+    )
+  })
+
+  it('lembrado: persistente (Max-Age) e marcado no valor', () => {
+    const cookie = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, rememberMe: true })
+    expect(cookie).toContain(`${REFRESH_TOKEN_COOKIE_NAME}=m~${token};`)
+    expect(cookie).toContain('Max-Age=60')
+  })
+
+  it('não lembrado: cookie de sessão, sem Max-Age nem Expires', () => {
+    const cookie = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, rememberMe: false })
+    expect(cookie).toContain(`${REFRESH_TOKEN_COOKIE_NAME}=s~${token};`)
+    expect(cookie).not.toContain('Max-Age')
+    expect(cookie).not.toContain('Expires')
+    expect(cookie).toContain('HttpOnly')
+    expect(cookie).toContain('Secure')
+  })
+
+  it('o valor lido volta ao token e à escolha; formato antigo fica sem escolha', () => {
+    expect(parseRefreshCookieValue(`m~${token}`)).toEqual({ token, rememberMe: true })
+    expect(parseRefreshCookieValue(`s~${token}`)).toEqual({ token, rememberMe: false })
+    expect(parseRefreshCookieValue(token)).toEqual({ token, rememberMe: undefined })
   })
 })
