@@ -4,6 +4,7 @@ import { PRODUCT_OPTIONAL_FIELD, PRODUCT_SYNC_STATUS } from './providers/types'
 import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './providers/ProductsProvider'
 import { formatBarcode } from './lib/format'
 import { formatMarginPercent, formatMoney } from './lib/money'
+import { DEFAULT_PRICE_ON_REQUEST_LABEL } from './lib/productFields'
 
 export type ProductListProps = {
   readonly onSelect?: (product: Product) => void
@@ -83,7 +84,8 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
       case 'name':
         return a.name.localeCompare(b.name) * dir
       case 'price':
-        return (a.priceInCents - b.priceInCents) * dir
+        // Sob consulta (`null`) fica no fim da ordem crescente.
+        return ((a.priceInCents ?? Number.POSITIVE_INFINITY) - (b.priceInCents ?? Number.POSITIVE_INFINITY) || 0) * dir
       case 'unit':
         return (a.unit ?? '').localeCompare(b.unit ?? '') * dir
       case 'catalogName':
@@ -192,11 +194,13 @@ export function ProductList({ onSelect, selectable = false, products: externalPr
                 {product.name}
               </td>
               <td className="px-3 py-3 text-right font-mono text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                {formatMoney(product.priceInCents, moneyFormat)}
+                {product.priceInCents === null
+                  ? (config.priceOnRequestLabel ?? DEFAULT_PRICE_ON_REQUEST_LABEL)
+                  : formatMoney(product.priceInCents, moneyFormat)}
               </td>
               {showCostPrice && (
                 <td className="px-3 py-3 text-center text-gray-500 dark:text-gray-400">
-                  {product.costPriceInCents
+                  {product.costPriceInCents && product.priceInCents !== null
                     ? formatMarginPercent(product.costPriceInCents, product.priceInCents)
                     : '—'}
                 </td>

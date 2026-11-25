@@ -47,6 +47,11 @@ export {
 } from './providers/ProductsProvider'
 export type { ProductsProviderProps } from './providers/ProductsProvider'
 
+export { AvailabilityScheduleEditor } from './AvailabilityScheduleEditor'
+export type { AvailabilityScheduleEditorProps, AvailabilityScheduleDraft } from './AvailabilityScheduleEditor'
+export { AttributesEditor } from './AttributesEditor'
+export type { AttributesEditorProps } from './AttributesEditor'
+
 export { formatBarcode } from './lib/format'
 export { formatMoney, maskMoneyInput, applyMarginToCost, formatMarginPercent } from './lib/money'
 export type { MoneyFormat } from './lib/money'
@@ -57,6 +62,7 @@ export {
   DEFAULT_PRODUCTS_CONFIG,
   DEFAULT_UNIT_OPTIONS,
   DEFAULT_META_SYNC,
+  WEEKDAYS,
 } from './providers/types'
 
 export type {
@@ -68,6 +74,8 @@ export type {
   MetaSyncConfig,
   ProductOptionalField,
   ProductSyncStatus,
+  AvailabilitySchedule,
+  Weekday,
   PaginatedResponse,
   ProductSuggestion,
   CreateProductInput,
