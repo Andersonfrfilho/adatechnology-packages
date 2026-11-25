@@ -115,7 +115,10 @@ export type ModuleRoute = {
   /** Padrão com parâmetro nomeado: `/products/:id`. O adaptador traduz para o router dele. */
   readonly path: string
   readonly scope: RouteScope
-  /** Escopos aceitos em `admin`/`service`; vazio significa "qualquer escopo do host". */
+  /**
+   * Basta UM dos escopos listados (403 sem nenhum). Ausente ou vazio: em `user` basta a pessoa; em
+   * `admin`/`service` a identidade precisa ter ao menos um escopo qualquer do host.
+   */
   readonly requiredScopes?: readonly string[]
   readonly bodySchema?: ZodTypeAny
   readonly querySchema?: ZodTypeAny

@@ -9,7 +9,8 @@
  * usa um router só para as duas tabelas, em vez de um adaptador por módulo.
  */
 
-export { createNotificationRoutes } from './http/routes'
+export { createNotificationRoutes, NOTIFICATION_SCOPE, DEFAULT_NOTIFICATION_ROUTE_SCOPES } from './http/routes'
+export type { NotificationScope, NotificationRouteScopes } from './http/routes'
 export type { CreateNotificationRoutesParams } from './http/routes'
 export { DEFAULT_SSE_HEARTBEAT_SECONDS } from './http/inboxRoutes'
 

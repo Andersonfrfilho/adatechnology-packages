@@ -14,6 +14,7 @@ import { createModuleFetchRouter } from '@adatechnology/module-http/fetch'
 import type { AuthContextResolverPort } from '@adatechnology/module-http'
 
 import { createCatalogRoutes } from './routes'
+import { CATALOG_SCOPE, type CatalogRouteScopes } from './catalogScope.constant'
 import type { CatalogModule } from '../CatalogModule'
 import {
   CreateProductUseCase,
@@ -60,7 +61,12 @@ function buildProductRow(companyId: string): ProductRow {
   } as ProductRow
 }
 
-function buildRouter(params: { seed: ProductRow[]; authCompanyId: string }) {
+function buildRouter(params: {
+  seed: ProductRow[]
+  authCompanyId: string
+  scopes?: string[]
+  routeScopes?: CatalogRouteScopes
+}) {
   const products = createInMemoryProducts(params.seed)
   const dependencies = {
     products,
@@ -84,13 +90,17 @@ function buildRouter(params: { seed: ProductRow[]; authCompanyId: string }) {
 
   const authResolver: AuthContextResolverPort = {
     async resolve() {
-      return { companyId: params.authCompanyId, scopes: [] }
+      return { companyId: params.authCompanyId, scopes: params.scopes ?? [CATALOG_SCOPE.WRITE] }
     },
   }
 
   return {
     products,
-    router: createModuleFetchRouter({ routes: createCatalogRoutes({ module }), basePath: '/v1', authResolver }),
+    router: createModuleFetchRouter({
+      routes: createCatalogRoutes({ module, scopes: params.routeScopes }),
+      basePath: '/v1',
+      authResolver,
+    }),
   }
 }
 
@@ -204,5 +214,43 @@ describe('rota inexistente e validação', () => {
     // Se a ordem da tabela invertesse, `/products/:id` engoliria `bulk-import` como um id.
     expect(response.status).toBe(200)
     expect(payload.data.succeeded).toBe(1)
+  })
+})
+
+describe('escopo das rotas administrativas', () => {
+  const own = (): ProductRow => buildProductRow(COMPANY_A)
+
+  it('sessão sem escopo nenhum recebe 403 na leitura', async () => {
+    const { router } = buildRouter({ seed: [own()], authCompanyId: COMPANY_A, scopes: [] })
+    expect((await router.handle(new Request('http://localhost/v1/products'))).status).toBe(403)
+  })
+
+  it('catalog:read lê (200) e não escreve (403)', async () => {
+    const row = own()
+    const { router, products } = buildRouter({ seed: [row], authCompanyId: COMPANY_A, scopes: [CATALOG_SCOPE.READ] })
+
+    expect((await router.handle(new Request('http://localhost/v1/products'))).status).toBe(200)
+    const removal = await router.handle(new Request(`http://localhost/v1/products/${row.id}`, { method: 'DELETE' }))
+    expect(removal.status).toBe(403)
+    expect(products.rows[0]?.deletedAt).toBeNull()
+  })
+
+  it('catalog:write lê e escreve', async () => {
+    const row = own()
+    const { router } = buildRouter({ seed: [row], authCompanyId: COMPANY_A, scopes: [CATALOG_SCOPE.WRITE] })
+
+    expect((await router.handle(new Request('http://localhost/v1/products'))).status).toBe(200)
+    const removal = await router.handle(new Request(`http://localhost/v1/products/${row.id}`, { method: 'DELETE' }))
+    expect(removal.status).toBe(204)
+  })
+
+  it('o host pode trocar o vocabulário de escopos', async () => {
+    const { router } = buildRouter({
+      seed: [own()],
+      authCompanyId: COMPANY_A,
+      scopes: ['admin'],
+      routeScopes: { read: ['admin'], write: ['admin'] },
+    })
+    expect((await router.handle(new Request('http://localhost/v1/products'))).status).toBe(200)
   })
 })

@@ -74,9 +74,12 @@ function isScopeSatisfied(route: ModuleRoute, auth: AuthContext | undefined): bo
   if (!auth) return false
   // `user` exige uma pessoa por trás da requisição — e SÓ isso, se a rota não pedir mais.
   if (route.scope === ROUTE_SCOPE.USER && auth.userId === undefined) return false
-  // Sem `requiredScopes` declarado, basta estar autenticado — o host decide o vocabulário de
-  // escopos dele, e o módulo não inventa nomes.
-  if (!route.requiredScopes || route.requiredScopes.length === 0) return true
+  // Sem `requiredScopes` declarado, o host decide o vocabulário. Em `user` basta a pessoa; em
+  // `admin`/`service` a identidade precisa trazer ao menos um escopo, ou qualquer sessão comum
+  // (escopos `[]`) operava rota administrativa só por estar logada.
+  if (!route.requiredScopes || route.requiredScopes.length === 0) {
+    return route.scope === ROUTE_SCOPE.USER || auth.scopes.length > 0
+  }
   // Vale para os TRÊS escopos. Antes, rota `user` retornava autorizado no `userId` e nunca chegava
   // aqui: um `requiredScopes` declarado numa rota de pessoa era enfeite, e quem podia ler podia
   // escrever. Só apareceu quando um módulo separou leitura de escrita dentro do escopo `user`.

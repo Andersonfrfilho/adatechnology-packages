@@ -87,6 +87,8 @@ export type { ProductProjection } from './shared/toContract'
 export { createCatalogRoutes } from './http/routes'
 export { buildCatalogWebhookRoutes, CATALOG_WEBHOOK_PATH } from './http/webhookRoutes'
 export type { CreateCatalogRoutesParams } from './http/routes'
+export { CATALOG_SCOPE, DEFAULT_CATALOG_ROUTE_SCOPES } from './http/catalogScope.constant'
+export type { CatalogScope, CatalogRouteScopes } from './http/catalogScope.constant'
 export { requireCompany } from './http/requireCompany'
 
 export {

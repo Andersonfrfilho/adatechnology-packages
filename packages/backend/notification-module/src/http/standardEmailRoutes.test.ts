@@ -58,7 +58,7 @@ function build(seed = [] as ReturnType<typeof buildTemplateRow>[]) {
   } as unknown as NotificationModule
   const authResolver: AuthContextResolverPort = {
     async resolve() {
-      return { companyId: COMPANY, userId: randomUUID(), scopes: [] }
+      return { companyId: COMPANY, userId: randomUUID(), scopes: ['notification:admin'] }
     },
   }
   const router = createModuleFetchRouter({
