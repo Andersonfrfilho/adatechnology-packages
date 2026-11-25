@@ -25,6 +25,11 @@ export const META_WHATSAPP_MIGRATIONS_TABLE = 'meta_whatsapp_migrations'
 //     drizzle-orm 0.x (0.36–0.45) exige o journal e decide pelo `when`, que é o timestamp do nome
 //     da pasta v1 — o mesmo `created_at` que o 1.x grava.
 // O SQL é idêntico byte a byte (gerado por `scripts/generate-journal-migrations.ts`).
+//
+// Só se sobe de versão: 0.x → 1.x. **Nunca voltar ao drizzle-orm 0.x depois de rodar com 1.x.** Os
+// dois migrators escrevem na mesma tabela com critérios diferentes (1.x pelo nome da pasta, 0.x pelo
+// `when` da última linha); de volta ao 0.x, uma linha gravada pelo 1.x pode fazer o 0.x reaplicar
+// migration já aplicada sobre o schema existente — e migration não é idempotente.
 export type MetaWhatsAppMigrationsLayout = 'v1' | 'journal'
 
 const LAYOUT_DIRECTORY: Record<MetaWhatsAppMigrationsLayout, string> = {

@@ -12,6 +12,7 @@
  * Guia de implementação: `docs/webhook-durability.md`.
  */
 
+import { isDeterministicMetaRejection } from '@adatechnology/meta-graph-core'
 import type {
   ConversationSession,
   MetaWhatsAppHooks,
@@ -184,9 +185,38 @@ export class InboundEffectsDispatcher {
  * capturar aqui para logar transforma falha recuperável em mensagem perdida em silêncio.
  */
 export class ProcessInboundDispatchUseCase {
-  constructor(private readonly dispatcher: InboundEffectsDispatcher) {}
+  constructor(
+    private readonly dispatcher: InboundEffectsDispatcher,
+    private readonly hooks?: Pick<MetaWhatsAppHooks, 'onInboundEffectRejected'>,
+  ) {}
 
   async execute(job: InboundDispatchJob): Promise<void> {
-    await this.dispatcher.run(job)
+    await runInboundEffects({ dispatcher: this.dispatcher, job, ...(this.hooks ? { hooks: this.hooks } : {}) })
+  }
+}
+
+/**
+ * Roda os efeitos e engole SÓ a recusa determinística da Meta (token sem escopo, conta barrada para
+ * o país), entregando-a em `onInboundEffectRejected`. Vale para os dois caminhos — inline e worker
+ * da fila: relançar no worker faria a fila repetir o job, rodar os hooks de novo e reenviar o que já
+ * saiu, para falhar igual. Rede e timeout continuam subindo: esses a retentativa resolve.
+ */
+export async function runInboundEffects(params: {
+  readonly dispatcher: InboundEffectsDispatcher
+  readonly job: InboundDispatchJob
+  readonly hooks?: Pick<MetaWhatsAppHooks, 'onInboundEffectRejected'>
+}): Promise<void> {
+  const { job } = params
+  try {
+    await params.dispatcher.run(job)
+  } catch (error) {
+    if (!isDeterministicMetaRejection(error)) throw error
+    await params.hooks?.onInboundEffectRejected?.({
+      companyId: job.companyId,
+      kind: job.kind,
+      whatsappNumber: job.kind === 'message' ? job.message.from : job.whatsappNumber,
+      code: error.code,
+      error,
+    })
   }
 }

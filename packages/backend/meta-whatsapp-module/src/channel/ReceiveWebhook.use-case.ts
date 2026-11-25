@@ -17,7 +17,6 @@ import type { FlowRunner } from '../flows/FlowRunner'
 import type { SessionRepository } from '../repositories/SessionRepository'
 import type { LogMessageUseCase } from '../use-cases/LogMessage.use-case'
 import type { RealtimeNotifierInterface } from '@adatechnology/meta-whatsapp-contracts'
-import { isDeterministicMetaRejection } from '@adatechnology/meta-graph-core'
 import {
   verifyWebhookSignature,
   claimWebhookDelivery,
@@ -27,6 +26,7 @@ import {
 import { extractMediaDescriptor } from './IngestInboundMedia.use-case'
 import {
   InboundEffectsDispatcher,
+  runInboundEffects,
   buildInboundJobId,
   extractAnswer,
   type InboundDispatchJob,
@@ -364,24 +364,12 @@ export class ReceiveWebhookUseCase {
     //
     // Rede e timeout continuam subindo de propósito: aqueles a reentrega resolve, e é o único
     // motivo de o claim do nonce ser curto.
-    try {
-      await this.dispatcher.run(job)
-    } catch (error) {
-      if (!isDeterministicMetaRejection(error)) throw error
-
-      await this.params.hooks?.onInboundEffectRejected?.({
-        companyId: job.companyId,
-        kind: job.kind,
-        whatsappNumber: resolveJobNumber(job),
-        code: error.code,
-        error,
-      })
-    }
+    await runInboundEffects({
+      dispatcher: this.dispatcher,
+      job,
+      ...(this.params.hooks ? { hooks: this.params.hooks } : {}),
+    })
   }
-}
-
-function resolveJobNumber(job: InboundDispatchJob): string | undefined {
-  return job.kind === 'message' ? job.message.from : job.whatsappNumber
 }
 
 export { extractAnswer, extractContent }

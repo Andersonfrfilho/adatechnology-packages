@@ -508,6 +508,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
           ...(providers.realtime ? { realtime: providers.realtime } : {}),
           ...(flowRunner ? { flowRunner } : {}),
         }),
+        hooks,
       ),
     },
     // undefined quando features.flowEngine === false.
