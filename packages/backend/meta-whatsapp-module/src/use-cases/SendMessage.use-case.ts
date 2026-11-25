@@ -1,6 +1,9 @@
 import {
   WindowExpiredError,
+  assertInteractiveWithinLimits,
   type ChannelAdapterInterface,
+  type InteractiveButtonsMessage,
+  type InteractiveMessage,
   type ObjectStorageInterface,
   type SessionState,
 } from '@adatechnology/meta-whatsapp-contracts'
@@ -10,6 +13,9 @@ import type { LogMessageUseCase } from './LogMessage.use-case'
 import type { MessageRow } from '../schema/schema'
 
 const WHATSAPP_WINDOW_HOURS = 24
+
+/** Rótulo da lista quando o canal não sabe enviar botão e os botões viram lista. */
+export const DEFAULT_FALLBACK_LIST_LABEL = 'Opções'
 
 export type SendTextParams = {
   companyId: string
@@ -41,6 +47,21 @@ export type SendTemplateParams = {
   sender: 'bot' | 'agent'
   agentUserId?: string
   startState: SessionState
+}
+
+export type SendInteractiveParams = {
+  companyId: string
+  whatsappNumber: string
+  /** Botões (até 3) ou lista (até 10 linhas em até 10 seções). Validado contra `WHATSAPP_CHOICE_LIMIT`. */
+  interactive: InteractiveMessage
+  sender: 'bot' | 'agent'
+  agentUserId?: string
+  startState: SessionState
+  /**
+   * Rótulo da lista quando `interactive.kind === 'buttons'` e o canal não implementa
+   * `sendInteractiveButtons` — os botões saem como lista. Padrão `DEFAULT_FALLBACK_LIST_LABEL`.
+   */
+  fallbackListLabel?: string
 }
 
 // T5.2 — envio pelo canal + registro no transcript, num único ponto.
@@ -146,6 +167,52 @@ export class SendMessageUseCase {
     return saved
   }
 
+  /**
+   * Botões ou lista, pelo mesmo caminho do `sendText`: janela, envio, transcript (idempotente pelo
+   * `waMessageId`). Os limites da Meta são conferidos ANTES de tudo — mensagem fora do teto a Graph
+   * API recusa inteira, e o erro local (`InteractiveLimitExceededError`) diz qual campo corrigir.
+   *
+   * O transcript guarda `type: 'interactive'`, o corpo em `content` e a mensagem inteira (ids e
+   * títulos das opções) em `payload.interactive`, para o histórico mostrar o que foi oferecido.
+   */
+  async sendInteractive(params: SendInteractiveParams): Promise<MessageRow | undefined> {
+    assertInteractiveWithinLimits(params.interactive)
+    await this.assertWithinWindow(params.companyId, params.whatsappNumber)
+
+    const { externalMessageId } = await this.sendInteractiveThroughChannel(params)
+
+    return this.logMessage.execute({
+      companyId: params.companyId,
+      whatsappNumber: params.whatsappNumber,
+      direction: 'outbound',
+      sender: params.sender,
+      agentUserId: params.agentUserId ?? null,
+      type: 'interactive',
+      content: params.interactive.body,
+      payload: { interactive: params.interactive },
+      waMessageId: externalMessageId,
+      status: 'sent',
+      startState: params.startState,
+    })
+  }
+
+  private sendInteractiveThroughChannel(params: SendInteractiveParams): Promise<{ externalMessageId: string | null }> {
+    const interactive = params.interactive
+    const to = params.whatsappNumber
+    if (interactive.kind === 'list') {
+      return this.channel.sendInteractiveList({
+        to,
+        body: interactive.body,
+        buttonLabel: interactive.buttonLabel,
+        sections: interactive.sections,
+      })
+    }
+    if (this.channel.sendInteractiveButtons) {
+      return this.channel.sendInteractiveButtons({ to, body: interactive.body, buttons: interactive.buttons })
+    }
+    return this.channel.sendInteractiveList(buttonsAsList(interactive, to, params.fallbackListLabel))
+  }
+
   // Template é o único envio que ignora a janela — é justamente o mecanismo que a Meta oferece
   // para reabri-la.
   async sendTemplate(params: SendTemplateParams): Promise<MessageRow | undefined> {
@@ -169,6 +236,16 @@ export class SendMessageUseCase {
       status: 'sent',
       startState: params.startState,
     })
+  }
+}
+
+// Canal sem botão cai na lista — a capacidade é opcional por ausência do método.
+function buttonsAsList(interactive: InteractiveButtonsMessage, to: string, label: string | undefined) {
+  return {
+    to,
+    body: interactive.body,
+    buttonLabel: label ?? DEFAULT_FALLBACK_LIST_LABEL,
+    rows: interactive.buttons,
   }
 }
 

@@ -3,6 +3,8 @@ import type { WhatsAppMessageProvider } from '@adatechnology/meta-whatsapp-provi
 import {
   WindowExpiredError,
   type ChannelAdapterInterface,
+  type ChannelInteractiveButtonsParams,
+  type ChannelInteractiveListParams,
   type ObjectStorageInterface,
   type SendChannelMediaParams,
 } from '@adatechnology/meta-whatsapp-contracts'
@@ -74,28 +76,29 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
     return { externalMessageId: result.waMessageId }
   }
 
-  async sendInteractiveList(params: {
-    to: string
-    body: string
-    buttonLabel: string
-    rows: { id: string; title: string }[]
-  }): Promise<{ externalMessageId: string | null }> {
+  async sendInteractiveList(params: ChannelInteractiveListParams): Promise<{ externalMessageId: string | null }> {
+    // Seção sem título herda o rótulo do botão — é o que a forma `rows` sempre fez, e a Meta só
+    // exige título próprio quando há mais de uma seção.
+    const sections = (params.sections ?? [{ rows: params.rows ?? [] }]).map((section) => ({
+      title: section.title ?? params.buttonLabel,
+      rows: section.rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        ...(row.description ? { description: row.description } : {}),
+      })),
+    }))
     const result = await this.translateErrors(() =>
       this.messages.sendInteractiveList({
         to: params.to,
         bodyText: params.body,
         buttonText: params.buttonLabel,
-        sections: [{ title: params.buttonLabel, rows: params.rows }],
+        sections,
       }),
     )
     return { externalMessageId: result.waMessageId }
   }
 
-  async sendInteractiveButtons(params: {
-    to: string
-    body: string
-    buttons: { id: string; title: string }[]
-  }): Promise<{ externalMessageId: string | null }> {
+  async sendInteractiveButtons(params: ChannelInteractiveButtonsParams): Promise<{ externalMessageId: string | null }> {
     const result = await this.translateErrors(() =>
       this.messages.sendInteractiveButtons({
         to: params.to,
