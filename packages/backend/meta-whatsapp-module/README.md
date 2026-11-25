@@ -35,7 +35,9 @@ await runMetaWhatsAppMigrations({ db, migrate })                    // drizzle-o
 
 Sem `layout`, o módulo tenta `v1` e cai para `journal` quando o migrator 0.x recusa a pasta (a recusa
 acontece antes de qualquer SQL). O journal fica em `drizzle.meta_whatsapp_migrations`, separado do
-journal do host. Para chamar o migrator por conta própria:
+journal do host. **Só se sobe: 0.x → 1.x, nunca de volta.** Os dois migrators gravam na mesma tabela
+com critérios diferentes, e voltar ao 0.x depois de rodar com 1.x pode reaplicar migration já
+aplicada. Para chamar o migrator por conta própria:
 `metaWhatsAppMigrationsFolder({ layout: 'journal' })` + `META_WHATSAPP_MIGRATIONS_TABLE`.
 
 Nos dois formatos o SQL é idêntico, e o `when` do journal é o timestamp do nome da pasta v1 — o mesmo

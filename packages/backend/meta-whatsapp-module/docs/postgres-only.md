@@ -22,13 +22,19 @@ CREATE TABLE IF NOT EXISTS whatsapp_webhook_nonces (
 );
 
 CREATE TABLE IF NOT EXISTS whatsapp_inbound_jobs (
-  job_id     text PRIMARY KEY,
-  payload    jsonb NOT NULL,
-  attempts   integer NOT NULL DEFAULT 0,
-  run_at     timestamptz NOT NULL DEFAULT now(),
-  last_error text
+  job_id           text PRIMARY KEY,
+  -- empresa + número: jobs da mesma conversa rodam um de cada vez, na ordem de chegada.
+  conversation_key text NOT NULL,
+  payload          jsonb NOT NULL,
+  attempts         integer NOT NULL DEFAULT 0,
+  run_at           timestamptz NOT NULL DEFAULT now(),
+  created_at       timestamptz NOT NULL DEFAULT clock_timestamp(),
+  -- "pego por um worker até": lease curto; worker que morre libera o job quando o prazo vence.
+  taken_until      timestamptz,
+  last_error       text
 );
 CREATE INDEX IF NOT EXISTS whatsapp_inbound_jobs_run_at ON whatsapp_inbound_jobs (run_at);
+CREATE INDEX IF NOT EXISTS whatsapp_inbound_jobs_conversation ON whatsapp_inbound_jobs (conversation_key, created_at);
 ```
 
 Limpeza: remover periodicamente as linhas de `whatsapp_webhook_nonces` com `expires_at < now()`.
@@ -66,56 +72,98 @@ e só uma recebe `RETURNING`.
 
 ## Fila de efeitos
 
+Três cuidados que uma fila "um job por vez" ingênua não tem:
+
+- **Ordem por conversa.** Duas mensagens do mesmo cliente não podem rodar em paralelo nem fora de
+  ordem: a segunda responderia ao nó em que a primeira ainda não chegou. O worker só pega o job mais
+  antigo pendente de cada `conversation_key`.
+- **Nada de rede dentro da transação.** O efeito chama a Meta e o host; segurar a linha travada
+  durante isso prende conexão e bloqueia a tabela. A transação só marca o job como pego
+  (`taken_until`, um lease) e termina; o efeito roda fora; uma segunda escrita conclui ou reagenda.
+- **Sem ticks sobrepostos.** `setInterval` dispara de novo enquanto o tick anterior ainda roda; use
+  um laço que espera o anterior terminar.
+
 ```ts
 import type { InboundDispatchJob, InboundDispatchQueueInterface } from '@adatechnology/meta-whatsapp-module'
+
+const MAX_ATTEMPTS = 8
+const LEASE_SECONDS = 120
+
+function conversationKeyOf(job: InboundDispatchJob): string {
+  const whatsappNumber = job.kind === 'message' ? job.message.from : job.whatsappNumber
+  return `${job.companyId}:${whatsappNumber}`
+}
 
 export function createPostgresInboundQueue(sql: postgres.Sql): InboundDispatchQueueInterface {
   return {
     // `jobId` estável: reentrega da Meta cai no ON CONFLICT e não roda o efeito duas vezes.
     async enqueue(job, options) {
       await sql`
-        INSERT INTO whatsapp_inbound_jobs (job_id, payload)
-        VALUES (${options.jobId}, ${sql.json(job)})
+        INSERT INTO whatsapp_inbound_jobs (job_id, conversation_key, payload)
+        VALUES (${options.jobId}, ${conversationKeyOf(job)}, ${sql.json(job)})
         ON CONFLICT (job_id) DO NOTHING`
     },
   }
 }
 
-const MAX_ATTEMPTS = 8
+/** Pega um job (transação curta, sem rede): o mais antigo da conversa, se nada dela estiver em curso. */
+async function claimNextJob(sql: postgres.Sql) {
+  const [row] = await sql`
+    UPDATE whatsapp_inbound_jobs AS job
+    SET taken_until = now() + make_interval(secs => ${LEASE_SECONDS})
+    WHERE job.job_id = (
+      SELECT candidate.job_id FROM whatsapp_inbound_jobs AS candidate
+      WHERE candidate.run_at <= now()
+        AND candidate.attempts < ${MAX_ATTEMPTS}
+        AND (candidate.taken_until IS NULL OR candidate.taken_until < now())
+        AND NOT EXISTS (
+          SELECT 1 FROM whatsapp_inbound_jobs AS older
+          WHERE older.conversation_key = candidate.conversation_key
+            AND older.created_at < candidate.created_at
+            AND older.attempts < ${MAX_ATTEMPTS}
+        )
+      ORDER BY candidate.run_at
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING job.job_id, job.payload, job.attempts`
+  return row
+}
 
-// Um job por chamada; rode em laço (setInterval, ou LISTEN/NOTIFY para acordar mais cedo).
+// Um job por chamada. O efeito roda FORA de qualquer transação.
 export async function processNextInboundJob(params: {
   sql: postgres.Sql
   process: (job: InboundDispatchJob) => Promise<void>
 }): Promise<boolean> {
-  return params.sql.begin(async (transaction) => {
-    const [row] = await transaction`
-      SELECT job_id, payload, attempts FROM whatsapp_inbound_jobs
-      WHERE run_at <= now() AND attempts < ${MAX_ATTEMPTS}
-      ORDER BY run_at
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED`
-    if (!row) return false
-    try {
-      await params.process(row.payload as InboundDispatchJob)
-      // Concluído: o job sai da tabela (DELETE pela chave job_id).
-      await transaction`DELETE FROM whatsapp_inbound_jobs WHERE job_id = ${row.job_id}`
-    } catch (error) {
-      // Backoff exponencial: 3s, 6s, 12s… Esgotadas as tentativas, a linha fica para alerta.
-      await transaction`
-        UPDATE whatsapp_inbound_jobs
-        SET attempts = attempts + 1,
-            run_at = now() + make_interval(secs => ${3 * 2 ** row.attempts}),
-            last_error = ${error instanceof Error ? error.message : 'unknown error'}
-        WHERE job_id = ${row.job_id}`
-    }
-    return true
-  })
+  const row = await claimNextJob(params.sql)
+  if (!row) return false
+  try {
+    await params.process(row.payload as InboundDispatchJob)
+    await params.sql`DELETE FROM whatsapp_inbound_jobs WHERE job_id = ${row.job_id}`
+  } catch (error) {
+    // Backoff exponencial: 3s, 6s, 12s… Esgotadas as tentativas, a linha fica para alerta — e segura
+    // os jobs seguintes da mesma conversa até alguém resolver, que é o certo: pular faria o bot
+    // responder fora de ordem.
+    await params.sql`
+      UPDATE whatsapp_inbound_jobs
+      SET attempts = attempts + 1,
+          taken_until = NULL,
+          run_at = now() + make_interval(secs => ${3 * 2 ** row.attempts}),
+          last_error = ${error instanceof Error ? error.name : 'unknown error'}
+      WHERE job_id = ${row.job_id}`
+  }
+  return true
 }
 ```
 
+O lease precisa ser maior que o efeito mais lento (rede da Meta + hooks); um efeito que passa do prazo
+pode ser pego por outro worker. Dois workers na mesma conversa nunca rodam juntos: o `NOT EXISTS`
+olha o job mais antigo pendente, e ele só sai da tabela quando conclui.
+
 O `payload` é a mensagem **crua** do cliente (ver `features.redactInboundLocation`): trate a tabela
-com a mesma regra de retenção do transcript, e nunca registre `last_error` com o corpo da mensagem.
+com a mesma regra de retenção do transcript, e nunca registre `last_error` com o corpo da mensagem (o exemplo guarda só o nome do erro).
+Recusa determinística da Meta não chega ao `catch`: `processInboundDispatch` a entrega em
+`onInboundEffectRejected` e conclui o job, para a fila não reenviar o que já saiu.
 
 ## Ligando no módulo
 
@@ -128,10 +176,21 @@ const whatsapp = createMetaWhatsAppModule({
   hooks,
 })
 
-// No worker (mesmo processo ou outro):
-setInterval(async () => {
-  while (await processNextInboundJob({ sql, process: (job) => whatsapp.webhook.processInboundDispatch.execute(job) })) {}
-}, 1_000)
+// No worker (mesmo processo ou outro). Um laço, não setInterval: o próximo tick só começa quando o
+// anterior terminou, então dois ticks nunca disputam a mesma conversa no mesmo processo.
+let isStopping = false
+process.once('SIGTERM', () => (isStopping = true))
+
+async function runInboundWorker(): Promise<void> {
+  while (!isStopping) {
+    const hasProcessed = await processNextInboundJob({
+      sql,
+      process: (job) => whatsapp.webhook.processInboundDispatch.execute(job),
+    })
+    if (!hasProcessed) await new Promise((resolve) => setTimeout(resolve, 1_000))
+  }
+}
+void runInboundWorker()
 ```
 
 Os requisitos de `docs/webhook-durability.md` continuam valendo: alerta quando `attempts` chega ao
