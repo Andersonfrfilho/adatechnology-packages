@@ -12,10 +12,8 @@
 import {
   FLOW_DATE_LOCALE_PT_BR,
   FlowRunnerError,
-  WHATSAPP_CHOICE_LIMIT,
   isCrossFlowTarget,
   crossFlowKey,
-  interpolateFlowText,
   matchesFlowKeyword,
   type ChannelAdapterInterface,
   type ConversationSession,
@@ -34,15 +32,15 @@ import type { SendMessageUseCase } from '../use-cases/SendMessage.use-case'
 import { extractAnswer, toSessionContract } from '../channel/inboundDispatch'
 import type { FlowInterpreter } from './FlowInterpreter'
 import type { FlowHandoff } from './FlowHandoff'
-import { buildFlowChoiceMessage, type FlowChoiceOption, type FlowOutboundMessage } from './buildFlowChoiceMessage'
-import { isChoiceNode, resolveFlowAnswer } from './resolveFlowAnswer'
+import type { FlowOutboundMessage } from './buildFlowChoiceMessage'
+import { resolveFlowAnswer } from './resolveFlowAnswer'
+import { FlowQuestionRenderer } from './FlowQuestionRenderer'
+import { runtimeOf, withRuntime } from './flowRuntimeState'
 import {
   DEFAULT_FLOW_TEXT,
   DEFAULT_MAX_CROSS_FLOW_JUMPS,
   DEFAULT_MAX_INVALID_ANSWERS,
   DEFAULT_START_FLOW_KEY,
-  DYNAMIC_CHOICE_MORE_ID,
-  FLOW_RUNTIME_CONTEXT_KEY,
 } from './flowRunner.constant'
 import type { FlowGlobalKeywordTarget, FlowRunnerConfig, FlowRunnerOutcome } from './flowRunner.types'
 
@@ -56,11 +54,6 @@ export type FlowRunnerDependencies = {
   readonly startState: SessionState
   readonly config: FlowRunnerConfig
   readonly hooks?: Pick<MetaWhatsAppHooks, 'onFlowRunnerError'>
-}
-
-type FlowRuntimeState = {
-  readonly invalidAnswers?: number
-  readonly dynamic?: { readonly nodeId: string; readonly page: number; readonly options: [string, string][] }
 }
 
 /** Uma mensagem sendo atendida: o que não muda entre os passos. */
@@ -93,34 +86,23 @@ export type StartFlowParams = {
   readonly profileName?: string
 }
 
-function runtimeOf(context: Readonly<Record<string, unknown>>): FlowRuntimeState {
-  const state = context[FLOW_RUNTIME_CONTEXT_KEY]
-  return state !== null && typeof state === 'object' ? (state as FlowRuntimeState) : {}
-}
-
-function withRuntime(context: Record<string, unknown>, state: FlowRuntimeState): Record<string, unknown> {
-  return { ...context, [FLOW_RUNTIME_CONTEXT_KEY]: state }
-}
-
 function contactVariables(profileName: string | undefined): Record<string, unknown> {
   if (!profileName) return {}
   return { contactName: profileName, contactFirstName: profileName.trim().split(/\s+/)[0] ?? profileName }
 }
 
 export class FlowRunner {
-  private readonly dynamicChoiceProviders = new Map<string, DynamicChoiceProvider>()
+  private readonly renderer: FlowQuestionRenderer
   // Variáveis da mensagem em curso, por sessão: é como a action `handoff` (que só recebe a sessão)
   // enxerga o nome do contato sem que ele precise ir para o contexto gravado.
   private readonly turnVariables = new WeakMap<ConversationSession, Readonly<Record<string, unknown>>>()
 
   constructor(private readonly dependencies: FlowRunnerDependencies) {
-    for (const [key, provider] of Object.entries(dependencies.config.dynamicChoiceProviders ?? {})) {
-      this.dynamicChoiceProviders.set(key, provider)
-    }
+    this.renderer = new FlowQuestionRenderer(dependencies.config)
   }
 
   registerDynamicChoiceProvider(key: string, provider: DynamicChoiceProvider): void {
-    this.dynamicChoiceProviders.set(key, provider)
+    this.renderer.registerDynamicChoiceProvider(key, provider)
   }
 
   /** Variáveis para `{{chave}}`: contato, host e contexto, nessa ordem de precedência crescente. */
@@ -385,7 +367,13 @@ export class FlowRunner {
     page: number,
   ): Promise<void> {
     try {
-      const { message, context: renderedContext } = await this.prepareQuestion(turn, node, context, page)
+      const { message, context: renderedContext } = await this.renderer.prepare({
+        session: turn.session,
+        variables: turn.baseVariables,
+        node,
+        context,
+        page,
+      })
       await this.save(turn, { flowKey: graph.key, nodeId: node.id, context: renderedContext })
       if (message) await this.send(turn, message)
     } catch (error) {
@@ -393,74 +381,8 @@ export class FlowRunner {
     }
   }
 
-  private async prepareQuestion(
-    turn: FlowTurn,
-    node: FlowNodeData,
-    context: Record<string, unknown>,
-    page: number,
-  ): Promise<{ message?: FlowOutboundMessage; context: Record<string, unknown> }> {
-    const { config } = this.dependencies
-    const variables = { ...turn.baseVariables, ...context }
-    const interpolate = (text: string): string =>
-      interpolateFlowText(text, variables, config.formatValue ? { formatValue: config.formatValue } : {})
-    const body = interpolate(node.question ?? config.choicePrompt ?? DEFAULT_FLOW_TEXT.CHOICE_PROMPT)
-    const listButtonLabel = node.listButtonLabel ?? config.listButtonLabel ?? DEFAULT_FLOW_TEXT.LIST_BUTTON_LABEL
-
-    if (node.type === 'dynamic_choice') {
-      const options = await this.loadDynamicOptions(turn, node, context, page)
-      const state = {
-        ...runtimeOf(context),
-        dynamic: { nodeId: node.id, page, options: options.map((o): [string, string] => [o.id, o.title]) },
-      }
-      return {
-        message: buildFlowChoiceMessage({ body, options, listButtonLabel }),
-        context: withRuntime(context, state),
-      }
-    }
-
-    if (isChoiceNode(node) && (node.options?.length ?? 0) > 0) {
-      const options: FlowChoiceOption[] = (node.options ?? []).map(([id, title]) => {
-        const detail = node.optionDetails?.[id]
-        return {
-          id,
-          title: interpolate(title),
-          ...(detail?.description ? { description: interpolate(detail.description) } : {}),
-          ...(detail?.section ? { section: detail.section } : {}),
-        }
-      })
-      return { message: buildFlowChoiceMessage({ body, options, listButtonLabel }), context }
-    }
-
-    if (!node.question) return { context }
-    return { message: { kind: 'text', body }, context }
-  }
-
-  private async loadDynamicOptions(
-    turn: FlowTurn,
-    node: FlowNodeData,
-    context: Record<string, unknown>,
-    page: number,
-  ): Promise<FlowChoiceOption[]> {
-    const provider = node.choiceProvider ? this.dynamicChoiceProviders.get(node.choiceProvider) : undefined
-    if (!provider) throw new FlowRunnerError('provider-missing', node.choiceProvider ?? node.id)
-    const pageSize = WHATSAPP_CHOICE_LIMIT.LIST_ROWS - 1
-    const result = await provider({ node, session: turn.session, context, page, pageSize })
-    const options: FlowChoiceOption[] = result.options.slice(0, pageSize).map((option) => ({
-      id: option.id,
-      title: option.title,
-      ...(option.description ? { description: option.description } : {}),
-    }))
-    const seeMore = this.dependencies.config.seeMoreLabel ?? DEFAULT_FLOW_TEXT.SEE_MORE
-    return result.hasMore ? [...options, { id: DYNAMIC_CHOICE_MORE_ID, title: seeMore }] : options
-  }
-
   private async say(turn: FlowTurn, template: string, context: Record<string, unknown>): Promise<void> {
-    const { config } = this.dependencies
-    const body = interpolateFlowText(
-      template,
-      { ...turn.baseVariables, ...context },
-      config.formatValue ? { formatValue: config.formatValue } : {},
-    )
+    const body = this.renderer.interpolate(template, { ...turn.baseVariables, ...context })
     if (body.trim().length > 0) await this.send(turn, { kind: 'text', body })
   }
 
