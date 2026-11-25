@@ -47,6 +47,8 @@ export function createInMemoryProducts(seed: ProductRow[] = []) {
         availability: 'in stock',
         preparationTimeMinutes: null,
         preparationInstructions: null,
+        availabilitySchedule: null,
+        attributes: {},
         externalId: null,
         syncStatus: null,
         syncError: null,
@@ -78,6 +80,19 @@ export function createInMemoryProducts(seed: ProductRow[] = []) {
         rows: filtered.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
         total: filtered.length,
       }
+    },
+    async listActive(params: { companyId: string; catalogId?: string; sectionId?: string; limit: number }) {
+      return rows
+        .filter(
+          (row) =>
+            row.companyId === params.companyId &&
+            !row.deletedAt &&
+            row.active &&
+            (params.catalogId ? row.catalogId === params.catalogId : true) &&
+            (params.sectionId ? row.sectionId === params.sectionId : true),
+        )
+        .slice(0, params.limit)
+        .map((row) => ({ ...row }))
     },
     async update(params: {
       companyId: string

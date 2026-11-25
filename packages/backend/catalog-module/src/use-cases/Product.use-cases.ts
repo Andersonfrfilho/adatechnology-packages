@@ -6,6 +6,7 @@ import {
   CATALOG_EVENT,
   DuplicateBarcodeError,
   ProductNotFoundError,
+  type AvailabilitySchedule,
   type CreateProductInput,
   type PaginatedResponse,
   type Product,
@@ -13,7 +14,13 @@ import {
 } from '@adatechnology/catalog-contracts'
 
 import type { ListProductsQuery } from '../repositories/ProductRepository'
-import { deriveAvailability, PENDING_SYNC, requiresMetaResync } from '../shared/availability'
+import {
+  deriveAvailability,
+  evaluateProductAvailability,
+  PENDING_SYNC,
+  requiresMetaResync,
+  type ProductAvailabilityVerdict,
+} from '../shared/availability'
 import { toPaginated, toProduct, type ProductProjection } from '../shared/toContract'
 import { nowOf, runHook, type CatalogDependencies } from './catalogModule.types'
 
@@ -21,6 +28,8 @@ export class CreateProductUseCase {
   constructor(private readonly dependencies: CatalogDependencies) {}
 
   async execute(params: { companyId: string } & CreateProductInput): Promise<Product> {
+    await validateAttributes({ dependencies: this.dependencies, companyId: params.companyId, attributes: params.attributes })
+
     if (params.barcode) {
       const existing = await this.dependencies.products.findByBarcode({
         companyId: params.companyId,
@@ -54,6 +63,8 @@ export class CreateProductUseCase {
       sortOrder: params.sortOrder,
       preparationTimeMinutes: params.preparationTimeMinutes,
       preparationInstructions: params.preparationInstructions,
+      ...(params.availabilitySchedule ? { availabilitySchedule: params.availabilitySchedule as AvailabilitySchedule } : {}),
+      ...(params.attributes ? { attributes: { ...params.attributes } } : {}),
       ...(availability ? { availability } : {}),
       // Publicar nunca bloqueia o salvamento: nasce `pending` e o worker leva. Graph API fora do
       // ar não pode impedir cadastro de produto.
@@ -85,6 +96,8 @@ export class UpdateProductUseCase {
     const current = await this.dependencies.products.findById({ companyId, id })
     if (!current) throw new ProductNotFoundError(id)
 
+    await validateAttributes({ dependencies: this.dependencies, companyId, attributes: changes.attributes })
+
     if (changes.barcode && changes.barcode !== current.barcode) {
       const existing = await this.dependencies.products.findByBarcode({ companyId, barcode: changes.barcode })
       if (existing && existing.id !== id) throw new DuplicateBarcodeError(changes.barcode)
@@ -96,7 +109,7 @@ export class UpdateProductUseCase {
       current: current.availability,
     })
 
-    const { aliases, ...rest } = changes
+    const { aliases, attributes, availabilitySchedule, ...rest } = changes
     const changedFields = Object.keys(changes).filter((field) => changes[field as keyof typeof changes] !== undefined)
     if (availability) changedFields.push('availability')
 
@@ -108,6 +121,11 @@ export class UpdateProductUseCase {
         // `aliases` chega `readonly` do contrato e o Drizzle escreve array mutavel. Sai do spread
         // e volta copiado: e o unico ponto onde a fronteira dos dois tipos se resolve.
         ...(aliases ? { aliases: [...aliases] } : {}),
+        // `null` limpa a agenda; ausente não mexe.
+        ...(availabilitySchedule === undefined
+          ? {}
+          : { availabilitySchedule: availabilitySchedule as AvailabilitySchedule | null }),
+        ...(attributes ? { attributes: { ...attributes } } : {}),
         ...(availability ? { availability } : {}),
         // Só reenfileira quando mudou algo que a Meta enxerga — alterar ficha da cozinha ou custo
         // não muda nada lá, e marcar `pending` geraria fila de sync sem motivo.
@@ -133,6 +151,19 @@ export class UpdateProductUseCase {
 
     return toProduct(row)
   }
+}
+
+async function validateAttributes(params: {
+  readonly dependencies: CatalogDependencies
+  readonly companyId: string
+  readonly attributes: Readonly<Record<string, unknown>> | undefined
+}): Promise<void> {
+  if (!params.attributes) return
+  // Sem catch: o host escolhe a classe de erro e o status; o módulo só deixa propagar.
+  await params.dependencies.attributesValidator?.validate({
+    companyId: params.companyId,
+    attributes: params.attributes,
+  })
 }
 
 export class DeleteProductUseCase {
@@ -189,5 +220,53 @@ export class ListProductsUseCase {
       pageSize: query.pageSize,
       map: (row) => toProduct(row, query.projection),
     })
+  }
+}
+
+export class IsProductAvailableUseCase {
+  constructor(private readonly dependencies: CatalogDependencies) {}
+
+  /** `at` ausente = agora (relógio injetado). */
+  async execute(params: { companyId: string; id: string; at?: Date }): Promise<ProductAvailabilityVerdict> {
+    const row = await this.dependencies.products.findById({ companyId: params.companyId, id: params.id })
+    if (!row) throw new ProductNotFoundError(params.id)
+
+    return evaluateProductAvailability({
+      row,
+      at: params.at ?? nowOf(this.dependencies),
+      defaultTimeZone: this.dependencies.config.defaultTimeZone,
+    })
+  }
+}
+
+/** Teto de leitura por consulta; cardápio/catálogo que passa disso deve filtrar por seção. */
+const AVAILABLE_PRODUCTS_LIMIT = 1000
+
+export class ListAvailableProductsUseCase {
+  constructor(private readonly dependencies: CatalogDependencies) {}
+
+  /** Produtos vendáveis em `at` (padrão: agora), no escopo de catálogo/seção pedido. */
+  async execute(params: {
+    companyId: string
+    at?: Date
+    catalogId?: string
+    sectionId?: string
+    projection?: ProductProjection
+  }): Promise<Product[]> {
+    const at = params.at ?? nowOf(this.dependencies)
+    const rows = await this.dependencies.products.listActive({
+      companyId: params.companyId,
+      catalogId: params.catalogId,
+      sectionId: params.sectionId,
+      limit: AVAILABLE_PRODUCTS_LIMIT,
+    })
+
+    return rows
+      .filter(
+        (row) =>
+          evaluateProductAvailability({ row, at, defaultTimeZone: this.dependencies.config.defaultTimeZone })
+            .available,
+      )
+      .map((row) => toProduct(row, params.projection))
   }
 }

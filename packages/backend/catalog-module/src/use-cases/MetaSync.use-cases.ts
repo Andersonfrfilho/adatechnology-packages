@@ -24,8 +24,9 @@ import { nowOf, runHook, type CatalogDependencies } from './catalogModule.types'
 
 /** Teto por varredura: uma base grande não pode virar milhares de chamadas num tique de cron. */
 const DEFAULT_SWEEP_LIMIT = 100
+const PRICE_ON_REQUEST_ERROR_CODE = 'PRICE_ON_REQUEST'
 
-function toMetaPayload(row: ProductRow, currency: string): MetaProductPayload {
+function toMetaPayload(row: ProductRow, priceInCents: number, currency: string): MetaProductPayload {
   return {
     // `retailerId` é o id daqui — é assim que o recibo da Meta volta a apontar para o produto.
     retailerId: row.id,
@@ -33,7 +34,7 @@ function toMetaPayload(row: ProductRow, currency: string): MetaProductPayload {
     // A Meta recusa descrição vazia; cair para o nome é melhor que falhar a publicação por um
     // campo que o operador deixou em branco.
     description: row.description ?? row.name,
-    priceInCents: row.priceInCents,
+    priceInCents,
     currency,
     imageUrl: row.imageUrl ?? undefined,
     availability: row.availability as MetaProductPayload['availability'],
@@ -50,7 +51,12 @@ export class SyncProductToMetaUseCase {
     const row = await this.dependencies.products.findById({ companyId: params.companyId, id: params.productId })
     if (!row) throw new ProductNotFoundError(params.productId)
 
-    const outcome = await metaSync.upsertProduct(toMetaPayload(row, config.currency))
+    // A Meta exige preço: produto "sob consulta" não é publicável, e repetir não resolve — fica
+    // `failed` com o motivo até alguém definir um valor (a edição reenfileira como `pending`).
+    const outcome: MetaSyncOutcome =
+      row.priceInCents === null
+        ? { outcome: 'permanent', errorCode: PRICE_ON_REQUEST_ERROR_CODE, message: 'Produto sem preço (sob consulta) não pode ser publicado.' }
+        : await metaSync.upsertProduct(toMetaPayload(row, row.priceInCents, config.currency))
     await this.applyOutcome({ companyId: params.companyId, entity: 'product', id: row.id, outcome })
     return outcome
   }

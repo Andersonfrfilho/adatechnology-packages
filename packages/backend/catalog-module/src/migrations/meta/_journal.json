@@ -15,6 +15,13 @@
       "when": 1788307200000,
       "tag": "0001_product_retail_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788393600000,
+      "tag": "0002_product_price_schedule_attributes",
+      "breakpoints": true
     }
   ]
 }

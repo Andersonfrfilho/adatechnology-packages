@@ -62,7 +62,7 @@ if (http.match(request)) return http.handle(request)
 
 | Recurso | Rotas |
 |---|---|
-| Produtos | `GET/POST /products`, `GET/PUT/DELETE /products/:id`, `PUT /products/:id/inventory`, `POST /products/bulk-import` |
+| Produtos | `GET/POST /products`, `GET/PUT/DELETE /products/:id`, `PUT /products/:id/inventory`, `POST /products/bulk-import`, `GET /products/available?at=`, `GET /products/:id/availability?at=` |
 | Catálogos | `GET/POST /catalogs`, `PUT/DELETE /catalogs/:id` |
 | Seções | `GET/POST /sections`, `PUT/DELETE /sections/:id` |
 
@@ -75,6 +75,55 @@ Paths OpenAPI saem da mesma tabela:
 import { catalogOpenApiPaths } from '@adatechnology/catalog-module/openapi'
 const spec = buildOpenApiSpec({ extraPaths: catalogOpenApiPaths({ routes, basePath: '/v1' }) })
 ```
+
+## Preço sob consulta
+
+`priceInCents: null` cadastra um produto sem valor publicado ("sob consulta"): ele é listado e
+vendável, mas **não sobe para a Meta** (falha permanente `PRICE_ON_REQUEST`, até receber um preço).
+`0` continua sendo preço (grátis). Linhas existentes não mudam: a migration só remove o `NOT NULL`.
+
+```ts
+await catalog.useCases.createProduct.execute({ companyId, name: 'Pacote de fim de semana', priceInCents: null })
+await catalog.useCases.updateProduct.execute({ companyId, id, priceInCents: 90000 }) // define o preço
+```
+
+## Agenda de disponibilidade
+
+Janela genérica por produto: dias da semana (0 = domingo) e, opcionalmente, `from`/`until`
+(`HH:mm`, início inclusivo, fim exclusivo; `until < from` cruza a madrugada e pertence ao dia de
+início), avaliada no fuso do próprio horário, ou em `config.defaultTimeZone`, ou em UTC.
+`availabilitySchedule: null` remove a restrição.
+
+```ts
+const catalog = createCatalogModule({ db, config: { currency: 'BRL', locale: 'pt-BR', defaultTimeZone: 'America/Sao_Paulo' } })
+
+await catalog.useCases.createProduct.execute({
+  companyId, name: 'Prato do dia', priceInCents: 3200,
+  availabilitySchedule: { weekdays: [1, 2, 3, 4, 5], from: '11:00', until: '15:00' },
+})
+
+await catalog.useCases.isProductAvailable.execute({ companyId, id, at: new Date() })
+// { available: true } | { available: false, reason: 'inactive' | 'out_of_stock' | 'outside_schedule' }
+await catalog.useCases.listAvailableProducts.execute({ companyId, at, catalogId })
+```
+
+"Disponível" = ativo **e** `availability` diferente de `out of stock` (pausar um item é gravar
+`availability: 'out of stock'` ou `active: false`) **e** dentro da agenda. O avaliador puro também
+é exportado do contracts (`isAvailableAt`) para uso no navegador.
+
+## Atributos livres
+
+`attributes` é um objeto jsonb (até 16 KB) que o módulo guarda sem interpretar — capacidade, "o que
+inclui", alérgenos. O update **substitui** o objeto inteiro. A validação é do host:
+
+```ts
+createCatalogModule({ db, config, providers: {
+  attributesValidator: { validate: ({ attributes }) => { if (typeof attributes.capacity !== 'number') throw new MyHostError() } },
+} })
+```
+
+O erro do validador propaga como está. `attributes` sai também na projeção de cliente: não guarde
+nada ali que o cliente final não possa ver.
 
 ## Estoque
 
