@@ -8,6 +8,7 @@
 
 import {
   ConfigMissingError,
+  isValidTimeZone,
   MetaSyncDisabledError,
   VisionDimensionsMismatchError,
   VisionModelMismatchError,
@@ -19,6 +20,7 @@ import type {
   ClockPort,
   LoggerPort,
   MetaCatalogSyncPort,
+  ProductAttributesValidatorPort,
   ProductImageStoragePort,
   ProductSuggestionPort,
   ProductVisionPort,
@@ -58,6 +60,8 @@ import {
   CreateProductUseCase,
   DeleteProductUseCase,
   GetProductUseCase,
+  IsProductAvailableUseCase,
+  ListAvailableProductsUseCase,
   ListProductsUseCase,
   UpdateProductUseCase,
 } from './use-cases/Product.use-cases'
@@ -68,6 +72,8 @@ export type CatalogModuleProviders = {
   /** Guarda de reentrega do webhook de catálogo. Ausente, evento reentregue é processado de novo. */
   readonly webhookNonceStore?: WebhookNonceStorePort
   readonly imageStorage?: ProductImageStoragePort
+  /** Valida `attributes` de produto (regra do domínio do host). Ausente = qualquer objeto. */
+  readonly attributesValidator?: ProductAttributesValidatorPort
   readonly metaSync?: MetaCatalogSyncPort
   readonly productSuggestion?: ProductSuggestionPort
   /**
@@ -100,6 +106,8 @@ export type CatalogModule = {
     readonly deleteProduct: DeleteProductUseCase
     readonly getProduct: GetProductUseCase
     readonly listProducts: ListProductsUseCase
+    readonly isProductAvailable: IsProductAvailableUseCase
+    readonly listAvailableProducts: ListAvailableProductsUseCase
     readonly createCatalog: CreateCatalogUseCase
     readonly updateCatalog: UpdateCatalogUseCase
     readonly deleteCatalog: DeleteCatalogUseCase
@@ -149,6 +157,10 @@ const CHANNEL_PRODUCT_LIMIT = 30
 export function createCatalogModule(params: CreateCatalogModuleParams): CatalogModule {
   if (!params.config.currency) throw new ConfigMissingError('currency')
   if (!params.config.locale) throw new ConfigMissingError('locale')
+  // Fuso inválido falharia só na primeira consulta de disponibilidade; melhor no boot.
+  if (params.config.defaultTimeZone && !isValidTimeZone(params.config.defaultTimeZone)) {
+    throw new ConfigMissingError('defaultTimeZone')
+  }
 
   // Feature ligada sem a porta é erro de composição, e falha no boot em vez de na primeira
   // publicação — o operador descobriria pelo item que nunca sobe, dias depois.
@@ -172,6 +184,7 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
     clock: params.providers?.clock,
     logger: params.providers?.logger,
     imageStorage: params.providers?.imageStorage,
+    attributesValidator: params.providers?.attributesValidator,
     metaSync: params.providers?.metaSync,
     productSuggestion: params.providers?.productSuggestion,
     vision: params.providers?.vision,
@@ -191,6 +204,8 @@ export function createCatalogModule(params: CreateCatalogModuleParams): CatalogM
       deleteProduct: new DeleteProductUseCase(dependencies),
       getProduct: new GetProductUseCase(dependencies),
       listProducts: new ListProductsUseCase(dependencies),
+      isProductAvailable: new IsProductAvailableUseCase(dependencies),
+      listAvailableProducts: new ListAvailableProductsUseCase(dependencies),
       createCatalog: new CreateCatalogUseCase(dependencies),
       updateCatalog: new UpdateCatalogUseCase(dependencies),
       deleteCatalog: new DeleteCatalogUseCase(dependencies),

@@ -13,6 +13,7 @@ import type { SQL } from 'drizzle-orm'
 
 import {
   userByEmailCondition,
+  userByIdInAudienceCondition,
   userByProviderExternalCondition,
   userListCondition,
   userOwnedByCondition,
@@ -84,5 +85,33 @@ describe('soft delete não vaza usuário apagado', () => {
     )
     expect(single).toContain('company_id')
     expect(single).toContain('is null')
+  })
+})
+
+describe('audiência escopa toda condição', () => {
+  const base = { companyId: undefined, id: 'user-1', email: 'user@example.com' }
+
+  it('condições de leitura vinculam a audiência pedida, e `default` quando ausente', () => {
+    for (const condition of [userOwnedByCondition, userListCondition, userByEmailCondition]) {
+      expect(render(condition(base))).toContain('audience')
+      expect(renderParams(condition({ ...base, audience: 'customers' }))).toContain('customers')
+      expect(renderParams(condition(base))).toContain('default')
+    }
+  })
+
+  it('audiências diferentes vinculam parâmetros diferentes na busca por e-mail', () => {
+    const staff = userByEmailCondition({ ...base, audience: 'staff' })
+    const customers = userByEmailCondition({ ...base, audience: 'customers' })
+
+    expect(render(staff)).toEqual(render(customers))
+    expect(renderParams(staff)).not.toEqual(renderParams(customers))
+  })
+
+  it('a busca sem tenant (posse de refresh token) continua presa à audiência', () => {
+    const condition = userByIdInAudienceCondition({ audience: 'staff', id: 'user-1' })
+
+    expect(render(condition)).toContain('audience')
+    expect(renderParams(condition)).toContain('staff')
+    expect(render(condition)).toContain('deleted_at')
   })
 })

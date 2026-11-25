@@ -158,6 +158,18 @@ export interface ProductVisionPort {
   ): Promise<ProductVisionRanking>
 }
 
+/**
+ * Validação de `attributes` por quem conhece o domínio (cardápio, hospedagem…). Lança para
+ * recusar; o erro propaga como está, então o host escolhe a classe e o status. Ausente = o módulo
+ * aceita qualquer objeto dentro do limite de tamanho.
+ */
+export interface ProductAttributesValidatorPort {
+  validate(params: {
+    readonly companyId: CompanyId
+    readonly attributes: Readonly<Record<string, unknown>>
+  }): void | Promise<void>
+}
+
 export interface ClockPort {
   now(): Date
 }
@@ -181,6 +193,8 @@ export type CatalogModuleConfig = {
    * manual — é o caso de quem vende sob encomenda e não quer sumir do catálogo por estar zerado.
    */
   readonly deriveAvailabilityFromInventory?: boolean
+  /** Fuso IANA das janelas de `availabilitySchedule` que não declaram o próprio. Padrão: UTC. */
+  readonly defaultTimeZone?: string
   readonly webhook?: CatalogWebhookConfig
 }
 

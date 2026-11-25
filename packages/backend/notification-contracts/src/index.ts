@@ -182,6 +182,14 @@ export type {
   TemplateVariableDiff,
 } from './templateVariables'
 
+export {
+  InvalidTemplateDefinitionError,
+  assertTemplateDefinitions,
+  buildTemplateVariableCatalog,
+  findTemplateDefinition,
+} from './templateDefinition'
+export type { TemplateDefinition, TemplateDefinitionIdentity, TemplateEditorItem } from './templateDefinition'
+
 export { PREVIEW_VIEWPORT, PREVIEW_VIEWPORT_BY_CHANNEL, TEMPLATE_CONSTRAINTS_BY_CHANNEL } from './previewViewport'
 export type {
   PreviewViewport,

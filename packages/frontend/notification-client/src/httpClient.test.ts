@@ -45,6 +45,15 @@ describe('createNotificationClient', () => {
     expect(restored).toEqual(template as never)
   })
 
+  it('listTemplateDefinitions faz GET em /notification-template-definitions', async () => {
+    const items = [{ key: 'welcome', label: 'Boas-vindas', isCustomized: false }]
+    const { client, captured } = buildClient(() => jsonResponse(200, { data: items }))
+
+    expect(await client.listTemplateDefinitions()).toEqual(items as never)
+    expect(captured[0]?.method).toBe('GET')
+    expect(captured[0]?.url).toBe('https://api.exemplo.com/v1/notification-template-definitions')
+  })
+
   it('restoreDefault propaga 409 (modelo obrigatório) com o código do servidor', async () => {
     const { client } = buildClient(() =>
       jsonResponse(409, { error: { code: 'STANDARD_EMAIL_TEMPLATE_REQUIRED', message: 'obrigatório' } }),

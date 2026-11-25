@@ -64,6 +64,16 @@ export function useUpsertTemplate() {
  * O catálogo é config do host: muda com deploy, não com uso. `staleTime: Infinity` evita refetch a
  * cada foco de janela por um dado que não muda durante a sessão.
  */
+/** Prefixo de `templates()`: salvar ou restaurar invalida as definições junto com a lista. */
+export function useTemplateDefinitions() {
+  const { client } = useNotificationContext()
+
+  return useQuery({
+    queryKey: NOTIFICATION_QUERY_KEYS.templateDefinitions(),
+    queryFn: () => client.listTemplateDefinitions(),
+  })
+}
+
 export function useTemplateVariables() {
   const { client } = useNotificationContext()
 

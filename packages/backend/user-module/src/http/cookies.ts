@@ -8,19 +8,39 @@
 
 import { REFRESH_COOKIE_SAME_SITE, type RefreshCookieSameSite } from '@adatechnology/user-contracts'
 
-export const REFRESH_TOKEN_COOKIE_NAME = 'user_refresh_token'
+import { DEFAULT_REFRESH_COOKIE_NAME, DEFAULT_REFRESH_COOKIE_PATH } from '../shared/constants'
+
+export const REFRESH_TOKEN_COOKIE_NAME = DEFAULT_REFRESH_COOKIE_NAME
+
+/** Nome e caminho do cookie de uma instância. Ausentes = os padrões de sempre. */
+export type RefreshCookieNaming = {
+  readonly name?: string
+  readonly path?: string
+}
+
+const COOKIE_NAME_PATTERN = /^[A-Za-z0-9_-]+$/
+const COOKIE_PATH_PATTERN = /^\/[^;\s,]*$/
+
+export function isValidRefreshCookieName(name: string): boolean {
+  return COOKIE_NAME_PATTERN.test(name)
+}
+
+export function isValidRefreshCookiePath(path: string): boolean {
+  return COOKIE_PATH_PATTERN.test(path)
+}
 
 /**
  * `Secure` sempre, nos dois valores: `SameSite=None` é recusado pelo navegador sem ele, e num
  * cookie de refresh trafegar em texto claro nunca foi opção.
  */
-const ATTRIBUTES_BY_SAME_SITE: Readonly<Record<RefreshCookieSameSite, string>> = {
-  [REFRESH_COOKIE_SAME_SITE.LAX]: 'Path=/; HttpOnly; Secure; SameSite=Lax',
-  [REFRESH_COOKIE_SAME_SITE.NONE]: 'Path=/; HttpOnly; Secure; SameSite=None',
+const SAME_SITE_ATTRIBUTE: Readonly<Record<RefreshCookieSameSite, string>> = {
+  [REFRESH_COOKIE_SAME_SITE.LAX]: 'SameSite=Lax',
+  [REFRESH_COOKIE_SAME_SITE.NONE]: 'SameSite=None',
 }
 
-function attributesFor(sameSite: RefreshCookieSameSite | undefined): string {
-  return ATTRIBUTES_BY_SAME_SITE[sameSite ?? REFRESH_COOKIE_SAME_SITE.LAX]
+function attributesFor(sameSite: RefreshCookieSameSite | undefined, path: string | undefined): string {
+  const sameSiteAttribute = SAME_SITE_ATTRIBUTE[sameSite ?? REFRESH_COOKIE_SAME_SITE.LAX]
+  return `Path=${path ?? DEFAULT_REFRESH_COOKIE_PATH}; HttpOnly; Secure; ${sameSiteAttribute}`
 }
 
 export function parseCookieHeader(header: string | undefined): Readonly<Record<string, string>> {
@@ -35,14 +55,17 @@ export function parseCookieHeader(header: string | undefined): Readonly<Record<s
   return Object.fromEntries(entries.filter((entry): entry is readonly [string, string] => entry !== undefined))
 }
 
-export function buildRefreshTokenCookie(params: {
-  readonly token: string
-  readonly maxAgeSeconds: number
-  /** Ausente = `lax`, o comportamento de sempre. */
-  readonly sameSite?: RefreshCookieSameSite
-}): string {
+export function buildRefreshTokenCookie(
+  params: RefreshCookieNaming & {
+    readonly token: string
+    readonly maxAgeSeconds: number
+    /** Ausente = `lax`, o comportamento de sempre. */
+    readonly sameSite?: RefreshCookieSameSite
+  },
+): string {
   const value = encodeURIComponent(params.token)
-  return `${REFRESH_TOKEN_COOKIE_NAME}=${value}; ${attributesFor(params.sameSite)}; Max-Age=${params.maxAgeSeconds}`
+  const name = params.name ?? REFRESH_TOKEN_COOKIE_NAME
+  return `${name}=${value}; ${attributesFor(params.sameSite, params.path)}; Max-Age=${params.maxAgeSeconds}`
 }
 
 /**
@@ -52,6 +75,10 @@ export function buildRefreshTokenCookie(params: {
  * `SameSite` diferente como cookie diferente. Limpar com `Lax` o que foi emitido com `None`
  * deixaria a sessão viva, e o logout responderia 204 sem ter desligado nada.
  */
-export function buildClearRefreshTokenCookie(sameSite?: RefreshCookieSameSite): string {
-  return `${REFRESH_TOKEN_COOKIE_NAME}=; ${attributesFor(sameSite)}; Max-Age=0`
+export function buildClearRefreshTokenCookie(
+  sameSite?: RefreshCookieSameSite,
+  naming: RefreshCookieNaming = {},
+): string {
+  const name = naming.name ?? REFRESH_TOKEN_COOKIE_NAME
+  return `${name}=; ${attributesFor(sameSite, naming.path)}; Max-Age=0`
 }

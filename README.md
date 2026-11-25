@@ -2,22 +2,16 @@
 
 A unified monorepo containing both backend NestJS libraries and frontend/mobile client libraries.
 
-## Structure
+## O que há aqui
+
+O monorepo publica ~80 pacotes `@adatechnology/*` (backend, frontend e MCP). **Catálogo de capacidades por necessidade, com entradas, infra e apps que usam cada pacote: [docs/CATALOGO.md](docs/CATALOGO.md).** Consulte antes de escrever código num app: simulador de conversa, motor de fluxos, editor de modelos de e-mail e telas de equipe já existem.
 
 ```
 packages/
-├── backend/                         # Backend NestJS libraries
-│   ├── nestjs-logger/               # @adatechnology/nestjs-logger (Winston + AsyncLocalStorage)
-│   ├── nestjs-cache/                # @adatechnology/nestjs-cache (Redis/InMemory)
-│   ├── nestjs-http-client/          # @adatechnology/nestjs-http-client
-│   ├── shared/                      # @adatechnology/shared (decorators, utilities)
-│   ├── nestjs-auth-keycloak/        # @adatechnology/nestjs-auth-keycloak
-│   ├── nestjs-keycloak-admin/       # @adatechnology/nestjs-keycloak-admin
-│   ├── nestjs-package/              # @adatechnology/nestjs-package (package metadata)
-│   └── example/                     # Example NestJS application
-│
-└── frontend/
-    └── logger-client/               # @adatechnology/logger-client (isomorphic request tracing)
+├── backend/    módulos com banco (conversation, meta-whatsapp, notification, user, customer, catalog,
+│               scheduling, recommendation, payment, expense, infra), providers, utilitários e nestjs-*
+├── frontend/   *-ui (conversations-ui, notification-ui, user-ui, ...), widgets web e clientes
+└── mcp/        servidores MCP
 ```
 
 ## Quick Start

@@ -14,6 +14,8 @@ export type UserProfile = {
   readonly companyId?: string // ausente em single-tenant
   readonly isActive: boolean
   readonly lastSeenAt?: Date
+  /** Presente só enquanto a conta está bloqueada por tentativas falhas. */
+  readonly lockedUntil?: Date
   /**
    * URL de leitura assinada, presente so quando ha foto E o host plugou armazenamento.
    *

@@ -2,7 +2,12 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { createUserSchema, type CreateUserInput } from '@adatechnology/user-contracts'
+import {
+  createUserSchema,
+  updateUserSchema,
+  type CreateUserInput,
+  type UpdateUserInput,
+} from '@adatechnology/user-contracts'
 import { AVATAR_REJECTION, AvatarRejectedError } from '@adatechnology/user-contracts'
 import type { ModuleRoute } from '@adatechnology/module-http'
 import { z } from 'zod'
@@ -100,6 +105,27 @@ export function buildAdminRoutes(module: UserModule): ModuleRoute[] {
           companyId: context.auth?.companyId,
         })
         return { kind: 'json', status: 200, body: result }
+      },
+    },
+
+    {
+      method: 'PATCH',
+      path: '/admin/users/:id',
+      scope: 'admin',
+      requiredScopes: [USER_ADMIN_SCOPE],
+      bodySchema: updateUserSchema,
+      operationId: 'updateUser',
+      summary: 'Troca papel, ativa/desativa ou destrava um usuário (nunca apaga); revoga as sessões quando preciso',
+      async handler(context) {
+        const body = context.body as UpdateUserInput
+        const profile = await useCases.updateUser.execute({
+          id: context.params.id ?? '',
+          ...(body.role === undefined ? {} : { role: body.role }),
+          ...(body.isActive === undefined ? {} : { isActive: body.isActive }),
+          ...(body.unlock ? { unlock: true } : {}),
+          companyId: context.auth?.companyId,
+        })
+        return { kind: 'json', status: 200, body: { data: profile } }
       },
     },
 

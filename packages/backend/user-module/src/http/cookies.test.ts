@@ -8,6 +8,8 @@ import { REFRESH_COOKIE_SAME_SITE } from '@adatechnology/user-contracts'
 import {
   buildClearRefreshTokenCookie,
   buildRefreshTokenCookie,
+  isValidRefreshCookieName,
+  isValidRefreshCookiePath,
   parseCookieHeader,
   REFRESH_TOKEN_COOKIE_NAME,
 } from './cookies'
@@ -69,5 +71,36 @@ describe('parseCookieHeader', () => {
     const [pair] = buildRefreshTokenCookie({ token: raw, maxAgeSeconds: 60 }).split('; ')
 
     expect(parseCookieHeader(pair)[REFRESH_TOKEN_COOKIE_NAME]).toBe(raw)
+  })
+})
+
+describe('nome e caminho configuráveis do cookie', () => {
+  it('nome e caminho próprios entram no cookie emitido e no de limpeza', () => {
+    const naming = { name: 'staff_refresh', path: '/staff/auth' }
+
+    const issued = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, ...naming })
+    const cleared = buildClearRefreshTokenCookie(undefined, naming)
+
+    expect(issued).toBe('staff_refresh=token-de-refresh; Path=/staff/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=60')
+    expect(cleared).toBe('staff_refresh=; Path=/staff/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0')
+  })
+
+  it('duas instâncias na mesma origem emitem cookies de nomes diferentes — um não sobrescreve o outro', () => {
+    const staff = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, name: 'staff_refresh' })
+    const customers = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, name: 'customer_refresh' })
+
+    const parsed = parseCookieHeader(`${staff.split('; ')[0]}; ${customers.split('; ')[0]}`)
+
+    expect(Object.keys(parsed).sort()).toEqual(['customer_refresh', 'staff_refresh'])
+  })
+
+  it('só aceita nome e caminho que não permitem injetar atributo', () => {
+    expect(isValidRefreshCookieName('staff_refresh-2')).toBe(true)
+    expect(isValidRefreshCookieName('a=b')).toBe(false)
+    expect(isValidRefreshCookieName('a; Domain=x')).toBe(false)
+    expect(isValidRefreshCookieName('')).toBe(false)
+    expect(isValidRefreshCookiePath('/staff/auth')).toBe(true)
+    expect(isValidRefreshCookiePath('staff')).toBe(false)
+    expect(isValidRefreshCookiePath('/a; Domain=x')).toBe(false)
   })
 })

@@ -40,6 +40,8 @@ export type TemplateVariableDefinition = {
   readonly required: boolean
   /** Chave de i18n do rótulo na tela. Ausente, a tela mostra o próprio `name`. */
   readonly labelKey?: string
+  /** Texto livre para quem edita o modelo ("nome do cliente"). Ausente, a tela mostra só o `name`. */
+  readonly description?: string
 }
 
 /** `templateKey` → variáveis que o produto promete enviar no payload daquela notificação. */

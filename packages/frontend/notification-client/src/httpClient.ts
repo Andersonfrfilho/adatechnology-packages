@@ -12,6 +12,7 @@ import type {
   NotificationSummary,
   NotificationTemplate,
   NotificationCategoryPolicy,
+  TemplateEditorItem,
   TemplateVariableCatalog,
   UpsertTemplateBody,
   WebPushSubscription,
@@ -109,6 +110,8 @@ export type NotificationClient = {
   restoreDefault(id: string): Promise<NotificationTemplate>
   /** O catálogo de variáveis por chave — é o que a tela mostra como lista clicável. */
   listTemplateVariables(): Promise<TemplateVariableCatalog>
+  /** Templates declarados pelo host: rótulo, variáveis, texto padrão e a versão atual (para o editor). */
+  listTemplateDefinitions(): Promise<TemplateEditorItem[]>
   /** Base + headers, para o assinante de SSE reaproveitar a mesma configuração. */
   resolveStreamRequest(): Promise<{ url: string; headers: Record<string, string> }>
   /** Obtém a chave pública VAPID do servidor para inscrição Web Push no navegador */
@@ -271,6 +274,14 @@ export function createNotificationClient(config: NotificationClientConfig): Noti
       })
       if (!payload?.data) throw new Error('notification-client: restoreDefault não devolveu o template')
       return payload.data
+    },
+
+    async listTemplateDefinitions(): Promise<TemplateEditorItem[]> {
+      const payload = await request<{ data: TemplateEditorItem[] }>({
+        method: 'GET',
+        path: '/notification-template-definitions',
+      })
+      return payload?.data ?? []
     },
 
     async listTemplateVariables(): Promise<TemplateVariableCatalog> {

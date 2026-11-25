@@ -38,6 +38,12 @@ export const PRODUCT_OPTIONAL_FIELD = {
   PREPARATION_INSTRUCTIONS: 'preparationInstructions',
   INVENTORY: 'inventory',
   SORT_ORDER: 'sortOrder',
+  // Liga o interruptor "preço sob consulta" (`priceInCents: null`).
+  PRICE_ON_REQUEST: 'priceOnRequest',
+  // Dias da semana + janela de horário em que o item é vendido.
+  AVAILABILITY_SCHEDULE: 'availabilitySchedule',
+  // Editor de pares chave/valor para `attributes`.
+  ATTRIBUTES: 'attributes',
 } as const
 export type ProductOptionalField = (typeof PRODUCT_OPTIONAL_FIELD)[keyof typeof PRODUCT_OPTIONAL_FIELD]
 
@@ -52,13 +58,27 @@ export const PRODUCT_SYNC_STATUS = {
 } as const
 export type ProductSyncStatus = (typeof PRODUCT_SYNC_STATUS)[keyof typeof PRODUCT_SYNC_STATUS]
 
+// 0 = domingo … 6 = sábado (convenção de `Date#getDay`). Espelha o contrato do backend.
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
+export const WEEKDAYS: readonly Weekday[] = [0, 1, 2, 3, 4, 5, 6]
+
+export type AvailabilitySchedule = {
+  readonly weekdays: readonly Weekday[]
+  // `HH:mm`. `from` inclusivo, `until` exclusivo; `until < from` cruza a madrugada.
+  readonly from?: string
+  readonly until?: string
+  // Fuso IANA; ausente = o padrão configurado no backend.
+  readonly timeZone?: string
+}
+
 export type Product = {
   readonly id: string
   readonly name: string
   readonly description: string | null
   // Dinheiro trafega em centavos inteiros, nunca em decimal ou string formatada: o componente não
   // pode arredondar valor de venda, e a moeda vem da configuração do consumidor (ProductsConfig).
-  readonly priceInCents: number
+  // `null` = preço sob consulta.
+  readonly priceInCents: number | null
   readonly imageUrl: string | null
   readonly catalogId: string | null
   readonly catalogName?: string
@@ -77,6 +97,9 @@ export type Product = {
   // Texto livre para quem produz o item (ficha técnica, ponto da carne, ordem de montagem). É
   // separado de `description`, que é o que o cliente lê.
   readonly preparationInstructions?: string | null
+  readonly availabilitySchedule?: AvailabilitySchedule | null
+  // Dados livres do host (capacidade, "o que inclui"...), editados como pares chave/valor.
+  readonly attributes?: Readonly<Record<string, unknown>>
 
   readonly externalId?: string | null
   readonly syncStatus?: ProductSyncStatus | null
@@ -131,7 +154,7 @@ export type PaginatedResponse<TItem> = {
 export type CreateProductInput = {
   readonly name: string
   readonly description?: string
-  readonly priceInCents: number
+  readonly priceInCents: number | null
   readonly costPriceInCents?: number
   readonly unit?: string
   readonly barcode?: string
@@ -141,6 +164,10 @@ export type CreateProductInput = {
   readonly inventory?: number
   readonly preparationTimeMinutes?: number
   readonly preparationInstructions?: string
+  // No update, `null` remove a restrição.
+  readonly availabilitySchedule?: AvailabilitySchedule | null
+  // No update, substitui o objeto inteiro.
+  readonly attributes?: Readonly<Record<string, unknown>>
 }
 
 export type UpdateProductInput = Partial<CreateProductInput> & {
@@ -187,6 +214,8 @@ export type ProductsConfig = {
   // implicaria custo zero.
   readonly marginShortcutPercents?: readonly number[]
   readonly metaSync?: MetaSyncConfig
+  // Texto exibido no lugar do preço quando ele é `null`. Padrão: "Sob consulta".
+  readonly priceOnRequestLabel?: string
   // Ausente, o botão de remover fundo não é desenhado — capacidade por ausência. O host informa de
   // onde o modelo é servido porque ele pesa alguns MB e não cabe dentro do pacote.
   readonly backgroundRemoval?: BackgroundRemovalConfig

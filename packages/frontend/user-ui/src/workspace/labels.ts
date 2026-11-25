@@ -14,6 +14,12 @@ export type UserLabels = {
   readonly forgotPasswordLink: string
   readonly signInGenericError: string
 
+  readonly signUpTitle: string
+  readonly signUpSubmit: string
+  readonly signUpGenericError: string
+  readonly signUpPasswordHint: string
+  readonly signUpToSignIn: string
+
   readonly forgotPasswordTitle: string
   readonly forgotPasswordSubmit: string
   readonly forgotPasswordBackToSignIn: string
@@ -52,6 +58,9 @@ export type UserLabels = {
   readonly teamStatus: string
   readonly teamActive: string
   readonly teamInactive: string
+  readonly teamLocked: string
+  readonly teamLockedHint: string
+  readonly teamUnlock: string
   readonly teamDeactivate: string
   readonly teamActivate: string
   readonly teamPrevious: string
@@ -95,6 +104,12 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   forgotPasswordLink: 'Esqueci minha senha',
   signInGenericError: 'Não foi possível entrar',
 
+  signUpTitle: 'Criar conta',
+  signUpSubmit: 'Criar conta',
+  signUpGenericError: 'Não foi possível criar a conta',
+  signUpPasswordHint: 'Mínimo de 8 caracteres.',
+  signUpToSignIn: 'Já tenho conta',
+
   forgotPasswordTitle: 'Redefinir senha',
   forgotPasswordSubmit: 'Enviar link de redefinição',
   forgotPasswordBackToSignIn: 'Voltar para o login',
@@ -133,6 +148,9 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   teamStatus: 'Situacao',
   teamActive: 'Ativo',
   teamInactive: 'Inativo',
+  teamLocked: 'Bloqueado',
+  teamLockedHint: 'Bloqueado por tentativas de login falhas até',
+  teamUnlock: 'Destravar',
   teamDeactivate: 'Desativar',
   teamActivate: 'Reativar',
   teamPrevious: 'Anterior',

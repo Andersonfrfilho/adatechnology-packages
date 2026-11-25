@@ -56,3 +56,28 @@ export const keycloakCallbackSchema = z.object({
 })
 
 export type KeycloakCallbackInput = z.infer<typeof keycloakCallbackSchema>
+
+/** Cadastro público: sem `role` — o papel é decidido pela configuração do host (`SignUpConfig`). */
+export const signUpSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(320),
+  name: z.string().trim().min(1).max(255),
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+})
+
+export type SignUpInput = z.infer<typeof signUpSchema>
+
+/**
+ * Atualização administrativa. Só papel e situação: o módulo nunca apaga usuário, desativa.
+ * `unlock` limpa o bloqueio por tentativas falhas sem mexer no resto.
+ */
+export const updateUserSchema = z
+  .object({
+    role: z.string().min(1).max(40).optional(),
+    isActive: z.boolean().optional(),
+    unlock: z.literal(true).optional(),
+  })
+  .refine((value) => value.role !== undefined || value.isActive !== undefined || value.unlock === true, {
+    message: 'Informe role, isActive ou unlock',
+  })
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>

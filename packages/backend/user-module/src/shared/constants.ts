@@ -6,3 +6,6 @@ export const DEFAULT_REFRESH_TOKEN_EXPIRES_IN_SECONDS = 30 * 24 * 60 * 60
 export const DEFAULT_RESET_TOKEN_EXPIRES_IN_SECONDS = 60 * 60
 export const LOCAL_PROVIDER_ID = 'local'
 export const KEYCLOAK_PROVIDER_ID = 'keycloak'
+export const DEFAULT_REFRESH_REUSE_GRACE_SECONDS = 10
+export const DEFAULT_REFRESH_COOKIE_NAME = 'user_refresh_token'
+export const DEFAULT_REFRESH_COOKIE_PATH = '/'

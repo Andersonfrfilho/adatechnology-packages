@@ -24,7 +24,7 @@ import type { TemplateRepository } from '../repositories/TemplateRepository'
 import { toNotificationTemplate } from './Template.use-cases'
 
 /** Violação da unicidade `(empresa, chave, canal, locale, versão)` — outro processo gravou a v1 antes. */
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   const isUnique = (candidate: unknown): boolean => {
     const { code, errno } = (candidate ?? {}) as { code?: unknown; errno?: unknown }
     // No driver do Bun o SQLSTATE vem em `errno`; o `code` é `ERR_POSTGRES_SERVER_ERROR`.

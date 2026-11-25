@@ -5,7 +5,12 @@
  * `dispatchRoute` — daí não haver `try/catch` nem checagem de escopo aqui dentro.
  */
 
-import { createProductSchema, listProductsQuerySchema, updateProductSchema } from '@adatechnology/catalog-contracts'
+import {
+  availableProductsQuerySchema,
+  createProductSchema,
+  listProductsQuerySchema,
+  updateProductSchema,
+} from '@adatechnology/catalog-contracts'
 import type { ModuleRoute } from '@adatechnology/module-http'
 import { z } from 'zod'
 
@@ -87,6 +92,27 @@ export function buildProductRoutes(module: CatalogModule): ModuleRoute[] {
       },
     },
 
+    // Antes de `/products/:id`: `:id` casaria "available".
+    {
+      method: 'GET',
+      path: '/products/available',
+      scope: 'admin',
+      querySchema: availableProductsQuerySchema,
+      operationId: 'listAvailableProducts',
+      summary: 'Lista os produtos vendáveis num instante (ativos, em estoque e dentro da agenda)',
+      async handler(context) {
+        const companyId = requireCompany(context)
+        const query = context.query as { at?: string; catalogId?: string; sectionId?: string }
+        const data = await useCases.listAvailableProducts.execute({
+          companyId,
+          ...(query.at ? { at: new Date(query.at) } : {}),
+          ...(query.catalogId ? { catalogId: query.catalogId } : {}),
+          ...(query.sectionId ? { sectionId: query.sectionId } : {}),
+        })
+        return { kind: 'json', status: 200, body: { data } }
+      },
+    },
+
     // Declarada ANTES de `/products/:id` porque ambas casam `POST /products/bulk-import` se a
     // ordem inverter — `findRoute` devolve a primeira que casa.
     {
@@ -117,7 +143,7 @@ export function buildProductRoutes(module: CatalogModule): ModuleRoute[] {
         const companyId = requireCompany(context)
         const product = await useCases.createProduct.execute({
           companyId,
-          ...(context.body as { name: string; priceInCents: number }),
+          ...(context.body as { name: string; priceInCents: number | null }),
         })
         return { kind: 'json', status: 201, body: { data: product } }
       },
@@ -133,6 +159,25 @@ export function buildProductRoutes(module: CatalogModule): ModuleRoute[] {
         const companyId = requireCompany(context)
         const product = await useCases.getProduct.execute({ companyId, id: context.params.id ?? '' })
         return { kind: 'json', status: 200, body: { data: product } }
+      },
+    },
+
+    {
+      method: 'GET',
+      path: '/products/:id/availability',
+      scope: 'admin',
+      querySchema: availableProductsQuerySchema.pick({ at: true }),
+      operationId: 'getProductAvailability',
+      summary: 'Diz se um produto pode ser vendido num instante e, se não, por quê',
+      async handler(context) {
+        const companyId = requireCompany(context)
+        const query = context.query as { at?: string }
+        const data = await useCases.isProductAvailable.execute({
+          companyId,
+          id: context.params.id ?? '',
+          ...(query.at ? { at: new Date(query.at) } : {}),
+        })
+        return { kind: 'json', status: 200, body: { data } }
       },
     },
 

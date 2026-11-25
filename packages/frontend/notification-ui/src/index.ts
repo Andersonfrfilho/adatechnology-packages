@@ -32,6 +32,9 @@ export type {
   NotificationCategoryOption,
 } from './components/NotificationSettingsWorkspace'
 
+export { TemplateDefinitionsEditor } from './components/TemplateDefinitionsEditor'
+export type { TemplateDefinitionsEditorProps } from './components/TemplateDefinitionsEditor'
+
 /** Modos de exibição e ordenação da lista de mensagens — o host pode rotular ou pré-selecionar. */
 export { TEMPLATE_VIEWS, TEMPLATE_SORT_FIELDS, TEMPLATE_COLUMNS, SORT_DIRECTIONS } from './templateList.constant'
 export type {

@@ -142,6 +142,50 @@ de supressão. A lista de supressão existe para não enviar, não para virar ca
   `details: { missing, unsafe }`) ao salvar modelo inutilizável; `StandardEmailTemplateRequiredError`
   (409, `NOTIFICATION_STANDARD_EMAIL_TEMPLATE_REQUIRED`) ao remover/desativar o padrão.
 
+## Templates declarados pelo host (editor, padrão e restauração)
+
+O host declara os templates no boot; o conteúdo editável continua versionado no banco (`templates`),
+e a definição é só código — evoluir rótulo, descrição ou variáveis não exige migration.
+
+```ts
+const module = createNotificationModule({
+  // ...
+  config: {
+    // ...
+    templateDefinitions: [
+      {
+        key: 'welcome',
+        channel: 'whatsapp',
+        locale: 'pt-BR',
+        label: 'Boas-vindas',
+        description: 'Primeira mensagem da conversa',
+        body: 'Olá {{name}}, bem-vindo!',
+        variables: [{ name: 'name', description: 'Nome do contato', example: 'Maria', required: true }],
+      },
+    ],
+  },
+})
+```
+
+- **Sintaxe de variável: `{{campo}}`** (espaços toleráveis: `{{ campo }}`), só `[a-zA-Z0-9_]`. Campo ausente
+  renderiza vazio. Não existe `{campo}` de chave simples — quem migra textos com essa forma troca para `{{campo}}`.
+- As definições são validadas no boot (`InvalidTemplateDefinitionError`): identidade `key+channel+locale`
+  duplicada, `label`/`body` vazio, variável repetida, ou texto padrão com variável não declarada. As
+  variáveis entram no catálogo (`templateVariables` do host, para a mesma chave, prevalece).
+- `useCases.ensureTemplateDefinitions.execute({ companyId })` — grava a v1 de cada definição **só se a
+  identidade não tem nenhuma linha** (texto editado ou desativado nunca é sobrescrito). Idempotente e seguro
+  em corrida (`23505` = "já existe"). Devolve as chaves criadas. Chame no boot/pré-deploy, por empresa.
+- `useCases.listTemplateEditorItems.execute({ companyId })` — uma linha por definição (`TemplateEditorItem`:
+  `label`, `description`, `variables`, `defaultBody`, `current`, `isCustomized`). Rota
+  `GET /notification-template-definitions`.
+- Editar: `useCases.upsertTemplate` (ou `POST /notification-templates`) grava versão nova, validando as variáveis.
+- `useCases.restoreTemplateDefault.execute({ companyId, id })` — versão nova com o texto padrão da definição;
+  o histórico fica. `POST /notification-templates/:id/restore-default` usa-o para toda chave declarada (o
+  modelo padrão de e-mail segue pelo caminho próprio). Id desconhecido ou sem definição: 404.
+- `useCases.renderTemplateText.execute({ companyId, key, channel, locale?, payload })` — texto pronto sem
+  envio, para o host que transporta a mensagem por conta própria. Usa a versão ativa; sem ela, o padrão
+  declarado (`source: 'default'`). Sem definição nem versão: `TemplateNotFoundError`.
+
 ## Licença
 
 MIT © Ada Technology

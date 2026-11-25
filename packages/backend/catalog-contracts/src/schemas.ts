@@ -8,6 +8,7 @@
 
 import { z } from 'zod'
 
+import { availabilityScheduleSchema } from './availabilitySchedule'
 import { PRODUCT_SYNC_STATUS } from './catalog.types'
 
 const MAX_PAGE_SIZE = 100
@@ -17,12 +18,20 @@ const MAX_PRICE_IN_CENTS = 100_000_000 // R$ 1.000.000,00 — teto de sanidade, 
 const priceInCents = z.number().int().min(0).max(MAX_PRICE_IN_CENTS)
 
 /** GTIN-8/12/13/14 — só dígitos. O dígito verificador é validado no use-case, não aqui. */
+const MAX_ATTRIBUTES_BYTES = 16_384
+
+/** Objeto livre do host, com teto de tamanho: vira coluna jsonb lida em toda listagem. */
+export const productAttributesSchema = z
+  .record(z.unknown())
+  .refine((value) => JSON.stringify(value).length <= MAX_ATTRIBUTES_BYTES, 'attributes grande demais')
+
 const barcode = z.string().regex(/^\d{8}$|^\d{12,14}$/)
 
 export const createProductSchema = z.object({
   name: z.string().min(1).max(160),
   description: z.string().max(2000).optional(),
-  priceInCents,
+  // `null` = preço sob consulta.
+  priceInCents: priceInCents.nullable(),
   costPriceInCents: priceInCents.optional(),
   unit: z.string().min(1).max(16).optional(),
   brand: z.string().min(1).max(80).optional(),
@@ -39,6 +48,8 @@ export const createProductSchema = z.object({
   preparationTimeMinutes: z.number().int().min(0).max(1440).optional(),
   preparationInstructions: z.string().max(2000).optional(),
   sortOrder: z.number().int().optional(),
+  availabilitySchedule: availabilityScheduleSchema.nullable().optional(),
+  attributes: productAttributesSchema.optional(),
 })
 export type CreateProductBody = z.infer<typeof createProductSchema>
 
@@ -85,6 +96,14 @@ export const listProductsQuerySchema = z.object({
   syncStatus: z.nativeEnum(PRODUCT_SYNC_STATUS).optional(),
 })
 export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>
+
+/** `at` ausente = agora. ISO 8601 com offset ou `Z`. */
+export const availableProductsQuerySchema = z.object({
+  at: z.string().datetime({ offset: true }).optional(),
+  catalogId: z.string().uuid().optional(),
+  sectionId: z.string().uuid().optional(),
+})
+export type AvailableProductsQuery = z.infer<typeof availableProductsQuerySchema>
 
 export const listCatalogsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
