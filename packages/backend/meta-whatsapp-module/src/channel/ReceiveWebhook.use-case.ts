@@ -334,6 +334,7 @@ export class ReceiveWebhookUseCase {
     if (!updated) return
 
     this.params.realtime?.emit(`conv:${updated.whatsappNumber}`, 'message-status', {
+      companyId,
       waMessageId: status.id,
       status: status.status,
     })

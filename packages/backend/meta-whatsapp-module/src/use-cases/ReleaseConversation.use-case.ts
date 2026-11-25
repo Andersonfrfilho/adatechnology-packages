@@ -18,7 +18,11 @@ export class ReleaseConversationUseCase {
 
   async execute(params: ReleaseConversationParams): Promise<void> {
     await this.sessionRepository.release(params.companyId, params.whatsappNumber)
-    this.realtime?.emit(`conv:${params.whatsappNumber}`, 'mode-changed', { mode: 'bot', assignedUserId: null })
+    this.realtime?.emit(`conv:${params.whatsappNumber}`, 'mode-changed', {
+      companyId: params.companyId,
+      mode: 'bot',
+      assignedUserId: null,
+    })
     this.realtime?.emit('global', 'data-changed', {})
     await this.hooks?.onConversationModeChanged?.({
       companyId: params.companyId,
