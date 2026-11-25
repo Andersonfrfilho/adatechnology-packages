@@ -150,6 +150,29 @@ export class SessionRepository {
       .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
   }
 
+  /**
+   * Posição no grafo e contexto numa escrita só — é o que o runner grava a cada mensagem. Em duas
+   * escritas, uma falha no meio deixaria a conversa num nó novo com as respostas do anterior.
+   * Não toca em `currentState`, `mode` nem `humanRequestedAt`: uma ação de encaminhamento que rodou
+   * no mesmo passo já os mudou, e regravá-los desfaria isso.
+   */
+  async saveFlowProgress(
+    companyId: string,
+    whatsappNumber: string,
+    progress: { flowKey: string | null; currentNodeId: string | null; context: Record<string, unknown> },
+  ): Promise<void> {
+    await this.db
+      .update(sessions)
+      .set({
+        flowKey: progress.flowKey,
+        currentNodeId: progress.currentNodeId,
+        context: progress.context,
+        lastActivity: sql`now()`,
+        updatedAt: sql`now()`,
+      })
+      .where(and(eq(sessions.companyId, companyId), eq(sessions.whatsappNumber, whatsappNumber)))
+  }
+
   // Marca a chegada de uma mensagem DO CLIENTE. É este carimbo — e não lastActivity, que também
   // se move em ações do atendente/bot — que define a janela de 24h do WhatsApp: fora dela, só
   // template aprovado reabre a conversa (ver WindowExpiredError nos contracts).

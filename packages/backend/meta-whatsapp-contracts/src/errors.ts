@@ -25,6 +25,7 @@ export const META_WHATSAPP_ERROR_CODES = {
   MESSAGE_NOT_AUDIO: 'META_WHATSAPP_MESSAGE_NOT_AUDIO',
   TRANSCRIPTION_DISABLED: 'META_WHATSAPP_TRANSCRIPTION_DISABLED',
   INTERACTIVE_LIMIT_EXCEEDED: 'META_WHATSAPP_INTERACTIVE_LIMIT_EXCEEDED',
+  FLOW_RUNNER_FAILED: 'META_WHATSAPP_FLOW_RUNNER_FAILED',
 } as const
 
 export class WindowExpiredError extends MetaWhatsAppError {
@@ -143,5 +144,20 @@ export class InteractiveLimitExceededError extends MetaWhatsAppError {
       META_WHATSAPP_ERROR_CODES.INTERACTIVE_LIMIT_EXCEEDED,
       { violations },
     )
+  }
+}
+
+export type FlowRunnerFailureReason = 'provider-missing' | 'flow-not-found' | 'cycle' | 'too-many-jumps'
+
+/** Grafo publicado que o runner não consegue seguir. Chega ao host por `onFlowRunnerError`. */
+export class FlowRunnerError extends MetaWhatsAppError {
+  constructor(
+    public readonly reason: FlowRunnerFailureReason,
+    public readonly target: string,
+  ) {
+    super(`Fluxo não pôde seguir (${reason}): ${target}.`, 500, META_WHATSAPP_ERROR_CODES.FLOW_RUNNER_FAILED, {
+      reason,
+      target,
+    })
   }
 }

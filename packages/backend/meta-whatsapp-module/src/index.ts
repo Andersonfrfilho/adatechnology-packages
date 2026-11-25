@@ -62,7 +62,7 @@ export type {
 export { StorePreviewMediaUseCase } from './use-cases/StorePreviewMedia.use-case'
 export type { StorePreviewMediaParams, StorePreviewMediaResult } from './use-cases/StorePreviewMedia.use-case'
 export { PREVIEW_MEDIA_ID_PREFIX, toPreviewMediaId, resolvePreviewUploadId } from './channel/previewMedia'
-export type { PreviewMediaSupport } from './channel/WhatsAppChannelAdapter'
+export type { PreviewMediaSupport, PreviewContactsSupport } from './channel/WhatsAppChannelAdapter'
 
 export { TranscribeAudioUseCase, resolveFailureStatus } from './use-cases/TranscribeAudio.use-case'
 export type {
@@ -123,7 +123,34 @@ export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtim
 
 export { FlowGraphRepository, OptimisticLockError, InvalidFlowGraphError } from './repositories/FlowGraphRepository'
 export { FlowInterpreter } from './flows/FlowInterpreter'
-export type { FlowStepInput, FlowStepResult, FlowRunResult } from './flows/FlowInterpreter'
+export type { FlowStepInput, FlowStepResult, FlowRunResult, FlowRunOptions } from './flows/FlowInterpreter'
+export { FlowRunner } from './flows/FlowRunner'
+export type { FlowRunnerDependencies, HandleFlowMessageParams, StartFlowParams } from './flows/FlowRunner'
+export { FlowHandoff } from './flows/FlowHandoff'
+export type { FlowHandoffDependencies, RequestFlowHandoffParams } from './flows/FlowHandoff'
+export type {
+  FlowRunnerConfig,
+  FlowRunnerOutcome,
+  FlowGlobalKeyword,
+  FlowGlobalKeywordTarget,
+  FlowHandoffConfig,
+  FlowVariablesResolver,
+} from './flows/flowRunner.types'
+export {
+  DEFAULT_FLOW_TEXT,
+  DEFAULT_START_FLOW_KEY,
+  DEFAULT_MAX_INVALID_ANSWERS,
+  DYNAMIC_CHOICE_MORE_ID,
+  FLOW_RUNTIME_CONTEXT_KEY,
+} from './flows/flowRunner.constant'
+export { buildFlowChoiceMessage } from './flows/buildFlowChoiceMessage'
+export type {
+  FlowChoiceOption,
+  FlowOutboundMessage,
+  BuildFlowChoiceMessageParams,
+} from './flows/buildFlowChoiceMessage'
+export { resolveFlowAnswer, isChoiceNode } from './flows/resolveFlowAnswer'
+export type { FlowAnswerDecision, ResolveFlowAnswerParams } from './flows/resolveFlowAnswer'
 export { FlowGraphCache, DEFAULT_FLOW_GRAPH_CACHE_TTL_SECONDS } from './repositories/FlowGraphCache'
 export { FlowMediaRepository } from './repositories/FlowMediaRepository'
 export type {

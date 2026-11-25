@@ -135,7 +135,9 @@ export {
   MessageNotAudioError,
   TranscriptionDisabledError,
   InteractiveLimitExceededError,
+  FlowRunnerError,
 } from './errors'
+export type { FlowRunnerFailureReason } from './errors'
 
 export { listInteractiveLimitViolations, assertInteractiveWithinLimits } from './interactive'
 export type {
