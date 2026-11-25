@@ -61,6 +61,9 @@ export type UseTeamResult = {
   readonly canEdit: boolean
   readonly canChangeAvatar: boolean
   readonly canSendPasswordReset: boolean
+  /** `false` quando a `UserApi` não traz `unlockTeamMember` — a ação de destravar some. */
+  readonly canUnlock: boolean
+  unlockMember: (userId: string) => Promise<void>
   /** Id de quem acabou de receber o e-mail, para a linha confirmar sem abrir um alerta global. */
   readonly passwordResetSentTo: string | undefined
   updateMember: (userId: string, input: UpdateTeamMemberInput) => Promise<boolean>
@@ -81,6 +84,7 @@ export type TeamApi = Pick<
   | 'setTeamMemberActive'
   | 'setTeamMemberAvatar'
   | 'sendPasswordReset'
+  | 'unlockTeamMember'
 >
 
 export type UseTeamParams = {
@@ -271,6 +275,21 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
       }
     },
     canSendPasswordReset: Boolean(api.sendPasswordReset),
+    canUnlock: Boolean(api.unlockTeamMember),
+    unlockMember: async (userId: string) => {
+      if (!api.unlockTeamMember) return
+      setSaving(true)
+      setError(undefined)
+      try {
+        await api.unlockTeamMember(userId)
+        // Recarrega: o selo de bloqueio vem do servidor, e a tela não deve adivinhar que sumiu.
+        await load()
+      } catch (cause) {
+        setError(messageOf(cause, 'Nao foi possivel destravar'))
+      } finally {
+        setSaving(false)
+      }
+    },
     passwordResetSentTo,
     setMemberAvatar: async (userId: string, file: File) => {
       if (!api.setTeamMemberAvatar) return

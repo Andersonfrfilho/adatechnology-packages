@@ -9,7 +9,7 @@
 
 import { useState, type ReactNode } from 'react'
 
-import { KeyRound, Pencil, Plus, Trash2, UserPlus, X, type LucideIcon } from 'lucide-react'
+import { KeyRound, Lock, LockOpen, Pencil, Plus, Trash2, UserPlus, X, type LucideIcon } from 'lucide-react'
 
 import type { BackgroundRemovalConfig } from '@adatechnology/image-cutout'
 
@@ -154,7 +154,7 @@ export function TeamWorkspace({
   if (!team.enabled) return null
 
   /** A coluna de acoes existe se HOUVER acao — nao so quando ha desativacao. */
-  const hasRowActions = team.canDeactivate || team.canEdit || team.canSendPasswordReset
+  const hasRowActions = team.canDeactivate || team.canEdit || team.canSendPasswordReset || team.canUnlock
 
   const lastPage = Math.max(1, Math.ceil(team.total / team.pageSize))
 
@@ -418,9 +418,20 @@ export function TeamWorkspace({
                     <RoleBadge roles={roleOptions} value={member.role} />
                   </td>
                   <td className={CELL}>
-                    <Badge tone={member.isActive ? 'positive' : 'muted'}>
-                      {member.isActive ? labels.teamActive : labels.teamInactive}
-                    </Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge tone={member.isActive ? 'positive' : 'muted'}>
+                        {member.isActive ? labels.teamActive : labels.teamInactive}
+                      </Badge>
+                      {/* Ícone + palavra + cor; a dica diz até quando, para não abrir a linha só para saber. */}
+                      {member.lockedUntil && (
+                        <span title={`${labels.teamLockedHint} ${new Date(member.lockedUntil).toLocaleString()}`}>
+                          <Badge tone="danger">
+                            <Lock aria-hidden="true" className="mr-1 size-3" />
+                            {labels.teamLocked}
+                          </Badge>
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {hasRowActions && (
                     <td className={CELL}>
@@ -439,6 +450,15 @@ export function TeamWorkspace({
                             icon={Pencil}
                             label={labels.teamEdit}
                             onClick={() => setEditing(member)}
+                            srSuffix={member.name}
+                          />
+                        )}
+                        {team.canUnlock && member.lockedUntil && (
+                          <RowAction
+                            busy={team.saving}
+                            icon={LockOpen}
+                            label={labels.teamUnlock}
+                            onClick={() => void team.unlockMember(member.id)}
                             srSuffix={member.name}
                           />
                         )}
@@ -659,6 +679,7 @@ const BADGE_TONE = {
   accent: 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950 dark:text-blue-300 dark:ring-blue-400/20',
   neutral: 'bg-gray-100 text-gray-700 ring-gray-500/20 dark:bg-gray-800 dark:text-gray-300 dark:ring-gray-400/20',
   muted: 'bg-gray-100 text-gray-500 ring-gray-400/20 dark:bg-gray-800 dark:text-gray-500 dark:ring-gray-500/20',
+  danger: 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950 dark:text-red-300 dark:ring-red-400/20',
 } as const
 type BadgeTone = keyof typeof BADGE_TONE
 

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'bun:test'
 import { DEFAULT_USER_LABELS as labels } from './workspace/labels'
 import { TEAM_DEFAULT_PAGE_SIZE, compareBy, type TeamSort } from './useTeam'
 import { TEAM_PASSWORD_MIN_LENGTH } from './TeamMemberForm'
+import { SIGN_UP_PASSWORD_MIN_LENGTH } from './SignUpForm'
 
 describe('contrato da tela de equipe', () => {
   /**
@@ -89,5 +90,19 @@ describe('ordenacao', () => {
   it('ordena situacao por ativo, e nao pelo texto de true e false', () => {
     // Alfabeticamente "false" < "true"; o inativo viria primeiro, que e o contrario do util.
     expect(ordenar({ field: 'isActive', direction: 'asc' })[2]).toBe('Carla')
+  })
+})
+
+describe('destravar conta e cadastro público', () => {
+  it('os rotulos de bloqueio existem e sao distintos entre estado e acao', () => {
+    expect(labels.teamLocked).toBeTruthy()
+    expect(labels.teamUnlock).toBeTruthy()
+    expect(labels.teamLocked).not.toBe(labels.teamUnlock)
+  })
+
+  it('o formulario de cadastro tem rotulos proprios e o minimo acompanha o do servidor', () => {
+    expect(labels.signUpTitle).toBeTruthy()
+    expect(labels.signUpSubmit).toBeTruthy()
+    expect(SIGN_UP_PASSWORD_MIN_LENGTH).toBe(8)
   })
 })
