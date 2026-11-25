@@ -71,7 +71,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | Pacote | O que resolve | Entrada |
 |---|---|---|
 | [`catalog-module`](#adatechnologycatalog-module) | produtos, seções, estoque atômico, importação em lote, busca por foto, publicação opcional na Meta | `createCatalogModule`, `createCatalogRoutes` |
-| [`products-ui`](#adatechnologyproducts-ui) | gestão de produtos e catálogos com envio de imagem e recorte de fundo | `ProductsWorkspace` |
+| [`products-ui`](#adatechnologyproducts-ui) | gestão de produtos e catálogos com envio de imagem e recorte de fundo; API pronta para o `catalog-module` | `ProductsWorkspace`, `createCatalogModuleProductsApi` |
 | [`product-vision-provider`](#adatechnologyproduct-vision-provider) | identificar produto por foto (código de barras e CLIP) | `createVisionChain` |
 | [`catalog-image-storage-provider`](#adatechnologycatalog-image-storage-provider) | imagens de produto em bucket S3 | `createS3ProductImageStorage` |
 | [`meta-catalog-provider`](#adatechnologymeta-catalog-provider) | catálogo da Meta Commerce | `MetaCatalogProvider` |
@@ -287,10 +287,11 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Usado por:** `transportada`
 
 ### @adatechnology/conversations-ui
-- **Versão:** `0.15.0` · `packages/frontend/conversations-ui` · subpaths: `./flows`, `./whatsapp`, `./preview`, `./participant`, `./styles.css`
+- **Versão:** `0.17.0` · `packages/frontend/conversations-ui` · subpaths: `./flows`, `./whatsapp`, `./preview`, `./participant`, `./styles.css`
 - **Para quê:** Interface de atendimento (inbox, conversa no desenho do WhatsApp, documentos, respostas rápidas, templates), **editor visual de fluxos** e **simulador de conversa**.
 - **O que você ganha:**
   - **Simulador de conversa sem a Meta:** `ConversationSimulatorPanel` e `ConversationPreview` (moldura com título, telefone, mídia e gravação de áudio) ligados a um transporte. `createPreviewBridgeClient` é o recomendado: manda um comando semântico (`text`, `buttonReply`, `listReply`, `audio`, `media`) a uma rota do próprio host, que monta e assina o payload, sem segredo no bundle. `createPreviewWebhookClient` assina HMAC no navegador e serve só para execução local
+  - **Novo contato de teste no workspace:** `simulator.createTestContact` abre o simulador sem conversa selecionada; número de teste (dígitos começando com `0`) aparece como "Contato de teste 1234", não como telefone (`isTestContactNumber`). `contextLabels` troca os rótulos do painel de contexto embutido
   - Dados de demonstração: `createMockConversationsApi`, `createMockSSEProvider`, `PREVIEW_CONVERSATIONS`, `startPreviewScript`
   - **Editor visual de fluxos (robô):** `FlowsWorkspace` (tela completa; o host implementa `FlowsWorkspaceApi`) e as peças `FlowMapCanvas`, `FlowPalette`, `FlowNodePanel`, `FlowLegend`, `validateGraph`, `computeAutoLayout`; **prévia no desenho do WhatsApp** em `FlowWhatsAppPreview`; posições vivas das conversas no mapa (`countLiveByNode`)
   - Inbox e conversa: `ConversationsWorkspace`, `ConversationPane`, `MessageBubble`, `MessageComposer`, `RichMessageComposer`, `AudioRecorderButton`, `AudioTranscription`, `InteractiveMessage` (botões e listas), `WindowExpiredNotice` (janela de 24 h)
@@ -363,14 +364,14 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Usado por:** `ada-technology`, `quickcart`, `transportada`, `supermercado-noemia`, `entrelacos`
 
 ### @adatechnology/notification-module
-- **Versão:** `0.4.2` · `packages/backend/notification-module` · subpaths: `./queue/bullmq`, `./queue/amqp`, `./openapi`, `./testing`
+- **Versão:** `0.6.0` · `packages/backend/notification-module` · subpaths: `./queue/bullmq`, `./queue/amqp`, `./openapi`, `./testing`
 - **Para quê:** Notificação multicanal (inbox, push, e-mail, WhatsApp) com banco, preferência por usuário, silêncio, deduplicação, agendamento, retry e supressão.
 - **O que você ganha:**
   - Enviar para vários canais numa chamada (`SendNotificationUseCase`), com worker e cron prontos (`createNotificationWorker`, `createNotificationSchedules`)
   - **Modelos de mensagem versionados:** `UpsertTemplateUseCase`, `SeedDefaultTemplatesUseCase`; e-mail padrão `notification.standard-email` com **restaurar padrão**, que grava versão nova e mantém o histórico (`module.standardEmail.restoreDefault`)
   - Inbox com contador e SSE; preferências e políticas por categoria; dispositivos de push
   - Supressão por bounce e complaint (a chave é o HMAC do endereço, nunca o e-mail em claro)
-  - Rotas HTTP prontas (`createNotificationRoutes`) para `Bun.serve` e uWebSockets via `module-http`; OpenAPI em `./openapi`
+  - Rotas HTTP prontas (`createNotificationRoutes`) para `Bun.serve` e uWebSockets via `module-http`; OpenAPI em `./openapi`. **Escopos exigidos:** `notification:admin` nas rotas `admin` e `notification:send` (ou admin) no envio por máquina (`NOTIFICATION_SCOPE`; vocabulário do host via `scopes`)
   - Fila é porta: adaptadores BullMQ (`./queue/bullmq`) e AMQP (`./queue/amqp`)
 - **Entradas:** `createNotificationModule` em `src/NotificationModule.ts`; `createNotificationRoutes` em `src/http/routes.ts`; `createNotificationWorker` em `src/worker`; `runNotificationMigrations`
 - **Precisa de:** PostgreSQL (Drizzle); drivers injetados (`email-provider`, `push-provider`, WhatsApp); fila opcional (BullMQ/Redis ou RabbitMQ). Peers: `drizzle-orm`.
@@ -437,13 +438,15 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Atenção / não verificado:** Sem README.
 
 ### @adatechnology/user-module
-- **Versão:** `0.2.1` · `packages/backend/user-module` · subpaths: `./schema`, `./http/fetch`, `./http/uws`, `./openapi`
+- **Versão:** `0.4.0` · `packages/backend/user-module` · subpaths: `./schema`, `./http/fetch`, `./http/uws`, `./openapi`
 - **Para quê:** Autenticação local e Keycloak, sessão com refresh, reset de senha e perfil, com banco.
 - **O que você ganha:**
   - Login local e via Keycloak (`AuthenticateLocalUseCase`, `AuthenticateKeycloakUseCase`)
   - Criar usuário, perfil e listar equipe (`CreateUserUseCase`, `UpdateProfileUseCase`, `ListUsersUseCase`)
   - Sessão com refresh token e cookie (`RefreshSessionUseCase`, `SignOutUseCase`)
   - Reset de senha por e-mail (`RequestPasswordResetUseCase`, `ConfirmPasswordResetUseCase`)
+  - Administrador define a senha de outra pessoa (`PUT /admin/users/:id/password`, `SetUserPasswordUseCase`): revoga as sessões dela, auditado por `onPasswordChanged` com `changedByUserId`
+  - Cookie de refresh com `sameSite` `lax` (padrão), `none` ou `strict`
   - Avatar por storage injetável
   - Rotas prontas (`createUserRoutes`; adaptadores `./http/fetch`, `./http/uws`, `./openapi`)
 - **Entradas:** `createUserModule` em `src/UserModule.ts`; `createUserRoutes` em `src/http/`; `runUserMigrations`
@@ -585,13 +588,14 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Usado por:** `ada-technology`
 
 ### @adatechnology/catalog-module
-- **Versão:** `0.1.3` · `packages/backend/catalog-module` · subpaths: `./http/fetch`, `./http/uws`, `./openapi`
+- **Versão:** `0.3.0` · `packages/backend/catalog-module` · subpaths: `./http/fetch`, `./http/uws`, `./openapi`
 - **Para quê:** Catálogo, cardápio e produtos com banco: CRUD, seções, estoque atômico, importação em lote e publicação opcional na Meta Commerce.
 - **O que você ganha:**
   - CRUD de produtos, catálogos e seções; baixa de estoque atômica; importação em lote (`POST /products/bulk-import`)
   - Identificar produto por foto (`IdentifyProductByImageUseCase`, embeddings em `productEmbeddings`) junto de `product-vision-provider`
   - Publicação na Meta desligada por padrão (porta `MetaCatalogSyncPort`)
-  - Rotas por `createCatalogRoutes`; adaptadores `./http/fetch`, `./http/uws` e OpenAPI em `./openapi`
+  - Rotas por `createCatalogRoutes`; adaptadores `./http/fetch`, `./http/uws` e OpenAPI em `./openapi`. **Escopos exigidos:** `catalog:read` (ou `catalog:write`) nas leituras e `catalog:write` nas mutações (`CATALOG_SCOPE`; vocabulário do host via `scopes`)
+  - Listagem pronta para a tela: produto traz `catalogName`, catálogo traz `productCount`; `GET /catalogs/:id`. O `products-ui` lê direto com `createCatalogModuleProductsApi`
 - **Entradas:** `createCatalogModule` em `src/CatalogModule.ts`; `createCatalogRoutes`; `runCatalogMigrations`, `runCatalogVisionMigrations`
 - **Precisa de:** PostgreSQL (Drizzle). A busca por foto exige a extensão `vector` no banco (migration de visão com journal próprio). Imagens por `catalog-image-storage-provider`. Peers: `drizzle-orm`.
 - **Compatibilidade:** Drizzle peer `>=0.36.0 <1` (não aceita 1.x); schema `catalog`; migrations com journal, mais um conjunto separado para visão.
@@ -630,10 +634,11 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Atenção / não verificado:** Sem README.
 
 ### @adatechnology/products-ui
-- **Versão:** `0.1.0` · `packages/frontend/products-ui`
+- **Versão:** `0.3.0` · `packages/frontend/products-ui`
 - **Para quê:** Gestão de produtos e catálogos com API injetada.
 - **O que você ganha:**
   - `ProductsWorkspace`, `ProductList`, `ProductForm`, `CatalogList`, `BulkImport`, `ImageUpload` (com recorte de fundo)
+  - **API pronta para o `catalog-module`:** `createCatalogModuleProductsApi({ baseUrl, getHeaders })` implementa `ProductsApi` sobre as rotas do módulo (envelope, paginação, importação CSV com `parseBulkImportCsv`, erro `CatalogModuleApiError`)
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `catalog-module`. Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
@@ -910,11 +915,12 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 ## Infraestrutura, dados e observabilidade
 
 ### @adatechnology/module-http
-- **Versão:** `0.1.1` · `packages/backend/module-http` · subpaths: `./fetch`, `./uws`, `./openapi`, `./testing`
+- **Versão:** `0.2.0` · `packages/backend/module-http` · subpaths: `./fetch`, `./uws`, `./openapi`, `./testing`
 - **Para quê:** Camada HTTP compartilhada dos módulos: a rota é dado, e dela saem o adaptador `fetch`, o adaptador uWebSockets e o OpenAPI.
 - **O que você ganha:**
   - `compileRoutes`, `dispatchRoute`, `findRoute`
   - `./fetch` (`createModuleFetchRouter`), `./uws`, `./openapi`, `./testing`
+  - Escopo checado no despachante: `requiredScopes` (basta um, senão 403); rota `admin`/`service` sem declarar exige ao menos um escopo na identidade
 - **Entradas:** `src/index.ts`
 - **Precisa de:** uWebSockets.js é peer opcional (só `./uws`).
 - **Compatibilidade:** Bun/Node.
