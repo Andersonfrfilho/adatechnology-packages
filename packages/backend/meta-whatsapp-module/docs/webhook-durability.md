@@ -66,6 +66,10 @@ const inboundQueue: InboundDispatchQueueInterface = {
 const receiveWebhook = new ReceiveWebhookUseCase({ ...params, inboundQueue })
 ```
 
+Com `createMetaWhatsAppModule`, a mesma fila entra por `providers.inboundQueue`, e o worker usa
+`whatsapp.webhook.processInboundDispatch.execute(job)`. Sem Redis, uma tabela no Postgres atende as
+duas garantias — ver [`postgres-only.md`](./postgres-only.md).
+
 A porta existe para o módulo **não** escolher a tecnologia — BullMQ, SQS, o que o host já tiver.
 Mas exige duas garantias, e sem as duas o padrão não entrega o que promete:
 

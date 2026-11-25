@@ -52,6 +52,11 @@ import { WhatsAppChannelAdapter, type PreviewMediaSupport } from './channel/What
 import { ReceiveWebhookUseCase } from './channel/ReceiveWebhook.use-case'
 import { IngestInboundMediaUseCase } from './channel/IngestInboundMedia.use-case'
 import { verifyWebhookChallenge, type NonceStoreInterface } from './channel/webhookSecurity'
+import {
+  InboundEffectsDispatcher,
+  ProcessInboundDispatchUseCase,
+  type InboundDispatchQueueInterface,
+} from './channel/inboundDispatch'
 import { TranscribeAudioUseCase, type TranscribeAudioDependencies } from './use-cases/TranscribeAudio.use-case'
 import { createTranscriptionPolicyResolver } from './use-cases/resolveTranscriptionPolicy'
 import { StorePreviewMediaUseCase } from './use-cases/StorePreviewMedia.use-case'
@@ -144,12 +149,19 @@ export interface MetaWhatsAppTranscriptionConfig {
 export interface MetaWhatsAppModuleProviders {
   /**
    * Canal de envio. Ausente, o módulo monta o `WhatsAppChannelAdapter` sobre a Graph API com
-   * `config` — o comportamento de sempre. Injetado, TODO envio (texto, mídia, template, interativo,
+   * `config` — o comportamento de sempre. Injetado, todo envio (texto, mídia, template, interativo,
    * ações de fluxo) e a busca de mídia passam por ele: é o que permite sandbox, simulador e teste
    * sem chamar a Meta. `features.previewMedia` só vale para o canal padrão; um canal injetado
    * resolve a própria mídia em `fetchMediaAsBase64`.
    */
   channel?: ChannelAdapterInterface
+  /**
+   * Fila durável para os efeitos do webhook (hooks, realtime). Ausente, rodam dentro da requisição,
+   * como sempre. Presente, o webhook só persiste e enfileira; o worker do host chama
+   * `webhook.processInboundDispatch.execute(job)`. Ver docs/webhook-durability.md — qualquer fila
+   * com durabilidade e retentativa serve, inclusive uma tabela no Postgres.
+   */
+  inboundQueue?: InboundDispatchQueueInterface
   objectStorage?: ObjectStorageInterface
   // Cache do host, compartilhado entre instâncias (ver CacheInterface). Hoje serve os grafos de
   // fluxo, que são lidos a cada mensagem recebida.
@@ -246,6 +258,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
     startState,
     hooks,
     realtime: providers.realtime,
+    ...(providers.inboundQueue ? { inboundQueue: providers.inboundQueue } : {}),
     redactInboundLocation: params.features?.redactInboundLocation ?? false,
   })
 
@@ -410,6 +423,15 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
       // GET de verificação da Meta — o host liga na sua rota e devolve o retorno como texto puro.
       verifyChallenge: (query: { mode: string | null; token: string | null; challenge: string | null }) =>
         verifyWebhookChallenge({ ...query, expectedToken: config.webhookVerifyToken }),
+      // Lado do worker de `providers.inboundQueue`: roda os efeitos de um job já enfileirado. Existe
+      // mesmo sem fila configurada — um worker de outra instância pode consumir a fila desta.
+      processInboundDispatch: new ProcessInboundDispatchUseCase(
+        new InboundEffectsDispatcher({
+          sessionRepository,
+          ...(hooks ? { hooks } : {}),
+          ...(providers.realtime ? { realtime: providers.realtime } : {}),
+        }),
+      ),
     },
     // undefined quando features.flowEngine === false.
     flows: flowInterpreter

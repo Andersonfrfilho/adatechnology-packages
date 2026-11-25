@@ -39,5 +39,6 @@ describe('createMetaWhatsAppModule — canal injetável', () => {
     })
     expect(typeof module.conversations.requestHuman.execute).toBe('function')
     expect(typeof module.conversations.send.sendInteractive).toBe('function')
+    expect(typeof module.webhook.processInboundDispatch.execute).toBe('function')
   })
 })
