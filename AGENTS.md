@@ -15,6 +15,13 @@ Se um arquivo externo não estiver acessível no ambiente atual, informe isso e
 use `CLAUDE.md` e este arquivo como fallback. Instruções do sistema, do
 desenvolvedor e do usuário têm precedência sobre este documento.
 
+## Catálogo de capacidades
+
+Antes de implementar qualquer funcionalidade num app, leia a seção "Antes de escrever código num app, procure aqui" de
+`docs/CATALOGO.md`. Ela mapeia necessidade → pacote (simulador de conversa, motor de fluxos com editor visual, modelos
+de mensagem, login e equipe, agenda, notificações, nota fiscal, pagamentos e outros). Não reimplemente o que o SDK já
+entrega. Todo PR que cria um pacote ou uma capacidade atualiza a entrada em `docs/CATALOGO.md` no mesmo PR.
+
 ## Ferramentas
 
 - Use `rtk` explicitamente nos comandos compatíveis para reduzir a saída:
