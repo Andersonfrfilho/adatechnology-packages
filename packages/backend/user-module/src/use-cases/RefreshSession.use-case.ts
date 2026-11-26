@@ -12,16 +12,26 @@ import { nowOf, runHook, type UserDependencies } from './userModule.types'
 export class RefreshSessionUseCase {
   constructor(private readonly dependencies: UserDependencies) {}
 
+  /**
+   * `rememberMe` é só a dica do cookie de um token emitido antes de o servidor registrar a escolha: a
+   * loja padrão a ignora quando o token já a guarda. Token novo não depende dela.
+   */
   async execute(params: { readonly refreshToken: string; readonly rememberMe?: boolean }): Promise<UserSession> {
-    const reuseGraceSeconds = this.dependencies.config.refreshToken?.reuseGraceSeconds
-    const refreshExpiresInSeconds = resolveRefreshExpiresInSeconds({
-      config: this.dependencies.config,
-      rememberMe: params.rememberMe,
-    })
+    const { config } = this.dependencies
+    const reuseGraceSeconds = config.refreshToken?.reuseGraceSeconds
+    const absoluteExpiresInSeconds = config.refreshToken?.absoluteExpiresInSeconds
+    // Para loja customizada que só conhece `newExpiresInSeconds`: o comportamento de antes, pela dica.
+    const hintedExpiresInSeconds = resolveRefreshExpiresInSeconds({ config, rememberMe: params.rememberMe })
 
     const rotated = await this.dependencies.refreshTokenStore.rotate({
       tokenHash: hashToken(params.refreshToken),
-      newExpiresInSeconds: refreshExpiresInSeconds,
+      newExpiresInSeconds: hintedExpiresInSeconds,
+      expiresInSecondsByChoice: {
+        remember: resolveRefreshExpiresInSeconds({ config, rememberMe: true }),
+        session: resolveRefreshExpiresInSeconds({ config, rememberMe: false }),
+      },
+      ...(params.rememberMe === undefined ? {} : { rememberMeHint: params.rememberMe }),
+      ...(absoluteExpiresInSeconds === undefined ? {} : { absoluteExpiresInSeconds }),
       ...(reuseGraceSeconds === undefined ? {} : { reuseGraceSeconds }),
     })
     if (!rotated) throw new NotAuthenticatedError()
@@ -52,6 +62,14 @@ export class RefreshSessionUseCase {
     const profile = toUserProfile(row)
     const { accessToken, expiresInSeconds } = await this.dependencies.tokenService.sign(profile)
 
-    return { accessToken, expiresInSeconds, refreshToken: rotated.token, refreshExpiresInSeconds, user: profile }
+    const rememberMe = rotated.rememberMe ?? params.rememberMe
+    return {
+      accessToken,
+      expiresInSeconds,
+      refreshToken: rotated.token,
+      refreshExpiresInSeconds: rotated.expiresInSeconds ?? hintedExpiresInSeconds,
+      ...(rememberMe === undefined ? {} : { rememberMe }),
+      user: profile,
+    }
   }
 }

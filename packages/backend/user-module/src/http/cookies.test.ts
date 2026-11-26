@@ -124,22 +124,22 @@ describe('lembrar de mim no cookie de refresh', () => {
     )
   })
 
-  it('lembrado: persistente (Max-Age) e marcado no valor', () => {
+  it('lembrado: persistente (Max-Age); a escolha não vai no valor do cookie', () => {
     const cookie = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, rememberMe: true })
-    expect(cookie).toContain(`${REFRESH_TOKEN_COOKIE_NAME}=m~${token};`)
+    expect(cookie).toContain(`${REFRESH_TOKEN_COOKIE_NAME}=${token};`)
     expect(cookie).toContain('Max-Age=60')
   })
 
   it('não lembrado: cookie de sessão, sem Max-Age nem Expires', () => {
     const cookie = buildRefreshTokenCookie({ token, maxAgeSeconds: 60, rememberMe: false })
-    expect(cookie).toContain(`${REFRESH_TOKEN_COOKIE_NAME}=s~${token};`)
+    expect(cookie).toContain(`${REFRESH_TOKEN_COOKIE_NAME}=${token};`)
     expect(cookie).not.toContain('Max-Age')
     expect(cookie).not.toContain('Expires')
     expect(cookie).toContain('HttpOnly')
     expect(cookie).toContain('Secure')
   })
 
-  it('o valor lido volta ao token e à escolha; formato antigo fica sem escolha', () => {
+  it('o prefixo legado ainda é lido (cookie emitido antes do registro no servidor); sem prefixo não há dica', () => {
     expect(parseRefreshCookieValue(`m~${token}`)).toEqual({ token, rememberMe: true })
     expect(parseRefreshCookieValue(`s~${token}`)).toEqual({ token, rememberMe: false })
     expect(parseRefreshCookieValue(token)).toEqual({ token, rememberMe: undefined })

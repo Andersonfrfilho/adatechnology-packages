@@ -65,7 +65,7 @@ describe('migrations embarcadas', () => {
     for (let index = 1; index < timestamps.length; index += 1) {
       expect(timestamps[index]).toBeGreaterThan(Number(timestamps[index - 1]))
     }
-    expect(migrationNames().length).toBe(11)
+    expect(migrationNames().length).toBe(13)
   })
 
   it('nenhuma migration carrega parâmetro de bind — DDL é sempre literal', () => {

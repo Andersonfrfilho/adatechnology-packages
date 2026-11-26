@@ -61,6 +61,12 @@ export type UseTeamResult = {
   readonly canEdit: boolean
   readonly canChangeAvatar: boolean
   readonly canSendPasswordReset: boolean
+  /** `false` quando a `UserApi` nao traz `setTeamMemberPassword` — a acao de definir senha some. */
+  readonly canSetPassword: boolean
+  /** Id de quem acabou de ter a senha definida, para a linha confirmar. */
+  readonly passwordSetFor: string | undefined
+  /** `true` quando o servidor aceitou a senha (a tela fecha o formulario); `false` deixa o erro em `error`. */
+  setMemberPassword: (userId: string, password: string) => Promise<boolean>
   /** `false` quando a `UserApi` não traz `unlockTeamMember` — a ação de destravar some. */
   readonly canUnlock: boolean
   unlockMember: (userId: string) => Promise<void>
@@ -84,6 +90,7 @@ export type TeamApi = Pick<
   | 'setTeamMemberActive'
   | 'setTeamMemberAvatar'
   | 'sendPasswordReset'
+  | 'setTeamMemberPassword'
   | 'unlockTeamMember'
 >
 
@@ -106,6 +113,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [sort, setSort] = useState<TeamSort | undefined>(undefined)
   const [passwordResetSentTo, setPasswordResetSentTo] = useState<string | undefined>(undefined)
+  const [passwordSetFor, setPasswordSetFor] = useState<string | undefined>(undefined)
 
   const listTeam = api.listTeam
   const enabled = Boolean(listTeam)
@@ -275,6 +283,26 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
       }
     },
     canSendPasswordReset: Boolean(api.sendPasswordReset),
+    canSetPassword: Boolean(api.setTeamMemberPassword),
+    passwordSetFor,
+    setMemberPassword: async (userId: string, password: string) => {
+      if (!api.setTeamMemberPassword) return false
+      setSaving(true)
+      setError(undefined)
+      setErrorCode(undefined)
+      setPasswordSetFor(undefined)
+      try {
+        await api.setTeamMemberPassword(userId, password)
+        setPasswordSetFor(userId)
+        return true
+      } catch (cause) {
+        setError(messageOf(cause, 'Nao foi possivel definir a senha'))
+        setErrorCode(codeOf(cause))
+        return false
+      } finally {
+        setSaving(false)
+      }
+    },
     canUnlock: Boolean(api.unlockTeamMember),
     unlockMember: async (userId: string) => {
       if (!api.unlockTeamMember) return

@@ -57,9 +57,10 @@ export function parseCookieHeader(header: string | undefined): Readonly<Record<s
 }
 
 /**
- * A escolha "lembrar de mim" viaja no próprio valor do cookie (`m~<token>` / `s~<token>`), sem
- * segundo cookie nem coluna nova: o refresh sabe qual validade repetir ao rotacionar. O token cru
- * é hexadecimal, então `~` nunca aparece nele; cookie sem prefixo é o formato de sempre.
+ * Formato LEGADO do valor do cookie (`m~<token>` / `s~<token>`): a escolha "lembrar de mim" viajava ali.
+ * Hoje a escolha é gravada no refresh token, no servidor, e o cookie novo leva só o token — um prefixo
+ * no cliente seria editável por quem o tem. Continuamos LENDO o prefixo (cookie emitido antes da
+ * mudança) como dica para a primeira rotação; o token cru é hexadecimal, então `~` nunca aparece nele.
  */
 const REMEMBER_PREFIX = 'm~'
 const SESSION_PREFIX = 's~'
@@ -70,6 +71,7 @@ export type ParsedRefreshCookie = {
   readonly rememberMe: boolean | undefined
 }
 
+/** Separa token e dica legada do valor bruto do cookie de refresh (já decodificado). */
 export function parseRefreshCookieValue(value: string): ParsedRefreshCookie {
   if (value.startsWith(REMEMBER_PREFIX)) return { token: value.slice(REMEMBER_PREFIX.length), rememberMe: true }
   if (value.startsWith(SESSION_PREFIX)) return { token: value.slice(SESSION_PREFIX.length), rememberMe: false }
@@ -82,12 +84,11 @@ export function buildRefreshTokenCookie(
     readonly maxAgeSeconds: number
     /** Ausente = `lax`, o comportamento de sempre. */
     readonly sameSite?: RefreshCookieSameSite
-    /** Ausente = cookie persistente no formato de sempre; `false` = cookie de sessão (sem `Max-Age`). */
+    /** Ausente = cookie persistente; `false` = cookie de sessão (sem `Max-Age`). Não vai no valor do cookie. */
     readonly rememberMe?: boolean
   },
 ): string {
-  const prefix = params.rememberMe === undefined ? '' : params.rememberMe ? REMEMBER_PREFIX : SESSION_PREFIX
-  const value = encodeURIComponent(`${prefix}${params.token}`)
+  const value = encodeURIComponent(params.token)
   const name = params.name ?? REFRESH_TOKEN_COOKIE_NAME
   const maxAge = params.rememberMe === false ? '' : `; Max-Age=${params.maxAgeSeconds}`
   return `${name}=${value}; ${attributesFor(params.sameSite, params.path)}${maxAge}`
