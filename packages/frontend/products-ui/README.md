@@ -49,3 +49,15 @@ import { PRODUCT_OPTIONAL_FIELD, ProductsProvider } from '@adatechnology/product
   (o backend substitui o objeto). Valores que não são texto (número, lista) voltam intactos se não
   forem editados.
 - `AvailabilityScheduleEditor` e `AttributesEditor` também são exportados para telas próprias.
+
+## Seletor de hora próprio (`renderTimeInput`)
+
+O horário de venda (`Das`/`Até`) usa `<input type="time">` por padrão. Para o seletor 24h do seu
+design system, passe `renderTimeInput` ao `ProductForm` (ou ao `AvailabilityScheduleEditor`). Valor
+`HH:mm` ou vazio.
+
+```tsx
+<ProductForm renderTimeInput={({ id, label, value, onChange }) => (
+  <TimeInput id={id} label={label} value={value} onChange={onChange} />
+)} />
+```

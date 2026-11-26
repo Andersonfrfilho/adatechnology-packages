@@ -9,8 +9,13 @@ import type { PublicPostSummary } from '@adatechnology/content-contracts'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { ContentProvider } from '../providers/ContentProvider'
+import type { ContentAdminApi } from '../providers/types'
+import { EmojiPicker } from './EmojiPicker'
+import { FilePicker } from './FilePicker'
 import { MarkdownContent } from './MarkdownContent'
+import { MarkdownEditor } from './MarkdownEditor'
 import { PostCard } from './PostCard'
+import { PostEditor } from './PostEditor'
 import { ShareButtons } from './ShareButtons'
 
 describe('MarkdownContent', () => {
@@ -88,5 +93,110 @@ describe('PostCard e ShareButtons', () => {
     expect(html).toContain('href="https://wa.me/?text=')
     expect(html).toContain('rel="noopener noreferrer"')
     expect(html).not.toContain('<script')
+  })
+})
+
+describe('editor de corpo', () => {
+  const editorHtml = (props: { showToolbar?: boolean } = {}) =>
+    renderToStaticMarkup(
+      <ContentProvider>
+        <MarkdownEditor value="**oi**" onChange={() => undefined} labelledBy="x" {...props} />
+      </ContentProvider>,
+    )
+
+  it('mostra a barra com botões rotulados e atalhos nos títulos', () => {
+    const html = editorHtml()
+    expect(html).toContain('role="toolbar"')
+    for (const label of ['Negrito (Ctrl+B)', 'Itálico (Ctrl+I)', 'Link (Ctrl+K)', 'Imagem', 'Emoji', 'Lista numerada'])
+      expect(html).toContain(`aria-label="${label}"`)
+    expect(html).toContain('**oi**')
+    expect(html).toContain('role="tooltip"')
+    expect(html).not.toMatch(/ title=/)
+  })
+
+  it('esconde a barra por prop e mantém o textarea', () => {
+    const html = editorHtml({ showToolbar: false })
+    expect(html).not.toContain('role="toolbar"')
+    expect(html).toContain('<textarea')
+  })
+
+  it('seletor de arquivo usa textos em pt-BR, não o do navegador', () => {
+    const html = renderToStaticMarkup(
+      <ContentProvider>
+        <FilePicker
+          buttonLabel="Enviar imagem"
+          emptyLabel="Nenhum arquivo escolhido"
+          accept="image/*"
+          onPick={() => undefined}
+        />
+      </ContentProvider>,
+    )
+    expect(html).toContain('Enviar imagem')
+    expect(html).toContain('Nenhum arquivo escolhido')
+    expect(html).toMatch(/<input[^>]*hidden/)
+  })
+
+  it('emoji: categorias e grade acessíveis', () => {
+    const html = renderToStaticMarkup(
+      <ContentProvider>
+        <EmojiPicker onPick={() => undefined} onClose={() => undefined} />
+      </ContentProvider>,
+    )
+    expect(html).toContain('role="dialog"')
+    expect(html).toContain('Rostos')
+    expect(html).toContain('😀')
+  })
+})
+
+describe('PostEditor: pontos de customização', () => {
+  const adminApi = {
+    listPosts: async () => ({ items: [], total: 0, page: 1, pageSize: 20 }),
+    getPost: async () => {
+      throw new Error('n/a')
+    },
+    createPost: async () => {
+      throw new Error('n/a')
+    },
+    updatePost: async () => {
+      throw new Error('n/a')
+    },
+    publishPost: async () => {
+      throw new Error('n/a')
+    },
+    unpublishPost: async () => {
+      throw new Error('n/a')
+    },
+    archivePost: async () => undefined,
+    uploadCoverImage: async () => ({ url: 'https://x/y.png', key: 'y' }),
+  } as unknown as ContentAdminApi
+
+  const render = (props: Record<string, unknown> = {}) =>
+    renderToStaticMarkup(
+      <ContentProvider adminApi={adminApi}>
+        <PostEditor {...props} />
+      </ContentProvider>,
+    )
+
+  it('padrão: input nativo de agendamento e barra ligada', () => {
+    const html = render()
+    expect(html).toContain('type="datetime-local"')
+    expect(html).toContain('role="toolbar"')
+    expect(html).toContain('Nenhum arquivo escolhido')
+  })
+
+  it('renderDateTimeInput substitui o input nativo e recebe valor e rótulo', () => {
+    const html = render({
+      renderDateTimeInput: (props: { id: string; label: string; value: string }) => (
+        <span data-testid="custom" id={props.id}>{`custom:${props.label}:${props.value}`}</span>
+      ),
+    })
+    expect(html).not.toContain('datetime-local')
+    expect(html).toContain('custom:Agendar para:')
+  })
+
+  it('showFormattingToolbar=false esconde a barra e volta à dica de Markdown', () => {
+    const html = render({ showFormattingToolbar: false })
+    expect(html).not.toContain('role="toolbar"')
+    expect(html).toContain('Markdown:')
   })
 })

@@ -26,6 +26,8 @@ export type ContentWorkspaceProps = {
   readonly renderSelect?: RenderSelect
   /** Busca, aba, tags, página, tamanho e ordem da lista na URL (padrão: não). */
   readonly syncUrl?: boolean
+  /** Barra de formatação do corpo do post (padrão: ligada). */
+  readonly showFormattingToolbar?: boolean
 }
 
 export function ContentWorkspace({
@@ -35,6 +37,7 @@ export function ContentWorkspace({
   renderDateTimeInput,
   renderSelect,
   syncUrl,
+  showFormattingToolbar,
 }: ContentWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
   const [reloadKey, setReloadKey] = useState(0)
@@ -52,6 +55,8 @@ export function ContentWorkspace({
         key={view.postId ?? 'new'}
         {...(view.postId ? { postId: view.postId } : {})}
         {...(newPostDefaults ? { defaults: newPostDefaults } : {})}
+        {...(showFormattingToolbar === undefined ? {} : { showFormattingToolbar })}
+        {...(renderDateTimeInput ? { renderDateTimeInput } : {})}
         onSaved={handleSaved}
         onArchived={() => {
           setReloadKey((value) => value + 1)

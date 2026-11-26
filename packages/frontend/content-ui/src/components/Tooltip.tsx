@@ -1,26 +1,39 @@
 /**
  * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * Dica do pacote (nunca o `title` nativo): aparece no hover e no foco do teclado, some com Esc e
+ * herda cores dos tokens `--adc-*`. O texto repete o `aria-label` do botão que ela acompanha.
  */
 
-import { useId, type ReactElement, type ReactNode } from 'react'
+import { useId, useState, type ReactElement } from 'react'
 
 export type TooltipProps = {
   readonly text: string
   readonly children: ReactElement
 }
 
-/**
- * Dica por hover E foco de teclado, ligada ao controle por `aria-describedby`. Nunca o `title` nativo:
- * ele não aparece no foco, não é estilizável e some em toque. CSS puro, sem posicionamento em JS.
- */
-export function Tooltip({ text, children }: TooltipProps): ReactNode {
-  const tipId = useId()
+export function Tooltip({ text, children }: TooltipProps) {
+  const id = useId()
+  const [isHovered, setIsHovered] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
+
   return (
-    <span className="adc-tooltip">
-      <span aria-describedby={tipId} className="adc-tooltip__anchor">
+    <span
+      className="adc-tip"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape' || !(isHovered || isFocused)) return
+        setIsHovered(false)
+        setIsFocused(false)
+      }}
+    >
+      <span aria-describedby={id} className="adc-tip-target">
         {children}
       </span>
-      <span role="tooltip" id={tipId} className="adc-tooltip__bubble">
+      <span id={id} role="tooltip" className="adc-tooltip" data-visible={isHovered || isFocused}>
         {text}
       </span>
     </span>

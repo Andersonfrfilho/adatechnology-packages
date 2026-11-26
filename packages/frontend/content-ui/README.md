@@ -67,6 +67,32 @@ O editor protege alterações não salvas (aviso do navegador ao fechar a aba e 
 Voltar), valida com o mesmo schema do servidor, gera o slug do título enquanto o autor não o edita
 e esconde o upload quando a API não tem `uploadCoverImage`.
 
+### Editor do corpo: barra, emoji, imagens e seletores
+
+O corpo continua sendo **Markdown** (o formato guardado não muda); a barra escreve a sintaxe sobre a
+seleção: negrito, itálico, título (H2/H3), lista, lista numerada, citação, link, imagem e emoji.
+Atalhos: `Ctrl/Cmd+B`, `Ctrl/Cmd+I`, `Ctrl/Cmd+K`. A prévia fica ao lado no desktop e em aba no celular.
+
+- **Imagem no corpo**: o botão abre um painel com URL, descrição (alt) e, se o host definiu
+  `uploadCoverImage`, "Enviar do aparelho" (no celular o sistema oferece câmera ou galeria). O arquivo
+  sobe pela mesma API da capa (mesmos limites: JPG/PNG/WebP até 1 MB) e entra como `![alt](url)`.
+- **Emoji**: painel com busca (nome em pt-BR ou en) e categorias, sem dependência.
+- **Esconder a barra**: `<ContentWorkspace showFormattingToolbar={false} />` (ou no `PostEditor`).
+- **Seletor de data e hora próprio** para "Agendar para": `renderDateTimeInput`.
+  O valor é `YYYY-MM-DDTHH:mm` (hora local, 24h).
+
+```tsx
+<ContentWorkspace
+  renderDateTimeInput={({ id, label, value, onChange }) => (
+    <MyDateTimePicker id={id} label={label} value={value} onChange={onChange} />
+  )}
+/>
+```
+
+- **Seletor de arquivo** estilizado (botão + nome do arquivo): textos em `coverUpload`,
+  `imageUploadFromDevice` e `fileNoneChosen` (`messages`), não os do navegador.
+- Headless: `toggleWrap`, `toggleLinePrefix`, `insertLink`, `insertImage`, `insertText` e `MarkdownEditor`.
+
 ## Site público
 
 ```tsx

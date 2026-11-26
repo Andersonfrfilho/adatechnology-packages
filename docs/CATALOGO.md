@@ -131,9 +131,10 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/content-ui` · subpath: `./styles.css`
 - **Para quê:** Telas de blog/novidades com API injetada: painel e site público.
 - **O que você ganha:**
-  - Painel: `ContentWorkspace` (tela composta), `PostList` (filtros, selos de status ícone+palavra+cor, paginação), `PostEditor` (título, slug, resumo, Markdown com prévia ao vivo, capa por upload ou URL, tags, SEO, publicar/agendar/despublicar/arquivar, aviso de alteração não salva)
+  - Painel: `ContentWorkspace` (tela composta), `PostList` (filtros, selos de status ícone+palavra+cor, paginação), `PostEditor` (título, slug, resumo, corpo com barra de formatação — negrito, itálico, títulos, listas, citação, link, imagem (URL ou envio pela API de capa) e emoji, atalhos Ctrl/Cmd+B/I/K — guardando Markdown, com prévia ao vivo; `showFormattingToolbar={false}` esconde a barra; capa por upload ou URL, tags, SEO, publicar/agendar/despublicar/arquivar, aviso de alteração não salva)
   - Público: `PostCard`, `PostListPage` (paginação e filtro de tag por link), `PostPage` (capa, data, tempo de leitura, corpo, compartilhar), `ShareButtons` (WhatsApp, Facebook, X, LinkedIn por URL simples, copiar link, Web Share nativo)
   - Corpo renderizado do AST em elementos React, sem `dangerouslySetInnerHTML`; `buildPostMeta` para o `<head>` do host; `renderLink` para o roteador do host
+  - Pontos de customização: `renderDateTimeInput` (seletor de data e hora do host para agendar) e seletor de arquivo estilizado com textos nas mensagens (`coverUpload`, `fileNoneChosen`)
   - Tema por variáveis `--adc-*`; `pt-BR` e `en`; headless `usePostEditor`, `usePostList`, `useUnsavedChangesGuard`
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `content-module` (interfaces `ContentAdminApi`, `ContentPublicApi`). Peers: `react`, `react-dom`.

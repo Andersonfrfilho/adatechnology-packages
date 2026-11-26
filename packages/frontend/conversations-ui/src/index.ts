@@ -108,6 +108,8 @@ export type {
   DocumentsWorkspaceLabels,
   DocumentsWorkspaceClassNames,
   DocumentsFiltersContext,
+  DateInputProps,
+  RenderDateInput,
 } from './documents'
 export { SortableHead, MultiSelectFilter, BulkActionBar, ListingPagination } from './listing'
 export type {
