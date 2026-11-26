@@ -5,7 +5,7 @@ import {
   type PreviewPayloadEnvelope,
 } from '@adatechnology/meta-whatsapp-contracts/testing'
 import type { MetaWhatsAppDatabase } from './database.types'
-import { ConfigMissingError, FLOW_ACTION_KIND } from '@adatechnology/meta-whatsapp-contracts'
+import { ConfigMissingError, FLOW_ACTION_KIND, type ConversationSession } from '@adatechnology/meta-whatsapp-contracts'
 import type {
   CatalogPort,
   ChannelAdapterInterface,
@@ -63,6 +63,8 @@ import { FlowHandoff } from './flows/FlowHandoff'
 import { PostgresAdvisoryFlowTurnLock, type FlowTurnLockInterface } from './flows/flowTurnLock'
 import type { FlowRunnerConfig } from './flows/flowRunner.types'
 import { createSendMediaAction } from './flows/createSendMediaAction'
+import { createSendCtaUrlAction } from './flows/createSendCtaUrlAction'
+import { createSendLocationAction } from './flows/createSendLocationAction'
 import { createSendProductListAction } from './flows/createSendProductListAction'
 import { FlowMediaRepository } from './repositories/FlowMediaRepository'
 import { FlowMediaIdRepository } from './repositories/FlowMediaIdRepository'
@@ -331,6 +333,17 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
       FLOW_ACTION_KIND.HANDOFF,
       flowHandoff.createActionHandler((turn) => flowRunner.variablesFor(turn)),
     )
+  }
+
+  // Botão de link e localização são comportamento de canal, como o handoff: o pacote registra sozinho.
+  if (flowInterpreter && flowRunner) {
+    const linkParams = {
+      logMessage,
+      startState,
+      variablesFor: (turn: { session: ConversationSession; context: Record<string, unknown> }) => flowRunner.variablesFor(turn),
+    }
+    flowInterpreter.registerFlowAction(FLOW_ACTION_KIND.SEND_CTA_URL, createSendCtaUrlAction(linkParams))
+    flowInterpreter.registerFlowAction(FLOW_ACTION_KIND.SEND_LOCATION, createSendLocationAction(linkParams))
   }
 
   const receiveWebhook = new ReceiveWebhookUseCase({

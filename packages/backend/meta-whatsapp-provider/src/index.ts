@@ -29,6 +29,7 @@ export type {
   FetchMediaResult,
   InteractiveButton,
   SendInteractiveButtonsParams,
+  SendInteractiveCtaUrlParams,
   InteractiveListRow,
   InteractiveListSection,
   SendInteractiveListParams,

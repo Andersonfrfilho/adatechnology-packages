@@ -75,6 +75,23 @@ export type ChannelInteractiveButtonsParams = {
   buttons: readonly InteractiveButton[]
 }
 
+export type ChannelCtaUrlParams = {
+  to: string
+  body: string
+  /** Texto do botão que abre o link (até 20 caracteres). */
+  displayText: string
+  /** Só http(s). */
+  url: string
+}
+
+export type ChannelLocationParams = {
+  to: string
+  latitude: number
+  longitude: number
+  name?: string
+  address?: string
+}
+
 export interface ChannelAdapterInterface {
   sendText(to: string, body: string, options?: SendTextOptions): Promise<{ externalMessageId: string | null }>
   /**
@@ -97,6 +114,10 @@ export interface ChannelAdapterInterface {
    * fazia antes. A Meta limita a 3 botões, e o provider recusa o quarto.
    */
   sendInteractiveButtons?(params: ChannelInteractiveButtonsParams): Promise<{ externalMessageId: string | null }>
+  /** Botão que abre um link (`cta_url`) — opcional: sem ele, a action `send_cta_url` manda o link no texto. */
+  sendCtaUrl?(params: ChannelCtaUrlParams): Promise<{ externalMessageId: string | null }>
+  /** Localização nativa (pino no mapa) — opcional: sem ele, a action `send_location` não envia nada. */
+  sendLocation?(params: ChannelLocationParams): Promise<{ externalMessageId: string | null }>
   /**
    * Vitrine de produtos — opcional pelo mesmo motivo do botão: canal que não sabe enviar produto
    * continua funcionando, e a ausência do método é o que desliga o recurso, sem flag `hasCatalog`.

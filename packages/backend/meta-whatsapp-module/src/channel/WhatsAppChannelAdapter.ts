@@ -5,6 +5,8 @@ import {
   isPreviewContact,
   type ChannelAdapterInterface,
   type ChannelInteractiveButtonsParams,
+  type ChannelCtaUrlParams,
+  type ChannelLocationParams,
   type ChannelInteractiveListParams,
   type ObjectStorageInterface,
   type SendChannelMediaParams,
@@ -134,6 +136,27 @@ export class WhatsAppChannelAdapter implements ChannelAdapterInterface {
         buttons: params.buttons,
       }),
     )
+    return { externalMessageId: result.waMessageId }
+  }
+
+  async sendCtaUrl(params: ChannelCtaUrlParams): Promise<{ externalMessageId: string | null }> {
+    const previewId = this.previewMessageId(params.to)
+    if (previewId) return { externalMessageId: previewId }
+    const result = await this.translateErrors(() =>
+      this.messages.sendInteractiveCtaUrl({
+        to: params.to,
+        bodyText: params.body,
+        displayText: params.displayText,
+        url: params.url,
+      }),
+    )
+    return { externalMessageId: result.waMessageId }
+  }
+
+  async sendLocation(params: ChannelLocationParams): Promise<{ externalMessageId: string | null }> {
+    const previewId = this.previewMessageId(params.to)
+    if (previewId) return { externalMessageId: previewId }
+    const result = await this.translateErrors(() => this.messages.sendLocation(params))
     return { externalMessageId: result.waMessageId }
   }
 

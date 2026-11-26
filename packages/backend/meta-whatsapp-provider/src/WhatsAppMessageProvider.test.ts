@@ -216,3 +216,24 @@ describe('WhatsAppMessageProvider.sendTemplate', () => {
     ])
   })
 })
+
+describe('WhatsAppMessageProvider.sendInteractiveCtaUrl', () => {
+  test('sends the cta_url payload the Cloud API expects', async () => {
+    const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.cta' }] })
+    const result = await buildProvider().sendInteractiveCtaUrl({
+      to: '5511999990000', bodyText: 'Veja', displayText: 'Abrir', url: 'https://exemplo.test/x',
+    })
+    expect(result).toEqual({ waMessageId: 'wamid.cta' })
+    const payload = JSON.parse(String(calls[0]?.requestInit.body)) as Record<string, unknown>
+    expect(payload).toMatchObject({
+      type: 'interactive',
+      interactive: { type: 'cta_url', body: { text: 'Veja' }, action: { name: 'cta_url', parameters: { display_text: 'Abrir', url: 'https://exemplo.test/x' } } },
+    })
+  })
+
+  test('refuses a non-http link and a label over 20 characters', async () => {
+    const provider = buildProvider()
+    await expect(provider.sendInteractiveCtaUrl({ to: '1', bodyText: 'b', displayText: 'Abrir', url: 'javascript:alert(1)' })).rejects.toBeInstanceOf(WhatsAppRejectionError)
+    await expect(provider.sendInteractiveCtaUrl({ to: '1', bodyText: 'b', displayText: 'x'.repeat(21), url: 'https://a.test' })).rejects.toBeInstanceOf(WhatsAppRejectionError)
+  })
+})

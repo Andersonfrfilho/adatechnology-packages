@@ -14,6 +14,8 @@ export type FlowActionKind = string
 // módulo registra o handler) e duas cópias divergem sem nada acusar.
 export const FLOW_ACTION_KIND = {
   HANDOFF: 'handoff',
+  SEND_CTA_URL: 'send_cta_url',
+  SEND_LOCATION: 'send_location',
   RATE_LIMITED_HANDOFF: 'rate_limited_handoff',
   SEND_PRODUCT_LIST: 'send_product_list',
   SEND_MEDIA: 'send_media',
