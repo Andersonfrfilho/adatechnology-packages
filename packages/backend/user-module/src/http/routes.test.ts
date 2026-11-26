@@ -26,7 +26,11 @@ const SESSION: UserSession = {
   user: { id: 'u1', email: 'a@example.com', name: 'A', role: 'staff', isActive: true },
 }
 
-type Captured = { login?: Record<string, unknown>; refresh?: Record<string, unknown> }
+type Captured = {
+  login?: Record<string, unknown>
+  refresh?: Record<string, unknown>
+  storedRememberMe?: boolean
+}
 
 async function buildRoutes(config: UserModuleConfig, captured: Captured = {}): Promise<readonly ModuleRoute[]> {
   const module = await createUserModule({ db: {} as unknown as UserDatabase, config })
@@ -37,13 +41,16 @@ async function buildRoutes(config: UserModuleConfig, captured: Captured = {}): P
       refreshSession: {
         execute: async (params: Record<string, unknown>) => {
           captured.refresh = params
-          return SESSION
+          // O servidor é quem diz a escolha: aqui, a do token que o dublê "guardou" ou a dica recebida.
+          const rememberMe = captured.storedRememberMe ?? (params['rememberMe'] as boolean | undefined)
+          return rememberMe === undefined ? SESSION : { ...SESSION, rememberMe }
         },
       } as unknown as UserModule['useCases']['refreshSession'],
       authenticateLocal: {
         execute: async (params: Record<string, unknown>) => {
           captured.login = params
-          return SESSION
+          const rememberMe = params['rememberMe'] as boolean | undefined
+          return rememberMe === undefined ? SESSION : { ...SESSION, rememberMe }
         },
       } as unknown as UserModule['useCases']['authenticateLocal'],
       signUp: { execute: async () => SESSION } as unknown as UserModule['useCases']['signUp'],
@@ -164,13 +171,13 @@ describe('lembrar de mim nas rotas', () => {
     expect(captured.login).not.toHaveProperty('rememberMe')
   })
 
-  it('login com rememberMe true: cookie persistente marcado', async () => {
+  it('login com rememberMe true: cookie persistente', async () => {
     const captured: Captured = {}
     const route = find(await buildRoutes(BASE_CONFIG, captured), 'POST', '/auth/login')
 
     const result = await route!.handler(contextWith({}, { ...credentials, rememberMe: true }))
 
-    expect(setCookieOf(result)).toStartWith('user_refresh_token=m~novo-refresh;')
+    expect(setCookieOf(result)).toStartWith('user_refresh_token=novo-refresh;')
     expect(setCookieOf(result)).toContain('Max-Age=3600')
     expect(captured.login).toMatchObject({ rememberMe: true })
   })
@@ -180,24 +187,28 @@ describe('lembrar de mim nas rotas', () => {
 
     const result = await route!.handler(contextWith({}, { ...credentials, rememberMe: false }))
 
-    expect(setCookieOf(result)).toStartWith('user_refresh_token=s~novo-refresh;')
+    expect(setCookieOf(result)).toStartWith('user_refresh_token=novo-refresh;')
     expect(setCookieOf(result)).not.toContain('Max-Age')
   })
 
-  it('refresh mantém a escolha: lembrado segue persistente, de sessão segue sem Max-Age', async () => {
+  it('refresh segue a escolha que o servidor devolve; o prefixo legado só serve de dica', async () => {
     const captured: Captured = {}
     const route = find(await buildRoutes(BASE_CONFIG, captured), 'POST', '/auth/refresh')
 
+    // Cookie legado `m~`: o prefixo vira dica para o caso de uso e o cookie novo sai sem prefixo.
     const remembered = await route!.handler(contextWith({ cookie: 'user_refresh_token=m~antigo' }))
     expect(captured.refresh).toEqual({ refreshToken: 'antigo', rememberMe: true })
-    expect(setCookieOf(remembered)).toStartWith('user_refresh_token=m~novo-refresh;')
+    expect(setCookieOf(remembered)).toStartWith('user_refresh_token=novo-refresh;')
     expect(setCookieOf(remembered)).toContain('Max-Age=3600')
 
-    const sessionOnly = await route!.handler(contextWith({ cookie: 'user_refresh_token=s~antigo' }))
-    expect(captured.refresh).toEqual({ refreshToken: 'antigo', rememberMe: false })
+    // Cookie novo (sem prefixo): quem decide é o token gravado no servidor.
+    captured.storedRememberMe = false
+    const sessionOnly = await route!.handler(contextWith({ cookie: 'user_refresh_token=antigo' }))
+    expect(captured.refresh).toEqual({ refreshToken: 'antigo' })
     expect(setCookieOf(sessionOnly)).not.toContain('Max-Age')
 
-    await route!.handler(contextWith({ cookie: 'user_refresh_token=antigo' }))
-    expect(captured.refresh).toEqual({ refreshToken: 'antigo' })
+    captured.storedRememberMe = true
+    const persistent = await route!.handler(contextWith({ cookie: 'user_refresh_token=antigo' }))
+    expect(setCookieOf(persistent)).toContain('Max-Age=3600')
   })
 })
