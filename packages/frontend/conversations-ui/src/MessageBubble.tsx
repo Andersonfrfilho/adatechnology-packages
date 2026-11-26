@@ -7,6 +7,7 @@ import type { ConversationChannel } from './conversationChannel'
 import { StatusTicks } from './StatusTicks'
 import { MediaRenderer, type ResolveMediaUrl } from './MediaRenderer'
 import { Lightbox } from './Lightbox'
+import { LocationCard } from './LocationCard'
 import { InteractiveMessage } from './InteractiveMessage'
 import { parseWhatsAppFormatting } from './lib/whatsapp-formatting'
 import { cn } from './lib/cn'
@@ -194,6 +195,8 @@ export function MessageBubble({
               </div>
             ) : null}
           </>
+        ) : message.type === 'location' && message.location ? (
+          <LocationCard location={message.location} />
         ) : isInteractive && message.payload ? (
           // O texto da mensagem interativa mora dentro do payload (`body.text`), e `content` guarda
           // só uma cópia achatada para busca — renderizar `content` aqui duplicaria o corpo.

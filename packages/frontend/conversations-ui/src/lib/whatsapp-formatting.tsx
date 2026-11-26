@@ -194,6 +194,27 @@ export function parseWhatsAppFormatting(text: string): ReactNode[] {
   return groupLines(lines).map(renderBlockGroup)
 }
 
+const URL_PATTERN = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g
+
+/** Só http(s) vira link: `javascript:` e afins ficam texto. O link abre em outra aba sem dar acesso à janela de origem. */
+function linkifyText(text: string, key: number): ReactNode {
+  const parts = text.split(URL_PATTERN)
+  if (parts.length === 1) return <span key={key}>{text}</span>
+  return (
+    <span key={key}>
+      {parts.map((part, index) =>
+        index % 2 === 0 ? (
+          part
+        ) : (
+          <a key={index} href={part} target="_blank" rel="noopener noreferrer" className="text-teal-700 underline dark:text-teal-300">
+            {part}
+          </a>
+        ),
+      )}
+    </span>
+  )
+}
+
 function renderTokens(tokens: FormatToken[]): ReactNode[] {
   return tokens.map((token, index) => {
     switch (token.type) {
@@ -216,7 +237,7 @@ function renderTokens(tokens: FormatToken[]): ReactNode[] {
           </pre>
         )
       default:
-        return <span key={index}>{token.content}</span>
+        return linkifyText(token.content, index)
     }
   })
 }
