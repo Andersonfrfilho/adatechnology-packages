@@ -175,3 +175,29 @@ describe('roteiro padrão', () => {
     expect(store.listMessages(WAITING_CONVERSATION_ID).at(-1)?.sender).toBe('agent')
   })
 })
+
+describe('createMockConversationsApi — cursor composto de mensagens', () => {
+  const conversationId = 'cursor-conversation'
+  const instant = '2026-09-01T10:00:00.000Z'
+
+  function apiWithSameInstantMessages() {
+    const store = createStore()
+    const messages = ['a', 'b', 'c'].map((id) =>
+      store.appendMessage({ conversationId, content: id, direction: 'inbound', sender: 'customer' }),
+    )
+    const rewritten = messages.map((message, index) => ({ ...message, id: `id-${index}`, timestamp: instant }))
+    const customStore = { ...store, listMessages: () => rewritten } as PreviewStore
+    return createMockConversationsApi({ store: customStore, latencyMs: 0 })
+  }
+
+  it('com beforeId, no mesmo instante só voltam as de id menor (nenhuma some, nenhuma repete)', async () => {
+    const api = apiWithSameInstantMessages()
+    const page = await api.fetchMessages(conversationId, { before: instant, beforeId: 'id-2' })
+    expect(page.map((message) => message.id)).toEqual(['id-0', 'id-1'])
+  })
+
+  it('sem beforeId mantém o corte só por timestamp', async () => {
+    const api = apiWithSameInstantMessages()
+    expect(await api.fetchMessages(conversationId, { before: instant })).toEqual([])
+  })
+})

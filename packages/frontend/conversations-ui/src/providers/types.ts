@@ -96,7 +96,16 @@ export interface ConversationTemplate {
 }
 
 export interface ConversationsApi {
-  fetchMessages(conversationId: string, params?: { limit?: number; before?: string }): Promise<MessagePayload[]>
+  /**
+   * `before` e `beforeId` formam o cursor composto `(createdAt, id)` da mensagem mais antiga já na tela:
+   * só voltam as estritamente anteriores a ela nessa ordem, então duas mensagens no mesmo instante nunca
+   * ficam de fora nem se repetem na virada de página. Host que só entende `before` ignora `beforeId` e
+   * pagina como antes.
+   */
+  fetchMessages(
+    conversationId: string,
+    params?: { limit?: number; before?: string; beforeId?: string },
+  ): Promise<MessagePayload[]>
   fetchConversations(params?: ListConversationsParams): Promise<ConversationSummary[] | ConversationPage>
   sendMessage(conversationId: string, text: string): Promise<MessagePayload>
   sendMedia(

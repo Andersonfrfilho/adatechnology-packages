@@ -65,6 +65,18 @@ export function shouldFetchOlderMessages(state: LoadOlderMessagesGuardState): bo
   return Boolean(state.oldestMessage)
 }
 
+/**
+ * Pedido da página anterior: o cursor é a mensagem mais antiga da tela, por `(timestamp, id)`. Mandar
+ * só o timestamp deixava de fora (ou repetia) mensagens gravadas no mesmo instante da fronteira.
+ */
+export function buildOlderMessagesRequest(oldestMessage: MessagePayload): {
+  limit: number
+  before: string
+  beforeId: string
+} {
+  return { limit: OLDER_MESSAGES_PAGE_LIMIT, before: oldestMessage.timestamp, beforeId: oldestMessage.id }
+}
+
 /** A página veio menor que o limite pedido: não há mais nada antes dela para buscar. */
 export function pageIndicatesMoreOlderMessages(pageLength: number, limit: number): boolean {
   return pageLength >= limit
@@ -75,7 +87,7 @@ export function pageIndicatesMoreOlderMessages(pageLength: number, limit: number
 // por cima, como o pacote já oferece). Requer <ConversationsProvider> como ancestral.
 export function useConversationMessages(
   conversationId: string,
-  params?: { limit?: number; before?: string },
+  params?: { limit?: number; before?: string; beforeId?: string },
 ): UseConversationMessagesResult {
   const context = useConversations()
   if (!context) {
@@ -85,7 +97,7 @@ export function useConversationMessages(
 
   const { data, loading, error, refetch } = useAsyncResource(
     () => api.fetchMessages(conversationId, params),
-    [conversationId, params?.limit, params?.before],
+    [conversationId, params?.limit, params?.before, params?.beforeId],
   )
 
   const [olderMessages, setOlderMessages] = useState<MessagePayload[]>([])
@@ -122,10 +134,7 @@ export function useConversationMessages(
     loadingOlderMessagesRef.current = true
     setLoadingOlderMessages(true)
     try {
-      const olderPage = await api.fetchMessages(conversationId, {
-        limit: OLDER_MESSAGES_PAGE_LIMIT,
-        before: oldestMessage.timestamp,
-      })
+      const olderPage = await api.fetchMessages(conversationId, buildOlderMessagesRequest(oldestMessage))
       if (!pageIndicatesMoreOlderMessages(olderPage.length, OLDER_MESSAGES_PAGE_LIMIT)) setHasMoreOlderMessages(false)
       setOlderMessages((current) => prependOlderMessages(current, olderPage))
     } finally {

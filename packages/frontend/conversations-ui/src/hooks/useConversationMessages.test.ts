@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import {
+  buildOlderMessagesRequest,
   dedupeMessagesById,
   pageIndicatesMoreOlderMessages,
   prependOlderMessages,
@@ -86,5 +87,17 @@ describe('preservação do histórico ao chegar mensagem nova (SSE/polling)', ()
 
     expect(before.map((message) => message.id)).toEqual(['1', '2', '3'])
     expect(after.map((message) => message.id)).toEqual(['1', '2', '3', '4'])
+  })
+})
+
+describe('buildOlderMessagesRequest', () => {
+  it('usa a mensagem mais antiga como cursor composto (timestamp + id)', () => {
+    const oldest = buildMessage('msg-7', '2026-09-01T10:00:00.123Z')
+
+    expect(buildOlderMessagesRequest(oldest)).toEqual({
+      limit: 50,
+      before: '2026-09-01T10:00:00.123Z',
+      beforeId: 'msg-7',
+    })
   })
 })
