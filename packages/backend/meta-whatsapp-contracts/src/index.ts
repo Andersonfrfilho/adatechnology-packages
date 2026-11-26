@@ -136,6 +136,9 @@ export {
   TranscriptionDisabledError,
   InteractiveLimitExceededError,
   FlowRunnerError,
+  QuickReplyNotFoundError,
+  QuickReplyShortcutTakenError,
+  QuickReplyLimitReachedError,
 } from './errors'
 export type { FlowRunnerFailureReason } from './errors'
 
@@ -192,3 +195,12 @@ export { isWithinBusinessHours } from './businessHours'
 export type { BusinessHours, BusinessHoursWindow, BusinessWeekday } from './businessHours'
 
 export { PREVIEW_CONTACT_PREFIX, DEFAULT_PREVIEW_CONTACT, toPreviewContact, isPreviewContact } from './previewContact'
+
+export {
+  QUICK_REPLY_LIMITS,
+  QUICK_REPLY_SHORTCUT_PATTERN,
+  QUICK_REPLY_ERROR_CODES,
+  whatsAppQuickReplyInputSchema,
+  listWhatsAppQuickRepliesQuerySchema,
+} from './quickReply'
+export type { WhatsAppQuickReply, WhatsAppQuickReplyInput, ListWhatsAppQuickRepliesQuery } from './quickReply'
