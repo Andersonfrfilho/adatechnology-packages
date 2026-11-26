@@ -127,6 +127,7 @@ export { SseHub, issueSseTicket, redeemSseTicket } from './realtime/SseHub'
 export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtime/SseHub'
 
 export { FlowGraphRepository, OptimisticLockError, InvalidFlowGraphError } from './repositories/FlowGraphRepository'
+export type { ReseedFlowGraphParams, ReseedFlowGraphResult } from './repositories/FlowGraphRepository'
 export { FlowInterpreter } from './flows/FlowInterpreter'
 export type { FlowStepInput, FlowStepResult, FlowRunResult, FlowRunOptions } from './flows/FlowInterpreter'
 export { FlowRunner } from './flows/FlowRunner'
@@ -238,6 +239,7 @@ export {
   ListFlowGraphsUseCase,
   CreateFlowGraphUseCase,
   SaveFlowGraphUseCase,
+  ReseedFlowGraphUseCase,
   DeleteFlowGraphUseCase,
   GetLiveFlowPositionsUseCase,
 } from './use-cases/FlowGraph.use-cases'

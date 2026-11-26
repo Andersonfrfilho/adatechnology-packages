@@ -288,6 +288,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - **Motor de fluxos:** `FlowInterpreter` executa o grafo (`question`, `entrada_choice`, `menu`, `condition`, `action`) com contexto, salto entre fluxos e limite de passos; ações plugáveis (`createSendProductListAction`, `createSendMediaAction`, handoff)
   - Grafos de fluxo persistidos com lock otimista e cache opcional (`FlowGraphRepository`, `Create/Save/Get/List/DeleteFlowGraphUseCase`); `GetLiveFlowPositionsUseCase` mostra em que nó cada conversa está
   - **Runner de fluxo** (`features.flowRunner`): pergunta de horário (`questionType: 'time'`, faixas permitidas pelo contexto), validador do host (`validateAnswer`), textos do bot resolvidos por empresa/conversa (`FlowConfigText`: string ou `(ctx) => string | undefined`), escolha digitada casada com o título já interpolado
+  - **Origem do grafo (`origin: 'seed' | 'edited'`, `seedVersion`):** o produto atualiza grafos semeados que ninguém editou com `module.flows.reseed` (`ReseedFlowGraphUseCase`; troca só `seed` de outra versão, nunca toca `edited`, idempotente por `seedVersion`)
   - Takeover humano e devolução ao robô (`TakeoverConversationUseCase`, `ReleaseConversationUseCase`)
   - Tempo real por SSE com ticket (`SseHub`, `issueSseTicket`); eventos em `conv:<número>` trazem `companyId`
   - Mídia inbound no storage e áudio transcrito em `auto` ou `onDemand` (`IngestInboundMediaUseCase`, `TranscribeAudioUseCase`)
