@@ -86,6 +86,34 @@ const booleanFromQuery = z
   .transform((value) => value === 'true')
   .optional()
 
+/** Lista separada por vírgula (`a,b,c`) → vetor sem vazios; no máximo `MAX_FILTER_VALUES` valores. */
+const MAX_FILTER_VALUES = 50
+const csvFromQuery = z
+  .string()
+  .max(2000)
+  .transform((value) =>
+    value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item !== ''),
+  )
+  .refine((values) => values.length <= MAX_FILTER_VALUES, 'filtro com valores demais')
+  .optional()
+
+/** Colunas ordenáveis da lista de produtos. Fora desta lista a ordem é a de exibição ao cliente. */
+export const PRODUCT_SORT_FIELD = {
+  NAME: 'name',
+  PRICE: 'price',
+  CATALOG: 'catalog',
+  SECTION: 'section',
+  ACTIVE: 'active',
+  SORT_ORDER: 'sortOrder',
+} as const
+export type ProductSortField = (typeof PRODUCT_SORT_FIELD)[keyof typeof PRODUCT_SORT_FIELD]
+
+/** Valor reservado em `catalogIds`/`sectionIds` para "sem catálogo" / "sem seção". */
+export const PRODUCT_FILTER_NONE = 'none'
+
 export const listProductsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(20),
@@ -94,6 +122,12 @@ export const listProductsQuerySchema = z.object({
   sectionId: z.string().uuid().optional(),
   active: booleanFromQuery,
   syncStatus: z.nativeEnum(PRODUCT_SYNC_STATUS).optional(),
+  // Opt-in: filtros de seleção múltipla, ordenação e preço sob consulta. Ausentes, a lista é a de sempre.
+  catalogIds: csvFromQuery,
+  sectionIds: csvFromQuery,
+  priceOnRequest: booleanFromQuery,
+  sortBy: z.nativeEnum(PRODUCT_SORT_FIELD).optional(),
+  sortDirection: z.enum(['asc', 'desc']).default('asc'),
 })
 export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>
 

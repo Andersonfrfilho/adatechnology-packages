@@ -226,6 +226,12 @@ export class ListProductsUseCase {
         (catalog) => [catalog.id, catalog.name] as const,
       ),
     )
+    // Seção é lista curta por natureza (ver `SectionRepository.listByCompany`): uma leitura cobre a página.
+    const sectionNames = new Map(
+      (await this.dependencies.sections.listByCompany({ companyId: query.companyId })).map(
+        (section) => [section.id, section.name] as const,
+      ),
+    )
     return toPaginated({
       rows: page.rows,
       total: page.total,
@@ -234,7 +240,12 @@ export class ListProductsUseCase {
       map: (row) => {
         const product = toProduct(row, query.projection)
         const catalogName = row.catalogId ? catalogNames.get(row.catalogId) : undefined
-        return catalogName === undefined ? product : { ...product, catalogName }
+        const sectionName = row.sectionId ? sectionNames.get(row.sectionId) : undefined
+        return {
+          ...product,
+          ...(catalogName === undefined ? {} : { catalogName }),
+          ...(sectionName === undefined ? {} : { sectionName }),
+        }
       },
     })
   }

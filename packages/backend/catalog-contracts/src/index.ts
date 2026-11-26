@@ -37,6 +37,8 @@ export {
   createSectionSchema,
   updateSectionSchema,
   listProductsQuerySchema,
+  PRODUCT_SORT_FIELD,
+  PRODUCT_FILTER_NONE,
   listCatalogsQuerySchema,
   bulkImportRowSchema,
 } from './schemas'
@@ -48,6 +50,7 @@ export type {
   CreateSectionBody,
   UpdateSectionBody,
   ListProductsQuery,
+  ProductSortField,
   ListCatalogsQuery,
   BulkImportRow,
   AvailableProductsQuery,

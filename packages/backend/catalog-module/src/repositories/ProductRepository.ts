@@ -2,11 +2,16 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { and, asc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm'
-import { InsufficientInventoryError } from '@adatechnology/catalog-contracts'
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, or, sql, type SQL } from 'drizzle-orm'
+import {
+  InsufficientInventoryError,
+  PRODUCT_FILTER_NONE,
+  PRODUCT_SORT_FIELD,
+  type ProductSortField,
+} from '@adatechnology/catalog-contracts'
 
 import type { CatalogDatabase } from '../database.types'
-import { products, type NewProductRow, type ProductRow } from '../schema/schema'
+import { catalogs, products, sections, type NewProductRow, type ProductRow } from '../schema/schema'
 import { productListCondition, productOwnedByCondition, productSearchCondition } from './conditions'
 
 export type ListProductsQuery = {
@@ -18,6 +23,11 @@ export type ListProductsQuery = {
   readonly sectionId?: string
   readonly active?: boolean
   readonly syncStatus?: string
+  readonly catalogIds?: readonly string[]
+  readonly sectionIds?: readonly string[]
+  readonly priceOnRequest?: boolean
+  readonly sortBy?: ProductSortField
+  readonly sortDirection?: 'asc' | 'desc'
 }
 
 export type ListProductsPage = {
@@ -58,6 +68,50 @@ export type CustomerFacingProductRow = {
   [Key in keyof typeof CUSTOMER_FACING_PRODUCT_COLUMNS]: ProductRow[Key]
 }
 
+/** `none` casa "sem vínculo" (`IS NULL`); ids reais casam por `IN`. Vazio/ausente = sem filtro. */
+function multiValueCondition(
+  column: typeof products.catalogId | typeof products.sectionId,
+  values: readonly string[] | undefined,
+): SQL | undefined {
+  if (!values || values.length === 0) return undefined
+  const ids = values.filter((value) => value !== PRODUCT_FILTER_NONE)
+  const includesNone = ids.length !== values.length
+  if (ids.length === 0) return isNull(column)
+  return includesNone ? or(isNull(column), inArray(column, ids)) : inArray(column, ids)
+}
+
+/**
+ * Ordem pedida pelo operador, sempre com a ordem de exibição e o nome como desempate: sem isso a
+ * página seguinte repetiria ou pularia linhas com o mesmo valor. Preço sob consulta (`NULL`) vai
+ * para o fim nos dois sentidos — "sem preço" não é nem o mais barato nem o mais caro.
+ */
+function productOrderBy(query: ListProductsQuery): SQL[] {
+  const direction = query.sortDirection === 'desc' ? desc : asc
+  const fallback = [asc(products.sortOrder), asc(products.name)]
+  switch (query.sortBy) {
+    case PRODUCT_SORT_FIELD.NAME:
+      return [direction(products.name), asc(products.sortOrder)]
+    case PRODUCT_SORT_FIELD.PRICE:
+      return [sql`${products.priceInCents} is null`, direction(products.priceInCents), ...fallback]
+    case PRODUCT_SORT_FIELD.CATALOG:
+      return [
+        direction(sql`(select ${catalogs.name} from ${catalogs} where ${catalogs.id} = ${products.catalogId})`),
+        ...fallback,
+      ]
+    case PRODUCT_SORT_FIELD.SECTION:
+      return [
+        direction(sql`(select ${sections.name} from ${sections} where ${sections.id} = ${products.sectionId})`),
+        ...fallback,
+      ]
+    case PRODUCT_SORT_FIELD.ACTIVE:
+      return [direction(products.active), ...fallback]
+    case PRODUCT_SORT_FIELD.SORT_ORDER:
+      return [direction(products.sortOrder), asc(products.name)]
+    default:
+      return fallback
+  }
+}
+
 export class ProductRepository {
   constructor(private readonly db: CatalogDatabase) {}
 
@@ -89,6 +143,13 @@ export class ProductRepository {
     if (query.sectionId) conditions.push(eq(products.sectionId, query.sectionId))
     if (query.active !== undefined) conditions.push(eq(products.active, query.active))
     if (query.syncStatus) conditions.push(eq(products.syncStatus, query.syncStatus))
+    if (query.priceOnRequest !== undefined) {
+      conditions.push(query.priceOnRequest ? isNull(products.priceInCents) : isNotNull(products.priceInCents))
+    }
+    const catalogFilter = multiValueCondition(products.catalogId, query.catalogIds)
+    if (catalogFilter) conditions.push(catalogFilter)
+    const sectionFilter = multiValueCondition(products.sectionId, query.sectionIds)
+    if (sectionFilter) conditions.push(sectionFilter)
 
     const where = and(...conditions)
 
@@ -99,7 +160,7 @@ export class ProductRepository {
         .select()
         .from(products)
         .where(where)
-        .orderBy(asc(products.sortOrder), asc(products.name))
+        .orderBy(...productOrderBy(query))
         .limit(query.pageSize)
         .offset((query.page - 1) * query.pageSize),
       this.db

@@ -7,7 +7,15 @@
  */
 
 import { parseBulkImportCsv } from '../lib/csv'
-import type { BulkImportResult, Catalog, PaginatedResponse, Product, ProductsApi } from './types'
+import type {
+  BulkImportResult,
+  Catalog,
+  ListProductsParams,
+  PaginatedResponse,
+  Product,
+  ProductsApi,
+  ProductsBatchResult,
+} from './types'
 
 export const CATALOG_MODULE_DEFAULT_PAGE_SIZE = 50
 
@@ -75,6 +83,21 @@ async function toApiError(response: Response): Promise<CatalogModuleApiError> {
   )
 }
 
+/** Vetores viram lista separada por vírgula (`catalogIds=a,b`), que é o formato do contrato. */
+function toProductsQuery(query: ListProductsParams | undefined): NonNullable<RequestOptions['query']> {
+  const { catalogIds, sectionIds, ...rest } = query ?? {}
+  return {
+    ...rest,
+    ...(catalogIds?.length ? { catalogIds: catalogIds.join(',') } : {}),
+    ...(sectionIds?.length ? { sectionIds: sectionIds.join(',') } : {}),
+  }
+}
+
+function countSettled(results: readonly PromiseSettledResult<unknown>[]): ProductsBatchResult {
+  const succeeded = results.filter((result) => result.status === 'fulfilled').length
+  return { succeeded, failed: results.length - succeeded }
+}
+
 function toPaginated<TItem>(page: ModulePage<TItem>): PaginatedResponse<TItem> {
   return { data: page.data, ...page.pagination }
 }
@@ -117,13 +140,18 @@ export function createCatalogModuleProductsApi(params: CreateCatalogModuleProduc
     listProducts: async (query) =>
       toPaginated(
         await request<ModulePage<Product>>('/products', {
-          query: { ...query, page: query?.page ?? 1, pageSize },
+          query: { ...toProductsQuery(query), page: query?.page ?? 1, pageSize: query?.pageSize ?? pageSize },
         }),
       ),
     getProduct: (id) => requestData<Product>(productPath(id)),
     createProduct: (data) => requestData<Product>('/products', { method: 'POST', json: data }),
     updateProduct: (id, data) => requestData<Product>(productPath(id), { method: 'PUT', json: data }),
     deleteProduct: (id) => request<void>(productPath(id), { method: 'DELETE' }),
+    // Sem rota de lote no módulo: cada item é uma chamada, e uma falha não cancela as demais.
+    updateProducts: async (ids, data) =>
+      countSettled(await Promise.allSettled(ids.map((id) => request(productPath(id), { method: 'PUT', json: data })))),
+    deleteProducts: async (ids) =>
+      countSettled(await Promise.allSettled(ids.map((id) => request<void>(productPath(id), { method: 'DELETE' })))),
 
     listCatalogs: async (query) =>
       toPaginated(

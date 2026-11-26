@@ -72,7 +72,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | Pacote | O que resolve | Entrada |
 |---|---|---|
 | [`catalog-module`](#adatechnologycatalog-module) | produtos, seções, estoque atômico, importação em lote, busca por foto, publicação opcional na Meta | `createCatalogModule`, `createCatalogRoutes` |
-| [`products-ui`](#adatechnologyproducts-ui) | gestão de produtos e catálogos com envio de imagem e recorte de fundo; API pronta para o `catalog-module` | `ProductsWorkspace`, `createCatalogModuleProductsApi` |
+| [`products-ui`](#adatechnologyproducts-ui) | gestão de produtos e catálogos com envio de imagem e recorte de fundo; API pronta para o `catalog-module` | `ProductsWorkspace` (opt-in `listing`), `createCatalogModuleProductsApi` |
 | [`product-vision-provider`](#adatechnologyproduct-vision-provider) | identificar produto por foto (código de barras e CLIP) | `createVisionChain` |
 | [`catalog-image-storage-provider`](#adatechnologycatalog-image-storage-provider) | imagens de produto em bucket S3 | `createS3ProductImageStorage` |
 | [`meta-catalog-provider`](#adatechnologymeta-catalog-provider) | catálogo da Meta Commerce | `MetaCatalogProvider` |
@@ -659,6 +659,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Publicação na Meta desligada por padrão (porta `MetaCatalogSyncPort`)
   - Rotas por `createCatalogRoutes`; adaptadores `./http/fetch`, `./http/uws` e OpenAPI em `./openapi`. **Escopos exigidos:** `catalog:read` (ou `catalog:write`) nas leituras e `catalog:write` nas mutações (`CATALOG_SCOPE`; vocabulário do host via `scopes`)
   - Listagem pronta para a tela: produto traz `catalogName`, catálogo traz `productCount`; `GET /catalogs/:id`. O `products-ui` lê direto com `createCatalogModuleProductsApi`
+  - `GET /products` filtra e ordena no servidor: `catalogIds`/`sectionIds` (lista separada por vírgula; `none` = sem vínculo), `priceOnRequest`, `active`, `sortBy` (`name|price|catalog|section|active|sortOrder`) e `sortDirection`; produto traz `sectionName`. Sem esses parâmetros a ordem é a de exibição, como antes
 - **Entradas:** `createCatalogModule` em `src/CatalogModule.ts`; `createCatalogRoutes`; `runCatalogMigrations`, `runCatalogVisionMigrations`
 - **Precisa de:** PostgreSQL (Drizzle). A busca por foto exige a extensão `vector` no banco (migration de visão com journal próprio). Imagens por `catalog-image-storage-provider`. Peers: `drizzle-orm`.
 - **Compatibilidade:** Drizzle peer `>=0.36.0 <1` (não aceita 1.x); schema `catalog`; migrations com journal, mais um conjunto separado para visão.
@@ -702,6 +703,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **O que você ganha:**
   - `ProductsWorkspace`, `ProductList`, `ProductForm`, `CatalogList`, `BulkImport`, `ImageUpload` (com recorte de fundo)
   - **API pronta para o `catalog-module`:** `createCatalogModuleProductsApi({ baseUrl, getHeaders })` implementa `ProductsApi` sobre as rotas do módulo (envelope, paginação, importação CSV com `parseBulkImportCsv`, erro `CatalogModuleApiError`)
+  - **Lista em tabela (opt-in):** `<ProductsWorkspace listing={{}} />` liga busca no servidor, filtros de seleção múltipla (catálogo, seção, disponibilidade, preço sob consulta), colunas ordenáveis, zebra, seleção com ações em lote (ativar/desativar, mover de catálogo, excluir com confirmação), paginação com itens por página, total de resultados e cartões no celular. O host injeta `renderSelect`/`renderMultiSelect` (o `Select` do design system dele), `renderExport` (menu de exportação) e guarda o estado na URL com `parseProductsListQuery`/`serializeProductsListQuery`
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `catalog-module`. Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
