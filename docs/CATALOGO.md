@@ -162,6 +162,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`object-storage-provider`](#adatechnologyobject-storage-provider) | S3-compatível com URL assinada de upload e download | `createObjectStorageProvider` |
 | [`conversation-module`](#adatechnologyconversation-module) | anexos de conversa com validação de tipo e tamanho | `RequestAttachmentUploadUseCase` |
 | [`image-cutout`](#adatechnologyimage-cutout) | recorte de fundo de imagem no navegador | `removeBackground` |
+| [`image-editor-ui`](#adatechnologyimage-editor-ui) | editar foto: recorte por formato, girar, espelhar, zoom, brilho/contraste, ponto de foco e texto alternativo | `ImageEditor` |
 | [`secret-envelope`](#adatechnologysecret-envelope) | cifrar segredo antes de gravar | `createSecretEnvelopeProvider` |
 
 ### Voz: transcrição e moderação
@@ -717,6 +718,17 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Compatibilidade:** React 18+.
 - **Usado por:** `ada-technology`, `transportada`
 - **Atenção / não verificado:** Sem README.
+
+### @adatechnology/image-editor-ui
+- **Versão:** `0.1.0` · `packages/frontend/image-editor-ui`
+- **Para quê:** Editor de foto no navegador (canvas, sem dependências) que devolve o `Blob` editado e os metadados da edição, para o host guardar versões e manter a original.
+- **O que você ganha:**
+  - `ImageEditor`: recorte por formato (capa 16:9, galeria 3:2, quadrado, livre), girar, espelhar, zoom, brilho e contraste, ponto de foco, texto alternativo; teclado, toque e pinça; sem controle nativo
+  - `focalPointToObjectPosition` para o `object-position` do site; rótulos `imageEditorLabelsPtBr`/`En`; tema por `--aie-*`
+- **Entradas:** `src/index.ts`, `styles.css`
+- **Precisa de:** Nenhuma no servidor; o host guarda as versões. Peers: `react`, `react-dom`.
+- **Compatibilidade:** React 18+.
+- **Usado por:** `reservada`
 
 ### @adatechnology/document-intake
 - **Versão:** `0.1.0` · `packages/frontend/document-intake`
