@@ -104,7 +104,20 @@ export interface ConversationsWorkspaceSimulator {
   readonly createTestContact?: () => SimulatorTestContact | Promise<SimulatorTestContact>
   /** Rótulo do botão de novo contato. Padrão: "Novo contato de teste". */
   readonly newContactLabel?: string
+  /**
+   * Liga "Reiniciar conversa" no cabeçalho do painel: o host apaga a sessão e o que foi coletado do
+   * contato de teste (só onde há simulador; nunca em produção). Depois o painel recomeça vazio e
+   * manda `restartText`, que leva o robô ao menu. Ausente, o botão não existe.
+   */
+  readonly resetConversation?: (params: SimulatorTransportParams) => Promise<void>
+  /** Rótulo do botão de reinício. Padrão: "Reiniciar conversa". */
+  readonly resetLabel?: string
+  /** O que o contato de teste "diz" ao recomeçar. Padrão: "menu". */
+  readonly restartText?: string
 }
+
+const DEFAULT_SIMULATOR_RESET_LABEL = 'Reiniciar conversa'
+const DEFAULT_SIMULATOR_RESTART_TEXT = 'menu'
 
 type SimulatorTarget = {
   readonly key: string
@@ -310,6 +323,15 @@ export function ConversationsWorkspace({
     setSimulatorOpen(true)
   }
 
+  async function handleResetConversation(): Promise<void> {
+    if (!target || !simulator?.resetConversation) return
+    await simulator.resetConversation({ conversationId: target.conversationId, channel: target.channel, handle: target.handle })
+    inbox.clearSelection()
+    await inbox.refetch()
+    setTestContact({ handle: target.handle, channel: target.channel })
+    await simulatorClient?.sendText(simulator.restartText ?? DEFAULT_SIMULATOR_RESTART_TEXT)
+  }
+
   function closeSimulator(): void {
     setSimulatorOpen(false)
     setTestContact(undefined)
@@ -512,6 +534,15 @@ export function ConversationsWorkspace({
                   target.persisted ? conversations.api.fetchMessages(conversationId) : Promise.resolve([])
                 }
                 onClose={closeSimulator}
+                {...(simulator?.resetConversation
+                  ? {
+                      headerActions: (
+                        <button type="button" className="cv-simulator-panel__action" onClick={() => void handleResetConversation()}>
+                          {simulator.resetLabel ?? DEFAULT_SIMULATOR_RESET_LABEL}
+                        </button>
+                      ),
+                    }
+                  : {})}
                 {...(simulator?.labels ? { labels: simulator.labels } : {})}
                 {...(simulator?.uploadMedia ? { uploadMedia: simulator.uploadMedia } : {})}
                 {...(simulator?.pollIntervalMs ? { pollIntervalMs: simulator.pollIntervalMs } : {})}

@@ -273,6 +273,19 @@
   background: rgb(243 244 246);
 }
 
+.cv-simulator-panel__action {
+  padding: 0.25rem 0.625rem;
+  border: 1px solid rgb(229 231 235);
+  border-radius: 0.5rem;
+  background: transparent;
+  font-size: 0.75rem;
+  color: rgb(75 85 99);
+  transition: color 150ms, background-color 150ms;
+}
+.cv-simulator-panel__action:hover { background: rgb(243 244 246); }
+.dark .cv-simulator-panel__action { border-color: rgb(55 65 81); color: rgb(209 213 219); }
+.dark .cv-simulator-panel__action:hover { background: rgb(31 41 55); }
+
 /* `min-height: 0` para o transcript rolar dentro do painel em vez de esticar o `<aside>`. */
 .cv-simulator-panel__body { flex: 1; min-height: 0; }
 
