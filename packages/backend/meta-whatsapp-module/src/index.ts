@@ -8,7 +8,16 @@ export type {
   MetaWhatsAppTranscriptionConfig,
 } from './createMetaWhatsAppModule'
 
-export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings, documents, flowMedia } from './schema/schema'
+export {
+  metaWhatsAppSchema,
+  sessions,
+  messages,
+  flowGraphs,
+  settings,
+  documents,
+  flowMedia,
+  quickReplies,
+} from './schema/schema'
 export type {
   SessionRow,
   NewSessionRow,
@@ -22,6 +31,8 @@ export type {
   NewDocumentRow,
   FlowMediaRow,
   NewFlowMediaRow,
+  QuickReplyRow,
+  NewQuickReplyRow,
 } from './schema/schema'
 
 export { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
@@ -127,6 +138,7 @@ export { SseHub, issueSseTicket, redeemSseTicket } from './realtime/SseHub'
 export type { SseListener, TicketStoreInterface, RealtimeRelay } from './realtime/SseHub'
 
 export { FlowGraphRepository, OptimisticLockError, InvalidFlowGraphError } from './repositories/FlowGraphRepository'
+export type { ReseedFlowGraphParams, ReseedFlowGraphResult } from './repositories/FlowGraphRepository'
 export { FlowInterpreter } from './flows/FlowInterpreter'
 export type { FlowStepInput, FlowStepResult, FlowRunResult, FlowRunOptions } from './flows/FlowInterpreter'
 export { FlowRunner } from './flows/FlowRunner'
@@ -135,11 +147,13 @@ export { FlowHandoff } from './flows/FlowHandoff'
 export { PostgresAdvisoryFlowTurnLock, InProcessFlowTurnLock } from './flows/flowTurnLock'
 export type { FlowTurnLockInterface, FlowTurnLockKey } from './flows/flowTurnLock'
 export { resolveFlowTimeZone } from './flows/FlowRunner'
+export { isTransientSendError } from './flows/sendWithRetry'
 export { readFlowInbound } from './flows/readFlowInbound'
 export type { FlowInbound } from './flows/readFlowInbound'
 export type { FlowHandoffDependencies, RequestFlowHandoffParams } from './flows/FlowHandoff'
 export type {
   FlowRunnerConfig,
+  FlowSendRetryConfig,
   FlowRunnerOutcome,
   FlowGlobalKeyword,
   FlowGlobalKeywordMatch,
@@ -238,7 +252,32 @@ export {
   ListFlowGraphsUseCase,
   CreateFlowGraphUseCase,
   SaveFlowGraphUseCase,
+  ReseedFlowGraphUseCase,
   DeleteFlowGraphUseCase,
   GetLiveFlowPositionsUseCase,
 } from './use-cases/FlowGraph.use-cases'
 export type { CreateFlowGraphParams, SaveFlowGraphParams } from './use-cases/FlowGraph.use-cases'
+
+export { QuickReplyRepository } from './repositories/QuickReplyRepository'
+export type {
+  ListQuickRepliesParams as ListQuickReplyRowsParams,
+  CreateQuickReplyParams as CreateQuickReplyRowParams,
+  UpdateQuickReplyParams as UpdateQuickReplyRowParams,
+} from './repositories/QuickReplyRepository'
+export {
+  ListQuickRepliesUseCase,
+  CreateQuickReplyUseCase,
+  UpdateQuickReplyUseCase,
+  DeleteQuickReplyUseCase,
+  toQuickReplyView,
+} from './use-cases/QuickReply.use-cases'
+export type {
+  ListQuickRepliesParams,
+  SaveQuickReplyParams,
+  UpdateQuickReplyParams,
+  DeleteQuickReplyParams,
+} from './use-cases/QuickReply.use-cases'
+export { createMetaWhatsAppQuickReplyRoutes } from './http/quickReplyRoutes'
+export type { CreateMetaWhatsAppQuickReplyRoutesParams } from './http/quickReplyRoutes'
+export { QUICK_REPLY_SCOPE, DEFAULT_QUICK_REPLY_WRITE_SCOPES } from './http/quickReplyScope.constant'
+export type { QuickReplyRouteScopes } from './http/quickReplyScope.constant'

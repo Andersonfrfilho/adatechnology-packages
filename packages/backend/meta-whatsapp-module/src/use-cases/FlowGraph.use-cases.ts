@@ -1,5 +1,9 @@
 import type { FlowGraphData, FlowGraphSummary } from '@adatechnology/meta-whatsapp-contracts'
-import type { FlowGraphRepository } from '../repositories/FlowGraphRepository'
+import type {
+  FlowGraphRepository,
+  ReseedFlowGraphParams,
+  ReseedFlowGraphResult,
+} from '../repositories/FlowGraphRepository'
 
 // T4.2 — CRUD de grafo, agrupado num único arquivo (cada use-case é uma classe fina sobre o
 // mesmo repositório; não há regra de negócio própria a proteger na sua separação em arquivos
@@ -27,6 +31,8 @@ export type CreateFlowGraphParams = {
   nodes: FlowGraphData['nodes']
   showInMenu?: boolean
   menuOptionLabel?: string
+  /** Só o produto semeando informa: marca o grafo como `seed` dessa versão (ver `ReseedFlowGraphUseCase`). */
+  seedVersion?: string
 }
 
 export class CreateFlowGraphUseCase {
@@ -50,6 +56,17 @@ export class SaveFlowGraphUseCase {
   constructor(private readonly flowGraphRepository: FlowGraphRepository) {}
   async execute(params: SaveFlowGraphParams): Promise<FlowGraphData> {
     return this.flowGraphRepository.save(params.companyId, params.graph, params.expectedVersion)
+  }
+}
+
+/**
+ * Atualiza grafos semeados que o dono nunca editou quando o seed do produto muda, sem apagar à mão.
+ * Grafo editado pelo painel (ou anterior ao campo `origin`) nunca é tocado.
+ */
+export class ReseedFlowGraphUseCase {
+  constructor(private readonly flowGraphRepository: FlowGraphRepository) {}
+  async execute(params: ReseedFlowGraphParams): Promise<ReseedFlowGraphResult> {
+    return this.flowGraphRepository.reseed(params)
   }
 }
 

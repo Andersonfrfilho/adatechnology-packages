@@ -203,4 +203,18 @@ export type FlowRunnerErrorDetails = {
    * host falhou e a resposta foi aceita pela validação do pacote.
    */
   readonly stage: 'render' | 'cross-flow' | 'max-steps' | 'handoff' | 'turn' | 'text' | 'validate-answer'
+  /**
+   * Presente quando a falha foi o envio de uma mensagem do robô (com `stage` `render` ou `turn`): quantas
+   * tentativas houve e se a falha era do tipo que se repete. É o que o host usa para avisar a equipe
+   * ("o robô não conseguiu responder") em vez de o cliente ficar sem resposta sem ninguém saber.
+   */
+  readonly send?: FlowSendFailureDetails
+}
+
+export type FlowSendFailureDetails = {
+  /** Tentativas feitas, contando a primeira (1 = sem retentativa). */
+  readonly attempts: number
+  readonly messageKind: 'text' | 'interactive'
+  /** `true` quando as tentativas acabaram numa falha repetível (rede); `false` quando a falha nem era. */
+  readonly isTransient: boolean
 }

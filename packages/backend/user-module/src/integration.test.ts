@@ -192,4 +192,77 @@ describeWithDatabase('repositórios sobre Postgres', () => {
     ).toBeNull()
     expect(await store.rotate({ tokenHash: hashToken(sibling), newExpiresInSeconds: 3600 })).not.toBeNull()
   })
+
+  const LIFETIMES = { remember: 90 * 86_400, session: 7200 }
+  const rotateWith = (store: RefreshTokenRepository, token: string, extra: Record<string, unknown> = {}) =>
+    store.rotate({
+      tokenHash: hashToken(token),
+      newExpiresInSeconds: 30 * 86_400,
+      expiresInSecondsByChoice: LIFETIMES,
+      ...extra,
+    })
+
+  it('o lembrar de mim fica gravado no token e a rotação o herda, ignorando a dica do cookie', async () => {
+    const users = new UserRepository(db, 'refresh-remember')
+    const user = await createUser(users, 'lembrar@example.com')
+    const store = new RefreshTokenRepository(db)
+
+    const remembered = await store.issue({ userId: user.id, expiresInSeconds: 3600, rememberMe: true })
+    const first = await rotateWith(store, remembered, { rememberMeHint: false })
+    expect(first).toMatchObject({ rememberMe: true, expiresInSeconds: LIFETIMES.remember })
+
+    const sessionOnly = await store.issue({ userId: user.id, expiresInSeconds: 3600, rememberMe: false })
+    expect(await rotateWith(store, sessionOnly, { rememberMeHint: true })).toMatchObject({
+      rememberMe: false,
+      expiresInSeconds: LIFETIMES.session,
+    })
+  })
+
+  it('token anterior ao registro (remember_me nulo) usa a dica uma vez e a grava no token novo', async () => {
+    const users = new UserRepository(db, 'refresh-legacy')
+    const user = await createUser(users, 'legado-refresh@example.com')
+    const store = new RefreshTokenRepository(db)
+
+    const legacy = await store.issue({ userId: user.id, expiresInSeconds: 3600 })
+    const migrated = await rotateWith(store, legacy, { rememberMeHint: true })
+    expect(migrated).toMatchObject({ rememberMe: true, expiresInSeconds: LIFETIMES.remember })
+    if (!migrated || !('token' in migrated)) throw new Error('rotação esperada')
+
+    expect(await rotateWith(store, migrated.token)).toMatchObject({ rememberMe: true })
+    const untouched = await store.issue({ userId: user.id, expiresInSeconds: 3600 })
+    const plain = await rotateWith(store, untouched)
+    expect(plain).toMatchObject({ expiresInSeconds: 30 * 86_400 })
+    expect(plain && 'rememberMe' in plain).toBe(false)
+  })
+
+  it('o teto absoluto conta do login, limita o token novo e recusa depois dele sem marcar reuso', async () => {
+    const users = new UserRepository(db, 'refresh-cap')
+    const user = await createUser(users, 'teto@example.com')
+    const store = new RefreshTokenRepository(db)
+    const cap = 10 * 86_400
+
+    const started = new Date(Date.now() - 4 * 86_400 * 1000)
+    const token = await store.issue({
+      userId: user.id,
+      expiresInSeconds: 86_400 * 30,
+      rememberMe: true,
+      sessionStartedAt: started,
+    })
+    const rotated = await rotateWith(store, token, { absoluteExpiresInSeconds: cap })
+    if (!rotated || !('token' in rotated)) throw new Error('rotação esperada')
+    // Restam ~6 dias dos 10: o token novo não vive os 90 pedidos pela escolha.
+    expect(rotated.expiresInSeconds).toBeGreaterThan(6 * 86_400 - 5)
+    expect(rotated.expiresInSeconds).toBeLessThanOrEqual(6 * 86_400)
+
+    const overdue = await store.issue({
+      userId: user.id,
+      expiresInSeconds: 86_400 * 30,
+      rememberMe: true,
+      sessionStartedAt: new Date(Date.now() - 11 * 86_400 * 1000),
+    })
+    const sibling = await store.issue({ userId: user.id, expiresInSeconds: 3600, rememberMe: true })
+    expect(await rotateWith(store, overdue, { absoluteExpiresInSeconds: cap })).toBeNull()
+    expect(await rotateWith(store, overdue, { absoluteExpiresInSeconds: cap, reuseGraceSeconds: 0 })).toBeNull()
+    expect(await rotateWith(store, sibling, { absoluteExpiresInSeconds: cap })).not.toBeNull()
+  })
 })

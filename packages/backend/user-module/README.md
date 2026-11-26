@@ -92,9 +92,21 @@ attributes. Two instances on one origin need different names.
 | `true` | persistent (`Max-Age`) | `refreshToken.rememberExpiresInSeconds` (default = `expiresInSeconds`) |
 | `false` | session cookie (no `Max-Age`; gone when the browser closes) | `refreshToken.sessionExpiresInSeconds` (default 24 h) |
 
-The choice rides in the cookie value (`m~<token>` / `s~<token>`), so refresh rotation repeats the same
-lifetime and no column or store change is needed; cookies without a prefix keep the old behaviour.
-The access token stays short-lived in every case. Apps that never send the field behave as before.
+The choice is stored **on the refresh token row** (`refresh_tokens.remember_me`) and inherited by every
+rotation, so it cannot be changed from the client. `UserSession.rememberMe` reports it, and the cookie value
+is just the token (the `Max-Age` is what differs). Cookies issued before this change carry a legacy `m~` /
+`s~` prefix; it is still read (`parseRefreshCookieValue`, exported) as a one-off hint for the first rotation
+of a token that has no stored choice, then recorded. Without a hint or a stored choice the lifetime is the
+old default. The access token stays short-lived in every case. Apps that never send the field behave as before.
+
+### Absolute session cap
+
+`refreshToken.absoluteExpiresInSeconds` (absent = no cap) limits the whole rotation chain, counted from the
+login (`refresh_tokens.session_started_at`, copied on every rotation). Each new token lives at most the time
+left until the cap; past it, `POST /auth/refresh` answers 401 and the person signs in again. A token expired
+by the cap is simply refused (no reuse marker), so presenting it again never revokes the person's other
+sessions. Custom `refreshTokenStore`s implement the cap through `rotate({ absoluteExpiresInSeconds,
+expiresInSecondsByChoice, rememberMeHint })`; a store that ignores those fields keeps the old behaviour.
 
 ## Refresh rotation and reuse detection
 

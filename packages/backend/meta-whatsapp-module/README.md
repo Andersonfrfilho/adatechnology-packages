@@ -205,6 +205,7 @@ whatsapp.flows!.registerDynamicChoiceProvider('free_slots', async ({ context, pa
 | `skipKeywords` | a resposta pula a pergunta: `contextKey` recebe `null` |
 | resposta inválida | `fallbackMessage` (ou `rejectionMessages` / texto padrão) e repergunta; na `maxInvalidAnswers`ª (padrão 2) chama uma pessoa |
 | `menu` / `choice` | aceita toque, número ("2"), id, rótulo ou palavras do rótulo — o rótulo **como o cliente viu**, com `{{chave}}` já resolvido; `optionDetails` dá descrição e seção |
+| `listButtonLabel` (nó ou config) | texto do botão que abre a lista (até 20 caracteres), com `{{chave}}` interpolado como o título das opções; interpolado acima de 20, a escolha sai numerada |
 | `next.byKeyword` | texto livre com a palavra (sem acento/caixa) vai ao destino — FAQ sem menu; na primeira mensagem também vale |
 | `dynamic_choice` | opções do provedor em `choiceProvider`, páginas de 9 + "ver mais", id escolhido em `contextKey` |
 | `directMessage` | enviado ao entrar no nó, com `{{chave}}` interpolado (contexto, variáveis do host, `contactName`, `contactFirstName`) |
@@ -223,6 +224,14 @@ whatsapp.flows!.registerDynamicChoiceProvider('free_slots', async ({ context, pa
   `'duplicate'` sem reenviar nem reavisar a equipe. Erro depois dessa escrita **não sobe** — vai para
   `onFlowRunnerError` (ou é descartado sem o gancho) e a conversa fica no último ponto gravado. Erro
   antes dela (leitura do grafo, banco fora) sobe, e a retentativa é segura.
+- **Retentativa do envio (`sendRetry`).** Cada mensagem do turno é retentada sozinha (padrão 3 tentativas, espera
+  500 ms e 1 s, teto de 5 s), então o que já saiu nunca é reenviado. Só repete falha de rede antes de a Meta receber
+  a mensagem (`isTransientSendError`); recusa da Meta, erro de banco depois do envio e janela expirada sobem na
+  primeira vez. Timeout **não** repete por padrão (a Meta pode ter aceitado e a Cloud API não tem chave de
+  idempotência); quem prefere repetir passa `sendRetry.shouldRetry`. As esperas rodam com o lock da conversa preso,
+  por isso o total é curto. Esgotadas as tentativas, o erro segue para `onFlowRunnerError`, agora com
+  `details.send = { attempts, messageKind, isTransient }` para o host avisar a equipe. Não cobre a mensagem do
+  encaminhamento (`handoff`) nem mídia de ação.
 - **Fuso obrigatório.** `timeZone` (ou `handoff.businessHours.timeZone`, quando fixo) define "hoje";
   sem ele o módulo falha na montagem. Servidor em UTC aceitaria "hoje" errado entre 21h e meia-noite.
 - **Variáveis do host vencem.** Em `{{chave}}`, `resolveVariables`, `contactName` e `contactFirstName`
@@ -289,6 +298,69 @@ handoff: {
 ```
 
 Guia completo: [`docs/front-desk-bot-with-flows.md`](./docs/front-desk-bot-with-flows.md).
+
+### Seed de grafos: atualizar o que ninguém editou
+
+Cada grafo guarda `origin` (`'seed'` ou `'edited'`) e `seedVersion`. O produto semeia com
+`module.flows.create.execute({ ..., seedVersion: 'v3' })` (grafo nasce `seed`); qualquer salvamento pelo editor
+(`module.flows.save`) vira `edited`, **mesmo que o payload traga `origin: 'seed'`**. Quando o seed muda, o produto
+chama o reseed no boot, para cada grafo:
+
+```ts
+const result = await module.flows.reseed.execute({
+  companyId, key: 'order', seedVersion: 'v4', content: { label, startNodeId, nodes },
+})
+// 'updated' (trocou e subiu a versão) | 'current' (já está na v4) | 'edited' (alguém mexeu: intocado) | 'missing'
+```
+
+A condição `origin = 'seed'` vai no próprio `UPDATE`, então uma edição concorrente nunca é sobrescrita. Grafos que já
+existiam antes do campo viram `edited` (sem como saber): só apagar e recriar os troca, uma vez.
+
+## Respostas rápidas
+
+Texto pronto por empresa que o atendente chama com `/atalho` no composer do `conversations-ui`. O módulo
+guarda (`meta_whatsapp.quick_replies`, migration aditiva) e expõe casos de uso e rotas; **só texto, sem
+anexos**.
+
+| Campo | Regra |
+|---|---|
+| `title` | 1 a 40 caracteres |
+| `shortcut` | `^[a-z0-9-]{1,20}$`, único por empresa (outra empresa pode usar o mesmo) |
+| `body` | 1 a 1000 caracteres, com `{{marcador}}` onde entra o dado da conversa |
+| `sortOrder` | opcional; sem ele a resposta nova vai para o fim, e a lista sai por `sortOrder`, depois título |
+| por empresa | no máximo 500 (`422 QUICK_REPLY_LIMIT_REACHED`) |
+
+Rotas prontas (tabela do `module-http`, as mesmas do `catalog-module` e companhia). O `companyId` vem da
+identidade, nunca do corpo; resposta de outra empresa responde `404`:
+
+```ts
+import { createMetaWhatsAppQuickReplyRoutes } from '@adatechnology/meta-whatsapp-module'
+import { createModuleFetchRouter } from '@adatechnology/module-http/fetch'
+
+const quickReplyRoutes = createMetaWhatsAppQuickReplyRoutes({
+  module: whatsapp,
+  // opcional — padrão: escrita exige `quick-replies:write`, leitura é de qualquer agente autenticado
+  scopes: { write: ['admin'], read: ['admin', 'agent'] },
+})
+const http = createModuleFetchRouter({ routes: quickReplyRoutes, basePath: '/v1/whatsapp', authResolver })
+```
+
+| Rota | Quem | Resposta |
+|---|---|---|
+| `GET /quick-replies?search=` | agente autenticado (`scopes.read`, se o host exigir) | `200 { data: WhatsAppQuickReply[] }`; a busca olha título, atalho e texto |
+| `POST /quick-replies` | `quick-replies:write` | `201 { data }`; `409 QUICK_REPLY_SHORTCUT_TAKEN` |
+| `PUT /quick-replies/:id` | `quick-replies:write` | `200 { data }`; troca título, atalho e texto (`sortOrder` só se vier) |
+| `DELETE /quick-replies/:id` | `quick-replies:write` | `204`; `404 QUICK_REPLY_NOT_FOUND` |
+
+Corpo inválido volta `400` com todos os problemas em `error.issues[{ path, message }]`. Quem monta as
+rotas por conta própria usa `module.quickReplies.{ list, create, update, delete }` — cada um recebe
+`companyId`. Os schemas, limites e erros vêm de `@adatechnology/meta-whatsapp-contracts`
+(`whatsAppQuickReplyInputSchema`, `QUICK_REPLY_LIMITS`, `QuickReplyShortcutTakenError`…).
+
+No painel, `createMetaWhatsAppQuickRepliesClient({ baseUrl: '/v1/whatsapp', getHeaders })`, do
+`@adatechnology/conversations-ui`, entrega as quatro funções da porta (`listQuickReplies`,
+`createQuickReply`, `updateQuickReply`, `deleteQuickReply`) para `ConversationsApi` ou direto para o
+`QuickRepliesWorkspace`/`QuickRepliesPicker`.
 
 ## Contatos do simulador
 

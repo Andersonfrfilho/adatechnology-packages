@@ -118,6 +118,7 @@ export const WHATSAPP_LIMITS = {
   MAX_BUTTONS: WHATSAPP_CHOICE_LIMIT.BUTTONS,
   MAX_LIST_ROWS: WHATSAPP_CHOICE_LIMIT.LIST_ROWS,
   BUTTON_TITLE_MAX: WHATSAPP_CHOICE_LIMIT.BUTTON_TITLE_LENGTH,
+  LIST_BUTTON_LABEL_MAX: WHATSAPP_CHOICE_LIMIT.LIST_BUTTON_LABEL_LENGTH,
   LIST_ROW_TITLE_MAX: WHATSAPP_CHOICE_LIMIT.LIST_ROW_TITLE_LENGTH,
   LIST_ROW_DESCRIPTION_MAX: WHATSAPP_CHOICE_LIMIT.LIST_ROW_DESCRIPTION_LENGTH,
   LIST_SECTION_TITLE_MAX: WHATSAPP_CHOICE_LIMIT.LIST_SECTION_TITLE_LENGTH,
@@ -127,6 +128,44 @@ export const WHATSAPP_LIMITS = {
 /** Caracteres como o contrato conta: por code point, então um emoji vale 1 (e não 2, como `.length`). */
 export function countCharacters(text: string): number {
   return Array.from(text).length
+}
+
+const PLACEHOLDER_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g
+
+export type MeasuredLabel = {
+  /** Caracteres do texto como o cliente o leria; sem exemplo para uma variável, ela vale 0 (mínimo certo). */
+  readonly length: number
+  /** `true` quando alguma `{{variável}}` ficou sem exemplo: o tamanho real só se sabe em tempo de execução. */
+  readonly isApproximate: boolean
+}
+
+/**
+ * Mede um rótulo com `{{variável}}` sobre o texto interpolado com o exemplo da variável. Sem exemplo,
+ * mede o texto sem ela — contar a marcação escrita daria erro falso (`{{nome}}` vale 8 e a variável
+ * real pode ter 4).
+ */
+export function measureLabel(label: string, variableExamples: Readonly<Record<string, string>> = {}): MeasuredLabel {
+  let isApproximate = false
+  const text = label.replace(PLACEHOLDER_PATTERN, (_placeholder, key: string) => {
+    const example = variableExamples[key]
+    if (example === undefined) isApproximate = true
+    return example ?? ''
+  })
+  return { length: countCharacters(text), isApproximate }
+}
+
+type LabelVerdict = 'ok' | 'too-long' | 'may-be-too-long'
+
+/** Erro só quando o mínimo certo já passa do teto; aviso quando só a marcação escrita passa e a variável não tem exemplo. */
+function judgeLabel(label: string, max: number, variableExamples: Readonly<Record<string, string>>): LabelVerdict {
+  const measured = measureLabel(label, variableExamples)
+  if (measured.length > max) return 'too-long'
+  return measured.isApproximate && countCharacters(label) > max ? 'may-be-too-long' : 'ok'
+}
+
+export type ValidateGraphOptions = {
+  /** Valor de exemplo por variável (`{ buttonName: 'Pernoite' }`), usado para medir rótulos de botão e linha de lista. */
+  readonly variableExamples?: Readonly<Record<string, string>>
 }
 
 /**
@@ -196,8 +235,14 @@ export function validateGraph(
     dynamicChoiceWithoutProvider?: (id: string) => string
     choiceDefaultIgnored?: (id: string) => string
     possibleNextIgnored?: (id: string) => string
+    buttonTitleMayBeTooLong?: (id: string, label: string) => string
+    listTitleMayBeTooLong?: (id: string, label: string) => string
+    listButtonLabelTooLong?: (id: string, label: string) => string
+    listButtonLabelMayBeTooLong?: (id: string, label: string) => string
   },
+  settings: ValidateGraphOptions = {},
 ): GraphIssue[] {
+  const examples = settings.variableExamples ?? {}
   const issues: GraphIssue[] = []
   const nodeIds = new Set(Object.keys(graph.nodes))
   const isValidTarget = (target: string) => nodeIds.has(target) || isCrossFlowTarget(target)
@@ -230,11 +275,17 @@ export function validateGraph(
           issues.push({ severity: 'warning', nodeId: node.id, message: issueText.optionWithoutTarget(node.id, label) })
         }
         const usesButtons = rendersAsButtons(options, node.optionDetails)
-        if (usesButtons && countCharacters(label) > WHATSAPP_LIMITS.BUTTON_TITLE_MAX) {
-          issues.push({ severity: 'error', nodeId: node.id, message: issueText.buttonTitleTooLong(node.id, label) })
+        const titleMax = usesButtons ? WHATSAPP_LIMITS.BUTTON_TITLE_MAX : WHATSAPP_LIMITS.LIST_ROW_TITLE_MAX
+        const titleVerdict = judgeLabel(label, titleMax, examples)
+        if (titleVerdict === 'too-long') {
+          const tooLong = usesButtons ? issueText.buttonTitleTooLong : issueText.listTitleTooLong
+          issues.push({ severity: 'error', nodeId: node.id, message: tooLong(node.id, label) })
         }
-        if (!usesButtons && countCharacters(label) > WHATSAPP_LIMITS.LIST_ROW_TITLE_MAX) {
-          issues.push({ severity: 'error', nodeId: node.id, message: issueText.listTitleTooLong(node.id, label) })
+        if (titleVerdict === 'may-be-too-long') {
+          const message =
+            (usesButtons ? issueText.buttonTitleMayBeTooLong : issueText.listTitleMayBeTooLong)?.(node.id, label) ??
+            `Nó "${node.id}": "${label}" tem variável e pode passar de ${titleMax} caracteres; confira o valor real.`
+          issues.push({ severity: 'warning', nodeId: node.id, message })
         }
         const description = node.optionDetails?.[optionId]?.description ?? ''
         if (countCharacters(description) > WHATSAPP_LIMITS.LIST_ROW_DESCRIPTION_MAX) {
@@ -243,6 +294,22 @@ export function validateGraph(
             `“${label}” em ${node.id}: a descrição passa de ${WHATSAPP_LIMITS.LIST_ROW_DESCRIPTION_MAX} caracteres.`
           issues.push({ severity: 'error', nodeId: node.id, message })
         }
+      }
+      const listButtonLabel = node.listButtonLabel
+      const listButtonVerdict = listButtonLabel
+        ? judgeLabel(listButtonLabel, WHATSAPP_LIMITS.LIST_BUTTON_LABEL_MAX, examples)
+        : 'ok'
+      if (listButtonLabel && listButtonVerdict === 'too-long') {
+        const message =
+          issueText.listButtonLabelTooLong?.(node.id, listButtonLabel) ??
+          `Nó "${node.id}": o botão da lista "${listButtonLabel}" passa de ${WHATSAPP_LIMITS.LIST_BUTTON_LABEL_MAX} caracteres.`
+        issues.push({ severity: 'error', nodeId: node.id, message })
+      }
+      if (listButtonLabel && listButtonVerdict === 'may-be-too-long') {
+        const message =
+          issueText.listButtonLabelMayBeTooLong?.(node.id, listButtonLabel) ??
+          `Nó "${node.id}": o botão da lista "${listButtonLabel}" tem variável e pode passar de ${WHATSAPP_LIMITS.LIST_BUTTON_LABEL_MAX} caracteres; confira o valor real.`
+        issues.push({ severity: 'warning', nodeId: node.id, message })
       }
       // Com o runner em `reask` (padrão), resposta fora das opções repergunta: um "caso contrário"
       // apontando para outro nó nunca seria seguido. Aviso, não erro — o host pode ligar `default`.
