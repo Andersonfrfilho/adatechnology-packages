@@ -61,7 +61,12 @@ export class BuildFeedUseCase {
   private toItem(row: PostRow): FeedItem {
     return {
       title: row.title,
-      url: buildPostUrl({ siteUrl: this.feed.siteUrl, slug: row.slug, postPathTemplate: this.feed.postPathTemplate }),
+      url: buildPostUrl({
+        siteUrl: this.feed.siteUrl,
+        slug: row.slug,
+        shortId: row.shortId,
+        postPathTemplate: this.feed.postPathTemplate,
+      }),
       publishedAt: (row.publishedAt ?? row.createdAt).toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       summary: row.excerpt ?? buildExcerpt(row.body),
@@ -90,7 +95,12 @@ export class ListSitemapEntriesUseCase {
       pageSize: SITEMAP_LIMIT,
     })
     return page.rows.map((row) => ({
-      loc: buildPostUrl({ siteUrl: this.feed.siteUrl, slug: row.slug, postPathTemplate: this.feed.postPathTemplate }),
+      loc: buildPostUrl({
+        siteUrl: this.feed.siteUrl,
+        slug: row.slug,
+        shortId: row.shortId,
+        postPathTemplate: this.feed.postPathTemplate,
+      }),
       lastmod: row.updatedAt.toISOString(),
     }))
   }

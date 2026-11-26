@@ -39,6 +39,7 @@ export const POST_EVENT = {
   PUBLISHED: 'published',
   UNPUBLISHED: 'unpublished',
   ARCHIVED: 'archived',
+  REPUBLISHED: 'republished',
 } as const
 export type PostEventType = (typeof POST_EVENT)[keyof typeof POST_EVENT]
 
@@ -61,7 +62,7 @@ export type ContentFeedConfig = {
   readonly title: string
   readonly description?: string
   readonly language?: string
-  /** Caminho do post no site, com `{slug}`. Padrão: `/blog/{slug}`. */
+  /** Caminho do post no site, com `{slug}` e, opcional, `{shortId}` (ex.: `/novidades/{shortId}-{slug}`). Padrão: `/blog/{slug}`. */
   readonly postPathTemplate?: string
   /** Quantos posts recentes entram no feed. Padrão: 20. */
   readonly itemLimit?: number
@@ -79,6 +80,8 @@ export type ContentModuleConfig = {
   readonly publicCacheControl?: string
   readonly feed?: ContentFeedConfig
   readonly wordsPerMinute?: number
+  /** Slug automático (quando o autor não informa). Padrão: até 60 caracteres, sem palavras de ligação do pt-BR. */
+  readonly slug?: { readonly maxLength?: number; readonly stopWords?: readonly string[] | false }
 }
 
 export const DEFAULT_ADMIN_SCOPES: readonly string[] = ['content:admin']

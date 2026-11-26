@@ -37,3 +37,71 @@ export function withSlugSuffix(slug: string, attempt: number): string {
   const suffix = `-${attempt}`
   return `${slug.slice(0, SLUG_MAX_LENGTH - suffix.length).replace(/-+$/g, '')}${suffix}`
 }
+
+/** Padrão do slug automático: curto o bastante para um link legível em qualquer rede. */
+export const DEFAULT_SHORT_SLUG_LENGTH = 60
+
+/** Artigos, preposições e conjunções do pt-BR que só alongam o endereço. */
+export const PT_BR_STOP_WORDS: readonly string[] = [
+  'a',
+  'as',
+  'o',
+  'os',
+  'um',
+  'uma',
+  'uns',
+  'umas',
+  'de',
+  'da',
+  'das',
+  'do',
+  'dos',
+  'em',
+  'na',
+  'nas',
+  'no',
+  'nos',
+  'e',
+  'ou',
+  'para',
+  'pra',
+  'pro',
+  'por',
+  'pelo',
+  'pela',
+  'pelos',
+  'pelas',
+  'com',
+  'sem',
+  'ao',
+  'aos',
+  'que',
+  'se',
+]
+
+export type ShortSlugOptions = {
+  /** Padrão: 60. */
+  readonly maxLength?: number
+  /** Padrão: pt-BR. `false` mantém todas as palavras. */
+  readonly stopWords?: readonly string[] | false
+}
+
+/**
+ * Slug automático curto: sem acento, sem palavra de ligação, cortado na fronteira de palavra dentro
+ * de `maxLength`. "Novidades de fim de ano: cardápio para as festas" → "novidades-fim-ano-cardapio-festas".
+ * Título só de palavras de ligação mantém as palavras (melhor longo que vazio).
+ */
+export function buildShortSlug(title: string, options: ShortSlugOptions = {}): string {
+  const maxLength = Math.min(options.maxLength ?? DEFAULT_SHORT_SLUG_LENGTH, SLUG_MAX_LENGTH)
+  const words = slugify(title).split('-').filter(Boolean)
+  const stop = new Set(options.stopWords === false ? [] : (options.stopWords ?? PT_BR_STOP_WORDS))
+  const meaningful = words.filter((word) => !stop.has(word))
+  const kept = meaningful.length > 0 ? meaningful : words
+  let slug = ''
+  for (const word of kept) {
+    const next = slug ? `${slug}-${word}` : word
+    if (next.length > maxLength) break
+    slug = next
+  }
+  return slug || (kept[0] ?? '').slice(0, maxLength).replace(/-+$/g, '')
+}

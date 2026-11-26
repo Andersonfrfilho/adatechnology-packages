@@ -6,16 +6,24 @@
  */
 
 import type {
+  CreateFromTemplateInput,
   CreatePostInput,
+  CreateRecurrenceInput,
   Paginated,
   Post,
+  PostCounts,
+  PostSortField,
   PostStatus,
   PostSummary,
   PublicPost,
   PublicPostSummary,
   PublishPostInput,
+  RecurrenceRule,
+  RepublishPostInput,
+  SaveAsTemplateInput,
   TagCount,
   UpdatePostInput,
+  UpdateRecurrenceInput,
 } from '@adatechnology/content-contracts'
 import type { ReactNode } from 'react'
 
@@ -23,8 +31,13 @@ export type ListPostsParams = {
   readonly page?: number
   readonly pageSize?: number
   readonly status?: PostStatus
+  /** Uma tag, ou várias separadas por vírgula (basta ter uma). */
   readonly tag?: string
   readonly search?: string
+  readonly sort?: PostSortField
+  readonly order?: 'asc' | 'desc'
+  /** `true`: só modelos. */
+  readonly isTemplate?: boolean
 }
 
 export type ContentAdminApi = {
@@ -35,6 +48,18 @@ export type ContentAdminApi = {
   publishPost(id: string, input?: PublishPostInput): Promise<Post>
   unpublishPost(id: string): Promise<Post>
   archivePost(id: string): Promise<void>
+  /** Ausente: a lista não tem abas por situação nem contagens (filtro de status em lista suspensa). */
+  countPosts?(): Promise<PostCounts>
+  /** Ausente: sem "Salvar como modelo" e sem a aba Modelos. */
+  saveAsTemplate?(id: string, input?: SaveAsTemplateInput): Promise<Post>
+  createFromTemplate?(id: string, input?: CreateFromTemplateInput): Promise<Post>
+  /** Ausente: sem "Republicar". */
+  republishPost?(id: string, input?: RepublishPostInput): Promise<Post>
+  /** Ausentes: sem o painel de publicação automática (recorrência). */
+  listRecurrences?(): Promise<readonly RecurrenceRule[]>
+  createRecurrence?(input: CreateRecurrenceInput): Promise<RecurrenceRule>
+  updateRecurrence?(id: string, input: UpdateRecurrenceInput): Promise<RecurrenceRule>
+  removeRecurrence?(id: string): Promise<void>
   /** Ausente: o filtro de tag vira campo livre e o editor não sugere tags. */
   listTags?(): Promise<readonly TagCount[]>
   /** Ausente: a capa é só por URL — sem alvo de upload que sempre falharia. */
@@ -77,3 +102,14 @@ export type DateTimeInputProps = {
 
 /** Troca o `<input type="datetime-local">` nativo pelo seletor de data e hora do host. */
 export type RenderDateTimeInput = (props: DateTimeInputProps) => ReactNode
+
+export type SelectInputProps = {
+  readonly id: string
+  readonly label: string
+  readonly value: string
+  readonly options: readonly { readonly id: string; readonly label: string }[]
+  readonly onChange: (value: string) => void
+}
+
+/** Troca o `<select>` nativo pelo menu de seleção do host. */
+export type RenderSelect = (props: SelectInputProps) => ReactNode

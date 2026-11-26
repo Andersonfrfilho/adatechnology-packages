@@ -82,7 +82,12 @@ describe('schemas', () => {
   })
 
   it('query de listagem converte números e limita o tamanho da página', () => {
-    expect(listPostsQuerySchema.parse({ page: '2' })).toEqual({ page: 2, pageSize: 20 })
+    expect(listPostsQuerySchema.parse({ page: '2' })).toEqual({
+      page: 2,
+      pageSize: 20,
+      sort: 'updatedAt',
+      order: 'desc',
+    })
     expect(listPostsQuerySchema.safeParse({ pageSize: '500' }).success).toBe(false)
   })
 })

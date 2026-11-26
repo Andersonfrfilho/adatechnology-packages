@@ -4,7 +4,14 @@
 
 import { describe, expect, it } from 'bun:test'
 
-import { isValidSlug, slugify, SLUG_MAX_LENGTH, withSlugSuffix } from './slugify'
+import {
+  buildShortSlug,
+  DEFAULT_SHORT_SLUG_LENGTH,
+  isValidSlug,
+  slugify,
+  SLUG_MAX_LENGTH,
+  withSlugSuffix,
+} from './slugify'
 import { normalizeTags } from './tags'
 import { buildExcerpt, estimateReadingTimeMinutes } from './readingTime'
 
@@ -62,5 +69,29 @@ describe('tempo de leitura e resumo', () => {
     const excerpt = buildExcerpt('palavra '.repeat(100), 50)
     expect(excerpt.length).toBeLessThanOrEqual(50)
     expect(excerpt.endsWith('palavra…')).toBe(true)
+  })
+})
+
+describe('buildShortSlug', () => {
+  it('tira acento e palavras de ligação do pt-BR', () => {
+    expect(buildShortSlug('Novidades de fim de ano: cardápio para as festas')).toBe('novidades-fim-ano-cardapio-festas')
+  })
+
+  it('corta na fronteira de palavra dentro do limite', () => {
+    const slug = buildShortSlug('palavra comprida '.repeat(20))
+    expect(slug.length).toBeLessThanOrEqual(DEFAULT_SHORT_SLUG_LENGTH)
+    expect(slug.endsWith('-')).toBe(false)
+    expect(slug.split('-').every((word) => word === 'palavra' || word === 'comprida')).toBe(true)
+  })
+
+  it('só palavras de ligação mantém as palavras; opções trocam limite e lista', () => {
+    expect(buildShortSlug('E o da')).toBe('e-o-da')
+    expect(buildShortSlug('de volta para o futuro', { stopWords: false })).toBe('de-volta-para-o-futuro')
+    expect(buildShortSlug('um dois tres quatro', { maxLength: 10 })).toBe('dois-tres')
+    expect(buildShortSlug('🎉')).toBe('')
+  })
+
+  it('palavra única maior que o limite é cortada', () => {
+    expect(buildShortSlug('x'.repeat(100), { maxLength: 20 })).toBe('x'.repeat(20))
   })
 })

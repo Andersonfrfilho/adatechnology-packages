@@ -8,6 +8,7 @@
 import {
   listPublishedPostsQuerySchema,
   normalizeTag,
+  parsePostRef,
   PostNotFoundError,
   type ListPublishedPostsQuery,
   type Paginated,
@@ -22,14 +23,20 @@ import type { ContentDependencies } from './contentModule.types'
 export class GetPublishedPostBySlugUseCase {
   constructor(private readonly dependencies: ContentDependencies) {}
 
+  /**
+   * `slug` aceita o endereço canônico `<shortId>-<slug>`, o slug atual e slug antigo. O id curto
+   * manda: título/slug editado depois não quebra link compartilhado. O host compara `buildPostRef`
+   * do resultado com o pedido e redireciona (301) quando forem diferentes.
+   */
   async execute(params: { readonly companyId: string; readonly slug: string }): Promise<PublicPost> {
-    const slug = params.slug.trim().toLowerCase()
-    const row = await this.dependencies.posts.findPublicBySlug({
-      companyId: params.companyId,
-      slug,
-      now: this.dependencies.clock.now(),
-    })
-    if (!row) throw new PostNotFoundError(slug)
+    const { posts, clock } = this.dependencies
+    const parsed = parsePostRef(params.slug)
+    const query = { companyId: params.companyId, now: clock.now() }
+    const row =
+      (parsed.shortId ? await posts.findPublicByShortId({ ...query, shortId: parsed.shortId }) : undefined) ??
+      (await posts.findPublicBySlug({ ...query, slug: parsed.slug })) ??
+      (await posts.findPublicByFormerSlug({ ...query, slug: parsed.slug }))
+    if (!row) throw new PostNotFoundError(parsed.slug)
     return toPublicPost(row)
   }
 }
