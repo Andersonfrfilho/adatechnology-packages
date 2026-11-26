@@ -936,6 +936,9 @@ importers:
       '@adatechnology/meta-whatsapp-provider':
         specifier: workspace:*
         version: link:../meta-whatsapp-provider
+      '@adatechnology/module-http':
+        specifier: workspace:*
+        version: link:../module-http
     devDependencies:
       '@types/bun':
         specifier: 1.3.14

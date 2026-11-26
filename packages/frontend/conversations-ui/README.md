@@ -26,6 +26,14 @@ Telas de conversa parametrizáveis por endpoint, tema e capacidades. Subpaths: `
 - **`contextLabels`** troca o vocabulário do painel de contexto embutido (`title`, `empty`,
   `notCollected`, ...), sem precisar desenhar o resumo em `renderAboveTranscript`.
 
+### Paginação de mensagens (`ConversationsApi.fetchMessages`)
+
+"Carregar mensagens anteriores" pede a página com o cursor composto da mensagem mais antiga da tela:
+`fetchMessages(conversationId, { limit, before: <timestamp>, beforeId: <id> })`. O servidor devolve só as
+estritamente anteriores a ela na ordem `(createdAt, id)`; assim mensagens gravadas no mesmo instante da
+fronteira nem somem nem se repetem. Host que só entende `before` pode ignorar `beforeId` (pagina como antes).
+O `meta-whatsapp-module` aceita `beforeId` em `ListMessagesUseCase` / `MessageRepository.listByConversation`.
+
 ## Visão do participante (`/participant`)
 
 Tela de conversa do lado de **quem conversa com a empresa** (app de campo, portal do cliente). Não usa

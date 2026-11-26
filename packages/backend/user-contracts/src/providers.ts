@@ -40,10 +40,33 @@ export type AttributeMapping<TClaims extends Record<string, unknown>> = {
  * obrigatória no contrato, e não uma capacidade opcional.
  */
 export type RefreshTokenStorePort = {
-  issue(params: { readonly userId: string; readonly expiresInSeconds: number }): Promise<string>
+  issue(params: {
+    readonly userId: string
+    readonly expiresInSeconds: number
+    /** Escolha "lembrar de mim" a registrar no token; a rotação a herda. Ausente = sem escolha registrada. */
+    readonly rememberMe?: boolean
+    /** Início da sessão para o teto absoluto; a rotação repassa o do token antigo. Ausente = agora. */
+    readonly sessionStartedAt?: Date
+  }): Promise<string>
   rotate(params: {
     readonly tokenHash: string
     readonly newExpiresInSeconds: number
+    /**
+     * Validade por escolha registrada no token. Presente, a rotação usa `remember`/`session` conforme o
+     * que o token guarda e deixa `newExpiresInSeconds` para o token sem escolha registrada.
+     */
+    readonly expiresInSecondsByChoice?: { readonly remember: number; readonly session: number }
+    /**
+     * Escolha vinda do cookie de um token emitido antes do registro no servidor. Só vale quando o token
+     * não tem escolha registrada; a rotação a grava no token novo, e o cookie deixa de ser a fonte.
+     */
+    readonly rememberMeHint?: boolean
+    /**
+     * Teto absoluto de vida da sessão, em segundos desde o login que a iniciou. Passado o teto, a
+     * rotação recusa (`null`) e a pessoa precisa entrar de novo; antes dele, o token novo nunca vive
+     * além do teto. Ausente = sem teto.
+     */
+    readonly absoluteExpiresInSeconds?: number
     /**
      * Janela, em segundos, em que reapresentar um token já rotacionado é tratado como corrida
      * legítima (duas abas renovando juntas) e não como reuso. Ausente = o padrão da implementação.
@@ -63,7 +86,16 @@ export type RefreshTokenStorePort = {
  * Uma loja customizada que nunca detecta reuso pode seguir devolvendo só `{ token, userId } | null`.
  */
 export type RefreshRotationResult =
-  { readonly token: string; readonly userId: string } | { readonly reusedForUserId: string } | null
+  | {
+      readonly token: string
+      readonly userId: string
+      /** Escolha registrada no token (a efetiva). Loja que não registra omite. */
+      readonly rememberMe?: boolean
+      /** Validade real do token novo, já limitada pelo teto absoluto. Loja que não calcula omite. */
+      readonly expiresInSeconds?: number
+    }
+  | { readonly reusedForUserId: string }
+  | null
 
 /**
  * Forma **idêntica** à de `@adatechnology/notification-contracts` — redeclarada, e não importada,
@@ -181,6 +213,12 @@ export type RefreshTokenConfig = {
   readonly reuseGraceSeconds?: number
   /** Validade do refresh de quem marcou "lembrar de mim". Ausente = `expiresInSeconds` (30 dias). */
   readonly rememberExpiresInSeconds?: number
+  /**
+   * Teto absoluto da sessão, em segundos desde o login: cada renovação rotaciona o token, mas a cadeia
+   * inteira morre neste prazo, "lembrar de mim" ou não. Ausente = sem teto (a sessão se renova para
+   * sempre enquanto a pessoa voltar dentro da validade de cada token).
+   */
+  readonly absoluteExpiresInSeconds?: number
   /**
    * Validade, no servidor, do refresh de quem entrou SEM "lembrar de mim" (o cookie some ao fechar o
    * navegador). Ausente = 24 h. Só vale quando o cliente envia `rememberMe: false`.

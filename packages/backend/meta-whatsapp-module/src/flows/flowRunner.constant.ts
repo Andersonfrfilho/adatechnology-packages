@@ -7,6 +7,10 @@
 export const DEFAULT_START_FLOW_KEY = 'main'
 export const DEFAULT_MAX_INVALID_ANSWERS = 2
 export const DEFAULT_MAX_CROSS_FLOW_JUMPS = 5
+/** As esperas padrão somam (500 ms + 1 s) fica abaixo de 2 s: o lock da conversa fica preso durante elas. */
+export const DEFAULT_SEND_RETRY_MAX_ATTEMPTS = 3
+export const DEFAULT_SEND_RETRY_BASE_DELAY_MS = 500
+export const DEFAULT_SEND_RETRY_MAX_DELAY_MS = 5000
 
 export const DEFAULT_FLOW_TEXT = {
   FALLBACK: 'Não entendi. Pode responder de novo?',

@@ -237,4 +237,7 @@ function validateModuleConfig(config: UserModuleConfig): void {
   if (refresh?.sessionExpiresInSeconds !== undefined && !(refresh.sessionExpiresInSeconds > 0)) {
     throw new ConfigMissingError('refreshToken.sessionExpiresInSeconds')
   }
+  if (refresh?.absoluteExpiresInSeconds !== undefined && !(refresh.absoluteExpiresInSeconds > 0)) {
+    throw new ConfigMissingError('refreshToken.absoluteExpiresInSeconds')
+  }
 }

@@ -30,6 +30,12 @@ export type UserSession = {
   readonly expiresInSeconds: number
   readonly refreshToken: string
   readonly refreshExpiresInSeconds: number
+  /**
+   * "Lembrar de mim" como o servidor registrou no refresh token (a fonte da verdade; o cliente não a
+   * altera). Ausente em token anterior ao registro. É o que o host usa para decidir cookie persistente
+   * ou de sessão ao montar o `Set-Cookie`.
+   */
+  readonly rememberMe?: boolean
   readonly user: UserProfile
 }
 

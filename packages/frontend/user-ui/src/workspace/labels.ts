@@ -90,6 +90,12 @@ export type UserLabels = {
   readonly teamChangePhoto: string
   readonly teamSendPasswordReset: string
   readonly teamPasswordResetSent: string
+  readonly teamSetPassword: string
+  readonly teamSetPasswordTitle: string
+  readonly teamNewPassword: string
+  readonly teamNewPasswordHint: string
+  readonly teamSetPasswordSubmit: string
+  readonly teamPasswordSet: string
   readonly teamBulkHint: string
   readonly teamSortBy: string
   readonly teamSelectedCount: string
@@ -181,6 +187,13 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   teamChangePhoto: 'Trocar a foto de',
   teamSendPasswordReset: 'Enviar redefinicao de senha',
   teamPasswordResetSent: 'E-mail enviado',
+  teamSetPassword: 'Definir nova senha',
+  teamSetPasswordTitle: 'Nova senha para',
+  teamNewPassword: 'Nova senha',
+  teamNewPasswordHint:
+    'Combine com a pessoa. As sessoes abertas dela sao encerradas e ela entra de novo com esta senha.',
+  teamSetPasswordSubmit: 'Definir senha',
+  teamPasswordSet: 'Senha definida',
   teamBulkHint: 'Selecione linhas para agir em lote',
   teamSortBy: 'Ordenar por',
   teamSelectedCount: '{count} selecionados',

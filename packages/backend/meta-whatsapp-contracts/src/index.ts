@@ -56,6 +56,7 @@ export type {
 export {
   CROSS_FLOW_PREFIX,
   FLOW_ACTION_KIND,
+  FLOW_GRAPH_ORIGIN,
   isCrossFlowTarget,
   crossFlowKey,
   flowNodeNextSchema,
@@ -79,6 +80,7 @@ export type {
   FlowAnswerValidation,
   FlowOptionDetail,
   FlowGraphData,
+  FlowGraphOrigin,
   FlowGraphSummary,
   LiveFlowPosition,
 } from './flow.types'
@@ -103,6 +105,7 @@ export type {
   TranscriptionDeferredDescriptor,
   UnhandledWebhookEventDescriptor,
   FlowRunnerErrorDetails,
+  FlowSendFailureDetails,
 } from './events'
 
 export { WHATSAPP_CHOICE_LIMIT } from './providers'
@@ -136,6 +139,9 @@ export {
   TranscriptionDisabledError,
   InteractiveLimitExceededError,
   FlowRunnerError,
+  QuickReplyNotFoundError,
+  QuickReplyShortcutTakenError,
+  QuickReplyLimitReachedError,
 } from './errors'
 export type { FlowRunnerFailureReason } from './errors'
 
@@ -192,3 +198,12 @@ export { isWithinBusinessHours } from './businessHours'
 export type { BusinessHours, BusinessHoursWindow, BusinessWeekday } from './businessHours'
 
 export { PREVIEW_CONTACT_PREFIX, DEFAULT_PREVIEW_CONTACT, toPreviewContact, isPreviewContact } from './previewContact'
+
+export {
+  QUICK_REPLY_LIMITS,
+  QUICK_REPLY_SHORTCUT_PATTERN,
+  QUICK_REPLY_ERROR_CODES,
+  whatsAppQuickReplyInputSchema,
+  listWhatsAppQuickRepliesQuerySchema,
+} from './quickReply'
+export type { WhatsAppQuickReply, WhatsAppQuickReplyInput, ListWhatsAppQuickRepliesQuery } from './quickReply'

@@ -110,9 +110,16 @@ export function createMockConversationsApi(params: CreateMockConversationsApiPar
       return withLatency(() => {
         const allMessages = params.store.listMessages(conversationId)
         const before = fetchParams?.before
+        const beforeId = fetchParams?.beforeId
         // Mesma semântica do backend real: com `before`, corta tudo a partir dessa mensagem (ela
-        // não volta) para simular a paginação de "carregar mensagens anteriores" no preview.
-        const messages = before ? allMessages.filter((message) => message.timestamp < before) : allMessages
+        // não volta) para simular a paginação de "carregar mensagens anteriores" no preview. Com
+        // `beforeId` o cursor é `(timestamp, id)`: no mesmo instante, só as de id menor.
+        const isOlder = (message: MessagePayload): boolean =>
+          before === undefined
+            ? true
+            : message.timestamp < before ||
+              (beforeId !== undefined && message.timestamp === before && message.id < beforeId)
+        const messages = before ? allMessages.filter(isOlder) : allMessages
         const limit = fetchParams?.limit
         return limit ? messages.slice(-limit) : messages
       })

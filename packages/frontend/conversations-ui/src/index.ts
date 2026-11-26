@@ -286,6 +286,15 @@ export { QuickRepliesWorkspace, QuickRepliesPicker } from './quickReplies'
 export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps } from './quickReplies'
 export { DEFAULT_QUICK_REPLIES_PICKER_LABELS, DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS } from './quickReplies/labels'
 export type { QuickRepliesPickerLabels, QuickRepliesWorkspaceLabels } from './quickReplies/labels'
+export {
+  createMetaWhatsAppQuickRepliesClient,
+  QuickRepliesApiError,
+} from './quickReplies/createMetaWhatsAppQuickRepliesClient'
+export type {
+  CreateMetaWhatsAppQuickRepliesClientParams,
+  MetaWhatsAppQuickRepliesClient,
+  QuickRepliesApiErrorDetail,
+} from './quickReplies/createMetaWhatsAppQuickRepliesClient'
 export { normalizeForSearch, filterQuickReplies, highlightMatch } from './quickReplies/quickReplySearch'
 export type { FilterQuickRepliesParams, MatchSegment } from './quickReplies/quickReplySearch'
 

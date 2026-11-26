@@ -1,4 +1,5 @@
 import type { InteractiveLimitViolation } from './interactive'
+import { QUICK_REPLY_ERROR_CODES } from './quickReply'
 
 // Hierarquia de erros do módulo — não depende do framework de erros do host (nenhum DomainError
 // importado); o host mapeia estes para o seu próprio formato de resposta no exception filter.
@@ -158,6 +159,28 @@ export class FlowRunnerError extends MetaWhatsAppError {
     super(`Fluxo não pôde seguir (${reason}): ${target}.`, 500, META_WHATSAPP_ERROR_CODES.FLOW_RUNNER_FAILED, {
       reason,
       target,
+    })
+  }
+}
+
+/** Resposta rápida inexistente — ou de outra empresa: o 404 não distingue, para não confirmar o id alheio. */
+export class QuickReplyNotFoundError extends MetaWhatsAppError {
+  constructor(quickReplyId: string) {
+    super('Resposta rápida não encontrada.', 404, QUICK_REPLY_ERROR_CODES.NOT_FOUND, { quickReplyId })
+  }
+}
+
+/** Atalho já usado por outra resposta da empresa. */
+export class QuickReplyShortcutTakenError extends MetaWhatsAppError {
+  constructor(shortcut: string) {
+    super('Esse atalho já está em uso.', 409, QUICK_REPLY_ERROR_CODES.SHORTCUT_TAKEN, { shortcut })
+  }
+}
+
+export class QuickReplyLimitReachedError extends MetaWhatsAppError {
+  constructor(limit: number) {
+    super(`A empresa já tem o máximo de ${limit} respostas rápidas.`, 422, QUICK_REPLY_ERROR_CODES.LIMIT_REACHED, {
+      limit,
     })
   }
 }

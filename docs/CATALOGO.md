@@ -42,6 +42,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 |---|---|---|
 | [`conversations-ui`](#adatechnologyconversations-ui) | lista, conversa, composer com áudio, janela de 24 h, anexos, notificação de espera | `ConversationsWorkspace`, `ConversationPane` |
 | [`conversation-module`](#adatechnologyconversation-module) | núcleo multicanal (WhatsApp, e-mail e outros) com anexos e não atribuídas | `createConversationModule` |
+| [`meta-whatsapp-module`](#adatechnologymeta-whatsapp-module) + [`conversations-ui`](#adatechnologyconversations-ui) | **respostas rápidas por empresa** (atalho `/` do composer e tela de cadastro): tabela, casos de uso, rotas e a porta do painel prontos | `createMetaWhatsAppQuickReplyRoutes`, `createMetaWhatsAppQuickRepliesClient` |
 
 ### Chat no site do cliente
 
@@ -233,7 +234,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Módulos com banco** criam um schema Postgres próprio (`catalog`, `notification`, `user`, `scheduling`, ...) com tabela de journal própria, e nunca tocam o `public` do host. Rodar as migrations é `run<Nome>Migrations({ db, migrate })`.
 - **drizzle-orm:** `catalog-module`, `expense-module`, `infra-module` e `scheduling-module` declaram peer `>=0.36.0 <1` (não aceitam drizzle 1.x). Os demais módulos aceitam `<2`. `notification-module` traz dois layouts de migration (`layout: 'v1'` para drizzle 1.x); `conversation-module` e `meta-whatsapp-module` publicam só o formato com pastas de timestamp.
 - **zod:** os pacotes de contratos e módulos usam zod 3.x (`^3.24.1`; resolve 3.25.76, a última da linha 3); keycloak-admin e os MCPs usam zod 4 (`^4.6.6`, que traz a correção do GHSA-mrhx-c7xc-m3w5). A linha 3 não tem versão corrigida desse aviso: `.max(n)` num array gigante ainda gera uma issue por elemento. Quem expõe rota pública deve limitar o tamanho do corpo no servidor (ex.: `maxRequestBodySize` do `Bun.serve`) até a migração para zod 4.
-- **Rotas HTTP:** os módulos com `createXRoutes` entregam uma tabela de rotas (`module-http`); o host escolhe o adaptador `fetch` ou uWebSockets e gera o OpenAPI da mesma tabela. `meta-whatsapp-module` e `conversation-module` não entregam tabela: o host monta as rotas.
+- **Rotas HTTP:** os módulos com `createXRoutes` entregam uma tabela de rotas (`module-http`); o host escolhe o adaptador `fetch` ou uWebSockets e gera o OpenAPI da mesma tabela. `conversation-module` não entrega tabela e o `meta-whatsapp-module` entrega só a das respostas rápidas (`createMetaWhatsAppQuickReplyRoutes`): no resto o host monta as rotas.
 - **`*-ui`:** nenhum faz `fetch` direto; o host implementa a interface de API do pacote e a injeta num `Provider`.
 - **Pacotes sem README:** a entrada foi levantada de `src/index.ts`. Quando for adotar, leia o código antes de confiar.
 - `packages/backend/meta-business/catalog` não é pacote: guarda cópia da documentação da Meta Commerce. `packages/backend/example/bun-app` é app de exemplo (ignorado pelo changesets), não biblioteca.
@@ -274,6 +275,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Schemas do webhook da Meta (`whatsAppWebhookPayloadSchema`, mensagens, status, qualidade, template)
   - Modelo do grafo de fluxo compartilhado com o editor visual: nós `question`, `entrada_choice`, `action`, `menu`, `condition`; ações `handoff`, `rate_limited_handoff`, `send_product_list`, `send_media`; salto entre fluxos `flow:<chave>` (`FLOW_ACTION_KIND`, `flowGraphNodesSchema`, `isCrossFlowTarget`)
   - Limites do WhatsApp para botões e listas (`WHATSAPP_CHOICE_LIMIT`)
+  - **Respostas rápidas** (a publicar na 0.7.0): `whatsAppQuickReplyInputSchema`, `listWhatsAppQuickRepliesQuerySchema`, `WhatsAppQuickReply`, limites (`QUICK_REPLY_LIMITS`: título 40, atalho 20, texto 1000, 500 por empresa), `QUICK_REPLY_SHORTCUT_PATTERN` e erros `QuickReplyNotFoundError` (404), `QuickReplyShortcutTakenError` (409) e `QuickReplyLimitReachedError` (422)
   - `./testing`: builders de payload inbound (`buildInboundTextPayload`, `buildInboundInteractivePayload`, `buildInboundAudioPayload`, `buildInboundMediaPayload`) que rodam também no navegador e alimentam o simulador
 - **Entradas:** `src/index.ts`; `src/flow.types.ts`; `src/testing/inboundPayloads.ts`
 - **Precisa de:** Nenhuma.
@@ -288,8 +290,12 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Webhook com verificação de assinatura, desafio de verificação e deduplicação idempotente (`ReceiveWebhookUseCase`, `verifyWebhookSignature`, `claimWebhookDelivery`)
   - **Motor de fluxos:** `FlowInterpreter` executa o grafo (`question`, `entrada_choice`, `menu`, `condition`, `action`) com contexto, salto entre fluxos e limite de passos; ações plugáveis (`createSendProductListAction`, `createSendMediaAction`, handoff)
   - Grafos de fluxo persistidos com lock otimista e cache opcional (`FlowGraphRepository`, `Create/Save/Get/List/DeleteFlowGraphUseCase`); `GetLiveFlowPositionsUseCase` mostra em que nó cada conversa está
-  - **Runner de fluxo** (`features.flowRunner`): pergunta de horário (`questionType: 'time'`, faixas permitidas pelo contexto), validador do host (`validateAnswer`), textos do bot resolvidos por empresa/conversa (`FlowConfigText`: string ou `(ctx) => string | undefined`), escolha digitada casada com o título já interpolado
+  - **Runner de fluxo** (`features.flowRunner`): pergunta de horário (`questionType: 'time'`, faixas permitidas pelo contexto), validador do host (`validateAnswer`), textos do bot resolvidos por empresa/conversa (`FlowConfigText`: string ou `(ctx) => string | undefined`), escolha digitada casada com o título já interpolado, `listButtonLabel` (nó ou config) com `{{chave}}`
+  - **Origem do grafo (`origin: 'seed' | 'edited'`, `seedVersion`):** o produto atualiza grafos semeados que ninguém editou com `module.flows.reseed` (`ReseedFlowGraphUseCase`; troca só `seed` de outra versão, nunca toca `edited`, idempotente por `seedVersion`)
+  - **Retentativa do envio do robô** (`flowRunner.sendRetry`: tentativas, backoff exponencial, `shouldRetry`; só falha de rede, mensagem a mensagem, sem reenviar o que já saiu); falha final chega em `onFlowRunnerError` com `details.send`
+  - Histórico de mensagens com cursor composto `(created_at, id)`: `ListMessagesUseCase`/`MessageRepository.listByConversation` aceitam `beforeId` (cursor lido da própria linha, em microssegundos)
   - Takeover humano e devolução ao robô (`TakeoverConversationUseCase`, `ReleaseConversationUseCase`)
+  - **Respostas rápidas por empresa** (a publicar na 0.12.0; só texto, sem anexos): tabela `meta_whatsapp.quick_replies` (atalho único por empresa, ordem por `sortOrder`), `module.quickReplies.{list,create,update,delete}` e `createMetaWhatsAppQuickReplyRoutes({ module, scopes? })` (`module-http`): `GET`/`POST /quick-replies`, `PUT`/`DELETE /quick-replies/:id`. Leitura para qualquer agente autenticado; escrita exige `quick-replies:write` (`QUICK_REPLY_SCOPE`; vocabulário do host em `scopes`). O painel liga pelo `createMetaWhatsAppQuickRepliesClient` do `conversations-ui`
   - Tempo real por SSE com ticket (`SseHub`, `issueSseTicket`); eventos em `conv:<número>` trazem `companyId`
   - Mídia inbound no storage e áudio transcrito em `auto` ou `onDemand` (`IngestInboundMediaUseCase`, `TranscribeAudioUseCase`)
   - Suporte ao simulador: `features.previewMedia` aceita mídia `preview-upload:<chave>` vinda do preview (desligado por padrão: em produção seria leitura arbitrária do bucket)
@@ -345,9 +351,11 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - **Simulador de conversa sem a Meta:** `ConversationSimulatorPanel` e `ConversationPreview` (moldura com título, telefone, mídia e gravação de áudio) ligados a um transporte. `createPreviewBridgeClient` é o recomendado: manda um comando semântico (`text`, `buttonReply`, `listReply`, `audio`, `media`) a uma rota do próprio host, que monta e assina o payload, sem segredo no bundle. `createPreviewWebhookClient` assina HMAC no navegador e serve só para execução local
   - **Novo contato de teste no workspace:** `simulator.createTestContact` abre o simulador sem conversa selecionada; número de teste (dígitos começando com `0`) aparece como "Contato de teste 1234", não como telefone (`isTestContactNumber`). `contextLabels` troca os rótulos do painel de contexto embutido
   - Dados de demonstração: `createMockConversationsApi`, `createMockSSEProvider`, `PREVIEW_CONVERSATIONS`, `startPreviewScript`
-  - **Editor visual de fluxos (robô):** `FlowsWorkspace` (tela completa; o host implementa `FlowsWorkspaceApi`) e as peças `FlowMapCanvas`, `FlowPalette`, `FlowNodePanel`, `FlowLegend`, `validateGraph`, `computeAutoLayout`; **prévia no desenho do WhatsApp** em `FlowWhatsAppPreview`; posições vivas das conversas no mapa (`countLiveByNode`); campos de horário (`minTime`/`maxTime`/faixas) e `possibleNext` (destinos que uma action pode devolver, desenhados tracejados)
+  - **Editor visual de fluxos (robô):** `FlowsWorkspace` (tela completa; o host implementa `FlowsWorkspaceApi`) e as peças `FlowMapCanvas`, `FlowPalette`, `FlowNodePanel`, `FlowLegend`, `validateGraph`, `computeAutoLayout`; **prévia no desenho do WhatsApp** em `FlowWhatsAppPreview`; posições vivas das conversas no mapa (`countLiveByNode`); `validateGraph` mede rótulo de botão/linha/botão de lista com `{{variável}}` sobre o exemplo da variável (`variableExamples`, também prop de `FlowsWorkspace`) e só avisa quando falta exemplo; campos de horário (`minTime`/`maxTime`/faixas) e `possibleNext` (destinos que uma action pode devolver, desenhados tracejados)
+  - Histórico paginado por cursor composto: `fetchMessages` recebe `before` + `beforeId` (mensagem mais antiga da tela), então mensagens no mesmo instante não somem nem se repetem
   - Inbox e conversa: `ConversationsWorkspace`, `ConversationPane`, `MessageBubble`, `MessageComposer`, `RichMessageComposer`, `AudioRecorderButton`, `AudioTranscription`, `InteractiveMessage` (botões e listas), `WindowExpiredNotice` (janela de 24 h)
   - Respostas rápidas (`QuickRepliesWorkspace`, `QuickRepliesPicker`), documentos (`DocumentsLibrary`, `DocumentsWorkspace`), configuração de templates do WhatsApp (`WhatsAppTemplatesSettings`, `WhatsAppCreateTemplateForm`), boas-vindas e despedida (`WelcomeFarewellForm`), transcrição (`TranscriptionSettingsForm`)
+  - **Cliente das respostas rápidas do módulo:** `createMetaWhatsAppQuickRepliesClient({ baseUrl, getHeaders? })` devolve `listQuickReplies`, `createQuickReply`, `updateQuickReply` e `deleteQuickReply` prontos para espalhar em `ConversationsApi` ou passar ao `QuickRepliesWorkspace`/`QuickRepliesPicker`; desembrulha `{ data }`, traduz a validação para `details` por campo e propaga `QUICK_REPLY_SHORTCUT_TAKEN` (`QuickRepliesApiError`). Só texto: sem a porta de anexos, a tela não oferece anexos (a publicar na 0.18.0)
   - `./participant`: a conversa vista por quem participa (`ParticipantConversations`, `ConversationThread`), com adapter REST
   - Tema por variáveis CSS, modo escuro (`useDarkMode`), textos por `ConversationLocalesProvider`
 - **Entradas:** `ConversationSimulatorPanel` em `src/preview/ConversationSimulatorPanel.tsx`; `createPreviewBridgeClient` em `src/preview/createPreviewBridgeClient.ts`; `FlowsWorkspace` em `src/flows/FlowsWorkspace.tsx`; `FlowWhatsAppPreview` em `src/flows/FlowWhatsAppPreview.tsx`; `ConversationsWorkspace` em `src/workspace/`; Subpaths: `./flows`, `./preview`, `./participant`, `./styles.css` (`./whatsapp` existe no `exports`, mas hoje não exporta nada)
@@ -500,7 +508,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Administrador define a senha de outra pessoa (`PUT /admin/users/:id/password`, `SetUserPasswordUseCase`): revoga as sessões dela, auditado por `onPasswordChanged` com `changedByUserId`
   - Cookie de refresh com `sameSite` `lax` (padrão), `none` ou `strict`
   - Avatar por storage injetável
-  - "Lembrar de mim" opcional no login: `rememberMe` + `refreshToken.rememberExpiresInSeconds` / `sessionExpiresInSeconds`
+  - "Lembrar de mim" opcional no login: `rememberMe` + `refreshToken.rememberExpiresInSeconds` / `sessionExpiresInSeconds`; a escolha fica gravada no refresh token (servidor) e `refreshToken.absoluteExpiresInSeconds` põe teto absoluto na sessão; `parseRefreshCookieValue` exportado
   - Rotas prontas (`createUserRoutes`; adaptadores `./http/fetch`, `./http/uws`, `./openapi`)
 - **Entradas:** `createUserModule` em `src/UserModule.ts`; `createUserRoutes` em `src/http/`; `runUserMigrations`
 - **Precisa de:** PostgreSQL (Drizzle). Providers opcionais: `refreshTokenStore`, `email` (reset de senha), `keycloak` (verificador), `avatar`. Peers: `drizzle-orm`.
@@ -514,6 +522,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **O que você ganha:**
   - `UserWorkspace`, `SignInScreen`, `ForgotPasswordScreen`, `ResetPasswordScreen`, `ProfileEditForm`, `ChangePasswordForm`
   - `SignInScreen showRememberMe` (caixa "Lembrar de mim", opt-in)
+  - `TeamWorkspace` define a senha de outra pessoa quando a `UserApi` traz `setTeamMemberPassword` (`TeamMemberPasswordForm`)
   - `TeamWorkspace` (equipe e papéis via `buildDefaultTeamRoles`), `AvatarPicker` com recorte de fundo (`image-cutout`)
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `user-module` (`UserProvider`, `useUserApi`). Peers: `react`, `react-dom`.

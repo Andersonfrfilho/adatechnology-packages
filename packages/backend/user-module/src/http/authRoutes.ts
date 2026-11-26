@@ -183,7 +183,7 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
           status: 200,
           body: { data: session },
           headers: {
-            'Set-Cookie': buildSessionCookie(session, body.rememberMe),
+            'Set-Cookie': buildSessionCookie(session, session.rememberMe),
           },
         }
       },
@@ -214,7 +214,8 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
           status: 200,
           body: { data: session },
           headers: {
-            'Set-Cookie': buildSessionCookie(session, presented.rememberMe),
+            // O servidor sabe a escolha; o prefixo do cookie só vale para token anterior ao registro.
+            'Set-Cookie': buildSessionCookie(session, session.rememberMe ?? presented.rememberMe),
           },
         }
       },
