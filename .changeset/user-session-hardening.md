@@ -1,7 +1,0 @@
----
-'@adatechnology/user-contracts': minor
-'@adatechnology/user-module': minor
-'@adatechnology/user-ui': minor
----
-
-Sessão do user-module e senha definida pelo administrador. **Servidor:** "lembrar de mim" passa a ser gravado no refresh token (`refresh_tokens.remember_me`, herdado a cada rotação) e deixa de depender do prefixo `m~`/`s~` do cookie, que o cliente podia editar; o cookie novo leva só o token, o prefixo legado ainda é lido como dica única para token anterior ao registro, e `UserSession.rememberMe` informa a escolha. Novo `refreshToken.absoluteExpiresInSeconds`: teto absoluto contado do login (`refresh_tokens.session_started_at`), cada token novo vive no máximo o que resta; passado o teto o refresh recusa (401) sem marcar reuso. `parseRefreshCookieValue` e `ParsedRefreshCookie` exportados. Migration aditiva `0003` (duas colunas; token existente fica sem escolha e o teto conta a partir da migration). Contracts: `RefreshTokenStorePort.issue`/`rotate` ganham `rememberMe`, `sessionStartedAt`, `expiresInSecondsByChoice`, `rememberMeHint`, `absoluteExpiresInSeconds` (todos opcionais; loja customizada que os ignora mantém o comportamento antigo) e `RefreshRotationResult` pode devolver `rememberMe` e `expiresInSeconds`. **user-ui:** `UserApi.setTeamMemberPassword` (opcional; ausente, a ação não existe) liga, na `TeamWorkspace`, a ação "Definir nova senha" com o novo `TeamMemberPasswordForm`, sobre `PUT /admin/users/:id/password` que já existia.
