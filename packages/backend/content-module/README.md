@@ -33,7 +33,7 @@ await runContentMigrations({ db, migrate })
 const content = createContentModule({
   db,
   config: {
-    adminScopes: ['content:admin'],          // padrão; [] = qualquer identidade autenticada
+    adminScopes: ['content:admin'],          // padrão; [] = qualquer identidade com ao menos um escopo
     feed: { siteUrl: 'https://exemplo.com', title: 'Novidades', language: 'pt-BR', postPathTemplate: '/blog/{slug}' },
   },
   providers: {

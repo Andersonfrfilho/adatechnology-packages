@@ -68,9 +68,11 @@ describe('admin', () => {
     expect((await setup({ scopes: ['other'] }).call('/posts', { company: COMPANY_A })).status).toBe(403)
   })
 
-  it('adminScopes vazio aceita qualquer identidade autenticada', async () => {
-    const { call } = setup({ scopes: [], config: { adminScopes: [] } })
-    expect((await call('/posts', { company: COMPANY_A })).status).toBe(200)
+  it('adminScopes vazio aceita identidade com algum escopo, nunca sessão sem escopo', async () => {
+    const withScope = setup({ scopes: ['staff'], config: { adminScopes: [] } })
+    expect((await withScope.call('/posts', { company: COMPANY_A })).status).toBe(200)
+    const withoutScope = setup({ scopes: [], config: { adminScopes: [] } })
+    expect((await withoutScope.call('/posts', { company: COMPANY_A })).status).toBe(403)
   })
 
   it('cria, edita, publica, lista e arquiva', async () => {
