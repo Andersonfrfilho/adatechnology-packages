@@ -90,6 +90,10 @@ export const refreshTokens = userSchema.table('refresh_tokens', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   // Preenchido na rotação: a linha vira marcador, e reapresentá-la é o sinal de reuso. Logout apaga a linha.
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  // "Lembrar de mim" registrado no servidor (a rotação o herda); null = token anterior ao registro.
+  rememberMe: boolean('remember_me'),
+  // Início da cadeia de rotações (o login): âncora do teto absoluto, repassada a cada token novo.
+  sessionStartedAt: timestamp('session_started_at', { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

@@ -77,5 +77,7 @@ export type { AvatarProps } from './Avatar'
 export { AvatarPicker } from './AvatarPicker'
 export type { AvatarPickerProps } from './AvatarPicker'
 
+export { TeamMemberPasswordForm } from './TeamMemberPasswordForm'
+export type { TeamMemberPasswordFormProps } from './TeamMemberPasswordForm'
 export { TeamMemberEditForm } from './TeamMemberEditForm'
 export type { TeamMemberEditFormProps } from './TeamMemberEditForm'

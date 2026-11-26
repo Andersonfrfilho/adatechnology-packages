@@ -66,6 +66,7 @@ export class AuthenticateLocalUseCase {
     const refreshToken = await this.dependencies.refreshTokenStore.issue({
       userId: user.id,
       expiresInSeconds: refreshExpiresInSeconds,
+      ...(params.rememberMe === undefined ? {} : { rememberMe: params.rememberMe }),
     })
 
     await runHook({
@@ -82,7 +83,14 @@ export class AuthenticateLocalUseCase {
         }),
     })
 
-    return { accessToken, expiresInSeconds, refreshToken, refreshExpiresInSeconds, user: profile }
+    return {
+      accessToken,
+      expiresInSeconds,
+      refreshToken,
+      refreshExpiresInSeconds,
+      ...(params.rememberMe === undefined ? {} : { rememberMe: params.rememberMe }),
+      user: profile,
+    }
   }
 
   private failureReasonOf(params: { row: UserRow; isPasswordValid: boolean }): FailureReason | undefined {

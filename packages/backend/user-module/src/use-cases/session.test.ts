@@ -201,22 +201,18 @@ describe('lembrar de mim', () => {
     expect((await signInWith(buildDependencies(), false)).refreshExpiresInSeconds).toBe(24 * HOUR)
   })
 
-  it('o refresh repete a escolha: lembrado continua longo, de sessão continua curto', async () => {
+  it('o refresh repete a escolha gravada no servidor: lembrado continua longo, de sessão continua curto', async () => {
     const dependencies = buildDependencies({ config: CONFIG })
     const remembered = await signInWith(dependencies, true)
-    const refreshed = await new RefreshSessionUseCase(dependencies).execute({
-      refreshToken: remembered.refreshToken,
-      rememberMe: true,
-    })
+    const refreshed = await new RefreshSessionUseCase(dependencies).execute({ refreshToken: remembered.refreshToken })
     expect(refreshed.refreshExpiresInSeconds).toBe(90 * 24 * HOUR)
+    expect(refreshed.rememberMe).toBe(true)
 
-    const sessionOnly = await new RefreshSessionUseCase(dependencies).execute({
+    // A dica do cookie não troca o que o servidor registrou no token.
+    const stillRemembered = await new RefreshSessionUseCase(dependencies).execute({
       refreshToken: refreshed.refreshToken,
       rememberMe: false,
     })
-    expect(sessionOnly.refreshExpiresInSeconds).toBe(2 * HOUR)
-
-    const legacy = await new RefreshSessionUseCase(dependencies).execute({ refreshToken: sessionOnly.refreshToken })
-    expect(legacy.refreshExpiresInSeconds).toBe(30 * 24 * HOUR)
+    expect(stillRemembered.refreshExpiresInSeconds).toBe(90 * 24 * HOUR)
   })
 })

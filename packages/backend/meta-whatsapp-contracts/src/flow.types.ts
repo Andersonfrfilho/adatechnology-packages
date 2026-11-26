@@ -108,12 +108,26 @@ export type FlowNodeData = {
   next?: FlowNodeNext
 }
 
+/**
+ * Quem escreveu o conteúdo atual do grafo: o produto, ao semear (`seed`), ou uma pessoa pelo editor
+ * (`edited`). Salvar pelo editor sempre vira `edited`; só o reseed do produto devolve para `seed`.
+ */
+export const FLOW_GRAPH_ORIGIN = {
+  SEED: 'seed',
+  EDITED: 'edited',
+} as const
+export type FlowGraphOrigin = (typeof FLOW_GRAPH_ORIGIN)[keyof typeof FLOW_GRAPH_ORIGIN]
+
 export interface FlowGraphData {
   key: string
   label: string
   startNodeId: string
   version: number
   nodes: Record<string, FlowNodeData>
+  /** `edited` para grafo que já existia antes do campo: sem como saber, vale o lado seguro. */
+  origin?: FlowGraphOrigin
+  /** Versão do seed que gerou o conteúdo (escolhida pelo produto); ausente em grafo criado pelo editor. */
+  seedVersion?: string
 }
 
 export interface FlowGraphSummary {
@@ -123,6 +137,8 @@ export interface FlowGraphSummary {
   showInMenu: boolean
   menuOptionLabel?: string
   updatedAt: string
+  origin?: FlowGraphOrigin
+  seedVersion?: string
 }
 
 // Retorno de GetLiveFlowPositions (T4.2) — quantas sessões ativas estão em cada nó agora,

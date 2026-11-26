@@ -8,7 +8,7 @@
 
 import { randomUUID, createHash } from 'node:crypto'
 
-import type { RefreshRotationResult } from '@adatechnology/user-contracts'
+import type { RefreshRotationResult, RefreshTokenStorePort } from '@adatechnology/user-contracts'
 
 import type { NewPasswordResetTokenRow, NewUserRow, PasswordResetTokenRow, UserRow } from '../schema/schema'
 
@@ -176,26 +176,32 @@ export function createInMemoryPasswordResetTokens(seed: PasswordResetTokenRow[] 
 
 export function createInMemoryRefreshTokenStore(options: { readonly now?: () => Date } = {}) {
   const now = options.now ?? (() => new Date())
-  const rows = new Map<string, { userId: string; expiresAt: Date; revokedAt: Date | null }>()
+  const rows = new Map<
+    string,
+    { userId: string; expiresAt: Date; revokedAt: Date | null; rememberMe: boolean | null; sessionStartedAt: Date }
+  >()
 
   return {
     rows,
-    async issue(params: { userId: string; expiresInSeconds: number }): Promise<string> {
+    async issue(params: {
+      userId: string
+      expiresInSeconds: number
+      rememberMe?: boolean
+      sessionStartedAt?: Date
+    }): Promise<string> {
       const rawToken = randomUUID()
       const tokenHash = createHash('sha256').update(rawToken).digest('hex')
       rows.set(tokenHash, {
         userId: params.userId,
         expiresAt: new Date(now().getTime() + params.expiresInSeconds * 1000),
         revokedAt: null,
+        rememberMe: params.rememberMe ?? null,
+        sessionStartedAt: params.sessionStartedAt ?? now(),
       })
       return rawToken
     },
     /** Marca `revokedAt` sem ponto de suspensão entre checar e gravar — o `UPDATE ... RETURNING` do real. */
-    async rotate(params: {
-      tokenHash: string
-      newExpiresInSeconds: number
-      reuseGraceSeconds?: number
-    }): Promise<RefreshRotationResult> {
+    async rotate(params: Parameters<RefreshTokenStorePort['rotate']>[0]): Promise<RefreshRotationResult> {
       const current = now()
       const existing = rows.get(params.tokenHash)
       if (!existing || existing.expiresAt <= current) return null
@@ -207,9 +213,28 @@ export function createInMemoryRefreshTokenStore(options: { readonly now?: () => 
         return { reusedForUserId: existing.userId }
       }
 
+      const absolute = params.absoluteExpiresInSeconds
+      const elapsedSeconds = (current.getTime() - existing.sessionStartedAt.getTime()) / 1000
+      if (absolute !== undefined && elapsedSeconds >= absolute) return null
+
       existing.revokedAt = current
-      const token = await this.issue({ userId: existing.userId, expiresInSeconds: params.newExpiresInSeconds })
-      return { token, userId: existing.userId }
+      const rememberMe = existing.rememberMe ?? params.rememberMeHint
+      const byChoice = params.expiresInSecondsByChoice
+      const lifetimeSeconds =
+        rememberMe === undefined || !byChoice
+          ? params.newExpiresInSeconds
+          : rememberMe
+            ? byChoice.remember
+            : byChoice.session
+      const remainingSeconds = absolute === undefined ? Number.POSITIVE_INFINITY : absolute - elapsedSeconds
+      const expiresInSeconds = Math.max(1, Math.floor(Math.min(lifetimeSeconds, remainingSeconds)))
+      const token = await this.issue({
+        userId: existing.userId,
+        expiresInSeconds,
+        ...(rememberMe === undefined ? {} : { rememberMe }),
+        sessionStartedAt: existing.sessionStartedAt,
+      })
+      return { token, userId: existing.userId, ...(rememberMe === undefined ? {} : { rememberMe }), expiresInSeconds }
     },
     async revoke(params: { tokenHash: string }): Promise<void> {
       rows.delete(params.tokenHash)
