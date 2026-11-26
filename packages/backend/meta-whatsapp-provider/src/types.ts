@@ -27,6 +27,8 @@ type SendMediaCommon = {
   readonly mimeType: string
   readonly filename: string
   readonly caption?: string
+  /** Envia como figurinha (`type: 'sticker'`); exige `image/webp` e não aceita legenda. */
+  readonly asSticker?: boolean
 }
 
 /**

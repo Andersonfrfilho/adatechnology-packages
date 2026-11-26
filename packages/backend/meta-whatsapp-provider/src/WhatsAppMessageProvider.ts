@@ -22,6 +22,7 @@ import type {
 } from './types'
 import { normalizeOutboundAudio, type AudioTranscoder } from './normalizeOutboundAudio'
 
+const STICKER_MIME_TYPE = 'image/webp'
 const WINDOW_EXPIRED_CODES = new Set(['131047', '131026', '131000'])
 
 // A Meta casa o mimeType do upload por igualdade literal com a lista dela. `audio/ogg; codecs=opus`
@@ -86,6 +87,9 @@ export class WhatsAppMessageProvider {
 
   async sendMedia(params: SendMediaParams): Promise<SendMessageResult> {
     const { to, caption } = params
+    if (params.asSticker && params.mimeType !== STICKER_MIME_TYPE) {
+      throw new Error(`Figurinha exige ${STICKER_MIME_TYPE}, recebeu ${params.mimeType}`)
+    }
 
     let mediaId: string
     let mimeType: string
@@ -114,13 +118,15 @@ export class WhatsAppMessageProvider {
       mediaId = params.mediaId ?? (await this.uploadMedia(normalized.buffer, mimeType, filename))
     }
 
-    const type = mimeType.startsWith('image/')
-      ? 'image'
-      : mimeType.startsWith('audio/')
-        ? 'audio'
-        : mimeType.startsWith('video/')
-          ? 'video'
-          : 'document'
+    const type = params.asSticker
+      ? 'sticker'
+      : mimeType.startsWith('image/')
+        ? 'image'
+        : mimeType.startsWith('audio/')
+          ? 'audio'
+          : mimeType.startsWith('video/')
+            ? 'video'
+            : 'document'
 
     const mediaBody: Record<string, string> = { id: mediaId }
     if (type === 'document') mediaBody['filename'] = filename
