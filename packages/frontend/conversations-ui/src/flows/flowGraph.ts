@@ -68,6 +68,16 @@ export function keywordOfHandle(handle: string): string | undefined {
   return handle.startsWith(KEYWORD_HANDLE_PREFIX) ? handle.slice(KEYWORD_HANDLE_PREFIX.length) : undefined
 }
 
+/**
+ * Handle do card para um destino de `possibleNext` — `maybe:<destino>`. A action escolhe o caminho em
+ * tempo de execução (o `next` que o handler devolve); o editor só desenha o que o nó declara.
+ */
+export const POSSIBLE_NEXT_HANDLE_PREFIX = 'maybe:'
+export const possibleNextHandle = (target: string): string => `${POSSIBLE_NEXT_HANDLE_PREFIX}${target}`
+export function possibleNextOfHandle(handle: string): string | undefined {
+  return handle.startsWith(POSSIBLE_NEXT_HANDLE_PREFIX) ? handle.slice(POSSIBLE_NEXT_HANDLE_PREFIX.length) : undefined
+}
+
 export const CROSS_FLOW_PREFIX = 'flow:'
 export const isCrossFlowTarget = (target: string): boolean => target.startsWith(CROSS_FLOW_PREFIX)
 export const crossFlowKey = (target: string): string => target.slice(CROSS_FLOW_PREFIX.length)
@@ -84,10 +94,9 @@ export function estimateNodeHeight(node: FlowNodeData): number {
   const ROW_HEIGHT = 34
   const rowCount =
     node.type === 'action'
-      ? // Ação de passagem desenha uma linha de saída; terminal não desenha nenhuma.
-        isPassThroughAction(node)
-        ? 1
-        : 0
+      ? // Ação de passagem desenha uma linha de saída; terminal não desenha nenhuma. Cada destino
+        // declarado em `possibleNext` é mais uma linha.
+        (isPassThroughAction(node) ? 1 : 0) + (node.possibleNext?.length ?? 0)
       : node.type === 'condition'
         ? 2
         : node.type === 'menu' || node.questionType === 'choice'
@@ -134,9 +143,16 @@ export function rendersAsButtons(
   return !hasDetails && (options?.length ?? 0) <= WHATSAPP_LIMITS.MAX_BUTTONS
 }
 
-export function targetsOf(
-  node: FlowNodeData,
-): { target: string; optionId?: string; keyword?: string; isDefault?: boolean }[] {
+export type FlowNodeTarget = {
+  target: string
+  optionId?: string
+  keyword?: string
+  isDefault?: boolean
+  /** Destino de `possibleNext`: a action pode escolher, não é garantido. */
+  isPossible?: boolean
+}
+
+function nextTargetsOf(node: FlowNodeData): FlowNodeTarget[] {
   if (!node.next) return []
   if (typeof node.next === 'string') return [{ target: node.next }]
   return [
@@ -144,6 +160,11 @@ export function targetsOf(
     ...Object.entries(node.next.byKeyword ?? {}).map(([keyword, target]) => ({ target, keyword })),
     { target: node.next.default, isDefault: true },
   ]
+}
+
+export function targetsOf(node: FlowNodeData): FlowNodeTarget[] {
+  const possible = (node.possibleNext ?? []).map((target) => ({ target, isPossible: true }))
+  return [...nextTargetsOf(node), ...possible]
 }
 
 export type GraphIssue = {
@@ -174,6 +195,7 @@ export function validateGraph(
     descriptionTooLong?: (id: string, label: string) => string
     dynamicChoiceWithoutProvider?: (id: string) => string
     choiceDefaultIgnored?: (id: string) => string
+    possibleNextIgnored?: (id: string) => string
   },
 ): GraphIssue[] {
   const issues: GraphIssue[] = []
@@ -234,6 +256,14 @@ export function validateGraph(
       if (options.length > WHATSAPP_LIMITS.MAX_LIST_ROWS) {
         issues.push({ severity: 'error', nodeId: node.id, message: issueText.tooManyOptions(node.id, options.length) })
       }
+    }
+
+    // Só a action devolve `next` em tempo de execução: em outro nó a lista desenharia caminho que não existe.
+    if ((node.possibleNext?.length ?? 0) > 0 && (node.type !== 'action' || !node.actionKind)) {
+      const message =
+        issueText.possibleNextIgnored?.(node.id) ??
+        `${node.id}: "destinos que a ação pode escolher" só valem em nó de ação com tipo de ação.`
+      issues.push({ severity: 'warning', nodeId: node.id, message })
     }
 
     if (node.type === 'dynamic_choice' && !node.choiceProvider) {

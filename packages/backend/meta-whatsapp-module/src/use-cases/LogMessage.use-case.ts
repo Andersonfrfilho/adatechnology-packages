@@ -45,6 +45,7 @@ export class LogMessageUseCase {
     }
 
     this.realtime?.emit(`conv:${params.whatsappNumber}`, 'message', {
+      companyId: params.companyId,
       direction: params.direction,
       sender: params.sender,
     })

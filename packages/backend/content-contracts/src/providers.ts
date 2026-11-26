@@ -72,7 +72,7 @@ export type ContentFeedConfig = {
 export type ContentModuleConfig = {
   /**
    * Escopos aceitos nas rotas de administração. Padrão: `['content:admin']`. Lista vazia aceita
-   * qualquer identidade autenticada pelo host.
+   * qualquer identidade autenticada que traga ao menos um escopo (regra do `module-http`).
    */
   readonly adminScopes?: readonly string[]
   /** Cabeçalho `Cache-Control` das respostas públicas. */

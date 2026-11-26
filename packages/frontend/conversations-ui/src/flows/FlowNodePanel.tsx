@@ -4,6 +4,7 @@ import { FlowWhatsAppPreview } from './FlowWhatsAppPreview'
 import { nodeLabel } from './FlowNodeCard'
 import { CROSS_FLOW_PREFIX, CONDITION_OPERATORS, BUILT_IN_ACTION_KINDS, isPassThroughAction as passesThrough } from './flowGraph'
 import { DEFAULT_FLOW_EDITOR_LABELS, DEFAULT_FLOW_RUNNER_FIELD_LABELS, type FlowEditorLabels } from './labels'
+import { FlowPossibleNextField } from './FlowPossibleNextField'
 import { FlowRunnerFields } from './FlowRunnerFields'
 import type { FlowGraphData, FlowNodeData, GraphIssue } from './flowGraph'
 import { PANEL_FIELD_CLASSNAME } from './flowPanelStyles'
@@ -397,6 +398,15 @@ export function FlowNodePanel({
             onDraftChange={setDraft}
             renderTargetOptions={nextNodeOptions}
             knownContextKeys={knownContextKeys}
+            labels={labels.runnerFields ?? DEFAULT_FLOW_RUNNER_FIELD_LABELS}
+          />
+        )}
+
+        {isAction && draft.actionKind && (
+          <FlowPossibleNextField
+            draft={draft}
+            onDraftChange={setDraft}
+            renderTargetOptions={nextNodeOptions}
             labels={labels.runnerFields ?? DEFAULT_FLOW_RUNNER_FIELD_LABELS}
           />
         )}

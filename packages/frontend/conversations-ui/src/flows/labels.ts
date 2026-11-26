@@ -9,6 +9,16 @@ export interface FlowRunnerFieldLabels {
   maxInvalidAnswersHint: string
   minDateToday: string
   afterContextKey: string
+  // Opcionais para não quebrar quem monta os textos à mão; ausentes, vale o padrão.
+  minTime?: string
+  maxTime?: string
+  timeWindowsContextKey?: string
+  timeWindowsContextKeyHint?: string
+  possibleNext?: string
+  possibleNextHint?: string
+  addPossibleNext?: string
+  removePossibleNext?: string
+  possibleNextRowLabel?: string
   minValue: string
   maxValue: string
   minLength: string
@@ -50,7 +60,8 @@ export interface FlowEditorLabels {
   // (ex.: 'trigger_simulation') em vez do pacote assumir algum como padrão.
   actionKindLabels: Record<string, string>
   conditionOperatorLabels: Record<FlowConditionOperator, string>
-  questionTypeLabels: Record<FlowQuestionType, string>
+  /** `time` opcional: quem já passava a lista inteira continua compilando; ausente, vale o padrão. */
+  questionTypeLabels: Record<Exclude<FlowQuestionType, 'time'>, string> & { time?: string }
   /** Opcional para não quebrar quem monta os textos à mão; ausente, vale o padrão pt-BR. */
   runnerFields?: FlowRunnerFieldLabels
   nodePanel: {
@@ -205,6 +216,20 @@ export interface FlowValidationLabels {
   choiceDefaultIgnored?: (id: string) => string
 }
 
+/** Padrões dos rótulos opcionais de `FlowRunnerFieldLabels` — o componente cai neles quando o host não passa. */
+export const OPTIONAL_RUNNER_FIELD_LABEL_DEFAULTS = {
+  minTime: 'A partir de',
+  maxTime: 'Até',
+  timeWindowsContextKey: 'Faixas permitidas guardadas em',
+  timeWindowsContextKeyHint:
+    'Chave do contexto com as faixas (ex.: ["11:00-14:00"]), preenchida pelo sistema antes da pergunta.',
+  possibleNext: 'Destinos que a ação pode escolher',
+  possibleNextHint: 'A ação decide o caminho na hora. Liste aqui os destinos possíveis para eles aparecerem no mapa.',
+  addPossibleNext: 'Adicionar destino',
+  removePossibleNext: 'Remover destino',
+  possibleNextRowLabel: 'Pode seguir para',
+} as const satisfies Partial<FlowRunnerFieldLabels>
+
 export const DEFAULT_FLOW_RUNNER_FIELD_LABELS: FlowRunnerFieldLabels = {
   section: 'Resposta do cliente',
   fallbackMessage: 'Mensagem quando a resposta não serve',
@@ -213,6 +238,7 @@ export const DEFAULT_FLOW_RUNNER_FIELD_LABELS: FlowRunnerFieldLabels = {
   maxInvalidAnswersHint: 'Vazio = padrão do bot (2).',
   minDateToday: 'Só aceitar de hoje em diante',
   afterContextKey: 'Depois da data guardada em',
+  ...OPTIONAL_RUNNER_FIELD_LABEL_DEFAULTS,
   minValue: 'Mínimo',
   maxValue: 'Máximo',
   minLength: 'Mínimo de caracteres',
@@ -274,6 +300,7 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     text: 'Texto livre',
     money: 'Valor em R$',
     date: 'Data',
+    time: 'Horário',
     int: 'Número inteiro',
     cpf: 'CPF',
     choice: 'Escolha (botões/lista)',

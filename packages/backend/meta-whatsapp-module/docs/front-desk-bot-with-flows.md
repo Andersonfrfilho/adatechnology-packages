@@ -208,6 +208,40 @@ O que acontece:
 Para pedir também a saída de uma estadia, uma segunda pergunta `date` com
 `"validation": { "afterContextKey": "date" }` recusa qualquer dia igual ou anterior.
 
+### Horário digitado em vez de lista
+
+Quando a agenda não cabe numa lista, pergunte o horário como texto. A action anterior põe no contexto as
+faixas livres do dia, e a pergunta só aceita o que cair nelas:
+
+```json
+"loadWindows": {
+  "id": "loadWindows", "type": "action", "actionKind": "load_open_windows",
+  "possibleNext": ["closed"], "next": "time"
+},
+"time": {
+  "id": "time", "type": "question", "questionType": "time", "contextKey": "time",
+  "question": "Que horas? Ex.: 12h30",
+  "validation": { "minTime": "11:00", "maxTime": "23:00", "windowsContextKey": "openWindows" },
+  "next": "people"
+}
+```
+
+```ts
+whatsapp.flows!.registerFlowAction('load_open_windows', async ({ session, context }) => {
+  const windows = await agenda.openWindows({ companyId: session.companyId, date: String(context.date) })
+  // Dia sem vaga: a action escolhe o destino e vence o `next` do nó.
+  if (windows.length === 0) return { next: 'closed' }
+  return { context: { openWindows: windows.map((window) => `${window.start}-${window.end}`) } }
+})
+```
+
+- `time` aceita `12:30`, `12h30`, `12h`, `9h` e guarda `12:30`; fora das faixas volta com
+  `rejectionMessages['outside-allowed-windows']`.
+- `possibleNext: ["closed"]` não muda o que o bot faz — quem decide é o `next` devolvido pela action —,
+  mas faz o editor desenhar o caminho tracejado até `closed` e não acusar o nó de inalcançável.
+- Para regra que só o sistema sabe (vaga naquele minuto), use `validateAnswer` no runner: recusa conta
+  como resposta inválida e pode mandar o próprio texto (`{ isValid: false, message }`).
+
 ## 5. Encaminhamento e horário
 
 O nó `handoff`, a palavra global "atendente" e o excesso de respostas inválidas fazem a mesma coisa:
@@ -215,6 +249,10 @@ põem a conversa na fila (`conversations.requestHuman` — dispara `onHumanReque
 `onConversationModeChanged`) e mandam a mensagem do horário. `actionParams.message` e
 `actionParams.outOfHoursMessage` no nó sobrescrevem os textos só ali. O contexto recebe
 `handoffWithinBusinessHours`, que um nó `condition` pode usar.
+
+Os textos do runner (nova tentativa, motivos de recusa, resposta que não é texto, encaminhamento dentro e
+fora do horário) aceitam um resolvedor por empresa no lugar da string — ex.: ler o modelo editado no
+painel de notificações. Ver "Textos por empresa" no README.
 
 Palavras globais (`globalKeywords`) casam a mensagem inteira por padrão (`match: 'exact'`). Com
 `match: 'word'` a entrada vale quando a palavra ou frase aparece inteira dentro da mensagem ("quero falar com
