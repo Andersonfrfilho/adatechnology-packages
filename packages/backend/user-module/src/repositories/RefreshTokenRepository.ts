@@ -54,11 +54,12 @@ export class RefreshTokenRepository implements RefreshTokenStorePort {
           eq(refreshTokens.tokenHash, params.tokenHash),
           isNull(refreshTokens.revokedAt),
           gt(refreshTokens.expiresAt, now),
+          // `Date` cru em `sql` o postgres-js não serializa (ERR_INVALID_ARG_TYPE): vai como ISO tipado.
           // Passado o teto absoluto a linha nem casa: a sessão acabou e fica sem marcador de rotação —
           // reapresentar o cookie depois nunca vira "reuso" que derrubaria as outras sessões da pessoa.
           absolute === undefined
             ? undefined
-            : sql`${refreshTokens.sessionStartedAt} + make_interval(secs => ${absolute}::double precision) > ${now}`,
+            : sql`${refreshTokens.sessionStartedAt} + make_interval(secs => ${absolute}::double precision) > ${now.toISOString()}::timestamptz`,
         ),
       )
       .returning({
