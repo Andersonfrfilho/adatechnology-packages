@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { DEFAULT_USER_LABELS as labels } from './workspace/labels'
-import { TEAM_DEFAULT_PAGE_SIZE, compareBy, type TeamSort } from './useTeam'
+import { TEAM_DEFAULT_PAGE_SIZE, compareBy, memberRowKey, shouldShowSkeleton, type TeamSort } from './useTeam'
 import { TEAM_PASSWORD_MIN_LENGTH } from './TeamMemberForm'
 import { SIGN_UP_PASSWORD_MIN_LENGTH } from './SignUpForm'
 
@@ -104,5 +104,17 @@ describe('destravar conta e cadastro público', () => {
     expect(labels.signUpTitle).toBeTruthy()
     expect(labels.signUpSubmit).toBeTruthy()
     expect(SIGN_UP_PASSWORD_MIN_LENGTH).toBe(8)
+  })
+})
+
+describe('linha estavel durante o refetch', () => {
+  it('esqueleto so na primeira carga; o refetch mantem as linhas montadas', () => {
+    expect(shouldShowSkeleton({ loading: true, hasData: false })).toBe(true)
+    expect(shouldShowSkeleton({ loading: true, hasData: true })).toBe(false)
+    expect(shouldShowSkeleton({ loading: false, hasData: true })).toBe(false)
+  })
+
+  it('a chave da linha e o id e nao muda com o estado ativo', () => {
+    expect(memberRowKey({ id: 'u1' })).toBe('u1')
   })
 })

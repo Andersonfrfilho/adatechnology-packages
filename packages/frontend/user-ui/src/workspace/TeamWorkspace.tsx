@@ -20,7 +20,7 @@ import { TeamMemberEditForm } from '../TeamMemberEditForm'
 import { TeamMemberPasswordForm } from '../TeamMemberPasswordForm'
 import { TeamMemberForm } from '../TeamMemberForm'
 import { buildDefaultTeamRoles, resolveTeamRole, type TeamRoleOption } from '../roles'
-import { useTeam, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
+import { useTeam, memberRowKey, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
 
 export type TeamWorkspaceProps = {
@@ -391,14 +391,14 @@ export function TeamWorkspace({
             </tr>
           </thead>
           <tbody>
-            {team.loading && (
+            {team.isInitialLoading && (
               <TeamSkeletonRows
                 hasActions={hasRowActions}
                 hasSelection={team.canDeactivate}
                 label={labels.teamLoading}
               />
             )}
-            {!team.loading &&
+            {!team.isInitialLoading &&
               team.members.map((member, index) => (
                 /*
                 Zebra por indice da linha renderizada, e nao por id: a listra tem que alternar do
@@ -409,7 +409,7 @@ export function TeamWorkspace({
                   className={`border-b border-gray-100 transition-colors last:border-b-0 hover:bg-blue-50/60 dark:border-gray-800 dark:hover:bg-blue-950/30 ${
                     index % 2 === 1 ? 'bg-gray-50/80 dark:bg-gray-800/30' : 'bg-transparent'
                   }`}
-                  key={member.id}
+                  key={memberRowKey(member)}
                 >
                   {team.canDeactivate && (
                     <td className={CELL}>
