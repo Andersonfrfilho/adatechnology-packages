@@ -23,3 +23,8 @@ Capabilities are optional by absence: a method the host does not provide never d
 ```
 
 Map the admin actions to `PATCH /admin/users/:id` with `{ role }`, `{ isActive }` or `{ unlock: true }`.
+
+- `renderRoleField?` (`TeamWorkspace`, `TeamMemberForm`, `TeamMemberEditForm`): draws the whole role field in place of the native
+  `<select>`; receives `{ id, label, value, options, onChange }`. `TeamRoleOption.description` carries one line per role for it.
+- `avatarSquareSize?` (`TeamWorkspace`) / `squareSize?` (`AvatarPicker`): the photo is center-cropped to a square of at most this many
+  pixels before upload (`cropToSquare` is exported). Absent, the file goes as it came.

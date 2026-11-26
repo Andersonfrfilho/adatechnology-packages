@@ -9,7 +9,7 @@ import { UserPlus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 
 import type { CreateTeamMemberInput } from './providers/types'
-import type { TeamRoleOption } from './roles'
+import type { RenderTeamRoleField, TeamRoleOption } from './roles'
 import type { UserLabels } from './workspace/labels'
 
 /** O mesmo mínimo do `localCredentialsSchema`: recusar aqui poupa uma ida para descobrir o óbvio. */
@@ -19,6 +19,8 @@ export type TeamMemberFormProps = {
   readonly labels: UserLabels
   /** Os papéis oferecidos. Quem compõe a tela decide — papel é vocabulário do produto. */
   readonly roles: readonly TeamRoleOption[]
+  /** Ausente, o campo é o `<select>` padrão. */
+  readonly renderRoleField?: RenderTeamRoleField
   readonly saving: boolean
   readonly onSubmit: (input: CreateTeamMemberInput) => void
   readonly onCancel: () => void
@@ -40,7 +42,7 @@ const FIELD =
 const SELECT_FIELD = `${FIELD} cursor-pointer appearance-none pr-9`
 const LABEL = 'mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100'
 
-export function TeamMemberForm({ labels, roles, saving, onSubmit, onCancel }: TeamMemberFormProps) {
+export function TeamMemberForm({ labels, roles, renderRoleField, saving, onSubmit, onCancel }: TeamMemberFormProps) {
   // O primeiro da lista é o padrão: quem ordena as opções é quem sabe qual delas é a comum.
   const [role, setRole] = useState(roles[0]?.value ?? '')
 
@@ -95,38 +97,42 @@ export function TeamMemberForm({ labels, roles, saving, onSubmit, onCancel }: Te
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{labels.teamInitialPasswordHint}</p>
       </div>
 
-      <div>
-        <label className={LABEL} htmlFor="team-role">
-          {labels.teamRole}
-        </label>
-        <div className="relative">
-          <select
-            className={SELECT_FIELD}
-            id="team-role"
-            onChange={(event) => setRole(event.target.value)}
-            value={role}
-          >
-            {roles.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          {/* Decorativa: o `select` ao lado ja anuncia o papel de combobox ao leitor de tela. */}
-          <svg
-            aria-hidden="true"
-            className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-500 dark:text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+      {renderRoleField ? (
+        renderRoleField({ id: 'team-role', label: labels.teamRole, value: role, options: roles, onChange: setRole })
+      ) : (
+        <div>
+          <label className={LABEL} htmlFor="team-role">
+            {labels.teamRole}
+          </label>
+          <div className="relative">
+            <select
+              className={SELECT_FIELD}
+              id="team-role"
+              onChange={(event) => setRole(event.target.value)}
+              value={role}
+            >
+              {roles.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {/* Decorativa: o `select` ao lado ja anuncia o papel de combobox ao leitor de tela. */}
+            <svg
+              aria-hidden="true"
+              className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-500 dark:text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex items-center gap-3 sm:col-span-2">
         <button

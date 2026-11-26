@@ -19,7 +19,7 @@ import type { UserProfile } from '../providers/types'
 import { TeamMemberEditForm } from '../TeamMemberEditForm'
 import { TeamMemberPasswordForm } from '../TeamMemberPasswordForm'
 import { TeamMemberForm } from '../TeamMemberForm'
-import { buildDefaultTeamRoles, resolveTeamRole, type TeamRoleOption } from '../roles'
+import { buildDefaultTeamRoles, resolveTeamRole, type RenderTeamRoleField, type TeamRoleOption } from '../roles'
 import { useTeam, memberRowKey, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
 
@@ -51,6 +51,10 @@ export type TeamWorkspaceProps = {
    * dentro de casa.
    */
   readonly backgroundRemoval?: BackgroundRemovalConfig
+  /** Recorta a foto num quadrado central de até este lado (px) antes de enviar. Ausente, sobe como veio. */
+  readonly avatarSquareSize?: number
+  /** Desenha o campo de papel (rótulo incluído) no lugar do `<select>` nativo, nos dois formulários. */
+  readonly renderRoleField?: RenderTeamRoleField
 }
 
 /**
@@ -141,6 +145,8 @@ export function TeamWorkspace({
   api,
   roles,
   backgroundRemoval,
+  avatarSquareSize,
+  renderRoleField,
 }: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
   const roleOptions = roles ?? buildDefaultTeamRoles(labels)
@@ -218,6 +224,7 @@ export function TeamWorkspace({
         <TeamMemberForm
           labels={labels}
           roles={roleOptions}
+          {...(renderRoleField ? { renderRoleField } : {})}
           onCancel={() => setIsFormOpen(false)}
           onSubmit={(input) => void handleCreate(input)}
           saving={team.saving}
@@ -227,6 +234,7 @@ export function TeamWorkspace({
       {editing && (
         <TeamMemberEditForm
           roles={roleOptions}
+          {...(renderRoleField ? { renderRoleField } : {})}
           avatar={
             team.canChangeAvatar ? (
               pendingAvatar ? (
@@ -240,6 +248,7 @@ export function TeamWorkspace({
                     setPendingAvatar(undefined)
                   }}
                   {...(backgroundRemoval ? { backgroundRemoval } : {})}
+                  {...(avatarSquareSize ? { squareSize: avatarSquareSize } : {})}
                 />
               ) : (
                 <AvatarField
