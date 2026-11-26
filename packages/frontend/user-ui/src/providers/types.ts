@@ -121,6 +121,12 @@ export type UserApi = {
   readonly setTeamMemberAvatar?: (userId: string, file: File) => Promise<UserProfile>
   /** Ausente quando o host nao tem reset de senha E e-mail — botao que nao entrega nada nao existe. */
   readonly sendPasswordReset?: (userId: string) => Promise<void>
+  /**
+   * O administrador define a senha de outra pessoa (rota `PUT /admin/users/:id/password` do
+   * `user-module`, que revoga as sessoes dela). Ausente, a acao nao existe: nem todo produto quer um
+   * administrador digitando senha alheia.
+   */
+  readonly setTeamMemberPassword?: (userId: string, password: string) => Promise<void>
 }
 
 export type UserConfig = {

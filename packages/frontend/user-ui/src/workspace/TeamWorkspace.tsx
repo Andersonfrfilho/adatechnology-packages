@@ -17,6 +17,7 @@ import { Avatar } from '../Avatar'
 import { AvatarPicker } from '../AvatarPicker'
 import type { UserProfile } from '../providers/types'
 import { TeamMemberEditForm } from '../TeamMemberEditForm'
+import { TeamMemberPasswordForm } from '../TeamMemberPasswordForm'
 import { TeamMemberForm } from '../TeamMemberForm'
 import { buildDefaultTeamRoles, resolveTeamRole, type TeamRoleOption } from '../roles'
 import { useTeam, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
@@ -148,13 +149,16 @@ export function TeamWorkspace({
   const [createdName, setCreatedName] = useState<string>()
   /** A foto escolhida numa linha, esperando revisao. O painel abre com largura inteira, acima. */
   const [editing, setEditing] = useState<UserProfile>()
+  /** Quem esta tendo a senha definida; abre o formulario proprio acima da lista. */
+  const [settingPassword, setSettingPassword] = useState<UserProfile>()
   /** Arquivo escolhido na ficha aberta, esperando revisao. Pertence sempre a `editing`. */
   const [pendingAvatar, setPendingAvatar] = useState<File>()
 
   if (!team.enabled) return null
 
   /** A coluna de acoes existe se HOUVER acao — nao so quando ha desativacao. */
-  const hasRowActions = team.canDeactivate || team.canEdit || team.canSendPasswordReset || team.canUnlock
+  const hasRowActions =
+    team.canDeactivate || team.canEdit || team.canSendPasswordReset || team.canUnlock || team.canSetPassword
 
   const lastPage = Math.max(1, Math.ceil(team.total / team.pageSize))
 
@@ -260,6 +264,21 @@ export function TeamWorkspace({
           }}
           saving={team.saving}
           {...(team.errorCode === EMAIL_TAKEN_CODE ? { emailError: labels.teamEmailTaken } : {})}
+        />
+      )}
+
+      {settingPassword && (
+        <TeamMemberPasswordForm
+          labels={labels}
+          member={settingPassword}
+          onCancel={() => setSettingPassword(undefined)}
+          onSubmit={(password) => {
+            void team.setMemberPassword(settingPassword.id, password).then((saved) => {
+              if (saved) setSettingPassword(undefined)
+            })
+          }}
+          saving={team.saving}
+          {...(team.error ? { error: team.error } : {})}
         />
       )}
 
@@ -462,6 +481,20 @@ export function TeamWorkspace({
                             srSuffix={member.name}
                           />
                         )}
+                        {team.canSetPassword &&
+                          (team.passwordSetFor === member.id ? (
+                            <span className="text-xs text-emerald-700 dark:text-emerald-300" role="status">
+                              {labels.teamPasswordSet}
+                            </span>
+                          ) : (
+                            <RowAction
+                              busy={team.saving}
+                              icon={Lock}
+                              label={labels.teamSetPassword}
+                              onClick={() => setSettingPassword(member)}
+                              srSuffix={member.name}
+                            />
+                          ))}
                         {team.canSendPasswordReset &&
                           (team.passwordResetSentTo === member.id ? (
                             <span className="text-xs text-emerald-700 dark:text-emerald-300" role="status">

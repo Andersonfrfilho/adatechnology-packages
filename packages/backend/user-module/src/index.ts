@@ -83,9 +83,10 @@ export { requireUser } from './http/requireUser'
 export {
   REFRESH_TOKEN_COOKIE_NAME,
   parseCookieHeader,
+  parseRefreshCookieValue,
   buildRefreshTokenCookie,
   buildClearRefreshTokenCookie,
   isValidRefreshCookieName,
   isValidRefreshCookiePath,
 } from './http/cookies'
-export type { RefreshCookieNaming } from './http/cookies'
+export type { ParsedRefreshCookie, RefreshCookieNaming } from './http/cookies'

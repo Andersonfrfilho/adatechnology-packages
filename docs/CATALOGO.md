@@ -504,7 +504,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Administrador define a senha de outra pessoa (`PUT /admin/users/:id/password`, `SetUserPasswordUseCase`): revoga as sessões dela, auditado por `onPasswordChanged` com `changedByUserId`
   - Cookie de refresh com `sameSite` `lax` (padrão), `none` ou `strict`
   - Avatar por storage injetável
-  - "Lembrar de mim" opcional no login: `rememberMe` + `refreshToken.rememberExpiresInSeconds` / `sessionExpiresInSeconds`
+  - "Lembrar de mim" opcional no login: `rememberMe` + `refreshToken.rememberExpiresInSeconds` / `sessionExpiresInSeconds`; a escolha fica gravada no refresh token (servidor) e `refreshToken.absoluteExpiresInSeconds` põe teto absoluto na sessão; `parseRefreshCookieValue` exportado
   - Rotas prontas (`createUserRoutes`; adaptadores `./http/fetch`, `./http/uws`, `./openapi`)
 - **Entradas:** `createUserModule` em `src/UserModule.ts`; `createUserRoutes` em `src/http/`; `runUserMigrations`
 - **Precisa de:** PostgreSQL (Drizzle). Providers opcionais: `refreshTokenStore`, `email` (reset de senha), `keycloak` (verificador), `avatar`. Peers: `drizzle-orm`.
@@ -518,6 +518,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **O que você ganha:**
   - `UserWorkspace`, `SignInScreen`, `ForgotPasswordScreen`, `ResetPasswordScreen`, `ProfileEditForm`, `ChangePasswordForm`
   - `SignInScreen showRememberMe` (caixa "Lembrar de mim", opt-in)
+  - `TeamWorkspace` define a senha de outra pessoa quando a `UserApi` traz `setTeamMemberPassword` (`TeamMemberPasswordForm`)
   - `TeamWorkspace` (equipe e papéis via `buildDefaultTeamRoles`), `AvatarPicker` com recorte de fundo (`image-cutout`)
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `user-module` (`UserProvider`, `useUserApi`). Peers: `react`, `react-dom`.
