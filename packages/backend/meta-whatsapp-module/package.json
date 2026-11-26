@@ -32,7 +32,8 @@
   "dependencies": {
     "@adatechnology/meta-graph-core": "workspace:*",
     "@adatechnology/meta-whatsapp-contracts": "workspace:*",
-    "@adatechnology/meta-whatsapp-provider": "workspace:*"
+    "@adatechnology/meta-whatsapp-provider": "workspace:*",
+    "@adatechnology/module-http": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "1.3.14",

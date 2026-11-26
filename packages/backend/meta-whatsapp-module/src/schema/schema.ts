@@ -242,6 +242,30 @@ export const flowMedia = metaWhatsAppSchema.table(
   ],
 )
 
+/**
+ * Respostas rápidas por empresa — o texto pronto que o atendente chama com `/atalho` no composer.
+ *
+ * Só texto: anexos de resposta rápida não existem aqui. O atalho é único por empresa, e a lista
+ * volta inteira (teto em `QUICK_REPLY_LIMITS.MAX_PER_COMPANY`), ordenada por `sortOrder`.
+ */
+export const quickReplies = metaWhatsAppSchema.table(
+  'quick_replies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    companyId: uuid('company_id').notNull(),
+    title: varchar('title', { length: 40 }).notNull(),
+    shortcut: varchar('shortcut', { length: 20 }).notNull(),
+    body: varchar('body', { length: 1000 }).notNull(),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('idx_quick_replies_company_shortcut').on(table.companyId, table.shortcut),
+    index('idx_quick_replies_company_order').on(table.companyId, table.sortOrder),
+  ],
+)
+
 // T5.5 — configuração de WhatsApp POR EMPRESA, em tabela do módulo. Deliberadamente separada do
 // app_config genérico do host: são chaves que só o módulo entende, e mantê-las aqui é o que
 // permite instalar/remover a capacidade sem migrar a tabela de configuração do produto.
@@ -277,3 +301,5 @@ export type DocumentRow = typeof documents.$inferSelect
 export type NewDocumentRow = typeof documents.$inferInsert
 export type FlowMediaRow = typeof flowMedia.$inferSelect
 export type NewFlowMediaRow = typeof flowMedia.$inferInsert
+export type QuickReplyRow = typeof quickReplies.$inferSelect
+export type NewQuickReplyRow = typeof quickReplies.$inferInsert
