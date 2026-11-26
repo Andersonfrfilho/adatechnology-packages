@@ -5,7 +5,7 @@ import { DEFAULT_UNIT_OPTIONS, PRODUCT_OPTIONAL_FIELD } from './providers/types'
 import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './providers/ProductsProvider'
 import { ImageUpload } from './ImageUpload'
 import { AttributesEditor } from './AttributesEditor'
-import { AvailabilityScheduleEditor, type AvailabilityScheduleDraft } from './AvailabilityScheduleEditor'
+import { AvailabilityScheduleEditor, type AvailabilityScheduleDraft, type RenderTimeInput } from './AvailabilityScheduleEditor'
 import { ActiveSwitch } from './ActiveSwitch'
 import { DEFAULT_PRICE_ON_REQUEST_LABEL, attributesToEntries, buildSchedule, entriesToAttributes, validateSchedule, type AttributeEntry } from './lib/productFields'
 import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
@@ -26,6 +26,8 @@ export type ProductFormProps = {
   readonly onScanBarcode?: () => Promise<ProductSuggestion | null>
   // Busca em base externa de produtos. Sem a prop, o campo de nome é um input comum.
   readonly onSearchSuggestions?: (query: string) => Promise<readonly ProductSuggestion[]>
+  // Seletor de hora do host para o horário de venda. Sem a prop, `<input type="time">` nativo.
+  readonly renderTimeInput?: RenderTimeInput
 }
 
 // Texto exibido e centavos andam juntos no estado: o texto é o que o usuário vê e os centavos são
@@ -109,6 +111,7 @@ export function ProductForm({
   sections,
   onScanBarcode,
   onSearchSuggestions,
+  renderTimeInput,
 }: ProductFormProps) {
   const config = useProductsConfig()
   const isFieldEnabled = useIsProductFieldEnabled()
@@ -634,6 +637,7 @@ export function ProductForm({
               value={form.schedule}
               onChange={(schedule) => updateField('schedule', schedule)}
               locale={config.locale}
+              {...(renderTimeInput ? { renderTimeInput } : {})}
               {...(errors.schedule ? { error: errors.schedule } : {})}
             />
           )}

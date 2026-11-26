@@ -66,3 +66,14 @@ export type RenderLinkProps = {
 
 /** Troca o `<a>` pelo `Link` do roteador do host (Next, React Router…) sem o pacote conhecê-lo. */
 export type RenderLink = (props: RenderLinkProps) => ReactNode
+
+export type DateTimeInputProps = {
+  readonly id: string
+  readonly label: string
+  /** Formato `YYYY-MM-DDTHH:mm` (hora local, 24h), ou vazio. */
+  readonly value: string
+  readonly onChange: (value: string) => void
+}
+
+/** Troca o `<input type="datetime-local">` nativo pelo seletor de data e hora do host. */
+export type RenderDateTimeInput = (props: DateTimeInputProps) => ReactNode
