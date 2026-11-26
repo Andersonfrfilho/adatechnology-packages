@@ -358,7 +358,7 @@ importers:
     dependencies:
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.7)
     devDependencies:
       '@types/bun':
         specifier: 1.3.14
@@ -760,8 +760,8 @@ importers:
         specifier: ^5.0.0
         version: 5.9.3
       zod:
-        specifier: ^4.4.3
-        version: 4.6.5
+        specifier: ^4.6.6
+        version: 4.6.7
 
   packages/backend/keycloak-jwt:
     dependencies:
@@ -948,7 +948,7 @@ importers:
         version: 1.0.0-rc.4
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5)
+        version: 1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.7)
       drizzle-orm-legacy:
         specifier: npm:drizzle-orm@0.45.2
         version: drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)
@@ -2039,8 +2039,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       zod:
-        specifier: ^4.4.3
-        version: 4.6.5
+        specifier: ^4.6.6
+        version: 4.6.7
     devDependencies:
       '@types/bun':
         specifier: 1.3.14
@@ -2061,8 +2061,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       zod:
-        specifier: ^4.4.3
-        version: 4.6.5
+        specifier: ^4.6.6
+        version: 4.6.7
     devDependencies:
       '@types/bun':
         specifier: 1.3.14
@@ -11016,8 +11016,8 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
@@ -13425,7 +13425,7 @@ snapshots:
 
   '@modelcontextprotocol/core@2.0.0':
     dependencies:
-      zod: 4.6.5
+      zod: 4.6.7
 
   '@modelcontextprotocol/sdk@1.30.0(zod@3.25.76)':
     dependencies:
@@ -13452,7 +13452,7 @@ snapshots:
   '@modelcontextprotocol/server@2.0.0':
     dependencies:
       '@modelcontextprotocol/core': 2.0.0
-      zod: 4.6.5
+      zod: 4.6.7
 
   '@msgpackr-extract/msgpackr-extract-darwin-arm64@3.0.4':
     optional: true
@@ -16239,14 +16239,14 @@ snapshots:
       postgres: 3.4.9
       zod: 3.25.76
 
-  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.5):
+  drizzle-orm@1.0.0-rc.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(bun-types@1.4.3)(pg@8.23.0)(postgres@3.4.9)(zod@4.6.7):
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/pg': 8.23.1
       bun-types: 1.4.3
       pg: 8.23.0
       postgres: 3.4.9
-      zod: 4.6.5
+      zod: 4.6.7
 
   dunder-proto@1.0.1:
     dependencies:
@@ -20329,7 +20329,7 @@ snapshots:
 
   zod@3.25.76: {}
 
-  zod@4.6.5: {}
+  zod@4.6.7: {}
 
   zustand@4.5.7(@types/react@19.3.0)(react@19.3.0):
     dependencies:
