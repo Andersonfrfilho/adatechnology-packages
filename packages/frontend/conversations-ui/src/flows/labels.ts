@@ -214,6 +214,10 @@ export interface FlowValidationLabels {
   descriptionTooLong?: (id: string, label: string) => string
   dynamicChoiceWithoutProvider?: (id: string) => string
   choiceDefaultIgnored?: (id: string) => string
+  buttonTitleMayBeTooLong?: (id: string, label: string) => string
+  listTitleMayBeTooLong?: (id: string, label: string) => string
+  listButtonLabelTooLong?: (id: string, label: string) => string
+  listButtonLabelMayBeTooLong?: (id: string, label: string) => string
 }
 
 /** Padrões dos rótulos opcionais de `FlowRunnerFieldLabels` — o componente cai neles quando o host não passa. */
@@ -413,6 +417,13 @@ export const DEFAULT_FLOW_EDITOR_LABELS: FlowEditorLabels = {
     conditionIncomplete: (id) => `Nó "${id}": condição incompleta — defina variável, operador e valor.`,
     conditionBranchMissing: (id, branch) =>
       `Nó "${id}": ramo "${branch === 'true' ? 'Verdadeiro' : 'Falso'}" sem destino definido.`,
+    buttonTitleMayBeTooLong: (id, label) =>
+      `Nó "${id}": botão "${label}" tem variável e pode passar de 20 caracteres; confira o valor real.`,
+    listTitleMayBeTooLong: (id, label) =>
+      `Nó "${id}": item de lista "${label}" tem variável e pode passar de 24 caracteres; confira o valor real.`,
+    listButtonLabelTooLong: (id, label) => `Nó "${id}": botão da lista "${label}" passa de 20 caracteres.`,
+    listButtonLabelMayBeTooLong: (id, label) =>
+      `Nó "${id}": botão da lista "${label}" tem variável e pode passar de 20 caracteres; confira o valor real.`,
     descriptionTooLong: (id, label) => `Nó "${id}": a descrição de "${label}" passa de 72 caracteres.`,
     dynamicChoiceWithoutProvider: (id) => `Nó "${id}": escolha dinâmica sem provedor de opções.`,
     choiceDefaultIgnored: (id) =>

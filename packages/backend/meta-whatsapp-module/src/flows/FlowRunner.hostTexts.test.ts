@@ -260,3 +260,53 @@ describe('FlowRunner — typed choice against interpolated titles', () => {
     expect(harness.takeSent()).toEqual([{ kind: 'text', body: 'B' }])
   })
 })
+
+describe('FlowRunner — list button label with {{…}}', () => {
+  const LIST_NODE: FlowNodeData = {
+    id: 'menu',
+    type: 'menu',
+    question: 'Escolha',
+    options: [
+      ['a', 'A'],
+      ['b', 'B'],
+      ['c', 'C'],
+      ['d', 'D'],
+    ],
+    next: { byAnswer: { a: 'end', b: 'end', c: 'end', d: 'end' }, default: 'menu' },
+  }
+  const END: FlowNodeData = { id: 'end', type: 'action', directMessage: 'Ok!' }
+
+  function listButtonLabelOf(sent: unknown): string | undefined {
+    const message = sent as { kind: string; interactive?: { kind: string; buttonLabel?: string } }
+    return message.kind === 'interactive' && message.interactive?.kind === 'list'
+      ? message.interactive.buttonLabel
+      : undefined
+  }
+
+  it('interpolates the node label with the flow variables', async () => {
+    const harness = buildRunner({
+      graphs: [graph('main', 'menu', [{ ...LIST_NODE, listButtonLabel: 'Horários {{unit}}' }, END])],
+      config: { resolveVariables: async () => ({ unit: 'Centro' }) },
+    })
+    await harness.handle(textMessage('oi'))
+    expect(listButtonLabelOf(harness.takeSent()[0])).toBe('Horários Centro')
+  })
+
+  it('interpolates the host default label too', async () => {
+    const harness = buildRunner({
+      graphs: [graph('main', 'menu', [LIST_NODE, END])],
+      config: { listButtonLabel: 'Opções {{unit}}', resolveVariables: async () => ({ unit: 'Sul' }) },
+    })
+    await harness.handle(textMessage('oi'))
+    expect(listButtonLabelOf(harness.takeSent()[0])).toBe('Opções Sul')
+  })
+
+  it('sends numbered text when the interpolated label passes the channel limit', async () => {
+    const harness = buildRunner({
+      graphs: [graph('main', 'menu', [{ ...LIST_NODE, listButtonLabel: 'Ver {{unit}}' }, END])],
+      config: { resolveVariables: async () => ({ unit: 'Unidade com nome bem comprido' }) },
+    })
+    await harness.handle(textMessage('oi'))
+    expect(harness.takeSent()[0]).toMatchObject({ kind: 'text' })
+  })
+})

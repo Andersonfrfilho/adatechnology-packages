@@ -205,6 +205,7 @@ whatsapp.flows!.registerDynamicChoiceProvider('free_slots', async ({ context, pa
 | `skipKeywords` | a resposta pula a pergunta: `contextKey` recebe `null` |
 | resposta inválida | `fallbackMessage` (ou `rejectionMessages` / texto padrão) e repergunta; na `maxInvalidAnswers`ª (padrão 2) chama uma pessoa |
 | `menu` / `choice` | aceita toque, número ("2"), id, rótulo ou palavras do rótulo — o rótulo **como o cliente viu**, com `{{chave}}` já resolvido; `optionDetails` dá descrição e seção |
+| `listButtonLabel` (nó ou config) | texto do botão que abre a lista (até 20 caracteres), com `{{chave}}` interpolado como o título das opções; interpolado acima de 20, a escolha sai numerada |
 | `next.byKeyword` | texto livre com a palavra (sem acento/caixa) vai ao destino — FAQ sem menu; na primeira mensagem também vale |
 | `dynamic_choice` | opções do provedor em `choiceProvider`, páginas de 9 + "ver mais", id escolhido em `contextKey` |
 | `directMessage` | enviado ao entrar no nó, com `{{chave}}` interpolado (contexto, variáveis do host, `contactName`, `contactFirstName`) |

@@ -56,7 +56,10 @@ export class FlowQuestionRenderer {
       node.question ?? this.config.choicePrompt ?? DEFAULT_FLOW_TEXT.CHOICE_PROMPT,
       variables,
     )
-    const listButtonLabel = node.listButtonLabel ?? this.config.listButtonLabel ?? DEFAULT_FLOW_TEXT.LIST_BUTTON_LABEL
+    const listButtonLabel = this.interpolate(
+      node.listButtonLabel ?? this.config.listButtonLabel ?? DEFAULT_FLOW_TEXT.LIST_BUTTON_LABEL,
+      variables,
+    )
 
     if (node.type === 'dynamic_choice') {
       const options = await this.loadDynamicOptions(params)
