@@ -91,6 +91,24 @@ export type FlowVariablesResolver = (params: {
   readonly profileName?: string
 }) => Promise<Readonly<Record<string, unknown>>>
 
+/**
+ * Retentativa do envio de saída do robô (cada mensagem do turno, uma a uma). Só repete falha em que a
+ * mensagem não chegou à Meta (ver `isTransientSendError`); vale a pena porque o turno já foi
+ * reivindicado e o cliente, sem isto, ficaria sem resposta até escrever de novo.
+ */
+export type FlowSendRetryConfig = {
+  /** Tentativas por mensagem, contando a primeira. Padrão 3; 1 desliga a retentativa. */
+  readonly maxAttempts?: number
+  /** Espera antes da 2ª tentativa; dobra a cada falha. Padrão 500 ms. */
+  readonly baseDelayMs?: number
+  /** Teto da espera. Padrão 5000 ms. */
+  readonly maxDelayMs?: number
+  /** Decide se a falha vale outra tentativa. Padrão: falha de rede (`isTransientSendError`). */
+  readonly shouldRetry?: (error: unknown) => boolean
+  /** Espera injetável para teste. */
+  readonly sleep?: (milliseconds: number) => Promise<void>
+}
+
 export type FlowRunnerConfig = {
   /** Fluxo de quem chega sem conversa em andamento. Padrão `main`. */
   readonly startFlowKey?: string
@@ -131,6 +149,8 @@ export type FlowRunnerConfig = {
   readonly dynamicChoiceProviders?: Readonly<Record<string, DynamicChoiceProvider>>
   /** Saltos `flow:` seguidos numa mesma mensagem antes de desistir (protege de ciclo entre fluxos). Padrão 5. */
   readonly maxCrossFlowJumps?: number
+  /** Retentativa do envio de saída. Ausente, valem os padrões de `FlowSendRetryConfig`. */
+  readonly sendRetry?: FlowSendRetryConfig
   /** Relógio injetável para teste. */
   readonly now?: () => Date
 }

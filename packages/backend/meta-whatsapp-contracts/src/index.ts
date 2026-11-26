@@ -103,6 +103,7 @@ export type {
   TranscriptionDeferredDescriptor,
   UnhandledWebhookEventDescriptor,
   FlowRunnerErrorDetails,
+  FlowSendFailureDetails,
 } from './events'
 
 export { WHATSAPP_CHOICE_LIMIT } from './providers'
