@@ -9,6 +9,7 @@ import type { Post } from '@adatechnology/content-contracts'
 import { useState } from 'react'
 
 import type { PostDraft } from '../lib/postDraft'
+import type { RenderDateTimeInput } from '../providers/types'
 import { PostEditor } from './PostEditor'
 import { PostList } from './PostList'
 
@@ -19,9 +20,17 @@ export type ContentWorkspaceProps = {
   /** Valores iniciais do post novo (ex.: autor logado). */
   readonly newPostDefaults?: Partial<PostDraft>
   readonly onPostSaved?: (post: Post) => void
+  readonly showFormattingToolbar?: boolean
+  readonly renderDateTimeInput?: RenderDateTimeInput
 }
 
-export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved }: ContentWorkspaceProps) {
+export function ContentWorkspace({
+  pageSize,
+  newPostDefaults,
+  onPostSaved,
+  showFormattingToolbar,
+  renderDateTimeInput,
+}: ContentWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -38,6 +47,8 @@ export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved }: Con
         key={view.postId ?? 'new'}
         {...(view.postId ? { postId: view.postId } : {})}
         {...(newPostDefaults ? { defaults: newPostDefaults } : {})}
+        {...(showFormattingToolbar === undefined ? {} : { showFormattingToolbar })}
+        {...(renderDateTimeInput ? { renderDateTimeInput } : {})}
         onSaved={handleSaved}
         onArchived={() => {
           setReloadKey((value) => value + 1)
