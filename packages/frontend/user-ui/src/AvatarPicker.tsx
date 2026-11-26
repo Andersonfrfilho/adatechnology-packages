@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import { BACKGROUND_FILL, useBackgroundRemoval, type BackgroundRemovalConfig } from '@adatechnology/image-cutout'
 
+import { cropToSquare } from './cropToSquare'
 import { DEFAULT_USER_LABELS, type UserLabels } from './workspace/labels'
 
 export type AvatarPickerProps = {
@@ -20,6 +21,8 @@ export type AvatarPickerProps = {
   readonly busy?: boolean
   /** Ausente desliga o recorte — o botão não aparece, em vez de aparecer e falhar. */
   readonly backgroundRemoval?: BackgroundRemovalConfig
+  /** Lado máximo, em pixels, do recorte quadrado central enviado. Ausente, a foto sobe como veio. */
+  readonly squareSize?: number
   readonly onConfirm: (file: File) => void
   readonly onCancel: () => void
   /** Cabeçalho do painel, normalmente dizendo de quem é a foto. */
@@ -41,6 +44,7 @@ export function AvatarPicker({
   labels: overrides,
   busy = false,
   backgroundRemoval,
+  squareSize,
   onConfirm,
   onCancel,
   title,
@@ -67,6 +71,10 @@ export function AvatarPicker({
   if (!originalUrl) return null
 
   const chosen = cutout.result ?? file
+
+  async function handleConfirm(): Promise<void> {
+    onConfirm(squareSize ? await cropToSquare(chosen, squareSize) : chosen)
+  }
 
   return (
     <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -117,7 +125,7 @@ export function AvatarPicker({
         <button
           className="inline-flex min-h-9 items-center gap-2 rounded bg-blue-600 px-3 text-sm font-semibold text-white disabled:opacity-60"
           disabled={busy || cutout.running}
-          onClick={() => onConfirm(chosen)}
+          onClick={() => void handleConfirm()}
           type="button"
         >
           <Check aria-hidden="true" className="size-4" />

@@ -11,6 +11,8 @@
  * Esta é a porta que faltava. Sem `roles`, o comportamento é exatamente o de antes.
  */
 
+import type { ReactNode } from 'react'
+
 import type { UserLabels } from './workspace/labels'
 
 /** Só `accent` e `neutral`: o papel distingue, não sinaliza saúde — verde e cinza-apagado são de estado. */
@@ -23,7 +25,21 @@ export type TeamRoleOption = {
   readonly label: string
   /** Destaque na listagem. Ausente = `neutral`. */
   readonly tone?: TeamRoleTone
+  /** Uma linha dizendo o que o papel pode fazer. O seletor padrão ignora; `renderRoleField` pode mostrá-la. */
+  readonly description?: string
 }
+
+/** O que o host recebe para desenhar o campo de papel no lugar do `<select>` padrão. */
+export type TeamRoleFieldProps = {
+  readonly id: string
+  readonly label: string
+  readonly value: string
+  readonly options: readonly TeamRoleOption[]
+  readonly onChange: (value: string) => void
+}
+
+/** Desenha o campo de papel inteiro (rótulo incluído), no lugar do `<select>` nativo. */
+export type RenderTeamRoleField = (props: TeamRoleFieldProps) => ReactNode
 
 export const DEFAULT_TEAM_ROLE_VALUE = {
   MEMBER: 'member',
