@@ -600,12 +600,12 @@ type ActiveSwitchProps = {
  * grava na hora. Confundir os dois na mesma linha — onde ja ha um checkbox de selecao — e o erro
  * que esta distincao evita.
  */
-function ActiveSwitch({ value, busy, label, onToggle }: ActiveSwitchProps) {
+export function ActiveSwitch({ value, busy, label, onToggle }: ActiveSwitchProps) {
   return (
     <button
       aria-checked={value}
       aria-label={label}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 motion-reduce:transition-none disabled:opacity-60 ${
         value ? 'bg-emerald-600' : 'bg-gray-300 dark:bg-gray-600'
       }`}
       disabled={busy}
@@ -615,7 +615,9 @@ function ActiveSwitch({ value, busy, label, onToggle }: ActiveSwitchProps) {
     >
       <span
         aria-hidden="true"
-        className={`absolute top-0.5 size-5 rounded-full bg-white transition-all ${value ? 'left-5.5' : 'left-0.5'}`}
+        className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white transition-transform duration-150 ease-out motion-reduce:transition-none ${
+          value ? 'translate-x-5' : 'translate-x-0'
+        }`}
       />
     </button>
   )
