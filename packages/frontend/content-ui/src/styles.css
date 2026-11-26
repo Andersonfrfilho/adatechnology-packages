@@ -1064,3 +1064,23 @@
   gap: calc(var(--adc-space) * 3);
   margin-top: calc(var(--adc-space) * 4);
 }
+
+/* Datas e título quebram linha; só a coluna de ações fica numa linha, para a tabela caber sem rolar */
+.adc-post-list .adc-table td:not(.adc-row-actions) {
+  white-space: normal;
+}
+
+.adc-post-list .adc-table td:not(.adc-row-actions):not(.adc-table__check) {
+  min-width: 7rem;
+}
+
+@media (max-width: 40rem) {
+  .adc-status-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .adc-status-tab {
+    flex-shrink: 0;
+  }
+}

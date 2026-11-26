@@ -129,7 +129,7 @@
   "recurrenceNeedsTemplate": "Crie um modelo primeiro para agendar publicações automáticas.",
   "selectAll": "Selecionar todos",
   "selectRow": "Selecionar {title}",
-  "selectedCount": "{count} selecionados",
+  "selectedCount": "Selecionados: {count}",
   "clearSelection": "Limpar seleção",
   "batchLabel": "Ações em lote",
   "batchPublish": "Publicar",

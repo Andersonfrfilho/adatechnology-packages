@@ -129,7 +129,7 @@
   "recurrenceNeedsTemplate": "Create a template first to schedule automatic publishing.",
   "selectAll": "Select all",
   "selectRow": "Select {title}",
-  "selectedCount": "{count} selected",
+  "selectedCount": "Selected: {count}",
   "clearSelection": "Clear selection",
   "batchLabel": "Batch actions",
   "batchPublish": "Publish",
