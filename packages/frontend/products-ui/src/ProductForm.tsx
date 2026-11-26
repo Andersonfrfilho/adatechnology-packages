@@ -6,6 +6,7 @@ import { useIsProductFieldEnabled, useProducts, useProductsConfig } from './prov
 import { ImageUpload } from './ImageUpload'
 import { AttributesEditor } from './AttributesEditor'
 import { AvailabilityScheduleEditor, type AvailabilityScheduleDraft } from './AvailabilityScheduleEditor'
+import { ActiveSwitch } from './ActiveSwitch'
 import { DEFAULT_PRICE_ON_REQUEST_LABEL, attributesToEntries, buildSchedule, entriesToAttributes, validateSchedule, type AttributeEntry } from './lib/productFields'
 import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
 
@@ -644,15 +645,7 @@ export function ProductForm({
       )}
 
       <div className="flex items-center gap-3">
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={form.active}
-            onChange={(e) => updateField('active', e.target.checked)}
-            className="sr-only peer"
-          />
-          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-brand-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600" />
-        </label>
+        <ActiveSwitch checked={form.active} label="Produto ativo" onChange={(checked) => updateField('active', checked)} />
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Produto ativo</span>
       </div>
 
