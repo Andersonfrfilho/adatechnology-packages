@@ -342,7 +342,9 @@ export class FlowRunner {
   /** Apaga o que foi coletado e encerra o fluxo; a próxima mensagem do cliente começa do início. */
   private async cancel(turn: FlowTurn): Promise<FlowRunnerOutcome> {
     await this.claim(turn)
-    await this.save(turn, { flowKey: null, nodeId: null, context: {} })
+    const kept = (this.dependencies.config.preserveOnCancel ?? []).filter((key) => key in turn.session.context)
+    const context = Object.fromEntries(kept.map((key) => [key, turn.session.context[key]]))
+    await this.save(turn, { flowKey: null, nodeId: null, context })
     const text = await this.configText(turn, undefined, { chain: [this.dependencies.config.cancelMessage], kind: 'cancel' })
     await this.say(turn, text ?? DEFAULT_FLOW_TEXT.CANCEL, {})
     return 'handled'

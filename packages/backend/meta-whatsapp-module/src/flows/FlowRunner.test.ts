@@ -241,6 +241,16 @@ describe('FlowRunner — global cancel and back', () => {
     expect(harness.row.currentNodeId).toBeNull()
   })
 
+  it('keeps only the context keys listed in preserveOnCancel', async () => {
+    const harness = frontDesk({ globalKeywords: KEYWORDS, preserveOnCancel: ['date'] })
+    await harness.handle(textMessage('oi'))
+    await harness.handle(replyMessage('book'))
+    await harness.handle(textMessage('25/12'))
+    await harness.handle(textMessage('sair'))
+    expect(harness.row.context['date']).toBeDefined()
+    expect(harness.row.context['people']).toBeUndefined()
+  })
+
   it('uses the package default farewell when none is configured', async () => {
     const harness = frontDesk({ globalKeywords: KEYWORDS })
     await harness.handle(textMessage('oi'))

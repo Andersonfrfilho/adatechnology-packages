@@ -119,6 +119,8 @@ export type FlowRunnerConfig = {
   readonly globalKeywords?: readonly FlowGlobalKeyword[]
   /** Despedida da palavra global `cancel`. Aceita `{{chave}}` das variáveis do host. Padrão do pacote se ausente. */
   readonly cancelMessage?: FlowConfigText
+  /** Chaves do contexto que sobrevivem ao `cancel` (ex.: "já foi recebido"). O resto é apagado. */
+  readonly preserveOnCancel?: readonly string[]
   /** Respostas inválidas seguidas no mesmo nó antes de chamar uma pessoa. Padrão 2; o nó pode sobrescrever. */
   readonly maxInvalidAnswers?: number
   /** Texto de nova tentativa quando o nó não declara `fallbackMessage`. */
