@@ -133,6 +133,12 @@ export type FlowRunnerConfig = {
   readonly listButtonLabel?: string
   /** Rótulo da linha que pede a próxima página de um `dynamic_choice`. */
   readonly seeMoreLabel?: string
+  /**
+   * Paginação de ida e volta no `dynamic_choice`: `pageSize` itens por página (padrão e teto 8, para caber
+   * "ver mais" e "voltar" nas 10 linhas da lista) e a linha de página anterior a partir da segunda página.
+   * Ausente, vale o comportamento antigo (só "ver mais").
+   */
+  readonly pagination?: { readonly pageSize?: number; readonly nextLabel?: string; readonly previousLabel?: string }
   readonly dateLocale?: FlowDateLocale
   /**
    * Fuso de "hoje" na validação de data (IANA). Obrigatório — ou derivado de

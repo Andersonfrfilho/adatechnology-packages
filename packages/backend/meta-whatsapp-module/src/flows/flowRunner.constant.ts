@@ -19,6 +19,8 @@ export const DEFAULT_FLOW_TEXT = {
   CHOICE_PROMPT: 'Escolha uma opção:',
   LIST_BUTTON_LABEL: 'Ver opções',
   SEE_MORE: 'Ver mais',
+  SEE_PREVIOUS: '⬅️ Voltar',
+  SEE_NEXT: '➡️ Ver mais',
   NON_TEXT_ANSWER: 'Por aqui eu entendo só texto. Pode escrever a resposta?',
   MORE_OPTIONS_TRUNCATED: '…',
   CANCEL: 'Tudo bem! Cancelei por aqui. Quando quiser, é só mandar uma mensagem.',
@@ -29,6 +31,8 @@ export const DEFAULT_FLOW_TEXT = {
 
 /** Id da linha "ver mais" de um `dynamic_choice`. Começa com `__` para não colidir com id do host. */
 export const DYNAMIC_CHOICE_MORE_ID = '__more__'
+/** Id da linha "voltar" de um `dynamic_choice` com `pagination`. */
+export const DYNAMIC_CHOICE_PREVIOUS_ID = '__previous__'
 
 /**
  * Chave reservada do contexto com o estado do runner (tentativas inválidas, página do

@@ -352,6 +352,68 @@ describe('FlowRunner — global keywords and handoff', () => {
   })
 })
 
+describe('FlowRunner — dynamic choice pagination', () => {
+  async function pagedRunner(total: number) {
+    const items = Array.from({ length: total }, (_, index) => ({ id: `item-${index + 1}`, title: `Item ${index + 1}` }))
+    const harness = buildRunner({
+      graphs: [
+        graph('main', 'pick', [
+          { id: 'pick', type: 'dynamic_choice', question: 'Escolha', choiceProvider: 'items', contextKey: 'item', next: 'done' },
+          { id: 'done', type: 'action', directMessage: 'Escolhido: {{item}}' },
+        ]),
+      ],
+      config: {
+        pagination: {},
+        dynamicChoiceProviders: {
+          items: async ({ page, pageSize }) => ({
+            options: items.slice(page * pageSize, (page + 1) * pageSize),
+            hasMore: (page + 1) * pageSize < items.length,
+          }),
+        },
+      },
+    })
+    await harness.handle(textMessage('oi'))
+    return harness
+  }
+  const rowIds = (message: ReturnType<Awaited<ReturnType<typeof pagedRunner>>['takeSent']>[number] | undefined): string[] =>
+    message?.kind === 'interactive' && message.interactive.kind === 'list' ? message.interactive.sections[0]!.rows.map((row) => row.id) : []
+
+  it.each([
+    [8, 8, false],
+    [9, 9, true],
+    [10, 9, true],
+    [11, 9, true],
+  ])('with %i items the first page has %i rows (next row: %s)', async (total, rows, hasNext) => {
+    const harness = await pagedRunner(total)
+    const ids = rowIds(harness.takeSent()[0])
+    expect(ids.length).toBe(total === 8 ? 8 : 9)
+    expect(ids.includes('__more__')).toBe(hasNext)
+    expect(ids.includes('__previous__')).toBe(false)
+    expect(rows).toBeGreaterThan(0)
+  })
+
+  it('goes forward, back, and picks an item on the second page by id or typed number', async () => {
+    const harness = await pagedRunner(20)
+    expect(rowIds(harness.takeSent()[0])).toEqual([...Array.from({ length: 8 }, (_, i) => `item-${i + 1}`), '__more__'])
+
+    await harness.handle(replyMessage('__more__', 'list'))
+    expect(rowIds(harness.takeSent()[0])).toEqual([...Array.from({ length: 8 }, (_, i) => `item-${i + 9}`), '__more__', '__previous__'])
+
+    await harness.handle(replyMessage('__more__', 'list'))
+    expect(rowIds(harness.takeSent()[0])).toEqual(['item-17', 'item-18', 'item-19', 'item-20', '__previous__'])
+
+    await harness.handle(replyMessage('__previous__', 'list'))
+    expect(rowIds(harness.takeSent()[0])[0]).toBe('item-9')
+    await harness.handle(replyMessage('__previous__', 'list'))
+    expect(rowIds(harness.takeSent()[0])[0]).toBe('item-1')
+
+    await harness.handle(replyMessage('__more__', 'list'))
+    harness.takeSent()
+    await harness.handle(textMessage('2'))
+    expect(harness.takeSent()).toEqual([{ kind: 'text', body: 'Escolhido: item-10' }])
+  })
+})
+
 describe('FlowRunner — dynamic choice', () => {
   const slots = Array.from({ length: 12 }, (_, index) => ({
     id: `slot-${index}`,

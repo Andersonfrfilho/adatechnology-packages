@@ -13,12 +13,13 @@ import {
   type FlowClock,
   type FlowNodeData,
 } from '@adatechnology/meta-whatsapp-contracts'
-import { DYNAMIC_CHOICE_MORE_ID } from './flowRunner.constant'
+import { DYNAMIC_CHOICE_MORE_ID, DYNAMIC_CHOICE_PREVIOUS_ID } from './flowRunner.constant'
 
 export type FlowAnswerDecision =
   | { readonly kind: 'answer'; readonly userAnswer: string; readonly value?: unknown }
   | { readonly kind: 'jump'; readonly target: string }
   | { readonly kind: 'see-more' }
+  | { readonly kind: 'see-previous' }
   | { readonly kind: 'invalid'; readonly rejection?: FlowAnswerRejection }
 
 export type ResolveFlowAnswerParams = {
@@ -66,6 +67,7 @@ function resolveChoice(params: ResolveFlowAnswerParams, answer: string): FlowAns
 function resolveDynamicChoice(params: ResolveFlowAnswerParams, answer: string): FlowAnswerDecision {
   const optionId = matchOption(answer, params.dynamicOptions ?? [], params.isInteractiveReply)
   if (optionId === DYNAMIC_CHOICE_MORE_ID) return { kind: 'see-more' }
+  if (optionId === DYNAMIC_CHOICE_PREVIOUS_ID) return { kind: 'see-previous' }
   if (optionId) return { kind: 'answer', userAnswer: optionId }
   const target = keywordRoute(params.node, answer, params.isInteractiveReply)
   return target ? { kind: 'jump', target } : { kind: 'invalid' }

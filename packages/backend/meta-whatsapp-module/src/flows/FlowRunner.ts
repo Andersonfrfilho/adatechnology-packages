@@ -399,6 +399,7 @@ export class FlowRunner {
 
     if (decision.kind === 'jump') return this.jumpTo(turn, graph, decision.target, withRuntime(context, {}))
     if (decision.kind === 'see-more') return this.awaitAnswer(turn, graph, node, context, page + 1)
+    if (decision.kind === 'see-previous') return this.awaitAnswer(turn, graph, node, context, Math.max(0, page - 1))
     if (decision.kind === 'invalid' && this.followsDefaultWhenUnmatched(node)) {
       return this.runFrom(turn, {
         graph,

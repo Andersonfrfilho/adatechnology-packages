@@ -14,7 +14,7 @@ import {
   type FlowNodeData,
 } from '@adatechnology/meta-whatsapp-contracts'
 import { buildFlowChoiceMessage, type FlowChoiceOption, type FlowOutboundMessage } from './buildFlowChoiceMessage'
-import { DEFAULT_FLOW_TEXT, DYNAMIC_CHOICE_MORE_ID } from './flowRunner.constant'
+import { DEFAULT_FLOW_TEXT, DYNAMIC_CHOICE_MORE_ID, DYNAMIC_CHOICE_PREVIOUS_ID } from './flowRunner.constant'
 import type { FlowRunnerConfig } from './flowRunner.types'
 import { isChoiceNode } from './resolveFlowAnswer'
 import { runtimeOf, withRuntime } from './flowRuntimeState'
@@ -92,7 +92,10 @@ export class FlowQuestionRenderer {
     const { node } = params
     const provider = node.choiceProvider ? this.providers.get(node.choiceProvider) : undefined
     if (!provider) throw new FlowRunnerError('provider-missing', node.choiceProvider ?? node.id)
-    const pageSize = WHATSAPP_CHOICE_LIMIT.LIST_ROWS - 1
+    const { pagination } = this.config
+    const pageSize = pagination
+      ? Math.min(pagination.pageSize ?? WHATSAPP_CHOICE_LIMIT.LIST_ROWS - 2, WHATSAPP_CHOICE_LIMIT.LIST_ROWS - 2)
+      : WHATSAPP_CHOICE_LIMIT.LIST_ROWS - 1
     const result = await provider({
       node,
       session: params.session,
@@ -105,7 +108,12 @@ export class FlowQuestionRenderer {
       title: option.title,
       ...(option.description ? { description: option.description } : {}),
     }))
-    const seeMore = this.config.seeMoreLabel ?? DEFAULT_FLOW_TEXT.SEE_MORE
-    return result.hasMore ? [...options, { id: DYNAMIC_CHOICE_MORE_ID, title: seeMore }] : options
+    if (!pagination) {
+      const seeMore = this.config.seeMoreLabel ?? DEFAULT_FLOW_TEXT.SEE_MORE
+      return result.hasMore ? [...options, { id: DYNAMIC_CHOICE_MORE_ID, title: seeMore }] : options
+    }
+    const previous = params.page > 0 ? [{ id: DYNAMIC_CHOICE_PREVIOUS_ID, title: pagination.previousLabel ?? DEFAULT_FLOW_TEXT.SEE_PREVIOUS }] : []
+    const next = result.hasMore ? [{ id: DYNAMIC_CHOICE_MORE_ID, title: pagination.nextLabel ?? DEFAULT_FLOW_TEXT.SEE_NEXT }] : []
+    return [...options, ...next, ...previous]
   }
 }
