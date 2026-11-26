@@ -52,20 +52,21 @@ function matchOption(
   answer: string,
   options: readonly (readonly [string, string])[],
   isInteractiveReply: boolean,
+  matchByPosition: boolean | undefined,
 ): string | undefined {
   if (isInteractiveReply) return options.some(([id]) => id === answer) ? answer : undefined
-  return matchFlowChoice(answer, options)
+  return matchFlowChoice(answer, options, { matchByPosition })
 }
 
 function resolveChoice(params: ResolveFlowAnswerParams, answer: string): FlowAnswerDecision {
-  const optionId = matchOption(answer, params.options ?? params.node.options ?? [], params.isInteractiveReply)
+  const optionId = matchOption(answer, params.options ?? params.node.options ?? [], params.isInteractiveReply, params.node.matchByPosition)
   if (optionId) return { kind: 'answer', userAnswer: optionId }
   const target = keywordRoute(params.node, answer, params.isInteractiveReply)
   return target ? { kind: 'jump', target } : { kind: 'invalid' }
 }
 
 function resolveDynamicChoice(params: ResolveFlowAnswerParams, answer: string): FlowAnswerDecision {
-  const optionId = matchOption(answer, params.dynamicOptions ?? [], params.isInteractiveReply)
+  const optionId = matchOption(answer, params.dynamicOptions ?? [], params.isInteractiveReply, params.node.matchByPosition)
   if (optionId === DYNAMIC_CHOICE_MORE_ID) return { kind: 'see-more' }
   if (optionId === DYNAMIC_CHOICE_PREVIOUS_ID) return { kind: 'see-previous' }
   if (optionId) return { kind: 'answer', userAnswer: optionId }

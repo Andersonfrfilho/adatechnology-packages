@@ -492,7 +492,7 @@ export class FlowRunner {
   }
 
   private followsDefaultWhenUnmatched(node: FlowNodeData): boolean {
-    if (!isChoiceNode(node)) return false
+    if (!isChoiceNode(node) && node.type !== 'dynamic_choice') return false
     return (node.unmatchedChoice ?? this.dependencies.config.unmatchedChoice ?? 'reask') === 'default'
   }
 

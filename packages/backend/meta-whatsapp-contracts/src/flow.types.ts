@@ -97,6 +97,11 @@ export type FlowNodeData = {
    * `default` segue para `next.default` guardando o texto cru — o comportamento do interpretador puro.
    */
   unmatchedChoice?: 'reask' | 'default'
+  /**
+   * `false`: um número digitado nunca escolhe a opção pela posição ("8" não é a 8ª linha); só id ou rótulo.
+   * Para listas de quantidade, em que o cliente digita o número que quer. Padrão: escolhe pela posição.
+   */
+  matchByPosition?: boolean
   /** Nó `dynamic_choice`: chave do provedor de opções registrado pelo host. */
   choiceProvider?: string
   directMessage?: string
@@ -202,6 +207,7 @@ export const flowNodeDataSchema = z
     skipKeywords: z.array(z.string()).optional(),
     maxInvalidAnswers: z.number().int().positive().optional(),
     unmatchedChoice: z.enum(['reask', 'default']).optional(),
+    matchByPosition: z.boolean().optional(),
     choiceProvider: z.string().optional(),
     directMessage: z.string().optional(),
     fallbackMessage: z.string().optional(),
