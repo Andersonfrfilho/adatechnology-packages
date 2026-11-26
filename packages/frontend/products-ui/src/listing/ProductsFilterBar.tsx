@@ -53,7 +53,7 @@ export function ProductsFilterBar(props: ProductsFilterBarProps) {
   ]
 
   return (
-    <div role="search" className="flex flex-wrap items-center gap-2">
+    <div role="search" className="flex flex-wrap items-end gap-2">
       <div className="relative min-w-48 max-w-md flex-[2_1_16rem]">
         <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
@@ -63,7 +63,7 @@ export function ProductsFilterBar(props: ProductsFilterBarProps) {
           placeholder={labels.search}
           aria-label={labels.search}
           autoComplete="off"
-          className="min-h-11 w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="min-h-11 w-full rounded-lg border border-gray-300 py-2 !pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
 
@@ -105,7 +105,7 @@ export function ProductsFilterBar(props: ProductsFilterBarProps) {
         </button>
       ) : null}
 
-      <span role="status" className="text-sm text-gray-600 whitespace-nowrap">
+      <span role="status" className="pb-3 text-sm text-gray-600 whitespace-nowrap">
         {labels.results(total)}
       </span>
       <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>

@@ -58,7 +58,7 @@ export const DEFAULT_PRODUCTS_LISTING_LABELS: ProductsListingLabels = {
   availability: 'Disponibilidade',
   pricing: 'Preço',
   allOptions: 'Todos',
-  selectedCount: (count) => `${count} selecionados`,
+  selectedCount: (count) => (count === 1 ? '1 selecionado' : `${count} selecionados`),
   noCatalog: 'Sem catálogo',
   noSection: 'Sem seção',
   availabilityActive: 'Disponível',
