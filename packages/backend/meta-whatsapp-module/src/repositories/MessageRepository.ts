@@ -39,11 +39,21 @@ export interface UpdateMessageStatusParams {
   deliveryError?: WhatsAppStatusError | undefined
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export interface ListMessagesParams {
   companyId: string
   sessionId: string
   limit?: number
   before?: string
+  /**
+   * Id da mensagem mais antiga que o cliente já tem: junto com `before`, forma o cursor composto
+   * `(created_at, id)`, na mesma ordem da listagem. Só voltam as estritamente anteriores a ela, então
+   * mensagens no mesmo instante da fronteira não somem nem se repetem. O `created_at` do cursor é lido da
+   * própria linha (microssegundos), não do `before` (milissegundos). Id desconhecido ou que não é UUID cai no
+   * `before`.
+   */
+  beforeId?: string
 }
 
 export interface SaveTranscriptionByWaMessageIdParams extends Omit<SaveTranscriptionParams, 'messageId'> {
@@ -263,7 +273,19 @@ export class MessageRepository {
 
   async listByConversation(params: ListMessagesParams): Promise<MessageRow[]> {
     const conditions = [eq(messages.companyId, params.companyId), eq(messages.sessionId, params.sessionId)]
-    if (params.before) conditions.push(lt(messages.createdAt, new Date(params.before)))
+    if (params.beforeId && UUID_PATTERN.test(params.beforeId)) {
+      const compositeCursor = sql`(${messages.createdAt}, ${messages.id}) < (
+        select cursor_row.created_at, cursor_row.id from ${messages} as cursor_row
+        where cursor_row.id = ${params.beforeId}
+          and cursor_row.company_id = ${params.companyId}
+          and cursor_row.session_id = ${params.sessionId}
+      )`
+      conditions.push(
+        params.before
+          ? sql`coalesce(${compositeCursor}, ${lt(messages.createdAt, new Date(params.before))})`
+          : compositeCursor,
+      )
+    } else if (params.before) conditions.push(lt(messages.createdAt, new Date(params.before)))
 
     // Pega as N mais novas (DESC + limit) e devolve em ordem cronológica: ASC + limit devolveria as mais antigas.
     const newestFirst = await this.db

@@ -74,3 +74,38 @@ describe('MessageRepository.listByConversation', () => {
     expect(captured.limit).toBe(50)
   })
 })
+
+describe('MessageRepository.listByConversation — cursor composto', () => {
+  const BEFORE_ID = '0b9d6c1e-2f4a-4b8e-9a52-7a1d3c5e8f10'
+
+  it('compares (created_at, id) against the cursor row when beforeId is given', async () => {
+    const { repository, captured } = createRepository([])
+    await repository.listByConversation({ companyId: 'c', sessionId: 's', beforeId: BEFORE_ID })
+    expect(captured.whereSql).toContain('"created_at", "meta_whatsapp"."messages"."id") <')
+    expect(captured.whereSql).toContain('cursor_row.id =')
+  })
+
+  it('falls back to the timestamp cursor when the cursor row is unknown', async () => {
+    const { repository, captured } = createRepository([])
+    await repository.listByConversation({
+      companyId: 'c',
+      sessionId: 's',
+      before: '2026-01-01T00:00:00.000Z',
+      beforeId: BEFORE_ID,
+    })
+    expect(captured.whereSql).toContain('coalesce(')
+    expect(captured.whereSql).toContain('"created_at" <')
+  })
+
+  it('ignores a beforeId that is not a UUID instead of failing the query', async () => {
+    const { repository, captured } = createRepository([])
+    await repository.listByConversation({
+      companyId: 'c',
+      sessionId: 's',
+      before: '2026-01-01T00:00:00.000Z',
+      beforeId: 'not-a-uuid',
+    })
+    expect(captured.whereSql).not.toContain('cursor_row')
+    expect(captured.whereSql).toContain('"created_at" <')
+  })
+})

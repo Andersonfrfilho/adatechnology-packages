@@ -8,6 +8,8 @@ export type ListMessagesParams = {
   whatsappNumber: string
   limit?: number
   before?: string
+  /** Desempate do cursor `before` (ver `MessageRepository.ListMessagesParams.beforeId`). */
+  beforeId?: string
 }
 
 // T3.3 — histórico paginado de uma conversa (resolve sessionId a partir do número antes de
@@ -27,6 +29,7 @@ export class ListMessagesUseCase {
       sessionId: session.id,
       limit: params.limit,
       before: params.before,
+      beforeId: params.beforeId,
     }
     return this.messageRepository.listByConversation(repoParams)
   }
