@@ -161,12 +161,18 @@ export function TeamMemberEditForm({
         {/* Salvar sem mudar nada gravaria uma linha de auditoria dizendo que algo mudou. */}
         <button
           className="inline-flex min-h-10 items-center gap-2 rounded bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+          aria-describedby={unchanged ? 'team-edit-unchanged' : undefined}
           disabled={saving || unchanged}
           type="submit"
         >
           <Check aria-hidden="true" className="size-4" />
           {saving ? labels.teamSaving : labels.teamSave}
         </button>
+        {unchanged && (
+          <span className="text-xs text-gray-500 dark:text-gray-400" id="team-edit-unchanged">
+            {labels.teamNothingChanged}
+          </span>
+        )}
         <button className="text-sm text-gray-600 dark:text-gray-300" onClick={onCancel} type="button">
           {labels.teamCancel}
         </button>
