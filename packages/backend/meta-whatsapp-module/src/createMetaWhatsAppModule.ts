@@ -40,6 +40,13 @@ import {
   RedactInboundLocationsUseCase,
 } from './use-cases/RedactInboundLocations.use-case'
 import { DocumentRepository } from './repositories/DocumentRepository'
+import { QuickReplyRepository } from './repositories/QuickReplyRepository'
+import {
+  CreateQuickReplyUseCase,
+  DeleteQuickReplyUseCase,
+  ListQuickRepliesUseCase,
+  UpdateQuickReplyUseCase,
+} from './use-cases/QuickReply.use-cases'
 import { ExportConversationUseCase } from './use-cases/ExportConversation.use-case'
 import {
   GetFlowGraphUseCase,
@@ -267,6 +274,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
 
   const flowGraphRepository = new FlowGraphRepository(db, flowGraphCache)
   const documentRepository = new DocumentRepository(db)
+  const quickReplyRepository = new QuickReplyRepository(db)
   const flowMediaRepository = new FlowMediaRepository(db)
 
   const logMessage = new LogMessageUseCase(
@@ -482,6 +490,18 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
         ? { defaultMode: transcriptionMode, resolvePolicy: resolveTranscriptionPolicy }
         : undefined,
     settings: settingsRepository,
+    /**
+     * Respostas rápidas por empresa (o `/atalho` do composer). Só texto. As rotas HTTP saem de
+     * `createMetaWhatsAppQuickReplyRoutes({ module })`; o host que prefere as próprias usa os
+     * casos de uso daqui.
+     */
+    quickReplies: {
+      list: new ListQuickRepliesUseCase(quickReplyRepository),
+      create: new CreateQuickReplyUseCase(quickReplyRepository),
+      update: new UpdateQuickReplyUseCase(quickReplyRepository),
+      delete: new DeleteQuickReplyUseCase(quickReplyRepository),
+      repository: quickReplyRepository,
+    },
     /**
      * `undefined` quando o recurso não está ligado (ou falta storage legível). O host consulta a
      * ausência para não registrar a rota de upload — e o preview, sem a rota, esconde o microfone.

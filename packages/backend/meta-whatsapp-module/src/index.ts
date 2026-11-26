@@ -8,7 +8,16 @@ export type {
   MetaWhatsAppTranscriptionConfig,
 } from './createMetaWhatsAppModule'
 
-export { metaWhatsAppSchema, sessions, messages, flowGraphs, settings, documents, flowMedia } from './schema/schema'
+export {
+  metaWhatsAppSchema,
+  sessions,
+  messages,
+  flowGraphs,
+  settings,
+  documents,
+  flowMedia,
+  quickReplies,
+} from './schema/schema'
 export type {
   SessionRow,
   NewSessionRow,
@@ -22,6 +31,8 @@ export type {
   NewDocumentRow,
   FlowMediaRow,
   NewFlowMediaRow,
+  QuickReplyRow,
+  NewQuickReplyRow,
 } from './schema/schema'
 
 export { WhatsAppChannelAdapter } from './channel/WhatsAppChannelAdapter'
@@ -244,3 +255,27 @@ export {
   GetLiveFlowPositionsUseCase,
 } from './use-cases/FlowGraph.use-cases'
 export type { CreateFlowGraphParams, SaveFlowGraphParams } from './use-cases/FlowGraph.use-cases'
+
+export { QuickReplyRepository } from './repositories/QuickReplyRepository'
+export type {
+  ListQuickRepliesParams as ListQuickReplyRowsParams,
+  CreateQuickReplyParams as CreateQuickReplyRowParams,
+  UpdateQuickReplyParams as UpdateQuickReplyRowParams,
+} from './repositories/QuickReplyRepository'
+export {
+  ListQuickRepliesUseCase,
+  CreateQuickReplyUseCase,
+  UpdateQuickReplyUseCase,
+  DeleteQuickReplyUseCase,
+  toQuickReplyView,
+} from './use-cases/QuickReply.use-cases'
+export type {
+  ListQuickRepliesParams,
+  SaveQuickReplyParams,
+  UpdateQuickReplyParams,
+  DeleteQuickReplyParams,
+} from './use-cases/QuickReply.use-cases'
+export { createMetaWhatsAppQuickReplyRoutes } from './http/quickReplyRoutes'
+export type { CreateMetaWhatsAppQuickReplyRoutesParams } from './http/quickReplyRoutes'
+export { QUICK_REPLY_SCOPE, DEFAULT_QUICK_REPLY_WRITE_SCOPES } from './http/quickReplyScope.constant'
+export type { QuickReplyRouteScopes } from './http/quickReplyScope.constant'
