@@ -108,6 +108,7 @@ export type {
   DocumentsWorkspaceLabels,
   DocumentsWorkspaceClassNames,
   DocumentsFiltersContext,
+  ListExportContext,
 } from './documents'
 export { SortableHead, MultiSelectFilter, BulkActionBar, ListingPagination } from './listing'
 export type {

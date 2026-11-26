@@ -4,7 +4,7 @@
 
 import { POST_STATUSES, type PostStatus, type PostSummary } from '@adatechnology/content-contracts'
 import { Plus, RotateCcw, Search } from 'lucide-react'
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 
 import { usePostList } from '../hooks/usePostList'
 import { formatPostDate } from '../lib/format'
@@ -20,6 +20,20 @@ const STATUS_LABEL: Record<PostStatus, keyof ContentMessages> = {
   archived: 'statusArchived',
 }
 
+/**
+ * O que a lista está mostrando agora, para o host montar um botão "Exportar" ao lado dos filtros.
+ *
+ * O pacote não exporta nada: quem gera o arquivo é o backend do host, com os mesmos filtros da tela.
+ * `filters` traz os filtros ativos já como texto; `pageCount`, quantas linhas a página tem.
+ */
+export type ListExportContext = {
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly pageCount: number
+  readonly filters: Readonly<Record<string, string>>
+}
+
 export type PostListProps = {
   readonly onSelect: (post: PostSummary) => void
   /** Ausente: sem botão "Novo post". */
@@ -27,9 +41,11 @@ export type PostListProps = {
   readonly pageSize?: number
   /** Mude o valor para forçar recarga (ex.: depois de salvar no editor). */
   readonly reloadKey?: number
+  /** Ausente: sem exportação. Opt-in do host, na barra do título. */
+  readonly renderExport?: (context: ListExportContext) => ReactNode
 }
 
-export function PostList({ onSelect, onCreate, pageSize = 20, reloadKey }: PostListProps) {
+export function PostList({ onSelect, onCreate, pageSize = 20, reloadKey, renderExport }: PostListProps) {
   const { messages, locale } = useContentText()
   const { posts, tags, filters, updateFilters, page, setPage, hasFilters } = usePostList({
     pageSize,
@@ -43,6 +59,15 @@ export function PostList({ onSelect, onCreate, pageSize = 20, reloadKey }: PostL
     <section className="adc-root adc-post-list">
       <header className="adc-toolbar">
         <h2 className="adc-title">{messages.listTitle}</h2>
+        {renderExport && posts.data
+          ? renderExport({
+              total: posts.data.pagination.total,
+              page,
+              pageSize,
+              pageCount: posts.data.data.length,
+              filters: Object.fromEntries(Object.entries(filters).filter((entry): entry is [string, string] => Boolean(entry[1]))),
+            })
+          : null}
         {onCreate && (
           <button type="button" className="adc-button adc-button--primary" onClick={onCreate}>
             <Plus aria-hidden="true" className="adc-icon" />

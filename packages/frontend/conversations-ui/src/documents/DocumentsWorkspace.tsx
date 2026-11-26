@@ -65,6 +65,22 @@ export interface DocumentsWorkspaceProps {
   readonly classNames?: Partial<DocumentsWorkspaceClassNames>
   /** Espelhar filtros e paginação na URL. Desligado em preview, onde não há rota de verdade. */
   readonly syncUrl?: boolean
+  /** Ausente: sem exportação. Opt-in do host, na barra de filtros (os mesmos parâmetros do `getAllDocuments`). */
+  readonly renderExport?: (context: ListExportContext) => ReactNode
+}
+
+/**
+ * O que a lista está mostrando agora, para o host montar um botão "Exportar" ao lado dos filtros.
+ *
+ * O pacote não exporta nada: quem gera o arquivo é o backend do host, com os mesmos filtros da tela.
+ * `filters` traz os filtros ativos já como texto; `pageCount`, quantas linhas a página tem.
+ */
+export interface ListExportContext {
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly pageCount: number
+  readonly filters: Readonly<Record<string, string>>
 }
 
 export interface DocumentsFiltersContext {
@@ -84,6 +100,7 @@ export function DocumentsWorkspace({
   className,
   classNames,
   syncUrl = true,
+  renderExport,
 }: DocumentsWorkspaceProps) {
   const labels = { ...DEFAULT_DOCUMENTS_WORKSPACE_LABELS, ...labelsOverride }
   const context = useConversations()
@@ -323,6 +340,22 @@ export function DocumentsWorkspace({
             {labels.clearFilters}
           </button>
         ) : null}
+
+        {renderExport?.({
+          total,
+          page,
+          pageSize: perPage,
+          pageCount: documents.length,
+          filters: {
+            ...(debouncedSearch ? { search: debouncedSearch } : {}),
+            ...(source.length > 0 ? { source: source.join(',') } : {}),
+            ...(category.length > 0 ? { fileCategory: category.join(',') } : {}),
+            ...(startDate ? { startDate } : {}),
+            ...(endDate ? { endDate } : {}),
+            sortField,
+            sortDirection,
+          },
+        })}
 
         {uploadDocument ? (
           <>

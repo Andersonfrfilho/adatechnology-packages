@@ -10,18 +10,20 @@ import { useState } from 'react'
 
 import type { PostDraft } from '../lib/postDraft'
 import { PostEditor } from './PostEditor'
-import { PostList } from './PostList'
+import { PostList, type PostListProps } from './PostList'
 
 type WorkspaceView = { readonly kind: 'list' } | { readonly kind: 'editor'; readonly postId?: string }
 
 export type ContentWorkspaceProps = {
+  /** Repassado à lista: botão de exportação do host (opt-in). */
+  readonly renderExport?: PostListProps['renderExport']
   readonly pageSize?: number
   /** Valores iniciais do post novo (ex.: autor logado). */
   readonly newPostDefaults?: Partial<PostDraft>
   readonly onPostSaved?: (post: Post) => void
 }
 
-export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved }: ContentWorkspaceProps) {
+export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved, renderExport }: ContentWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -54,6 +56,7 @@ export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved }: Con
       {...(pageSize ? { pageSize } : {})}
       onSelect={(post) => setView({ kind: 'editor', postId: post.id })}
       onCreate={() => setView({ kind: 'editor' })}
+      {...(renderExport ? { renderExport } : {})}
     />
   )
 }

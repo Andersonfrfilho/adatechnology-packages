@@ -23,9 +23,25 @@ import { buildDefaultTeamRoles, resolveTeamRole, type TeamRoleOption } from '../
 import { useTeam, memberRowKey, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
 
+/**
+ * O que a lista está mostrando agora, para o host montar um botão "Exportar" ao lado dos filtros.
+ *
+ * O pacote não exporta nada: quem gera o arquivo é o backend do host, com os mesmos filtros da tela.
+ * `filters` traz os filtros ativos já como texto; `pageCount`, quantas linhas a página tem.
+ */
+export type ListExportContext = {
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly pageCount: number
+  readonly filters: Readonly<Record<string, string>>
+}
+
 export type TeamWorkspaceProps = {
   readonly labels?: Partial<UserLabels>
   readonly header?: ReactNode
+  /** Ausente: sem exportação. Opt-in do host, ao lado do botão de novo membro. */
+  readonly renderExport?: (context: ListExportContext) => ReactNode
   /** Quantas linhas por página. O padrão do hook cobre uma equipe inteira sem paginar. */
   readonly pageSize?: number
   /**
@@ -137,6 +153,7 @@ function TeamSkeletonRows({ hasSelection, hasActions, label }: TeamSkeletonRowsP
 export function TeamWorkspace({
   labels: overrides,
   header,
+  renderExport,
   pageSize,
   api,
   roles,
@@ -178,6 +195,14 @@ export function TeamWorkspace({
           <h2 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">{labels.teamTitle}</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{labels.teamSubtitle}</p>
         </div>
+
+        {renderExport?.({
+          total: team.total,
+          page: team.page,
+          pageSize: team.pageSize,
+          pageCount: team.members.length,
+          filters: team.search ? { search: team.search } : {},
+        })}
 
         {/* Sem `createTeamMember` na API, o botão não existe — em vez de existir e falhar no clique. */}
         {!isFormOpen && (
