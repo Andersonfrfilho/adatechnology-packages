@@ -53,6 +53,8 @@ export type UseTeamResult = {
   readonly page: number
   readonly pageSize: number
   readonly loading: boolean
+  /** Verdadeiro so enquanto nao ha dado nenhum: o recarregamento mantem as linhas montadas. */
+  readonly isInitialLoading: boolean
   readonly saving: boolean
   readonly error: string | undefined
   /** Codigo estavel do ultimo erro, quando o servidor mandou um. A tela decide onde ancorar. */
@@ -258,6 +260,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     page,
     pageSize,
     loading,
+    isInitialLoading: shouldShowSkeleton({ loading, hasData: data !== undefined }),
     saving,
     error,
     errorCode,
@@ -392,4 +395,19 @@ function codeOf(cause: unknown): string | undefined {
   const candidate = cause as { code?: unknown }
 
   return typeof candidate.code === 'string' ? candidate.code : undefined
+}
+
+type ShouldShowSkeletonParams = {
+  readonly loading: boolean
+  readonly hasData: boolean
+}
+
+/** Esqueleto so na primeira carga: trocar as linhas por ele a cada refetch as desmonta e perde a transicao do switch. */
+export function shouldShowSkeleton({ loading, hasData }: ShouldShowSkeletonParams): boolean {
+  return loading && !hasData
+}
+
+/** A chave da linha e o id do usuario: indice ou campo mutavel remontaria o no ao reordenar ou atualizar. */
+export function memberRowKey(member: Pick<UserProfile, 'id'>): string {
+  return member.id
 }
