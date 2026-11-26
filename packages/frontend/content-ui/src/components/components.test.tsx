@@ -42,6 +42,8 @@ describe('MarkdownContent', () => {
 const summary: PublicPostSummary = {
   id: 'p1',
   slug: 'ola',
+  shortId: 'abc123',
+  tagLabels: {},
   title: 'Olá <mundo>',
   excerpt: 'Resumo',
   coverImageUrl: null,

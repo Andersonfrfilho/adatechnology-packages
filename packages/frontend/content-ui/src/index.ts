@@ -13,10 +13,14 @@ export type { ContentProviderProps, ContentText } from './providers/ContentProvi
 export type {
   ContentAdminApi,
   ContentPublicApi,
+  DateTimeInputProps,
   ListPostsParams,
   ListPublishedPostsParams,
   RenderLink,
+  RenderDateTimeInput,
   RenderLinkProps,
+  RenderSelect,
+  SelectInputProps,
 } from './providers/types'
 
 export { ContentWorkspace } from './components/ContentWorkspace'
@@ -25,6 +29,8 @@ export { PostList } from './components/PostList'
 export type { PostListProps } from './components/PostList'
 export { PostEditor } from './components/PostEditor'
 export type { PostEditorProps } from './components/PostEditor'
+export { Tooltip } from './components/Tooltip'
+export type { TooltipProps } from './components/Tooltip'
 export { StatusChip } from './components/StatusChip'
 export type { StatusChipProps } from './components/StatusChip'
 export { TagsInput } from './components/TagsInput'
@@ -47,7 +53,8 @@ export type { PaginationProps } from './components/Pagination'
 export { usePostEditor, COVER_MAX_BYTES, COVER_MIME_TYPES } from './hooks/usePostEditor'
 export type { PostEditorState, EditorFeedback } from './hooks/usePostEditor'
 export { usePostList } from './hooks/usePostList'
-export type { PostListFilters } from './hooks/usePostList'
+export type { PostListFilters, PostListTab } from './hooks/usePostList'
+export { POST_LIST_TAB } from './hooks/usePostList'
 export { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard'
 export { useAsyncResource } from './hooks/useAsyncResource'
 export type { AsyncResource } from './hooks/useAsyncResource'

@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-export { POST_STATUS, POST_STATUSES, isPostStatus } from './content.types'
+export { POST_STATUS, POST_STATUSES, isPostStatus, RECURRENCE_FREQUENCY, RECURRENCE_FREQUENCIES } from './content.types'
 export type {
   PostStatus,
   Post,
@@ -12,6 +12,9 @@ export type {
   TagCount,
   Pagination,
   Paginated,
+  PostCounts,
+  RecurrenceFrequency,
+  RecurrenceRule,
 } from './content.types'
 
 export {
@@ -23,6 +26,11 @@ export {
   ConfigMissingError,
   InvalidCoverImageError,
   ImageStorageDisabledError,
+  NotATemplateError,
+  TemplateNotPublishableError,
+  PostNotPublishedError,
+  RepublishDateInFutureError,
+  RecurrenceNotFoundError,
 } from './errors'
 export type { ContentErrorCode, InvalidImageReason } from './errors'
 
@@ -36,6 +44,11 @@ export {
   publishPostSchema,
   listPostsQuerySchema,
   listPublishedPostsQuerySchema,
+  saveAsTemplateSchema,
+  createFromTemplateSchema,
+  republishPostSchema,
+  createRecurrenceSchema,
+  updateRecurrenceSchema,
 } from './schemas'
 export type {
   CreatePostInput,
@@ -43,6 +56,11 @@ export type {
   PublishPostInput,
   ListPostsQuery,
   ListPublishedPostsQuery,
+  SaveAsTemplateInput,
+  CreateFromTemplateInput,
+  RepublishPostInput,
+  CreateRecurrenceInput,
+  UpdateRecurrenceInput,
 } from './schemas'
 
 export { POST_EVENT, DEFAULT_ADMIN_SCOPES, DEFAULT_PUBLIC_CACHE_CONTROL } from './providers'
@@ -58,8 +76,28 @@ export type {
   ContentModuleConfig,
 } from './providers'
 
-export { slugify, isValidSlug, withSlugSuffix, SLUG_MAX_LENGTH } from './slugify'
-export { normalizeTag, normalizeTags, TAG_MAX_LENGTH, TAGS_MAX_COUNT } from './tags'
+export {
+  slugify,
+  isValidSlug,
+  withSlugSuffix,
+  buildShortSlug,
+  SLUG_MAX_LENGTH,
+  DEFAULT_SHORT_SLUG_LENGTH,
+  PT_BR_STOP_WORDS,
+} from './slugify'
+export type { ShortSlugOptions } from './slugify'
+export {
+  buildPostRef,
+  buildPostPath,
+  parsePostRef,
+  parsePostPath,
+  isCanonicalPostRef,
+  isShortId,
+  SHORT_ID_LENGTH,
+} from './postPath'
+export type { ParsedPostRef } from './postPath'
+export { normalizeTag, normalizeTags, buildTagLabels, formatTagLabel, TAG_MAX_LENGTH, TAGS_MAX_COUNT } from './tags'
+export type { TagLabels } from './tags'
 export { estimateReadingTimeMinutes, countWords, buildExcerpt, DEFAULT_WORDS_PER_MINUTE } from './readingTime'
 
 export { parseMarkdown } from './markdown/parseMarkdown'

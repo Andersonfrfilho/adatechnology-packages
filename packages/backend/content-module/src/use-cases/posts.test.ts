@@ -19,7 +19,7 @@ describe('criar e editar', () => {
       input: { title: 'Promoção de Verão!', body: 'palavra '.repeat(450), tags: ['Dicas', 'dicas '] },
     })
     expect(post.status).toBe(POST_STATUS.DRAFT)
-    expect(post.slug).toBe('promocao-de-verao')
+    expect(post.slug).toBe('promocao-verao')
     expect(post.readingTimeMinutes).toBe(3)
     expect(post.tags).toEqual(['dicas'])
     expect(post.publishedAt).toBeNull()

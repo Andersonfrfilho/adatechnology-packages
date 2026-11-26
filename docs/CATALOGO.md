@@ -120,6 +120,8 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - RSS (`/public/feed.xml`), Atom (`/public/atom.xml`) e entradas de sitemap (`/public/sitemap-entries`) quando há `config.feed`
   - Capacidade por ausência: sem `imageStorage` não há upload; sem `config.feed` não há feed; sem resolver público não há rota pública
   - `createInMemoryPostStore` para teste do host
+  - Agendamento que de fato publica: `publishDue({ now })` idempotente e seguro com várias instâncias (`FOR UPDATE SKIP LOCKED`) e `startContentScheduler`; modelos de post, republicar com nova data mantendo o endereço (SEO), recorrência semanal/mensal a partir de modelo, contagem por aba
+  - Endereço `<base>/<shortId>-<slug>` com slug automático curto (sem palavras de ligação), histórico de slug para redirecionar link antigo, rótulos de tag
 - **Entradas:** `createContentModule` em `src/ContentModule.ts`; `createContentRoutes`; `runContentMigrations`; `contentOpenApiPaths` em `./openapi`
 - **Precisa de:** PostgreSQL (Drizzle). Capa por upload: um storage S3 (ex.: `catalog-image-storage-provider`, que tem a mesma forma de porta). Peers: `drizzle-orm`.
 - **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `content`; journal `content_migrations` no formato clássico (`meta/_journal.json`).

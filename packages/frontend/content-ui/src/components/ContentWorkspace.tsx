@@ -9,6 +9,7 @@ import type { Post } from '@adatechnology/content-contracts'
 import { useState } from 'react'
 
 import type { PostDraft } from '../lib/postDraft'
+import type { RenderDateTimeInput, RenderSelect } from '../providers/types'
 import { PostEditor } from './PostEditor'
 import { PostList } from './PostList'
 
@@ -19,9 +20,19 @@ export type ContentWorkspaceProps = {
   /** Valores iniciais do post novo (ex.: autor logado). */
   readonly newPostDefaults?: Partial<PostDraft>
   readonly onPostSaved?: (post: Post) => void
+  /** Seletor de data e hora do host (padrão: `datetime-local` nativo). */
+  readonly renderDateTimeInput?: RenderDateTimeInput
+  /** Menu de seleção do host (padrão: `<select>` nativo). */
+  readonly renderSelect?: RenderSelect
 }
 
-export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved }: ContentWorkspaceProps) {
+export function ContentWorkspace({
+  pageSize,
+  newPostDefaults,
+  onPostSaved,
+  renderDateTimeInput,
+  renderSelect,
+}: ContentWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -51,6 +62,8 @@ export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved }: Con
   return (
     <PostList
       reloadKey={reloadKey}
+      {...(renderDateTimeInput ? { renderDateTimeInput } : {})}
+      {...(renderSelect ? { renderSelect } : {})}
       {...(pageSize ? { pageSize } : {})}
       onSelect={(post) => setView({ kind: 'editor', postId: post.id })}
       onCreate={() => setView({ kind: 'editor' })}

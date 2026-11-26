@@ -48,6 +48,16 @@ const adminApi: ContentAdminApi = {
 | `StatusChip` | `status` |
 | `TagsInput` | `value`, `onChange`, `suggestions?`, `label` |
 
+### Abas, modelos, republicar e publicação automática
+
+Tudo opt-in pela API injetada (sem o método, a peça não aparece): `countPosts` liga as abas
+**Publicados / Agendados / Rascunhos / Modelos** com contagem; `saveAsTemplate` e `createFromTemplate`
+ligam "Salvar como modelo" e "Novo a partir do modelo"; `republishPost` liga "Republicar" (nova data, mesmo
+link); `listRecurrences`/`createRecurrence`/`updateRecurrence`/`removeRecurrence` ligam o painel de
+publicação automática na aba Modelos. Estado é sempre ícone + palavra + cor, e a dica usa o `Tooltip` do
+pacote (hover e foco, nunca `title`). Para o host manter os próprios controles, o `ContentWorkspace` aceita
+`renderDateTimeInput` e `renderSelect`; sem eles os diálogos usam `datetime-local` e `<select>` nativos.
+
 O editor protege alterações não salvas (aviso do navegador ao fechar a aba e confirmação no botão
 Voltar), valida com o mesmo schema do servidor, gera o slug do título enquanto o autor não o edita
 e esconde o upload quando a API não tem `uploadCoverImage`.

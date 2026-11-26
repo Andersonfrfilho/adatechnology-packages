@@ -2,16 +2,19 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { asc, desc, sql } from 'drizzle-orm'
-import type { TagCount } from '@adatechnology/content-contracts'
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
+import { POST_STATUS, type PostCounts, type TagCount } from '@adatechnology/content-contracts'
 
 import type { ContentDatabase } from '../database.types'
-import { posts, type NewPostRow, type PostRow } from '../schema/schema'
+import { postFormerSlugs, posts, type NewPostRow, type PostRow } from '../schema/schema'
 import type { PostAdminListQuery, PostPage, PostPublicListQuery, PostStorePort } from '../use-cases/contentModule.types'
 import {
   postAdminListCondition,
+  postDueCondition,
   postOwnedByCondition,
   postPublicCondition,
+  postPublicShortIdCondition,
+  postShortIdCondition,
   postPublicSlugCondition,
   postSlugCondition,
 } from './conditions'
@@ -40,6 +43,35 @@ export class PostRepository implements PostStorePort {
   async findPublicBySlug(params: { companyId: string; slug: string; now: Date }): Promise<PostRow | undefined> {
     const [row] = await this.db.select().from(posts).where(postPublicSlugCondition(params)).limit(1)
     return row
+  }
+
+  async findByShortId(params: { companyId: string; shortId: string }): Promise<PostRow | undefined> {
+    const [row] = await this.db.select().from(posts).where(postShortIdCondition(params)).limit(1)
+    return row
+  }
+
+  async findPublicByShortId(params: { companyId: string; shortId: string; now: Date }): Promise<PostRow | undefined> {
+    const [row] = await this.db.select().from(posts).where(postPublicShortIdCondition(params)).limit(1)
+    return row
+  }
+
+  async findPublicByFormerSlug(params: { companyId: string; slug: string; now: Date }): Promise<PostRow | undefined> {
+    const [former] = await this.db
+      .select({ postId: postFormerSlugs.postId })
+      .from(postFormerSlugs)
+      .where(and(eq(postFormerSlugs.companyId, params.companyId), eq(postFormerSlugs.slug, params.slug)))
+      .limit(1)
+    if (!former) return undefined
+    const [row] = await this.db
+      .select()
+      .from(posts)
+      .where(and(postPublicCondition(params), eq(posts.id, former.postId)))
+      .limit(1)
+    return row
+  }
+
+  async recordFormerSlug(params: { companyId: string; postId: string; slug: string }): Promise<void> {
+    await this.db.insert(postFormerSlugs).values(params).onConflictDoNothing()
   }
 
   async update(params: { companyId: string; id: string; values: Partial<NewPostRow> }): Promise<PostRow | undefined> {
@@ -86,6 +118,38 @@ export class PostRepository implements PostStorePort {
         .where(where),
     ])
     return { rows, total: counted?.value ?? 0 }
+  }
+
+  async countByStatus(params: { companyId: string; now: Date }): Promise<PostCounts> {
+    const { now } = params
+    const counted = (condition: ReturnType<typeof sql>) => sql<number>`count(*) filter (where ${condition})::int`
+    const livePublished = sql`(${posts.status} = ${POST_STATUS.PUBLISHED} or (${posts.status} = ${POST_STATUS.SCHEDULED} and ${posts.publishedAt} <= ${now}))`
+    const [row] = await this.db
+      .select({
+        published: counted(sql`not ${posts.isTemplate} and ${livePublished}`),
+        scheduled: counted(
+          sql`not ${posts.isTemplate} and ${posts.status} = ${POST_STATUS.SCHEDULED} and ${posts.publishedAt} > ${now}`,
+        ),
+        draft: counted(sql`not ${posts.isTemplate} and ${posts.status} = ${POST_STATUS.DRAFT}`),
+        archived: counted(sql`not ${posts.isTemplate} and ${posts.status} = ${POST_STATUS.ARCHIVED}`),
+        templates: counted(sql`${posts.isTemplate} and ${posts.status} <> ${POST_STATUS.ARCHIVED}`),
+      })
+      .from(posts)
+      .where(eq(posts.companyId, params.companyId))
+    return row ?? { published: 0, scheduled: 0, draft: 0, archived: 0, templates: 0 }
+  }
+
+  async claimDueScheduled(params: { now: Date; limit: number }): Promise<readonly PostRow[]> {
+    // Um único UPDATE com a seleção travada por dentro: quem chega depois pula as linhas já travadas
+    // e não as enxerga mais como agendadas — nenhum post é marcado nem notificado duas vezes.
+    const due = this.db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(postDueCondition({ now: params.now }))
+      .orderBy(asc(posts.publishedAt), asc(posts.id))
+      .limit(params.limit)
+      .for('update', { skipLocked: true })
+    return this.db.update(posts).set({ status: POST_STATUS.PUBLISHED }).where(inArray(posts.id, due)).returning()
   }
 
   async listTags(params: { companyId: string; publicAt?: Date }): Promise<readonly TagCount[]> {

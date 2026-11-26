@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import type { PublicPost } from '@adatechnology/content-contracts'
+import { formatTagLabel, type PublicPost } from '@adatechnology/content-contracts'
 import { useEffect, type ReactNode } from 'react'
 
 import { useAsyncResource } from '../hooks/useAsyncResource'
@@ -68,7 +68,9 @@ export function PostPage({ slug, shareUrl, shareNetworks, getTagHref, onLoaded, 
           <ul className="adc-tag-list">
             {post.tags.map((tag) => (
               <li key={tag} className="adc-tag">
-                {getTagHref ? renderLink({ href: getTagHref(tag), children: tag }) : tag}
+                {getTagHref
+                  ? renderLink({ href: getTagHref(tag), children: formatTagLabel(tag, post.tagLabels) })
+                  : formatTagLabel(tag, post.tagLabels)}
               </li>
             ))}
           </ul>

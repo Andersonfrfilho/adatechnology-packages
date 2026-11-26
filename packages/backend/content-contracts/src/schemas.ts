@@ -7,7 +7,7 @@
 
 import { z } from 'zod'
 
-import { POST_STATUSES, type PostStatus } from './content.types'
+import { POST_STATUSES, RECURRENCE_FREQUENCIES, type PostStatus, type RecurrenceFrequency } from './content.types'
 import { isValidSlug, SLUG_MAX_LENGTH } from './slugify'
 import { TAG_MAX_LENGTH, TAGS_MAX_COUNT } from './tags'
 
@@ -50,6 +50,8 @@ export const postFieldsSchema = z.object({
   coverImageUrl: httpUrlSchema.nullable().optional(),
   coverImageAlt: optionalText(POST_LIMITS.IMAGE_ALT),
   tags: z.array(z.string().trim().min(1).max(TAG_MAX_LENGTH)).max(TAGS_MAX_COUNT).optional(),
+  /** Rótulo de exibição por tag (chave = tag normalizada). Sem rótulo, vale o texto digitado. */
+  tagLabels: z.record(z.string().trim().min(1).max(TAG_MAX_LENGTH)).optional(),
   authorName: optionalText(POST_LIMITS.AUTHOR_NAME),
   seoTitle: optionalText(POST_LIMITS.SEO_TITLE),
   seoDescription: optionalText(POST_LIMITS.SEO_DESCRIPTION),
@@ -77,6 +79,11 @@ export const listPostsQuerySchema = z.object({
   status: z.enum(POST_STATUSES as [PostStatus, ...PostStatus[]]).optional(),
   tag: z.string().trim().min(1).max(TAG_MAX_LENGTH).optional(),
   search: z.string().trim().min(1).max(POST_LIMITS.SEARCH).optional(),
+  /** `true`: só modelos. Ausente/`false`: só posts (modelo nunca aparece misturado na lista). */
+  isTemplate: z
+    .union([z.boolean(), z.enum(['true', 'false'])])
+    .transform((value) => value === true || value === 'true')
+    .optional(),
 })
 export type ListPostsQuery = z.output<typeof listPostsQuerySchema>
 
@@ -86,3 +93,35 @@ export const listPublishedPostsQuerySchema = z.object({
   tag: z.string().trim().min(1).max(TAG_MAX_LENGTH).optional(),
 })
 export type ListPublishedPostsQuery = z.output<typeof listPublishedPostsQuerySchema>
+
+const isoInstant = z.string().datetime({ offset: true })
+
+/** `title` ausente: o modelo herda o título do post de origem. */
+export const saveAsTemplateSchema = z
+  .object({ title: z.string().trim().min(1).max(POST_LIMITS.TITLE).optional() })
+  .strict()
+export type SaveAsTemplateInput = z.input<typeof saveAsTemplateSchema>
+
+export const createFromTemplateSchema = z
+  .object({ title: z.string().trim().min(1).max(POST_LIMITS.TITLE).optional(), slug: slugSchema.optional() })
+  .strict()
+export type CreateFromTemplateInput = z.input<typeof createFromTemplateSchema>
+
+/** Sem `publishedAt`, usa agora. Data futura é recusada: o post sairia do ar até lá. */
+export const republishPostSchema = z.object({ publishedAt: isoInstant.optional() }).strict()
+export type RepublishPostInput = z.input<typeof republishPostSchema>
+
+export const createRecurrenceSchema = z
+  .object({
+    templateId: z.string().uuid(),
+    frequency: z.enum(RECURRENCE_FREQUENCIES as [RecurrenceFrequency, ...RecurrenceFrequency[]]),
+    /** Primeira publicação automática. */
+    startsAt: isoInstant,
+  })
+  .strict()
+export type CreateRecurrenceInput = z.input<typeof createRecurrenceSchema>
+
+export const updateRecurrenceSchema = z
+  .object({ isActive: z.boolean().optional(), nextRunAt: isoInstant.optional() })
+  .strict()
+export type UpdateRecurrenceInput = z.input<typeof updateRecurrenceSchema>

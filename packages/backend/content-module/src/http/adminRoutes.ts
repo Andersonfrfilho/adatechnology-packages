@@ -3,15 +3,25 @@
  */
 
 import {
+  createFromTemplateSchema,
   createPostSchema,
+  createRecurrenceSchema,
   DEFAULT_ADMIN_SCOPES,
   listPostsQuerySchema,
   publishPostSchema,
+  republishPostSchema,
+  saveAsTemplateSchema,
   updatePostSchema,
+  updateRecurrenceSchema,
+  type CreateFromTemplateInput,
   type CreatePostInput,
+  type CreateRecurrenceInput,
   type ListPostsQuery,
   type PublishPostInput,
+  type RepublishPostInput,
+  type SaveAsTemplateInput,
   type UpdatePostInput,
+  type UpdateRecurrenceInput,
 } from '@adatechnology/content-contracts'
 import type { ModuleRoute, RequestContext } from '@adatechnology/module-http'
 
@@ -97,6 +107,17 @@ export function buildAdminRoutes(module: ContentModule): ModuleRoute[] {
         )
       },
     },
+    {
+      ...admin,
+      method: 'GET',
+      path: '/posts/counts',
+      operationId: 'countPosts',
+      summary: 'Contagem de posts por aba: publicados, agendados, rascunhos, arquivados e modelos',
+      async handler(context) {
+        return json(200, await useCases.countPosts.execute({ companyId: requireCompany(context) }))
+      },
+    },
+    ...recurrenceRoutes(module),
     ...uploadRoutes,
     {
       ...admin,
@@ -159,6 +180,119 @@ export function buildAdminRoutes(module: ContentModule): ModuleRoute[] {
       summary: 'Tira do ar (ou cancela o agendamento) e volta a rascunho',
       async handler(context) {
         return json(200, await useCases.unpublishPost.execute(reference(context)))
+      },
+    },
+    {
+      ...admin,
+      method: 'POST',
+      path: '/posts/:id/republish',
+      bodySchema: republishPostSchema.optional(),
+      operationId: 'republishPost',
+      summary: 'Republica um post no ar com nova data, mantendo o mesmo endereço (SEO); data futura é recusada',
+      async handler(context) {
+        return json(
+          200,
+          await useCases.republishPost.execute({
+            ...reference(context),
+            input: (context.body ?? {}) as RepublishPostInput,
+          }),
+        )
+      },
+    },
+    {
+      ...admin,
+      method: 'POST',
+      path: '/posts/:id/save-as-template',
+      bodySchema: saveAsTemplateSchema.optional(),
+      operationId: 'savePostAsTemplate',
+      summary: 'Copia o post para um modelo (o original não muda)',
+      async handler(context) {
+        return json(
+          201,
+          await useCases.saveAsTemplate.execute({
+            ...reference(context),
+            input: (context.body ?? {}) as SaveAsTemplateInput,
+          }),
+        )
+      },
+    },
+    {
+      ...admin,
+      method: 'POST',
+      path: '/posts/:id/from-template',
+      bodySchema: createFromTemplateSchema.optional(),
+      operationId: 'createPostFromTemplate',
+      summary: 'Cria um rascunho novo a partir do modelo `:id`',
+      async handler(context) {
+        return json(
+          201,
+          await useCases.createFromTemplate.execute({
+            ...reference(context),
+            input: (context.body ?? {}) as CreateFromTemplateInput,
+          }),
+        )
+      },
+    },
+  ]
+}
+
+function recurrenceRoutes(module: ContentModule): ModuleRoute[] {
+  const { useCases } = module
+  const admin = { scope: 'admin' as const, requiredScopes: module.config.adminScopes ?? DEFAULT_ADMIN_SCOPES }
+  return [
+    {
+      ...admin,
+      method: 'GET',
+      path: '/recurrences',
+      operationId: 'listRecurrences',
+      summary: 'Regras de recorrência da empresa',
+      async handler(context) {
+        return json(200, await useCases.listRecurrences.execute({ companyId: requireCompany(context) }))
+      },
+    },
+    {
+      ...admin,
+      method: 'POST',
+      path: '/recurrences',
+      bodySchema: createRecurrenceSchema,
+      operationId: 'createRecurrence',
+      summary: 'Cria regra: publica um post novo, copiado do modelo, toda semana ou todo mês',
+      async handler(context) {
+        return json(
+          201,
+          await useCases.createRecurrence.execute({
+            companyId: requireCompany(context),
+            input: context.body as CreateRecurrenceInput,
+          }),
+        )
+      },
+    },
+    {
+      ...admin,
+      method: 'PATCH',
+      path: '/recurrences/:id',
+      bodySchema: updateRecurrenceSchema,
+      operationId: 'updateRecurrence',
+      summary: 'Pausa, retoma ou remarca a próxima execução',
+      async handler(context) {
+        return json(
+          200,
+          await useCases.updateRecurrence.execute({
+            ...reference(context),
+            input: context.body as UpdateRecurrenceInput,
+          }),
+        )
+      },
+    },
+    {
+      ...admin,
+      method: 'DELETE',
+      path: '/recurrences/:id',
+      operationId: 'removeRecurrence',
+      summary: 'Apaga a regra; os posts já publicados por ela continuam no ar',
+      async handler(context) {
+        await useCases.removeRecurrence.execute(reference(context))
+        return { kind: 'empty', status: 204 }
       },
     },
   ]
