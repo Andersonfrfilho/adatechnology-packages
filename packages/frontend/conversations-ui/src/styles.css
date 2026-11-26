@@ -355,6 +355,7 @@
   font-size: 0.875rem;
   /* 44px de área de toque em mobile — abaixo disso o dedo erra o alvo. */
   min-height: 2.75rem;
+  transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
 }
 .cv-workspace-toggle:disabled { opacity: 0.5; }
 .cv-workspace-toggle--on { background: rgb(37 99 235); color: #fff; border-color: rgb(37 99 235); }
@@ -575,6 +576,12 @@
   white-space: nowrap;
   border-radius: 0.375rem;
   padding: 0.25rem 0.5rem;
+
+  transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
+}
+.cv-workspace-chip:focus-visible, .cv-workspace-toggle:focus-visible { outline: 2px solid rgb(37 99 235); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .cv-workspace-chip, .cv-workspace-toggle { transition: none; }
 }
 .cv-workspace-chip--on { background: rgb(229 231 235); }
 .dark .cv-workspace-chip--on { background: rgb(51 65 85); }
