@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/user-contracts",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "license": "MIT",
   "description": "Shared types, zod schemas, error codes and port interfaces for user authentication (contracts only — no runtime behavior)",
   "publishConfig": {

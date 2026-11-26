@@ -1,8 +1,8 @@
 {
   "name": "@adatechnology/content-ui",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
-  "description": "Blog/news UI \u2014 admin post list and editor (Markdown with live preview, scheduling, SEO) and public post card, list and page with share buttons; API client injected",
+  "description": "Blog/news UI — admin post list and editor (Markdown with live preview, scheduling, SEO) and public post card, list and page with share buttons; API client injected",
   "publishConfig": {
     "access": "public"
   },

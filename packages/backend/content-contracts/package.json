@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/content-contracts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Shared types, zod schemas, safe Markdown renderer, slug, reading-time and feed helpers for the content (blog/news) trio — isomorphic, no I/O",
   "publishConfig": {
