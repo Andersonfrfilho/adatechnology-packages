@@ -23,6 +23,7 @@ import {
   type FlowGraphData,
   type FlowNodeData,
   type FlowRunnerErrorDetails,
+  type FlowSendFailureDetails,
   type MetaWhatsAppHooks,
   type SessionState,
   type WhatsAppMessage,
@@ -54,6 +55,7 @@ import type {
   FlowTextContext,
 } from './flowRunner.types'
 import { resolveFlowConfigText } from './resolveFlowConfigText'
+import { SendRetriesExhausted, sendWithRetry } from './sendWithRetry'
 
 export type FlowRunnerDependencies = {
   readonly interpreter: FlowInterpreter
@@ -132,6 +134,8 @@ export class FlowRunner {
   // Variáveis da mensagem em curso, por sessão: é como a action `handoff` (que só recebe a sessão)
   // enxerga o nome do contato sem que ele precise ir para o contexto gravado.
   private readonly turnVariables = new WeakMap<ConversationSession, Readonly<Record<string, unknown>>>()
+  // Erro de envio já sem retentativa → o que se tentou, para `report` entregar ao host sem trocar o erro.
+  private readonly sendFailures = new WeakMap<object, FlowSendFailureDetails>()
 
   constructor(private readonly dependencies: FlowRunnerDependencies) {
     this.renderer = new FlowQuestionRenderer(dependencies.config)
@@ -611,6 +615,10 @@ export class FlowRunner {
     if (body.trim().length > 0) await this.send(turn, { kind: 'text', body })
   }
 
+  /**
+   * Cada mensagem é retentada sozinha (ver `sendWithRetry`): o que já saiu neste turno não é reenviado.
+   * Esgotadas as tentativas, o erro original sobe como antes e o `report` ganha `details.send`.
+   */
   private async send(turn: FlowTurn, message: FlowOutboundMessage): Promise<void> {
     const common = {
       companyId: turn.companyId,
@@ -618,8 +626,23 @@ export class FlowRunner {
       sender: 'bot' as const,
       startState: this.dependencies.startState,
     }
-    if (message.kind === 'text') await this.dependencies.sendMessage.sendText({ ...common, body: message.body })
-    else await this.dependencies.sendMessage.sendInteractive({ ...common, interactive: message.interactive })
+    const deliver = async (): Promise<void> => {
+      if (message.kind === 'text') await this.dependencies.sendMessage.sendText({ ...common, body: message.body })
+      else await this.dependencies.sendMessage.sendInteractive({ ...common, interactive: message.interactive })
+    }
+    try {
+      await sendWithRetry(deliver, this.dependencies.config.sendRetry)
+    } catch (failure) {
+      if (!(failure instanceof SendRetriesExhausted)) throw failure
+      if (typeof failure.error === 'object' && failure.error !== null) {
+        this.sendFailures.set(failure.error, {
+          attempts: failure.attempts,
+          messageKind: message.kind,
+          isTransient: failure.isTransient,
+        })
+      }
+      throw failure.error
+    }
   }
 
   private save(
@@ -660,7 +683,15 @@ export class FlowRunner {
     stage: FlowStage,
     error: unknown,
   ): Promise<void> {
-    const details = { companyId: turn.companyId, whatsappNumber: turn.session.whatsappNumber, flowKey, nodeId, stage }
+    const send = typeof error === 'object' && error !== null ? this.sendFailures.get(error) : undefined
+    const details = {
+      companyId: turn.companyId,
+      whatsappNumber: turn.session.whatsappNumber,
+      flowKey,
+      nodeId,
+      stage,
+      ...(send ? { send } : {}),
+    }
     try {
       await this.dependencies.hooks?.onFlowRunnerError?.(error, details)
     } catch {

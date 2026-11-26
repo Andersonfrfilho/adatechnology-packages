@@ -224,6 +224,14 @@ whatsapp.flows!.registerDynamicChoiceProvider('free_slots', async ({ context, pa
   `'duplicate'` sem reenviar nem reavisar a equipe. Erro depois dessa escrita **não sobe** — vai para
   `onFlowRunnerError` (ou é descartado sem o gancho) e a conversa fica no último ponto gravado. Erro
   antes dela (leitura do grafo, banco fora) sobe, e a retentativa é segura.
+- **Retentativa do envio (`sendRetry`).** Cada mensagem do turno é retentada sozinha (padrão 3 tentativas, espera
+  500 ms e 1 s, teto de 5 s), então o que já saiu nunca é reenviado. Só repete falha de rede antes de a Meta receber
+  a mensagem (`isTransientSendError`); recusa da Meta, erro de banco depois do envio e janela expirada sobem na
+  primeira vez. Timeout **não** repete por padrão (a Meta pode ter aceitado e a Cloud API não tem chave de
+  idempotência); quem prefere repetir passa `sendRetry.shouldRetry`. As esperas rodam com o lock da conversa preso,
+  por isso o total é curto. Esgotadas as tentativas, o erro segue para `onFlowRunnerError`, agora com
+  `details.send = { attempts, messageKind, isTransient }` para o host avisar a equipe. Não cobre a mensagem do
+  encaminhamento (`handoff`) nem mídia de ação.
 - **Fuso obrigatório.** `timeZone` (ou `handoff.businessHours.timeZone`, quando fixo) define "hoje";
   sem ele o módulo falha na montagem. Servidor em UTC aceitaria "hoje" errado entre 21h e meia-noite.
 - **Variáveis do host vencem.** Em `{{chave}}`, `resolveVariables`, `contactName` e `contactFirstName`

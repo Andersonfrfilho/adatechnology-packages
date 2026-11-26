@@ -147,11 +147,13 @@ export { FlowHandoff } from './flows/FlowHandoff'
 export { PostgresAdvisoryFlowTurnLock, InProcessFlowTurnLock } from './flows/flowTurnLock'
 export type { FlowTurnLockInterface, FlowTurnLockKey } from './flows/flowTurnLock'
 export { resolveFlowTimeZone } from './flows/FlowRunner'
+export { isTransientSendError } from './flows/sendWithRetry'
 export { readFlowInbound } from './flows/readFlowInbound'
 export type { FlowInbound } from './flows/readFlowInbound'
 export type { FlowHandoffDependencies, RequestFlowHandoffParams } from './flows/FlowHandoff'
 export type {
   FlowRunnerConfig,
+  FlowSendRetryConfig,
   FlowRunnerOutcome,
   FlowGlobalKeyword,
   FlowGlobalKeywordMatch,

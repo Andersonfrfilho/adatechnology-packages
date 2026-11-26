@@ -6,6 +6,7 @@
  */
 
 import type {
+  FlowRunnerErrorDetails,
   ChannelAdapterInterface,
   FlowGraphData,
   FlowNodeData,
@@ -115,13 +116,21 @@ export function buildRunner(params: BuildRunnerParams) {
   const sent: SentMessage[] = []
   const humanRequests: string[] = []
   const errors: unknown[] = []
+  const errorDetails: FlowRunnerErrorDetails[] = []
   // Quantas das próximas chamadas falham, por dublê.
-  const failures = { send: 0, requestHuman: 0 }
+  // `afterSends`: os envios até esse número saem; as falhas agendadas valem dos seguintes em diante.
+  const failures: { send: number; requestHuman: number; sendError?: Error; afterSends?: number } = {
+    send: 0,
+    requestHuman: 0,
+  }
+  // Tentativas de envio feitas (inclui as que falharam), para provar retentativa e limite.
+  const attempts = { send: 0 }
 
-  const failIfScheduled = (kind: keyof typeof failures): void => {
+  const failIfScheduled = (kind: 'send' | 'requestHuman'): void => {
     if (failures[kind] <= 0) return
+    if (kind === 'send' && attempts.send <= (failures.afterSends ?? 0)) return
     failures[kind] -= 1
-    throw new Error(`${kind} failed`)
+    throw (kind === 'send' ? failures.sendError : undefined) ?? new Error(`${kind} failed`)
   }
 
   const sessionRepository = {
@@ -147,11 +156,13 @@ export function buildRunner(params: BuildRunnerParams) {
   const sendMessage = {
     sendText: async (input: { body: string }) => {
       await nextTick()
+      attempts.send += 1
       failIfScheduled('send')
       sent.push({ kind: 'text', body: input.body })
     },
     sendInteractive: async (input: { interactive: InteractiveMessage }) => {
       await nextTick()
+      attempts.send += 1
       failIfScheduled('send')
       sent.push({ kind: 'interactive', interactive: input.interactive })
     },
@@ -191,7 +202,16 @@ export function buildRunner(params: BuildRunnerParams) {
     startState: 'start',
     config,
     lock: params.withoutLock ? { withLock: (_key, work) => work() } : new InProcessFlowTurnLock(),
-    ...(params.withoutErrorHook ? {} : { hooks: { onFlowRunnerError: (error: unknown) => void errors.push(error) } }),
+    ...(params.withoutErrorHook
+      ? {}
+      : {
+          hooks: {
+            onFlowRunnerError: (error: unknown, details: FlowRunnerErrorDetails) => {
+              errors.push(error)
+              errorDetails.push(details)
+            },
+          },
+        }),
   })
   interpreter.registerFlowAction(
     FLOW_ACTION_KIND.HANDOFF,
@@ -202,5 +222,5 @@ export function buildRunner(params: BuildRunnerParams) {
   const handle = (message: WhatsAppMessage, profileName?: string) =>
     runner.handle({ companyId: COMPANY_ID, message, ...(profileName ? { profileName } : {}) })
 
-  return { runner, interpreter, row, takeSent, humanRequests, errors, failures, handle }
+  return { runner, interpreter, row, takeSent, humanRequests, errors, errorDetails, failures, attempts, handle }
 }
