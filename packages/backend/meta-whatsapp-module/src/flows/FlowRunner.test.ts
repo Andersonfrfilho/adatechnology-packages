@@ -207,6 +207,89 @@ describe('FlowRunner — validation, actions and cross-flow', () => {
   })
 })
 
+describe('FlowRunner — global cancel and back', () => {
+  const KEYWORDS = [
+    { keywords: ['sair', 'cancelar'], target: 'cancel' as const },
+    { keywords: ['voltar'], target: 'back' as const },
+    { keywords: ['menu'], target: 'restart' as const },
+  ]
+
+  async function midBooking() {
+    const harness = frontDesk({ globalKeywords: KEYWORDS, cancelMessage: 'Tudo bem, {{contactFirstName}}! Cancelei.' })
+    await harness.handle(textMessage('oi'), 'Ana Souza')
+    await harness.handle(replyMessage('book'))
+    await harness.handle(textMessage('25/12'))
+    harness.takeSent()
+    return harness
+  }
+
+  it('cancels at the first, middle and last step, clearing what was collected', async () => {
+    const harness = await midBooking()
+    expect(harness.row.currentNodeId).toBe('people')
+    expect(harness.row.context['date']).toBeDefined()
+
+    await harness.handle(textMessage('Sair'), 'Ana Souza')
+    expect(harness.takeSent()).toEqual([{ kind: 'text', body: 'Tudo bem, Ana! Cancelei.' }])
+    expect(harness.row.flowKey).toBeNull()
+    expect(harness.row.currentNodeId).toBeNull()
+    expect(harness.row.context['date']).toBeUndefined()
+
+    await harness.handle(textMessage('oi'))
+    expect(harness.row.currentNodeId).toBe('menu')
+    await harness.handle(textMessage('cancelar'))
+    expect(harness.takeSent().at(-1)).toMatchObject({ kind: 'text' })
+    expect(harness.row.currentNodeId).toBeNull()
+  })
+
+  it('uses the package default farewell when none is configured', async () => {
+    const harness = frontDesk({ globalKeywords: KEYWORDS })
+    await harness.handle(textMessage('oi'))
+    harness.takeSent()
+    await harness.handle(textMessage('sair'))
+    expect(harness.takeSent()).toEqual([{ kind: 'text', body: expect.stringContaining('Cancelei') }])
+  })
+
+  it('does not cancel when the command is only part of a sentence', async () => {
+    const harness = await midBooking()
+    await harness.handle(textMessage('quero sair para jantar dia 10'))
+    expect(harness.row.currentNodeId).toBe('people')
+    expect(harness.row.context['date']).toBeDefined()
+  })
+
+  it('goes back to the previous question with the context it had, then forward again', async () => {
+    const back = await midBooking()
+    await back.handle(textMessage('voltar'))
+    expect(back.takeSent()).toEqual([{ kind: 'text', body: 'Para qual dia?' }])
+    expect(back.row.currentNodeId).toBe('date')
+    expect(back.row.context['date']).toBeUndefined()
+
+    await back.handle(textMessage('26/12'))
+    expect(back.row.currentNodeId).toBe('people')
+    await back.handle(textMessage('voltar'))
+    await back.handle(textMessage('voltar'))
+    expect(back.row.flowKey).toBe('main')
+    expect(back.row.currentNodeId).toBe('menu')
+  })
+
+  it('at the first question of the conversation, back shows the start menu', async () => {
+    const harness = frontDesk({ globalKeywords: KEYWORDS })
+    await harness.handle(textMessage('oi'))
+    harness.takeSent()
+    await harness.handle(textMessage('voltar'))
+    expect(harness.takeSent()[0]).toMatchObject({ kind: 'interactive' })
+    expect(harness.row.currentNodeId).toBe('menu')
+  })
+
+  it('restart clears the trail, so back after the menu does not return to the abandoned flow', async () => {
+    const harness = await midBooking()
+    await harness.handle(textMessage('menu'))
+    harness.takeSent()
+    await harness.handle(textMessage('voltar'))
+    expect(harness.row.flowKey).toBe('main')
+    expect(harness.row.currentNodeId).toBe('menu')
+  })
+})
+
 describe('FlowRunner — global keywords and handoff', () => {
   const HOURS = {
     timeZone: 'America/Sao_Paulo',

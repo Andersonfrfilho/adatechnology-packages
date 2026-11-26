@@ -159,9 +159,12 @@ const whatsapp = createMetaWhatsAppModule({
     flowRunner: {
       startFlowKey: 'main',
       timeZone: 'America/Sao_Paulo',
+      cancelMessage: 'Tudo bem! Cancelei por aqui.', // texto da palavra global 'cancel'
       globalKeywords: [
         { keywords: ['menu', 'início'], target: 'restart' },
         { keywords: ['atendente', 'pessoa'], target: 'handoff', match: 'word' },
+        { keywords: ['sair', 'cancelar'], target: 'cancel' },
+        { keywords: ['voltar'], target: 'back' },
       ],
       handoff: {
         message: 'Já chamei alguém da equipe, {{contactFirstName}}.',
