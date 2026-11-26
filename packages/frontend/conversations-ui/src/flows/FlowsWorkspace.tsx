@@ -171,6 +171,11 @@ export interface FlowsWorkspaceProps {
    * pacote a adivinhar a escala tipográfica de cada produto.
    */
   readonly showHeader?: boolean
+  /**
+   * Valor de exemplo por variável usada em rótulo de botão e linha de lista (`{ buttonName: 'Pernoite' }`).
+   * Com exemplo, o validador mede o texto interpolado; sem, só avisa quando a marcação escrita passa do limite.
+   */
+  readonly variableExamples?: Readonly<Record<string, string>>
   readonly className?: string
 }
 
@@ -245,6 +250,7 @@ export function FlowsWorkspace({
   renderMediaPicker,
   livePollIntervalMs = 5000,
   showHeader = true,
+  variableExamples,
   className,
 }: FlowsWorkspaceProps) {
   const labels = useMemo(() => mergeFlowEditorLabels(labelsOverride), [labelsOverride])
@@ -358,10 +364,10 @@ export function FlowsWorkspace({
     const map: Record<string, GraphIssue[]> = {}
     for (const key of openFlowKeys) {
       const graph = workingGraphs[key]
-      if (graph) map[key] = validateGraph(graph, labels.validation)
+      if (graph) map[key] = validateGraph(graph, labels.validation, { variableExamples })
     }
     return map
-  }, [openFlowKeys, workingGraphs, labels])
+  }, [openFlowKeys, workingGraphs, labels, variableExamples])
 
   const errorCount = Object.values(issuesByFlow).reduce(
     (sum, list) => sum + list.filter((issue) => issue.severity === 'error').length,

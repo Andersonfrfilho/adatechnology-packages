@@ -28,6 +28,7 @@ export {
   rendersAsButtons,
   targetsOf,
   validateGraph,
+  measureLabel,
   computeAutoLayout,
   crossFlowTargetsOf,
   computeFlowMapLayout,
@@ -44,6 +45,8 @@ export type {
   FlowNodeData,
   FlowGraphData,
   GraphIssue,
+  MeasuredLabel,
+  ValidateGraphOptions,
   CollectionChain,
 } from './flowGraph'
 

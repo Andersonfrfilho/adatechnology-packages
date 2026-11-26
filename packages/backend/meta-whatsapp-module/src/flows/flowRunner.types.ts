@@ -103,6 +103,7 @@ export type FlowRunnerConfig = {
   readonly rejectionMessages?: Partial<Record<FlowAnswerRejection, FlowConfigText>>
   /** Corpo de escolha quando o nó não tem `question` (a Meta exige corpo). */
   readonly choicePrompt?: string
+  /** Texto do botão que abre a lista; aceita `{{chave}}`, como o título das opções. Acima de 20 caracteres a escolha sai numerada. */
   readonly listButtonLabel?: string
   /** Rótulo da linha que pede a próxima página de um `dynamic_choice`. */
   readonly seeMoreLabel?: string
