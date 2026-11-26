@@ -18,6 +18,21 @@ function isPublic(row: PostRow, now: Date): boolean {
   return live && row.publishedAt !== null && row.publishedAt <= now
 }
 
+function adminComparator(query: PostAdminListQuery) {
+  const sign = query.order === 'asc' ? 1 : -1
+  const value = (row: PostRow): number | string => {
+    if (query.sort === 'title') return row.title.toLowerCase()
+    if (query.sort === 'status') return row.status
+    if (query.sort === 'publishedAt') return row.publishedAt?.getTime() ?? sign * Number.POSITIVE_INFINITY
+    return row.updatedAt.getTime()
+  }
+  return (left: PostRow, right: PostRow): number => {
+    const a = value(left)
+    const b = value(right)
+    return (a < b ? -1 : a > b ? 1 : 0) * sign || left.id.localeCompare(right.id)
+  }
+}
+
 function paginate(rows: PostRow[], page: number, pageSize: number): PostPage {
   return { rows: rows.slice((page - 1) * pageSize, page * pageSize).map((row) => ({ ...row })), total: rows.length }
 }
@@ -121,9 +136,9 @@ export function createInMemoryPostStore(seed: PostRow[] = []): PostStorePort & {
         .filter((row) => row.companyId === query.companyId)
         .filter((row) => (query.isTemplate ? row.isTemplate && row.status !== POST_STATUS.ARCHIVED : !row.isTemplate))
         .filter((row) => !query.status || effectiveStatus(row, query.now) === query.status)
-        .filter((row) => !query.tag || row.tags.includes(query.tag))
+        .filter((row) => !query.tags?.length || query.tags.some((tag) => row.tags.includes(tag)))
         .filter((row) => !search || row.title.toLowerCase().includes(search) || row.slug.includes(search))
-        .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
+        .sort(adminComparator(query))
       return paginate(matched, query.page, query.pageSize)
     },
 

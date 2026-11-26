@@ -29,7 +29,7 @@ describe('toda condição escopa por company_id', () => {
     postAdminListCondition: postAdminListCondition({
       companyId: 'company-a',
       status: 'published',
-      tag: 'x',
+      tags: ['x', 'z'],
       search: 'y',
       now,
     }),

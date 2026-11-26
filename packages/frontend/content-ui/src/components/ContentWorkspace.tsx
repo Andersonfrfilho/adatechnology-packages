@@ -24,6 +24,8 @@ export type ContentWorkspaceProps = {
   readonly renderDateTimeInput?: RenderDateTimeInput
   /** Menu de seleção do host (padrão: `<select>` nativo). */
   readonly renderSelect?: RenderSelect
+  /** Busca, aba, tags, página, tamanho e ordem da lista na URL (padrão: não). */
+  readonly syncUrl?: boolean
 }
 
 export function ContentWorkspace({
@@ -32,6 +34,7 @@ export function ContentWorkspace({
   onPostSaved,
   renderDateTimeInput,
   renderSelect,
+  syncUrl,
 }: ContentWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
   const [reloadKey, setReloadKey] = useState(0)
@@ -64,6 +67,7 @@ export function ContentWorkspace({
       reloadKey={reloadKey}
       {...(renderDateTimeInput ? { renderDateTimeInput } : {})}
       {...(renderSelect ? { renderSelect } : {})}
+      {...(syncUrl ? { syncUrl } : {})}
       {...(pageSize ? { pageSize } : {})}
       onSelect={(post) => setView({ kind: 'editor', postId: post.id })}
       onCreate={() => setView({ kind: 'editor' })}

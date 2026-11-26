@@ -390,3 +390,36 @@ describe('endereço público: id curto, histórico de slug e rótulos', () => {
     expect(entries?.[0]?.loc).toBe(`https://example.com/novidades/${post.shortId}-ola`)
   })
 })
+
+describe('lista do painel: ordenação e várias tags', () => {
+  async function seed() {
+    const built = buildTestModule()
+    const { createPost, publishPost } = built.module.useCases
+    const make = async (title: string, tags: string[], publishedAt?: string) => {
+      const post = await createPost.execute({ companyId: COMPANY_A, input: { title, tags } })
+      if (publishedAt) await publishPost.execute({ companyId: COMPANY_A, id: post.id, input: { publishedAt } })
+      return post
+    }
+    await make('Banana', ['fruta'], '2026-01-02T00:00:00.000Z')
+    await make('Abacate', ['fruta', 'verde'], '2026-01-03T00:00:00.000Z')
+    await make('Cenoura', ['legume'])
+    return built
+  }
+
+  it('ordena por título e por data de publicação; rascunho sem data fica sempre no fim', async () => {
+    const { module } = await seed()
+    const titles = async (sort: 'title' | 'publishedAt', order: 'asc' | 'desc') =>
+      (await module.useCases.listPosts.execute({ companyId: COMPANY_A, sort, order })).data.map((post) => post.title)
+    expect(await titles('title', 'asc')).toEqual(['Abacate', 'Banana', 'Cenoura'])
+    expect(await titles('title', 'desc')).toEqual(['Cenoura', 'Banana', 'Abacate'])
+    expect(await titles('publishedAt', 'asc')).toEqual(['Banana', 'Abacate', 'Cenoura'])
+    expect(await titles('publishedAt', 'desc')).toEqual(['Abacate', 'Banana', 'Cenoura'])
+  })
+
+  it('várias tags separadas por vírgula casam com qualquer uma', async () => {
+    const { module } = await seed()
+    const found = await module.useCases.listPosts.execute({ companyId: COMPANY_A, tag: 'verde,legume' })
+    expect(found.data.map((post) => post.title).sort()).toEqual(['Abacate', 'Cenoura'])
+    expect((await module.useCases.listPosts.execute({ companyId: COMPANY_A, tag: 'inexistente' })).data).toEqual([])
+  })
+})

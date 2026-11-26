@@ -36,6 +36,7 @@ export type { ContentErrorCode, InvalidImageReason } from './errors'
 
 export {
   POST_LIMITS,
+  POST_SORT_FIELDS,
   slugSchema,
   httpUrlSchema,
   postFieldsSchema,
@@ -51,6 +52,7 @@ export {
   updateRecurrenceSchema,
 } from './schemas'
 export type {
+  PostSortField,
   CreatePostInput,
   UpdatePostInput,
   PublishPostInput,

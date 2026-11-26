@@ -21,6 +21,25 @@ import {
 
 const TAG_LIST_LIMIT = 200
 
+const SORT_COLUMNS = {
+  title: posts.title,
+  status: posts.status,
+  publishedAt: posts.publishedAt,
+  updatedAt: posts.updatedAt,
+} as const
+
+// Padrão: a última edição primeiro, que é o que o painel está mexendo agora. `id` desempata para
+// a paginação não repetir nem pular linha. Data ausente (rascunho) vai sempre para o fim.
+function adminOrder(query: PostAdminListQuery) {
+  const column = SORT_COLUMNS[query.sort ?? 'updatedAt']
+  const direction = (query.order ?? 'desc') === 'asc' ? asc : desc
+  const primary =
+    query.sort === 'publishedAt'
+      ? sql`${column} ${sql.raw(query.order === 'asc' ? 'asc' : 'desc')} nulls last`
+      : direction(column)
+  return [primary, asc(posts.id)]
+}
+
 export class PostRepository implements PostStorePort {
   constructor(private readonly db: ContentDatabase) {}
 
@@ -85,13 +104,12 @@ export class PostRepository implements PostStorePort {
 
   async listForAdmin(query: PostAdminListQuery): Promise<PostPage> {
     const where = postAdminListCondition(query)
-    // Mais recente primeiro pela última edição: é o que o painel está mexendo agora.
     const [rows, [counted]] = await Promise.all([
       this.db
         .select()
         .from(posts)
         .where(where)
-        .orderBy(desc(posts.updatedAt), asc(posts.id))
+        .orderBy(...adminOrder(query))
         .limit(query.pageSize)
         .offset((query.page - 1) * query.pageSize),
       this.db
@@ -121,7 +139,8 @@ export class PostRepository implements PostStorePort {
   }
 
   async countByStatus(params: { companyId: string; now: Date }): Promise<PostCounts> {
-    const { now } = params
+    // Instante como texto com cast: o driver não serializa `Date` solto dentro de `sql` cru.
+    const now = sql`${params.now.toISOString()}::timestamptz`
     const counted = (condition: ReturnType<typeof sql>) => sql<number>`count(*) filter (where ${condition})::int`
     const livePublished = sql`(${posts.status} = ${POST_STATUS.PUBLISHED} or (${posts.status} = ${POST_STATUS.SCHEDULED} and ${posts.publishedAt} <= ${now}))`
     const [row] = await this.db

@@ -54,6 +54,8 @@ export { usePostEditor, COVER_MAX_BYTES, COVER_MIME_TYPES } from './hooks/usePos
 export type { PostEditorState, EditorFeedback } from './hooks/usePostEditor'
 export { usePostList } from './hooks/usePostList'
 export type { PostListFilters, PostListTab } from './hooks/usePostList'
+export { parseListUrlState, serializeListUrlState, PAGE_SIZE_OPTIONS } from './lib/listUrlState'
+export type { ListUrlState } from './lib/listUrlState'
 export { POST_LIST_TAB } from './hooks/usePostList'
 export { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard'
 export { useAsyncResource } from './hooks/useAsyncResource'

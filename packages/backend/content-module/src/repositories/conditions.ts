@@ -6,7 +6,7 @@
  * de empresa quebra o teste na hora.
  */
 
-import { and, arrayContains, eq, gt, inArray, lte, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, arrayContains, arrayOverlaps, eq, gt, inArray, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import { POST_STATUS, type PostStatus } from '@adatechnology/content-contracts'
 
 import { posts } from '../schema/schema'
@@ -22,7 +22,7 @@ export function postSlugCondition(params: { companyId: string; slug: string }): 
 export function postAdminListCondition(params: {
   companyId: string
   status?: PostStatus
-  tag?: string
+  tags?: readonly string[]
   search?: string
   /** `true`: só modelos (menos os arquivados). Ausente/`false`: só posts — modelo nunca aparece misturado. */
   isTemplate?: boolean
@@ -30,7 +30,7 @@ export function postAdminListCondition(params: {
 }): SQL {
   const conditions: SQL[] = [eq(posts.companyId, params.companyId), templateCondition(params.isTemplate)]
   if (params.status) conditions.push(statusCondition(params.status, params.now))
-  if (params.tag) conditions.push(arrayContains(posts.tags, [params.tag]))
+  if (params.tags?.length) conditions.push(arrayOverlaps(posts.tags, [...params.tags]))
   if (params.search) {
     const pattern = `%${params.search.replace(/[\\%_]/g, (character) => `\\${character}`)}%`
     conditions.push(sql`(${posts.title} ilike ${pattern} or ${posts.slug} ilike ${pattern})`)

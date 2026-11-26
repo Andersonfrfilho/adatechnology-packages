@@ -126,5 +126,17 @@
   "recurrenceRemove": "Delete rule",
   "recurrenceRemoveTip": "Deletes only the rule. Posts already published stay online.",
   "recurrenceEmpty": "No recurrences. Create one to publish by itself every week or month.",
-  "recurrenceNeedsTemplate": "Create a template first to schedule automatic publishing."
+  "recurrenceNeedsTemplate": "Create a template first to schedule automatic publishing.",
+  "selectAll": "Select all",
+  "selectRow": "Select {title}",
+  "selectedCount": "{count} selected",
+  "clearSelection": "Clear selection",
+  "batchLabel": "Batch actions",
+  "batchPublish": "Publish",
+  "batchUnpublish": "Unpublish",
+  "batchArchive": "Delete",
+  "batchArchiveConfirm": "Delete {count} posts? They leave the site; the content stays archived.",
+  "batchPartial": "Only {done} of {total} done. Try again for the rest.",
+  "itemsPerPage": "Per page",
+  "rangeLabel": "{from}–{to} of {total}"
 }

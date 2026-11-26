@@ -9,6 +9,7 @@ import type {
   ContentModuleConfig,
   LoggerPort,
   PostCounts,
+  PostSortField,
   PostStatus,
   TagCount,
 } from '@adatechnology/content-contracts'
@@ -22,9 +23,12 @@ export type PostAdminListQuery = {
   readonly page: number
   readonly pageSize: number
   readonly status?: PostStatus
-  readonly tag?: string
+  /** Basta o post ter UMA das tags. */
+  readonly tags?: readonly string[]
   readonly search?: string
   readonly isTemplate?: boolean
+  readonly sort?: PostSortField
+  readonly order?: 'asc' | 'desc'
   readonly now: Date
 }
 

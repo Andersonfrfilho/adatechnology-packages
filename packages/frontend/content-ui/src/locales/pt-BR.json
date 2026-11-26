@@ -126,5 +126,17 @@
   "recurrenceRemove": "Apagar regra",
   "recurrenceRemoveTip": "Apaga só a regra. Os posts já publicados continuam no ar.",
   "recurrenceEmpty": "Nenhuma recorrência. Crie uma para publicar sozinho toda semana ou mês.",
-  "recurrenceNeedsTemplate": "Crie um modelo primeiro para agendar publicações automáticas."
+  "recurrenceNeedsTemplate": "Crie um modelo primeiro para agendar publicações automáticas.",
+  "selectAll": "Selecionar todos",
+  "selectRow": "Selecionar {title}",
+  "selectedCount": "{count} selecionados",
+  "clearSelection": "Limpar seleção",
+  "batchLabel": "Ações em lote",
+  "batchPublish": "Publicar",
+  "batchUnpublish": "Despublicar",
+  "batchArchive": "Excluir",
+  "batchArchiveConfirm": "Excluir {count} posts? Eles saem do site; o conteúdo fica arquivado.",
+  "batchPartial": "Só {done} de {total} concluídos. Tente de novo nos demais.",
+  "itemsPerPage": "Por página",
+  "rangeLabel": "{from}–{to} de {total}"
 }

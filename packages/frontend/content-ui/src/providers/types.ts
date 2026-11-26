@@ -12,6 +12,7 @@ import type {
   Paginated,
   Post,
   PostCounts,
+  PostSortField,
   PostStatus,
   PostSummary,
   PublicPost,
@@ -30,8 +31,11 @@ export type ListPostsParams = {
   readonly page?: number
   readonly pageSize?: number
   readonly status?: PostStatus
+  /** Uma tag, ou várias separadas por vírgula (basta ter uma). */
   readonly tag?: string
   readonly search?: string
+  readonly sort?: PostSortField
+  readonly order?: 'asc' | 'desc'
   /** `true`: só modelos. */
   readonly isTemplate?: boolean
 }

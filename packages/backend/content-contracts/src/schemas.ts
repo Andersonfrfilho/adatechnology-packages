@@ -73,12 +73,24 @@ export type PublishPostInput = z.input<typeof publishPostSchema>
 
 const pageSchema = z.coerce.number().int().min(1).max(10_000).default(1)
 
+export const POST_SORT_FIELDS = ['title', 'status', 'publishedAt', 'updatedAt'] as const
+export type PostSortField = (typeof POST_SORT_FIELDS)[number]
+
 export const listPostsQuerySchema = z.object({
   page: pageSchema,
   pageSize: z.coerce.number().int().min(1).max(POST_LIMITS.ADMIN_PAGE_SIZE).default(20),
   status: z.enum(POST_STATUSES as [PostStatus, ...PostStatus[]]).optional(),
-  tag: z.string().trim().min(1).max(TAG_MAX_LENGTH).optional(),
+  /** Uma tag, ou várias separadas por vírgula (basta ter UMA delas). */
+  tag: z
+    .string()
+    .trim()
+    .min(1)
+    .max(TAG_MAX_LENGTH * TAGS_MAX_COUNT)
+    .optional(),
   search: z.string().trim().min(1).max(POST_LIMITS.SEARCH).optional(),
+  /** Padrão: `updatedAt` (o que o painel mexeu por último). */
+  sort: z.enum(POST_SORT_FIELDS).default('updatedAt'),
+  order: z.enum(['asc', 'desc']).default('desc'),
   /** `true`: só modelos. Ausente/`false`: só posts (modelo nunca aparece misturado na lista). */
   isTemplate: z
     .union([z.boolean(), z.enum(['true', 'false'])])

@@ -8,11 +8,14 @@ import { describe, expect, it } from 'bun:test'
 import { buildPostPath, type PublicPostSummary } from '@adatechnology/content-contracts'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { parseListUrlState, serializeListUrlState } from '../lib/listUrlState'
 import { buildPostMeta } from '../lib/seo'
 import { ContentProvider } from '../providers/ContentProvider'
 import { DateTimeField } from './DateTimeField'
 import { PostCard } from './PostCard'
 import { PostListTabs } from './PostListTabs'
+import { PostListToolbar } from './PostListToolbar'
+import { PostTable } from './PostTable'
 import { SelectField } from './SelectField'
 import { StatusChip } from './StatusChip'
 import { Tooltip } from './Tooltip'
@@ -56,7 +59,8 @@ describe('estado e dica', () => {
     )
     const id = /aria-describedby="([^"]+)"/.exec(html)?.[1]
     expect(id).toBeTruthy()
-    expect(html).toContain(`role="tooltip" id="${id}"`)
+    expect(html).toContain(`id="${id}"`)
+    expect(html).toContain('role="tooltip"')
     expect(html).not.toContain(' title=')
   })
 })
@@ -150,5 +154,110 @@ describe('endereço canônico no <head>', () => {
       { url: `https://example.com${path}` },
     )
     expect(meta.canonicalUrl).toBe('https://example.com/novidades/abc123-ola')
+  })
+})
+
+describe('lista: URL, tabela ordenável, seleção', () => {
+  const row = {
+    id: 'p1',
+    companyId: 'c',
+    slug: 'a',
+    shortId: 'abc123',
+    title: 'Um post',
+    excerpt: null,
+    coverImageUrl: null,
+    coverImageAlt: null,
+    tags: [],
+    tagLabels: {},
+    status: 'published' as const,
+    isTemplate: false,
+    publishedAt: '2026-11-20T12:00:00.000Z',
+    authorName: null,
+    seoTitle: null,
+    seoDescription: null,
+    canonicalUrl: null,
+    readingTimeMinutes: 1,
+    createdAt: '2026-11-20T12:00:00.000Z',
+    updatedAt: '2026-11-20T12:00:00.000Z',
+  }
+
+  it('estado ida e volta pela query string; lixo cai no padrão; lista intocada deixa a URL limpa', () => {
+    const state = parseListUrlState('?tab=draft&q=festa&tags=a,b&page=3&size=50&sort=title&order=asc')
+    expect(state).toMatchObject({
+      tab: 'draft',
+      search: 'festa',
+      tags: ['a', 'b'],
+      page: 3,
+      pageSize: 50,
+      sort: 'title',
+      order: 'asc',
+    })
+    expect(parseListUrlState(`?${serializeListUrlState(state)}`)).toEqual(state)
+    expect(parseListUrlState('?tab=x&page=-2&size=7&sort=drop&order=zzz')).toMatchObject({
+      page: 1,
+      sort: 'updatedAt',
+      order: 'desc',
+    })
+    expect(serializeListUrlState(parseListUrlState(''))).toBe('')
+  })
+
+  it('cabeçalhos com aria-sort, linha com caixa de marcar própria e sem controle nativo', () => {
+    const html = wrap(
+      <PostTable
+        rows={[row]}
+        sort="title"
+        order="asc"
+        onSort={() => undefined}
+        selectedIds={new Set(['p1'])}
+        onToggleSelected={() => undefined}
+        onToggleAll={() => undefined}
+        onSelect={() => undefined}
+        hasActions={false}
+        renderActions={() => null}
+        isBusy={false}
+      />,
+    )
+    expect(html).toContain('aria-sort="ascending"')
+    expect(html.match(/aria-sort="none"/g)).toHaveLength(3)
+    expect(html).toContain('role="checkbox"')
+    expect(html).toContain('aria-checked="true"')
+    expect(html).toContain('is-selected')
+    expect(html).not.toContain('type="checkbox"')
+  })
+
+  it('barra: busca primeiro, depois as tags, "Limpar filtros" só com filtro ativo, novo post por último', () => {
+    const html = wrap(
+      <PostListToolbar
+        search="x"
+        onSearch={() => undefined}
+        tags={[{ tag: 'fim-de-ano', count: 2 }]}
+        selectedTags={['fim-de-ano']}
+        onToggleTag={() => undefined}
+        hasFilters
+        onClear={() => undefined}
+        onCreate={() => undefined}
+      />,
+    )
+    const order = ['inputMode="search"', 'adc-tag-toggles', 'Limpar filtros', 'Novo post'].map((text) =>
+      html.indexOf(text),
+    )
+    expect(order.every((position) => position >= 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    expect(html).toContain('aria-pressed="true"')
+    expect(html).toContain('Fim de ano')
+    expect(
+      wrap(
+        <PostListToolbar
+          search=""
+          onSearch={() => undefined}
+          tags={[]}
+          selectedTags={[]}
+          onToggleTag={() => undefined}
+          hasFilters={false}
+          onClear={() => undefined}
+          onCreate={undefined}
+        />,
+      ),
+    ).not.toContain('Limpar filtros')
   })
 })

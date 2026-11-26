@@ -218,14 +218,15 @@ export class ListPostsUseCase extends PostUseCaseBase {
   async execute(params: { readonly companyId: string } & Partial<ListPostsQuery>): Promise<Paginated<PostSummary>> {
     const { companyId, ...rawQuery } = params
     const query = listPostsQuerySchema.parse(rawQuery)
-    const tag = query.tag ? normalizeTags([query.tag])[0] : undefined
+    const { tag: rawTag, ...rest } = query
+    const tags = rawTag ? normalizeTags(rawTag.split(',')) : []
     const now = this.now()
     const page = await this.dependencies.posts.listForAdmin({
       companyId,
-      ...query,
+      ...rest,
       isTemplate: query.isTemplate ?? false,
       now,
-      ...(tag ? { tag } : {}),
+      ...(tags.length > 0 ? { tags } : {}),
     })
     return {
       data: page.rows.map((row) => toPostSummary(row, now)),

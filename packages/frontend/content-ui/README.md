@@ -58,6 +58,11 @@ publicação automática na aba Modelos. Estado é sempre ícone + palavra + cor
 pacote (hover e foco, nunca `title`). Para o host manter os próprios controles, o `ContentWorkspace` aceita
 `renderDateTimeInput` e `renderSelect`; sem eles os diálogos usam `datetime-local` e `<select>` nativos.
 
+A lista segue a regra de listagens: **busca primeiro e à esquerda**, depois filtros (abas por situação e tags
+multisseleção) e as ações à direita; cabeçalhos ordenáveis (`aria-sort`), caixas de marcar próprias com ações em
+lote (publicar, despublicar, excluir), paginação do servidor com "x–y de total" e itens por página. Com
+`syncUrl`, busca, aba, tags, página, tamanho e ordem vão para a query string (`?tab=&q=&tags=&page=&size=&sort=&order=`).
+
 O editor protege alterações não salvas (aviso do navegador ao fechar a aba e confirmação no botão
 Voltar), valida com o mesmo schema do servidor, gera o slug do título enquanto o autor não o edita
 e esconde o upload quando a API não tem `uploadCoverImage`.
