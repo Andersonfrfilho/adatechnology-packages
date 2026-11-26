@@ -290,6 +290,23 @@ handoff: {
 
 Guia completo: [`docs/front-desk-bot-with-flows.md`](./docs/front-desk-bot-with-flows.md).
 
+### Seed de grafos: atualizar o que ninguém editou
+
+Cada grafo guarda `origin` (`'seed'` ou `'edited'`) e `seedVersion`. O produto semeia com
+`module.flows.create.execute({ ..., seedVersion: 'v3' })` (grafo nasce `seed`); qualquer salvamento pelo editor
+(`module.flows.save`) vira `edited`, **mesmo que o payload traga `origin: 'seed'`**. Quando o seed muda, o produto
+chama o reseed no boot, para cada grafo:
+
+```ts
+const result = await module.flows.reseed.execute({
+  companyId, key: 'order', seedVersion: 'v4', content: { label, startNodeId, nodes },
+})
+// 'updated' (trocou e subiu a versão) | 'current' (já está na v4) | 'edited' (alguém mexeu: intocado) | 'missing'
+```
+
+A condição `origin = 'seed'` vai no próprio `UPDATE`, então uma edição concorrente nunca é sobrescrita. Grafos que já
+existiam antes do campo viram `edited` (sem como saber): só apagar e recriar os troca, uma vez.
+
 ## Respostas rápidas
 
 Texto pronto por empresa que o atendente chama com `/atalho` no composer do `conversations-ui`. O módulo

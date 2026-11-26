@@ -53,6 +53,7 @@ import {
   ListFlowGraphsUseCase,
   CreateFlowGraphUseCase,
   SaveFlowGraphUseCase,
+  ReseedFlowGraphUseCase,
   DeleteFlowGraphUseCase,
   GetLiveFlowPositionsUseCase,
 } from './use-cases/FlowGraph.use-cases'
@@ -555,6 +556,7 @@ export function createMetaWhatsAppModule(params: CreateMetaWhatsAppModuleParams)
           list: new ListFlowGraphsUseCase(flowGraphRepository),
           create: new CreateFlowGraphUseCase(flowGraphRepository),
           save: new SaveFlowGraphUseCase(flowGraphRepository),
+          reseed: new ReseedFlowGraphUseCase(flowGraphRepository),
           delete: new DeleteFlowGraphUseCase(flowGraphRepository),
           livePositions: new GetLiveFlowPositionsUseCase(flowGraphRepository),
           repository: flowGraphRepository,

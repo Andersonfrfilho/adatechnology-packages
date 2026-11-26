@@ -1,8 +1,10 @@
 import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import type { MetaWhatsAppDatabase } from '../database.types'
 import { flowGraphNodesSchema } from '@adatechnology/meta-whatsapp-contracts'
+import { FLOW_GRAPH_ORIGIN } from '@adatechnology/meta-whatsapp-contracts'
 import type {
   FlowGraphData,
+  FlowGraphOrigin,
   FlowGraphSummary,
   FlowNodeData,
   LiveFlowPosition,
@@ -33,8 +35,28 @@ function toContractGraph(row: FlowGraphRow): FlowGraphData {
     startNodeId: row.startNodeId,
     version: row.version,
     nodes: parsed.data as Record<string, FlowNodeData>,
+    origin: toOrigin(row.origin),
+    ...(row.seedVersion ? { seedVersion: row.seedVersion } : {}),
   }
 }
+
+function toOrigin(value: string): FlowGraphOrigin {
+  return value === FLOW_GRAPH_ORIGIN.SEED ? FLOW_GRAPH_ORIGIN.SEED : FLOW_GRAPH_ORIGIN.EDITED
+}
+
+export type ReseedFlowGraphParams = {
+  readonly companyId: string
+  readonly key: string
+  readonly seedVersion: string
+  readonly content: Pick<FlowGraphData, 'label' | 'startNodeId' | 'nodes'>
+}
+
+/**
+ * `updated`: o grafo era seed de outra versão e foi substituído. `current`: já está nessa versão do seed.
+ * `edited`: alguém mexeu pelo editor (ou o grafo é anterior ao campo) — intocado. `missing`: não existe.
+ */
+export type ReseedFlowGraphResult =
+  { readonly status: 'updated'; readonly graph: FlowGraphData } | { readonly status: 'current' | 'edited' | 'missing' }
 
 export class OptimisticLockError extends Error {
   constructor(key: string) {
@@ -78,6 +100,8 @@ export class FlowGraphRepository {
       showInMenu: row.showInMenu,
       menuOptionLabel: row.menuOptionLabel ?? undefined,
       updatedAt: row.updatedAt.toISOString(),
+      origin: toOrigin(row.origin),
+      ...(row.seedVersion ? { seedVersion: row.seedVersion } : {}),
     }))
   }
 
@@ -90,7 +114,7 @@ export class FlowGraphRepository {
 
   async create(
     companyId: string,
-    graph: Omit<FlowGraphData, 'version'> & { showInMenu?: boolean; menuOptionLabel?: string },
+    graph: Omit<FlowGraphData, 'version' | 'origin'> & { showInMenu?: boolean; menuOptionLabel?: string },
   ): Promise<FlowGraphData> {
     this.assertValidNodes(graph.key, graph.nodes)
 
@@ -104,6 +128,9 @@ export class FlowGraphRepository {
         nodes: graph.nodes,
         showInMenu: graph.showInMenu ?? false,
         menuOptionLabel: graph.menuOptionLabel,
+        // Quem informa `seedVersion` é o produto semeando; criado pelo editor não traz e fica `edited`.
+        origin: graph.seedVersion ? FLOW_GRAPH_ORIGIN.SEED : FLOW_GRAPH_ORIGIN.EDITED,
+        seedVersion: graph.seedVersion ?? null,
       })
       .returning()
 
@@ -123,6 +150,8 @@ export class FlowGraphRepository {
         label: graph.label,
         startNodeId: graph.startNodeId,
         nodes: graph.nodes,
+        // Salvar é sempre edição humana, mesmo que o editor devolva `origin: 'seed'` do grafo que carregou.
+        origin: FLOW_GRAPH_ORIGIN.EDITED,
         version: expectedVersion + 1,
         updatedAt: new Date(),
       })
@@ -142,6 +171,48 @@ export class FlowGraphRepository {
     // gravado — o cache ficaria com o grafo velho, com TTL cheio pela frente.
     await this.cache?.invalidate(companyId, graph.key)
     return toContractGraph(rows[0]!)
+  }
+
+  /**
+   * Atualiza um grafo semeado que ninguém editou. A condição `origin = 'seed'` vai no próprio UPDATE:
+   * se uma pessoa salvar pelo editor entre a leitura e a escrita, o grafo vira `edited` e este update
+   * não casa nenhuma linha — a edição nunca é sobrescrita. Idempotente por `seedVersion`.
+   */
+  async reseed(params: ReseedFlowGraphParams): Promise<ReseedFlowGraphResult> {
+    this.assertValidNodes(params.key, params.content.nodes)
+
+    const rows = await this.db
+      .update(flowGraphs)
+      .set({
+        label: params.content.label,
+        startNodeId: params.content.startNodeId,
+        nodes: params.content.nodes,
+        seedVersion: params.seedVersion,
+        version: sql`${flowGraphs.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(flowGraphs.companyId, params.companyId),
+          eq(flowGraphs.key, params.key),
+          eq(flowGraphs.origin, FLOW_GRAPH_ORIGIN.SEED),
+          sql`${flowGraphs.seedVersion} is distinct from ${params.seedVersion}`,
+        ),
+      )
+      .returning()
+
+    if (rows.length > 0) {
+      await this.cache?.invalidate(params.companyId, params.key)
+      return { status: 'updated', graph: toContractGraph(rows[0]!) }
+    }
+
+    const [existing] = await this.db
+      .select({ origin: flowGraphs.origin })
+      .from(flowGraphs)
+      .where(and(eq(flowGraphs.companyId, params.companyId), eq(flowGraphs.key, params.key)))
+      .limit(1)
+    if (!existing) return { status: 'missing' }
+    return { status: existing.origin === FLOW_GRAPH_ORIGIN.SEED ? 'current' : 'edited' }
   }
 
   async delete(companyId: string, key: string): Promise<void> {

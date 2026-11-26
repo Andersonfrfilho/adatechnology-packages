@@ -56,6 +56,7 @@ export type {
 export {
   CROSS_FLOW_PREFIX,
   FLOW_ACTION_KIND,
+  FLOW_GRAPH_ORIGIN,
   isCrossFlowTarget,
   crossFlowKey,
   flowNodeNextSchema,
@@ -79,6 +80,7 @@ export type {
   FlowAnswerValidation,
   FlowOptionDetail,
   FlowGraphData,
+  FlowGraphOrigin,
   FlowGraphSummary,
   LiveFlowPosition,
 } from './flow.types'

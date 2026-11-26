@@ -184,6 +184,10 @@ export const flowGraphs = metaWhatsAppSchema.table(
     version: integer('version').notNull().default(1),
     showInMenu: boolean('show_in_menu').notNull().default(false),
     menuOptionLabel: varchar('menu_option_label', { length: 64 }),
+    // 'seed' | 'edited' (FLOW_GRAPH_ORIGIN). Linha anterior ao campo vira 'edited': sem como saber se
+    // alguém mexeu, o reseed do produto não pode sobrescrevê-la.
+    origin: varchar('origin', { length: 16 }).notNull().default('edited'),
+    seedVersion: varchar('seed_version', { length: 64 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
