@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { and, eq, gt, isNull, sql } from 'drizzle-orm'
+import { and, eq, gt, isNull, lt } from 'drizzle-orm'
 
 import type { UserDatabase } from '../database.types'
 import { passwordResetTokens, type NewPasswordResetTokenRow, type PasswordResetTokenRow } from '../schema/schema'
@@ -51,7 +51,7 @@ export class PasswordResetTokenRepository {
   async deleteExpired(params: { now: Date }): Promise<number> {
     const rows = await this.db
       .delete(passwordResetTokens)
-      .where(sql`${passwordResetTokens.expiresAt} < ${params.now}`)
+      .where(lt(passwordResetTokens.expiresAt, params.now))
       .returning({ id: passwordResetTokens.id })
     return rows.length
   }
