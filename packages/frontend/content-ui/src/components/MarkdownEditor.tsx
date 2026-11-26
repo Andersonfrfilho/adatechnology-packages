@@ -34,6 +34,7 @@ import type { ContentMessages } from '../locales'
 import { useContentText } from '../providers/ContentProvider'
 import { EmojiPicker } from './EmojiPicker'
 import { InsertDialog } from './InsertDialog'
+import { Tooltip } from './Tooltip'
 
 export type MarkdownEditorProps = {
   readonly value: string
@@ -63,6 +64,29 @@ const SIMPLE_ACTIONS: readonly SimpleAction[] = [
   { id: 'numberedList', icon: ListOrdered, label: 'formatNumberedList' },
   { id: 'quote', icon: Quote, label: 'formatQuote' },
 ]
+
+type ToolButtonProps = {
+  readonly icon: LucideIcon
+  readonly text: string
+  readonly isExpanded?: boolean
+  readonly onClick: () => void
+}
+
+function ToolButton({ icon: Icon, text, isExpanded, onClick }: ToolButtonProps) {
+  return (
+    <Tooltip text={text}>
+      <button
+        type="button"
+        className="adc-tool"
+        aria-label={text}
+        {...(isExpanded === undefined ? {} : { 'aria-expanded': isExpanded })}
+        onClick={onClick}
+      >
+        <Icon aria-hidden="true" className="adc-icon" />
+      </button>
+    </Tooltip>
+  )
+}
 
 export function MarkdownEditor({
   value,
@@ -134,51 +158,32 @@ export function MarkdownEditor({
     <div className="adc-md-editor">
       {showToolbar && (
         <div className="adc-md-toolbar" role="toolbar" aria-label={messages.toolbarLabel}>
-          {SIMPLE_ACTIONS.map(({ id, icon: Icon, label, shortcut }) => {
-            const text = shortcut ? `${messages[label]} (Ctrl+${shortcut})` : messages[label]
-            return (
-              <button
-                key={id}
-                type="button"
-                className="adc-tool"
-                aria-label={text}
-                title={text}
-                onClick={() => run(id)}
-              >
-                <Icon aria-hidden="true" className="adc-icon" />
-              </button>
-            )
-          })}
-          <button
-            type="button"
-            className="adc-tool"
-            aria-label={`${messages.formatLink} (Ctrl+K)`}
-            title={`${messages.formatLink} (Ctrl+K)`}
-            aria-expanded={panel === 'link'}
+          {SIMPLE_ACTIONS.map(({ id, icon, label, shortcut }) => (
+            <ToolButton
+              key={id}
+              icon={icon}
+              text={shortcut ? `${messages[label]} (Ctrl+${shortcut})` : messages[label]}
+              onClick={() => run(id)}
+            />
+          ))}
+          <ToolButton
+            icon={LinkIcon}
+            text={`${messages.formatLink} (Ctrl+K)`}
+            isExpanded={panel === 'link'}
             onClick={() => openPanel('link')}
-          >
-            <LinkIcon aria-hidden="true" className="adc-icon" />
-          </button>
-          <button
-            type="button"
-            className="adc-tool"
-            aria-label={messages.formatImage}
-            title={messages.formatImage}
-            aria-expanded={panel === 'image'}
+          />
+          <ToolButton
+            icon={ImageIcon}
+            text={messages.formatImage}
+            isExpanded={panel === 'image'}
             onClick={() => openPanel('image')}
-          >
-            <ImageIcon aria-hidden="true" className="adc-icon" />
-          </button>
-          <button
-            type="button"
-            className="adc-tool"
-            aria-label={messages.formatEmoji}
-            title={messages.formatEmoji}
-            aria-expanded={panel === 'emoji'}
+          />
+          <ToolButton
+            icon={Smile}
+            text={messages.formatEmoji}
+            isExpanded={panel === 'emoji'}
             onClick={() => openPanel('emoji')}
-          >
-            <Smile aria-hidden="true" className="adc-icon" />
-          </button>
+          />
         </div>
       )}
       {panel === 'link' && (

@@ -713,7 +713,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .adc-button,
-  .adc-card {
+  .adc-card,
+  .adc-tooltip {
     transition: none;
   }
 }
@@ -821,4 +822,38 @@
   overflow-wrap: anywhere;
   color: var(--adc-color-muted);
   font-size: 0.875rem;
+}
+
+/* Dica */
+.adc-tip {
+  position: relative;
+  display: inline-flex;
+}
+
+.adc-tip-target {
+  display: inline-flex;
+}
+
+.adc-tooltip {
+  position: absolute;
+  bottom: calc(100% + var(--adc-space) * 2);
+  left: 50%;
+  z-index: 10;
+  padding: var(--adc-space) calc(var(--adc-space) * 2);
+  border-radius: var(--adc-radius);
+  background: var(--adc-color-text);
+  color: var(--adc-color-surface);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, 2px);
+  transition:
+    opacity var(--adc-motion) ease-out,
+    transform var(--adc-motion) ease-out;
+}
+
+.adc-tooltip[data-visible='true'] {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }

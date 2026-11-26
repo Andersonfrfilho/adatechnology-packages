@@ -47,7 +47,8 @@ export function EmojiPicker({ onPick, onClose }: EmojiPickerProps) {
       </label>
       <input
         id={searchId}
-        type="search"
+        type="text"
+        role="searchbox"
         autoFocus
         placeholder={messages.emojiSearch}
         value={query}

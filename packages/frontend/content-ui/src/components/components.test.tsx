@@ -108,6 +108,8 @@ describe('editor de corpo', () => {
     for (const label of ['Negrito (Ctrl+B)', 'Itálico (Ctrl+I)', 'Link (Ctrl+K)', 'Imagem', 'Emoji', 'Lista numerada'])
       expect(html).toContain(`aria-label="${label}"`)
     expect(html).toContain('**oi**')
+    expect(html).toContain('role="tooltip"')
+    expect(html).not.toMatch(/ title=/)
   })
 
   it('esconde a barra por prop e mantém o textarea', () => {
