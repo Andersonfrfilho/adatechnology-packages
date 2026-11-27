@@ -24,6 +24,7 @@ export const USER_EVENT = {
   PHONE_CHANGED: 'user.phone.changed',
   PHONE_VERIFIED: 'user.phone.verified',
   ACCOUNT_RECOVERED: 'user.account.recovered',
+  PHONE_VERIFICATION_DECLINED: 'user.phone_verification.declined',
 } as const
 
 export type UserEventType = (typeof USER_EVENT)[keyof typeof USER_EVENT]
@@ -151,7 +152,14 @@ export type AccountRecoveredEvent = BaseEvent & {
   readonly isResetSent: boolean
 }
 
+/** Quem estava com a verificação pendente respondeu "não fui eu" ao bot: o código foi cancelado. Sem número nem e-mail no evento. */
+export type PhoneVerificationDeclinedEvent = BaseEvent & {
+  readonly type: typeof USER_EVENT.PHONE_VERIFICATION_DECLINED
+  readonly userId: string
+}
+
 export type UserDomainEvent =
+  | PhoneVerificationDeclinedEvent
   | EmailChangeRequestedEvent
   | EmailChangedEvent
   | PhoneChangedEvent
@@ -183,5 +191,6 @@ export type UserHooks = {
   readonly onEmailChanged?: (event: EmailChangedEvent) => Promise<void> | void
   readonly onPhoneChanged?: (event: PhoneChangedEvent) => Promise<void> | void
   readonly onPhoneVerified?: (event: PhoneVerifiedEvent) => Promise<void> | void
+  readonly onPhoneVerificationDeclined?: (event: PhoneVerificationDeclinedEvent) => Promise<void> | void
   readonly onAccountRecovered?: (event: AccountRecoveredEvent) => Promise<void> | void
 }

@@ -39,6 +39,9 @@ import { AuthenticateLocalUseCase } from './use-cases/AuthenticateLocal.use-case
 import { ChangePasswordUseCase } from './use-cases/ChangePassword.use-case'
 import { ChangePhoneUseCase } from './use-cases/ChangePhone.use-case'
 import { ConfirmEmailChangeUseCase } from './use-cases/ConfirmEmailChange.use-case'
+import { ConfirmPendingVerificationUseCase } from './use-cases/ConfirmPendingVerification.use-case'
+import { DeclinePendingVerificationUseCase } from './use-cases/DeclinePendingVerification.use-case'
+import { OfferPendingVerificationUseCase } from './use-cases/OfferPendingVerification.use-case'
 import { MatchInboundPhoneVerificationUseCase } from './use-cases/MatchInboundPhoneVerification.use-case'
 import { RecoverAccountUseCase } from './use-cases/RecoverAccount.use-case'
 import { RequestEmailChangeUseCase } from './use-cases/RequestEmailChange.use-case'
@@ -103,6 +106,9 @@ export type UserModule = {
     readonly verifyPhone: VerifyPhoneUseCase
     readonly matchInboundPhoneVerification: MatchInboundPhoneVerificationUseCase
     readonly recoverAccount: RecoverAccountUseCase
+    readonly offerPendingVerification: OfferPendingVerificationUseCase
+    readonly confirmPendingVerification: ConfirmPendingVerificationUseCase
+    readonly declinePendingVerification: DeclinePendingVerificationUseCase
   }
   /** Exportado para o host montar seu próprio `AuthContextResolverPort` sem tocar em `jose`. */
   verifyAccessToken(accessToken: string): Promise<AccessTokenClaims | undefined>
@@ -259,6 +265,9 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
       verifyPhone: new VerifyPhoneUseCase(dependencies),
       matchInboundPhoneVerification: new MatchInboundPhoneVerificationUseCase(dependencies),
       recoverAccount: new RecoverAccountUseCase(dependencies),
+      offerPendingVerification: new OfferPendingVerificationUseCase(dependencies),
+      confirmPendingVerification: new ConfirmPendingVerificationUseCase(dependencies),
+      declinePendingVerification: new DeclinePendingVerificationUseCase(dependencies),
     },
     verifyAccessToken: (accessToken: string) => tokenService.verify(accessToken),
     hasKeycloak: Boolean(keycloak),

@@ -180,10 +180,26 @@ to `whatsapp-inbound`. `listPhoneVerificationMethods({ config, senders })` retur
 
   The account is found **by the sender's number**, so one can only confirm their own number. The code is stored as an
   HMAC, expires (10 min), is single use and limited to `maxAttempts` (5). Spaces, case and accents in the text are tolerated.
-- **Outbound**: implement `VerificationCodeSenderPort` (`channel`, `send({ code, destination, channel, ... })` returning a
-  `DeliveryAttemptResult`) and pass it in `providers.verificationSenders`. `channelOrder` sets the fallback chain.
-  *WhatsApp template*: wrap `@adatechnology/meta-whatsapp-module` sending an `AUTHENTICATION` template with the code.
-  *SMS*: wrap your SMS gateway. `createInMemoryVerificationSender()` is the test provider; nothing real is wired by default.
+- **Outbound, implemented and off until you plug it** (`providers.verificationSenders`; method resolution per company with fallback stays as above):
+  - `createWhatsappTemplateVerificationSender({ templateName, languageCode?, send })`: the Meta **authentication template** (body with the code plus the copy-code button, `buildAuthenticationTemplateComponents`). `send` is yours, usually a call to `sendTemplate` of `@adatechnology/meta-whatsapp-module` / `meta-whatsapp-provider` with the `components` it receives; the template must be approved by Meta first.
+  - `createSmsVerificationSender({ gateway })` over a small `SmsGatewayPort` (`sendSms({ to, body })` returning a `DeliveryAttemptResult`). One concrete gateway ships: `createTwilioSmsGateway({ accountSid, authToken, from })` (a single HTTP call). Other vendors that fit the same port: Zenvia and Infobip (Brazil-friendly, local sender ids), Vonage. Each is a ~30-line adapter.
+  - `channelOrder` sets the fallback chain; `createInMemoryVerificationSender()` is the test provider.
+
+### The bot recognises a pending activation (no code needed)
+
+`createPendingVerificationInterceptor({ useCases, messenger, texts? })` is called by the WhatsApp host **before** its normal flow on every received message:
+
+```ts
+const result = await interceptor.handle({ senderPhone, companyId, text, buttonId })
+if (result.outcome === 'handled') return        // the bot already answered
+if (result.isConfirmed) { /* optional: show the menu now */ }
+// 'continue': run the normal flow
+```
+
+- A number with a pending phone verification that sends **any text** gets, **once per code**, "Vi que você está ativando sua conta (Maria S., m***@e***.com). Foi você?" with the buttons **Sim, confirmar** / **Não fui eu** (texts are yours, `texts` override the defaults, so they can sit in an editable template). The bot never reveals more than the masked name and e-mail.
+- **Sim**: the sender's number is the proof; still single-use, expiring and attempt-limited. Reply "Pronto, seu número foi confirmado ✅".
+- **Não fui eu**: the code is cancelled, `onPhoneVerificationDeclined` fires (audit trail / staff notice; no number or e-mail in the event) and, with an e-mail driver, the account owner is told.
+- A text carrying the code ("Confirmar meu número: 482913") still works as before. If the question is ignored, the next message follows the normal flow. Use cases behind it: `offerPendingVerification`, `confirmPendingVerification`, `declinePendingVerification` (migration `0006` adds `account_challenges.asked_at`). The interceptor is host-wired on purpose: `meta-whatsapp-module` keeps its hooks generic (`onMessageReceived` returning `handled`/`continue`) and needs no change.
 
 ## Audiences
 

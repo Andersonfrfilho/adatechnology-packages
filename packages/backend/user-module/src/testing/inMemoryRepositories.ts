@@ -232,6 +232,7 @@ export function createInMemoryAccountChallenges() {
         attempts: 0,
         expiresAt: params.expiresAt,
         consumedAt: null,
+        askedAt: null,
         // O relógio do teste pode não andar: a sequência desempata o "mais recente".
         createdAt: new Date(params.now.getTime() + sequence),
       }
@@ -259,6 +260,12 @@ export function createInMemoryAccountChallenges() {
       if (!row) return undefined
       row.attempts += 1
       return row.attempts
+    },
+    async markAsked(params: { id: string; now: Date }): Promise<boolean> {
+      const row = rows.find((candidate) => candidate.id === params.id && !candidate.askedAt && !candidate.consumedAt)
+      if (!row) return false
+      row.askedAt = params.now
+      return true
     },
     async consume(params: { id: string; now: Date }): Promise<boolean> {
       const row = rows.find((candidate) => candidate.id === params.id && !candidate.consumedAt)

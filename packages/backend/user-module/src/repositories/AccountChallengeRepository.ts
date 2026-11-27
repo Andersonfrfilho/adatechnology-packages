@@ -92,6 +92,22 @@ export class AccountChallengeRepository {
     return row?.attempts
   }
 
+  /** Atômico: só uma chamada marca (e então pergunta); as seguintes recebem `false`. */
+  async markAsked(params: { id: string; now: Date }): Promise<boolean> {
+    const rows = await this.db
+      .update(accountChallenges)
+      .set({ askedAt: params.now })
+      .where(
+        and(
+          eq(accountChallenges.id, params.id),
+          isNull(accountChallenges.askedAt),
+          isNull(accountChallenges.consumedAt),
+        ),
+      )
+      .returning({ id: accountChallenges.id })
+    return rows.length === 1
+  }
+
   async consume(params: { id: string; now: Date }): Promise<boolean> {
     const rows = await this.db
       .update(accountChallenges)

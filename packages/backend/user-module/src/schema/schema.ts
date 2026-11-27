@@ -114,6 +114,8 @@ export const accountChallenges = userSchema.table(
     attempts: integer('attempts').notNull().default(0),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    // Quando o bot perguntou "foi você?" por este código (no máximo uma vez por desafio).
+    askedAt: timestamp('asked_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

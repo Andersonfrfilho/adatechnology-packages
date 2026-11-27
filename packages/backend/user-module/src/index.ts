@@ -69,10 +69,31 @@ export {
   buildInboundPattern,
 } from './use-cases/MatchInboundPhoneVerification.use-case'
 export type { InboundVerificationOutcome } from './use-cases/MatchInboundPhoneVerification.use-case'
+export { OfferPendingVerificationUseCase } from './use-cases/OfferPendingVerification.use-case'
+export type { PendingVerificationOffer } from './use-cases/OfferPendingVerification.use-case'
+export { ConfirmPendingVerificationUseCase } from './use-cases/ConfirmPendingVerification.use-case'
+export { DeclinePendingVerificationUseCase } from './use-cases/DeclinePendingVerification.use-case'
+export {
+  createPendingVerificationInterceptor,
+  DEFAULT_PENDING_VERIFICATION_TEXTS,
+  PENDING_VERIFICATION_BUTTON,
+} from './interceptors/pendingVerificationInterceptor'
+export type {
+  PendingVerificationMessenger,
+  PendingVerificationResult,
+  PendingVerificationTexts,
+} from './interceptors/pendingVerificationInterceptor'
 export { RecoverAccountUseCase } from './use-cases/RecoverAccount.use-case'
 export type { RecoverAccountParams } from './use-cases/RecoverAccount.use-case'
 export { listPhoneVerificationMethods, resolvePhoneVerificationMethod } from './shared/phoneVerificationMethods'
 export type { PhoneVerificationMethodOption } from './shared/phoneVerificationMethods'
+export {
+  createWhatsappTemplateVerificationSender,
+  buildAuthenticationTemplateComponents,
+} from './senders/whatsappTemplateSender'
+export type { WhatsappTemplateComponent, WhatsappTemplateSend } from './senders/whatsappTemplateSender'
+export { createSmsVerificationSender, createTwilioSmsGateway } from './senders/smsSender'
+export type { SmsGatewayPort } from './senders/smsSender'
 export { createInMemoryVerificationSender } from './testing/inMemoryVerificationSender'
 export type { PhoneVerificationStart } from './shared/phoneVerificationDelivery'
 export { SignUpUseCase } from './use-cases/SignUp.use-case'

@@ -43,6 +43,13 @@
       "when": 1795874400000,
       "tag": "0005_account_self_service",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795960800000,
+      "tag": "0006_challenge_asked_at",
+      "breakpoints": true
     }
   ]
 }
