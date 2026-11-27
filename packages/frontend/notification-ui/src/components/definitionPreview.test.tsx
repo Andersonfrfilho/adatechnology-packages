@@ -73,6 +73,19 @@ describe('pré-visualização de e-mail do editor', () => {
     expect(markup).toContain('Assunto do servidor')
   })
 
+  it('com url do produto o iframe carrega o endereço (CSP própria) e não usa srcDoc', () => {
+    const client = new QueryClient()
+    client.setQueryData(
+      ['adn', 'email-preview', templateEditorItemId(EMAIL_ITEM), EMAIL_ITEM.defaultSubject, EMAIL_ITEM.defaultBody],
+      { html: '<p>x</p>', url: '/v1/mail-assets/template-preview/abc' },
+    )
+    const markup = render({ item: EMAIL_ITEM, body: EMAIL_ITEM.defaultBody, client })
+
+    expect(markup).toContain('src="/v1/mail-assets/template-preview/abc"')
+    expect(markup).toContain('sandbox=""')
+    expect(markup).not.toContain('srcDoc')
+  })
+
   it('oferece Computador, Tablet e Celular como radiogroup acessível', () => {
     const markup = render({ item: EMAIL_ITEM, body: EMAIL_ITEM.defaultBody })
 

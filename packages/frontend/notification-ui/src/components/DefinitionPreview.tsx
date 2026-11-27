@@ -39,6 +39,8 @@ export type EmailPreviewRequest = {
 /** O e-mail como o produto o envia: documento completo, com as variáveis de HTML do sistema montadas. */
 export type EmailPreviewResult = {
   readonly html: string
+  /** Documento servido pelo produto com CSP própria (ver `TemplatePreview.emailSrc`); prevalece sobre `html`. */
+  readonly url?: string
   readonly subject?: string
 }
 
@@ -154,6 +156,7 @@ function EmailDefinitionPreview(props: DefinitionPreviewProps) {
           rendered={{ ...rendered, title }}
           labels={buildLabels(messages)}
           {...(emailHtml ? { emailHtml } : {})}
+          {...(remote.data?.url ? { emailSrc: remote.data.url } : {})}
           {...(senderName ? { senderName } : {})}
         />
       </ScaledPreviewFrame>
