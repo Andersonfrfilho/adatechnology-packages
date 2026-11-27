@@ -221,19 +221,106 @@ describe('WhatsAppMessageProvider.sendInteractiveCtaUrl', () => {
   test('sends the cta_url payload the Cloud API expects', async () => {
     const calls = mockJsonResponseOnce({ messages: [{ id: 'wamid.cta' }] })
     const result = await buildProvider().sendInteractiveCtaUrl({
-      to: '5511999990000', bodyText: 'Veja', displayText: 'Abrir', url: 'https://exemplo.test/x',
+      to: '5511999990000',
+      bodyText: 'Veja',
+      displayText: 'Abrir',
+      url: 'https://exemplo.test/x',
     })
     expect(result).toEqual({ waMessageId: 'wamid.cta' })
     const payload = JSON.parse(String(calls[0]?.requestInit.body)) as Record<string, unknown>
     expect(payload).toMatchObject({
       type: 'interactive',
-      interactive: { type: 'cta_url', body: { text: 'Veja' }, action: { name: 'cta_url', parameters: { display_text: 'Abrir', url: 'https://exemplo.test/x' } } },
+      interactive: {
+        type: 'cta_url',
+        body: { text: 'Veja' },
+        action: { name: 'cta_url', parameters: { display_text: 'Abrir', url: 'https://exemplo.test/x' } },
+      },
     })
   })
 
   test('refuses a non-http link and a label over 20 characters', async () => {
     const provider = buildProvider()
-    await expect(provider.sendInteractiveCtaUrl({ to: '1', bodyText: 'b', displayText: 'Abrir', url: 'javascript:alert(1)' })).rejects.toBeInstanceOf(WhatsAppRejectionError)
-    await expect(provider.sendInteractiveCtaUrl({ to: '1', bodyText: 'b', displayText: 'x'.repeat(21), url: 'https://a.test' })).rejects.toBeInstanceOf(WhatsAppRejectionError)
+    await expect(
+      provider.sendInteractiveCtaUrl({ to: '1', bodyText: 'b', displayText: 'Abrir', url: 'javascript:alert(1)' }),
+    ).rejects.toBeInstanceOf(WhatsAppRejectionError)
+    await expect(
+      provider.sendInteractiveCtaUrl({ to: '1', bodyText: 'b', displayText: 'x'.repeat(21), url: 'https://a.test' }),
+    ).rejects.toBeInstanceOf(WhatsAppRejectionError)
+  })
+})
+
+describe('WhatsAppMessageProvider.sendMedia as sticker', () => {
+  function mockUploadAndSend(): { requestUrl: string; requestInit: RequestInit }[] {
+    const calls: { requestUrl: string; requestInit: RequestInit }[] = []
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      calls.push({ requestUrl: String(input), requestInit: init ?? {} })
+      const body = String(input).endsWith('/media') ? { id: 'media-9' } : { messages: [{ id: 'wamid.9' }] }
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }) as typeof fetch
+    return calls
+  }
+
+  test('uploads the webp and sends it as type sticker, without caption', async () => {
+    const calls = mockUploadAndSend()
+
+    const result = await buildProvider().sendMedia({
+      to: '5511999990000',
+      mimeType: 'image/webp',
+      filename: 'sticker.webp',
+      caption: 'ignored',
+      buffer: Buffer.from('RIFF'),
+      asSticker: true,
+    })
+
+    expect(result).toEqual({ waMessageId: 'wamid.9', mediaId: 'media-9' })
+    const payload = JSON.parse(String(calls[1]?.requestInit.body))
+    expect(payload).toMatchObject({ type: 'sticker', to: '5511999990000', sticker: { id: 'media-9' } })
+    expect(payload.sticker).not.toHaveProperty('caption')
+  })
+
+  test('sends a known mediaId as sticker without uploading again', async () => {
+    const calls = mockUploadAndSend()
+
+    await buildProvider().sendMedia({
+      to: '5511999990000',
+      mimeType: 'image/webp',
+      filename: 'sticker.webp',
+      mediaId: 'media-1',
+      asSticker: true,
+    })
+
+    expect(calls).toHaveLength(1)
+    expect(JSON.parse(String(calls[0]?.requestInit.body))).toMatchObject({
+      type: 'sticker',
+      sticker: { id: 'media-1' },
+    })
+  })
+
+  test('refuses a sticker that is not webp before calling the Meta', async () => {
+    const calls = mockUploadAndSend()
+
+    await expect(
+      buildProvider().sendMedia({
+        to: '5511999990000',
+        mimeType: 'image/png',
+        filename: 'logo.png',
+        buffer: Buffer.from('x'),
+        asSticker: true,
+      }),
+    ).rejects.toThrow('image/webp')
+    expect(calls).toHaveLength(0)
+  })
+
+  test('keeps sending webp as an image when not asked for a sticker', async () => {
+    const calls = mockUploadAndSend()
+
+    await buildProvider().sendMedia({
+      to: '5511999990000',
+      mimeType: 'image/webp',
+      filename: 'a.webp',
+      mediaId: 'media-2',
+    })
+
+    expect(JSON.parse(String(calls[0]?.requestInit.body))).toMatchObject({ type: 'image' })
   })
 })

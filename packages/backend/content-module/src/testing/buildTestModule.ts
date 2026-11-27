@@ -9,6 +9,7 @@ import type { ContentHooks, ContentImageStoragePort, ContentModuleConfig } from 
 
 import { createContentModule, type ContentModule } from '../ContentModule'
 import { createInMemoryPostStore } from './inMemoryPostStore'
+import { createInMemoryRecurrenceStore } from './inMemoryRecurrenceStore'
 
 export type TestClock = { now(): Date; set(iso: string): void; advanceMinutes(minutes: number): void }
 
@@ -31,13 +32,24 @@ export function buildTestModule(
     hooks?: ContentHooks
     imageStorage?: ContentImageStoragePort
   } = {},
-): { module: ContentModule; store: ReturnType<typeof createInMemoryPostStore>; clock: TestClock } {
+): {
+  module: ContentModule
+  store: ReturnType<typeof createInMemoryPostStore>
+  recurrenceStore: ReturnType<typeof createInMemoryRecurrenceStore>
+  clock: TestClock
+} {
   const store = createInMemoryPostStore()
+  const recurrenceStore = createInMemoryRecurrenceStore()
   const clock = createTestClock()
   const module = createContentModule({
     ...(params.config ? { config: params.config } : {}),
     ...(params.hooks ? { hooks: params.hooks } : {}),
-    providers: { postStore: store, clock, ...(params.imageStorage ? { imageStorage: params.imageStorage } : {}) },
+    providers: {
+      postStore: store,
+      recurrenceStore,
+      clock,
+      ...(params.imageStorage ? { imageStorage: params.imageStorage } : {}),
+    },
   })
-  return { module, store, clock }
+  return { module, store, recurrenceStore, clock }
 }

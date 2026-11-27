@@ -3,7 +3,7 @@
  */
 
 import type { Post } from '@adatechnology/content-contracts'
-import { Archive, ArrowLeft, CalendarClock, EyeOff, ImageUp, Save, Send, Trash2 } from 'lucide-react'
+import { Archive, ArrowLeft, CalendarClock, EyeOff, Save, Send, Trash2 } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
 
 import { usePostEditor } from '../hooks/usePostEditor'
@@ -11,7 +11,10 @@ import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { formatPostDate } from '../lib/format'
 import type { PostDraft } from '../lib/postDraft'
 import { useContentText } from '../providers/ContentProvider'
+import type { RenderDateTimeInput } from '../providers/types'
+import { FilePicker } from './FilePicker'
 import { MarkdownContent } from './MarkdownContent'
+import { MarkdownEditor } from './MarkdownEditor'
 import { StatusChip } from './StatusChip'
 import { TagsInput } from './TagsInput'
 
@@ -24,6 +27,10 @@ export type PostEditorProps = {
   readonly onArchived?: (post: Post) => void
   /** Ausente: sem botão Voltar. Só é chamado depois de confirmar alterações não salvas. */
   readonly onClose?: () => void
+  /** Barra de formatação do corpo (padrão: ligada). O formato guardado é Markdown nos dois casos. */
+  readonly showFormattingToolbar?: boolean
+  /** Seletor de data e hora do host para "Agendar para". Padrão: `<input type="datetime-local">`. */
+  readonly renderDateTimeInput?: RenderDateTimeInput
 }
 
 type FieldProps = {
@@ -78,7 +85,15 @@ function Section({ title, children }: { readonly title: string; readonly childre
   )
 }
 
-export function PostEditor({ postId, defaults, onSaved, onArchived, onClose }: PostEditorProps) {
+export function PostEditor({
+  postId,
+  defaults,
+  onSaved,
+  onArchived,
+  onClose,
+  showFormattingToolbar = true,
+  renderDateTimeInput,
+}: PostEditorProps) {
   const { messages, locale, format } = useContentText()
   const editor = usePostEditor({
     ...(postId ? { postId } : {}),
@@ -169,15 +184,17 @@ export function PostEditor({ postId, defaults, onSaved, onArchived, onClose }: P
             </div>
             <div className={`adc-body-panes adc-body-panes--${tab}`}>
               <div id={`${bodyId}-write`} role="tabpanel" className="adc-pane adc-pane--write">
-                <textarea
-                  aria-labelledby={`${bodyId}-label`}
-                  aria-describedby={`${bodyId}-hint`}
-                  className="adc-markdown-input"
+                <MarkdownEditor
                   value={draft.body}
-                  onChange={(event) => update('body', event.target.value)}
+                  onChange={(value) => update('body', value)}
+                  labelledBy={`${bodyId}-label`}
+                  describedBy={`${bodyId}-hint`}
+                  showToolbar={showFormattingToolbar}
+                  isUploading={editor.isUploading}
+                  {...(editor.canUploadCover ? { onUploadImage: editor.uploadImage } : {})}
                 />
                 <small id={`${bodyId}-hint`} className="adc-hint">
-                  {messages.bodyHint}
+                  {showFormattingToolbar ? messages.bodyHintToolbar : messages.bodyHint}
                 </small>
               </div>
               <div id={`${bodyId}-preview`} role="tabpanel" className="adc-pane adc-pane--preview" aria-live="polite">
@@ -215,15 +232,24 @@ export function PostEditor({ postId, defaults, onSaved, onArchived, onClose }: P
                 {messages.publishNow}
               </button>
             )}
-            <div className="adc-field">
-              <label htmlFor={scheduleId}>{messages.scheduleAt}</label>
-              <input
-                id={scheduleId}
-                type="datetime-local"
-                value={editor.scheduleAt}
-                onChange={(event) => editor.setScheduleAt(event.target.value)}
-              />
-            </div>
+            {renderDateTimeInput ? (
+              renderDateTimeInput({
+                id: scheduleId,
+                label: messages.scheduleAt,
+                value: editor.scheduleAt,
+                onChange: editor.setScheduleAt,
+              })
+            ) : (
+              <div className="adc-field">
+                <label htmlFor={scheduleId}>{messages.scheduleAt}</label>
+                <input
+                  id={scheduleId}
+                  type="datetime-local"
+                  value={editor.scheduleAt}
+                  onChange={(event) => editor.setScheduleAt(event.target.value)}
+                />
+              </div>
+            )}
             <button
               type="button"
               className="adc-button"
@@ -270,21 +296,13 @@ export function PostEditor({ postId, defaults, onSaved, onArchived, onClose }: P
               <img className="adc-cover-preview" src={draft.coverImageUrl} alt={draft.coverImageAlt} />
             )}
             {editor.canUploadCover && (
-              <label className="adc-button adc-upload">
-                <ImageUp aria-hidden="true" className="adc-icon" />
-                {editor.isUploading ? messages.coverUploading : messages.coverUpload}
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="adc-visually-hidden"
-                  disabled={editor.isUploading}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    event.target.value = ''
-                    if (file) void editor.uploadCover(file)
-                  }}
-                />
-              </label>
+              <FilePicker
+                buttonLabel={editor.isUploading ? messages.coverUploading : messages.coverUpload}
+                emptyLabel={messages.fileNoneChosen}
+                accept="image/jpeg,image/png,image/webp"
+                isBusy={editor.isUploading}
+                onPick={(file) => void editor.uploadCover(file)}
+              />
             )}
             <TextField
               label={messages.fieldCoverUrl}

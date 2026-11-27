@@ -120,6 +120,8 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - RSS (`/public/feed.xml`), Atom (`/public/atom.xml`) e entradas de sitemap (`/public/sitemap-entries`) quando há `config.feed`
   - Capacidade por ausência: sem `imageStorage` não há upload; sem `config.feed` não há feed; sem resolver público não há rota pública
   - `createInMemoryPostStore` para teste do host
+  - Agendamento que de fato publica: `publishDue({ now })` idempotente e seguro com várias instâncias (`FOR UPDATE SKIP LOCKED`) e `startContentScheduler`; modelos de post, republicar com nova data mantendo o endereço (SEO), recorrência semanal/mensal a partir de modelo, contagem por aba
+  - Endereço `<base>/<shortId>-<slug>` com slug automático curto (sem palavras de ligação), histórico de slug para redirecionar link antigo, rótulos de tag
 - **Entradas:** `createContentModule` em `src/ContentModule.ts`; `createContentRoutes`; `runContentMigrations`; `contentOpenApiPaths` em `./openapi`
 - **Precisa de:** PostgreSQL (Drizzle). Capa por upload: um storage S3 (ex.: `catalog-image-storage-provider`, que tem a mesma forma de porta). Peers: `drizzle-orm`.
 - **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `content`; journal `content_migrations` no formato clássico (`meta/_journal.json`).
@@ -129,9 +131,10 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/content-ui` · subpath: `./styles.css`
 - **Para quê:** Telas de blog/novidades com API injetada: painel e site público.
 - **O que você ganha:**
-  - Painel: `ContentWorkspace` (tela composta), `PostList` (filtros, selos de status ícone+palavra+cor, paginação), `PostEditor` (título, slug, resumo, Markdown com prévia ao vivo, capa por upload ou URL, tags, SEO, publicar/agendar/despublicar/arquivar, aviso de alteração não salva)
+  - Painel: `ContentWorkspace` (tela composta), `PostList` (filtros, selos de status ícone+palavra+cor, paginação), `PostEditor` (título, slug, resumo, corpo com barra de formatação — negrito, itálico, títulos, listas, citação, link, imagem (URL ou envio pela API de capa) e emoji, atalhos Ctrl/Cmd+B/I/K — guardando Markdown, com prévia ao vivo; `showFormattingToolbar={false}` esconde a barra; capa por upload ou URL, tags, SEO, publicar/agendar/despublicar/arquivar, aviso de alteração não salva)
   - Público: `PostCard`, `PostListPage` (paginação e filtro de tag por link), `PostPage` (capa, data, tempo de leitura, corpo, compartilhar), `ShareButtons` (WhatsApp, Facebook, X, LinkedIn por URL simples, copiar link, Web Share nativo)
   - Corpo renderizado do AST em elementos React, sem `dangerouslySetInnerHTML`; `buildPostMeta` para o `<head>` do host; `renderLink` para o roteador do host
+  - Pontos de customização: `renderDateTimeInput` (seletor de data e hora do host para agendar) e seletor de arquivo estilizado com textos nas mensagens (`coverUpload`, `fileNoneChosen`)
   - Tema por variáveis `--adc-*`; `pt-BR` e `en`; headless `usePostEditor`, `usePostList`, `useUnsavedChangesGuard`
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `content-module` (interfaces `ContentAdminApi`, `ContentPublicApi`). Peers: `react`, `react-dom`.
@@ -162,6 +165,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`object-storage-provider`](#adatechnologyobject-storage-provider) | S3-compatível com URL assinada de upload e download | `createObjectStorageProvider` |
 | [`conversation-module`](#adatechnologyconversation-module) | anexos de conversa com validação de tipo e tamanho | `RequestAttachmentUploadUseCase` |
 | [`image-cutout`](#adatechnologyimage-cutout) | recorte de fundo de imagem no navegador | `removeBackground` |
+| [`image-editor-ui`](#adatechnologyimage-editor-ui) | editar foto: recorte por formato, girar, espelhar, zoom, brilho/contraste, ponto de foco e texto alternativo | `ImageEditor` |
 | [`secret-envelope`](#adatechnologysecret-envelope) | cifrar segredo antes de gravar | `createSecretEnvelopeProvider` |
 
 ### Voz: transcrição e moderação
@@ -717,6 +721,17 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Compatibilidade:** React 18+.
 - **Usado por:** `ada-technology`, `transportada`
 - **Atenção / não verificado:** Sem README.
+
+### @adatechnology/image-editor-ui
+- **Versão:** `0.1.0` · `packages/frontend/image-editor-ui`
+- **Para quê:** Editor de foto no navegador (canvas, sem dependências) que devolve o `Blob` editado e os metadados da edição, para o host guardar versões e manter a original.
+- **O que você ganha:**
+  - `ImageEditor`: recorte por formato (capa 16:9, galeria 3:2, quadrado, livre), girar, espelhar, zoom, brilho e contraste, ponto de foco, texto alternativo; teclado, toque e pinça; sem controle nativo
+  - `focalPointToObjectPosition` para o `object-position` do site; rótulos `imageEditorLabelsPtBr`/`En`; tema por `--aie-*`
+- **Entradas:** `src/index.ts`, `styles.css`
+- **Precisa de:** Nenhuma no servidor; o host guarda as versões. Peers: `react`, `react-dom`.
+- **Compatibilidade:** React 18+.
+- **Usado por:** `reservada`
 
 ### @adatechnology/document-intake
 - **Versão:** `0.1.0` · `packages/frontend/document-intake`

@@ -37,5 +37,6 @@ describe('contentOpenApiPaths', () => {
     const paths = routes.map((route) => route.path)
     expect(paths.indexOf('/posts/tags')).toBeLessThan(paths.indexOf('/posts/:id'))
     expect(paths.indexOf('/posts/cover-images')).toBeLessThan(paths.indexOf('/posts/:id'))
+    expect(paths.indexOf('/posts/counts')).toBeLessThan(paths.indexOf('/posts/:id'))
   })
 })

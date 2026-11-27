@@ -108,6 +108,8 @@ export type {
   DocumentsWorkspaceLabels,
   DocumentsWorkspaceClassNames,
   DocumentsFiltersContext,
+  DateInputProps,
+  RenderDateInput,
 } from './documents'
 export { SortableHead, MultiSelectFilter, BulkActionBar, ListingPagination } from './listing'
 export type {
@@ -187,7 +189,13 @@ export { formatPhone, phoneInitials, isTestContactNumber, TEST_CONTACT_LABEL } f
 export { formatTimestamp, formatFileSize, formatDateTime, isSameDay } from './lib/format'
 
 export type { MessagePayload, ConversationsUIConfig, ConversationsTheme, ConversationsFeatures } from './types'
-export type { InteractivePayload, InteractiveSection, InteractiveOption, InteractiveSelection, LocationPayload } from './types'
+export type {
+  InteractivePayload,
+  InteractiveSection,
+  InteractiveOption,
+  InteractiveSelection,
+  LocationPayload,
+} from './types'
 export type { MessageTranscription, TranscriptionStatus, TranscriptionMode } from './types'
 export type {
   ConversationsApi,

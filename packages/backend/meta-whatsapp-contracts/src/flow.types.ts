@@ -19,6 +19,7 @@ export const FLOW_ACTION_KIND = {
   RATE_LIMITED_HANDOFF: 'rate_limited_handoff',
   SEND_PRODUCT_LIST: 'send_product_list',
   SEND_MEDIA: 'send_media',
+  SEND_STICKER: 'send_sticker',
 } as const
 export type FlowConditionOperator = '>' | '>=' | '<' | '<=' | '==' | '!=' | 'contains'
 /**

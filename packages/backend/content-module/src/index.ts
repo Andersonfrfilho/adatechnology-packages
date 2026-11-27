@@ -12,15 +12,17 @@ export { runContentMigrations, contentMigrationsFolder, CONTENT_MIGRATIONS_TABLE
 export type { RunContentMigrationsParams } from './runMigrations'
 export type { ContentDatabase, DrizzleMigrateFunction } from './database.types'
 
-export { contentSchema, posts } from './schema/schema'
-export type { PostRow, NewPostRow } from './schema/schema'
+export { contentSchema, posts, recurrenceRules } from './schema/schema'
+export type { PostRow, NewPostRow, RecurrenceRow, NewRecurrenceRow } from './schema/schema'
 
 export { PostRepository } from './repositories/PostRepository'
+export { RecurrenceRepository } from './repositories/RecurrenceRepository'
 export type {
   PostStorePort,
   PostPage,
   PostAdminListQuery,
   PostPublicListQuery,
+  RecurrenceStorePort,
   ContentDependencies,
 } from './use-cases/contentModule.types'
 
@@ -48,3 +50,17 @@ export type { FeedFormat } from './use-cases/Feed.use-cases'
 export { COVER_IMAGE } from './shared/coverImage.constant'
 
 export { createInMemoryPostStore } from './testing/inMemoryPostStore'
+
+export { SaveAsTemplateUseCase, CreateFromTemplateUseCase, CountPostsUseCase } from './use-cases/Template.use-cases'
+export { RepublishPostUseCase, PublishDueUseCase } from './use-cases/Scheduling.use-cases'
+export type { PublishDueResult } from './use-cases/Scheduling.use-cases'
+export {
+  CreateRecurrenceUseCase,
+  ListRecurrencesUseCase,
+  UpdateRecurrenceUseCase,
+  RemoveRecurrenceUseCase,
+} from './use-cases/Recurrence.use-cases'
+export { nextOccurrence, nextOccurrenceAfter } from './shared/recurrence'
+export { startContentScheduler, DEFAULT_SCHEDULER_INTERVAL_MS } from './scheduler'
+export type { StartContentSchedulerParams } from './scheduler'
+export { createInMemoryRecurrenceStore } from './testing/inMemoryRecurrenceStore'

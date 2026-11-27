@@ -48,7 +48,12 @@ export {
 export type { ProductsProviderProps } from './providers/ProductsProvider'
 
 export { AvailabilityScheduleEditor } from './AvailabilityScheduleEditor'
-export type { AvailabilityScheduleEditorProps, AvailabilityScheduleDraft } from './AvailabilityScheduleEditor'
+export type {
+  AvailabilityScheduleEditorProps,
+  AvailabilityScheduleDraft,
+  RenderTimeInput,
+  TimeInputProps,
+} from './AvailabilityScheduleEditor'
 export { AttributesEditor } from './AttributesEditor'
 export type { AttributesEditorProps } from './AttributesEditor'
 

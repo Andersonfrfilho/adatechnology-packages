@@ -11,13 +11,15 @@ import { Check } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 
 import type { UpdateTeamMemberInput, UserProfile } from './providers/types'
-import { withCurrentRole, type TeamRoleOption } from './roles'
+import { withCurrentRole, type RenderTeamRoleField, type TeamRoleOption } from './roles'
 import { DEFAULT_USER_LABELS, type UserLabels } from './workspace/labels'
 
 export type TeamMemberEditFormProps = {
   readonly member: UserProfile
   /** Os papéis oferecidos. O papel ATUAL entra na lista mesmo se não estiver aqui — ver `withCurrentRole`. */
   readonly roles: readonly TeamRoleOption[]
+  /** Ausente, o campo é o `<select>` padrão. */
+  readonly renderRoleField?: RenderTeamRoleField
   readonly labels?: Partial<UserLabels>
   readonly saving: boolean
   /**
@@ -49,6 +51,7 @@ const LABEL = 'mb-1 block text-sm font-medium text-gray-900 dark:text-gray-100'
 export function TeamMemberEditForm({
   member,
   roles,
+  renderRoleField,
   labels: overrides,
   saving,
   emailError,
@@ -117,49 +120,59 @@ export function TeamMemberEditForm({
           />
         </div>
 
-        <div>
-          <label className={LABEL} htmlFor="team-edit-role">
-            {labels.teamRole}
-          </label>
-          <div className="relative">
-            <select
-              className={SELECT_FIELD}
-              id="team-edit-role"
-              onChange={(event) => setRole(event.target.value)}
-              value={role}
-            >
-              {roleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <svg
-              aria-hidden="true"
-              className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-500 dark:text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+        {renderRoleField ? (
+          renderRoleField({ id: 'team-edit-role', label: labels.teamRole, value: role, options: roleOptions, onChange: setRole })
+        ) : (
+          <div>
+            <label className={LABEL} htmlFor="team-edit-role">
+              {labels.teamRole}
+            </label>
+            <div className="relative">
+              <select
+                className={SELECT_FIELD}
+                id="team-edit-role"
+                onChange={(event) => setRole(event.target.value)}
+                value={role}
+              >
+                {roleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <svg
+                aria-hidden="true"
+                className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-500 dark:text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
         {/* Salvar sem mudar nada gravaria uma linha de auditoria dizendo que algo mudou. */}
         <button
           className="inline-flex min-h-10 items-center gap-2 rounded bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
+          aria-describedby={unchanged ? 'team-edit-unchanged' : undefined}
           disabled={saving || unchanged}
           type="submit"
         >
           <Check aria-hidden="true" className="size-4" />
           {saving ? labels.teamSaving : labels.teamSave}
         </button>
+        {unchanged && (
+          <span className="text-xs text-gray-500 dark:text-gray-400" id="team-edit-unchanged">
+            {labels.teamNothingChanged}
+          </span>
+        )}
         <button className="text-sm text-gray-600 dark:text-gray-300" onClick={onCancel} type="button">
           {labels.teamCancel}
         </button>

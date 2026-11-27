@@ -133,7 +133,7 @@ export function MediaRenderer({
       return (
         <div className="min-w-[200px]">
           {src ? (
-            <img src={src} alt={message.caption ?? bubble.imageAlt} className="w-full max-h-80 object-cover cursor-pointer hover:opacity-90 transition-opacity" onClick={() => onLightbox(src)} loading="lazy" />
+            <img src={src} alt={message.caption ?? bubble.imageAlt} className={cn('w-full max-h-80 cursor-pointer hover:opacity-90 transition-opacity', message.type === 'sticker' ? 'object-contain' : 'object-cover')} onClick={() => onLightbox(src)} loading="lazy" />
           ) : (
             <div className="w-full h-40 bg-gray-200 flex items-center justify-center text-gray-400">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>

@@ -119,6 +119,8 @@ export type UserApi = {
   readonly updateTeamMember?: (userId: string, input: UpdateTeamMemberInput) => Promise<UserProfile>
   /** Ausente quando o host nao plugou armazenamento — o controle de foto nem aparece. */
   readonly setTeamMemberAvatar?: (userId: string, file: File) => Promise<UserProfile>
+  /** Ausente, a ficha não oferece "Remover foto". */
+  readonly removeTeamMemberAvatar?: (userId: string) => Promise<UserProfile>
   /** Ausente quando o host nao tem reset de senha E e-mail — botao que nao entrega nada nao existe. */
   readonly sendPasswordReset?: (userId: string) => Promise<void>
   /**

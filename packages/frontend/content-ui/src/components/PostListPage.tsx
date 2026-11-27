@@ -5,7 +5,7 @@
  * página da lista ser endereçável e indexável.
  */
 
-import type { TagCount } from '@adatechnology/content-contracts'
+import { formatTagLabel, type TagCount } from '@adatechnology/content-contracts'
 
 import { useAsyncResource } from '../hooks/useAsyncResource'
 import { useContentPublicApi, useContentText, useRenderLink } from '../providers/ContentProvider'
@@ -54,7 +54,7 @@ export function PostListPage({ page = 1, tag, pageSize = 10, getPostHref, getLis
               href: getListHref({ page: 1, tag: entry.tag }),
               className: `adc-tag-chip${entry.tag === tag ? ' adc-tag-chip--active' : ''}`,
               ...(entry.tag === tag ? { 'aria-current': 'page' as const } : {}),
-              children: `${entry.tag} (${entry.count})`,
+              children: `${formatTagLabel(entry.tag)} (${entry.count})`,
             }),
           )}
         </nav>

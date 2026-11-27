@@ -19,7 +19,7 @@ import type { UserProfile } from '../providers/types'
 import { TeamMemberEditForm } from '../TeamMemberEditForm'
 import { TeamMemberPasswordForm } from '../TeamMemberPasswordForm'
 import { TeamMemberForm } from '../TeamMemberForm'
-import { buildDefaultTeamRoles, resolveTeamRole, type TeamRoleOption } from '../roles'
+import { buildDefaultTeamRoles, resolveTeamRole, type RenderTeamRoleField, type TeamRoleOption } from '../roles'
 import { useTeam, memberRowKey, TEAM_SORT_FIELDS, type TeamApi, type TeamSortField } from '../useTeam'
 import { DEFAULT_USER_LABELS, type UserLabels } from './labels'
 
@@ -51,6 +51,15 @@ export type TeamWorkspaceProps = {
    * dentro de casa.
    */
   readonly backgroundRemoval?: BackgroundRemovalConfig
+  /** Recorta a foto num quadrado central de até este lado (px) antes de enviar. Ausente, sobe como veio. */
+  readonly avatarSquareSize?: number
+  /** Desenha o campo de papel (rótulo incluído) no lugar do `<select>` nativo, nos dois formulários. */
+  readonly renderRoleField?: RenderTeamRoleField
+  /**
+   * "Editar foto" na ficha. Ausente, a foto atual é baixada e reaberta no revisor (recorte/fundo).
+   * Um editor de imagem do host entra aqui, recebendo a pessoa.
+   */
+  readonly onEditAvatar?: (member: UserProfile) => void
 }
 
 /**
@@ -141,6 +150,9 @@ export function TeamWorkspace({
   api,
   roles,
   backgroundRemoval,
+  avatarSquareSize,
+  renderRoleField,
+  onEditAvatar,
 }: TeamWorkspaceProps) {
   const labels = { ...DEFAULT_USER_LABELS, ...overrides }
   const roleOptions = roles ?? buildDefaultTeamRoles(labels)
@@ -153,6 +165,17 @@ export function TeamWorkspace({
   const [settingPassword, setSettingPassword] = useState<UserProfile>()
   /** Arquivo escolhido na ficha aberta, esperando revisao. Pertence sempre a `editing`. */
   const [pendingAvatar, setPendingAvatar] = useState<File>()
+
+  /** A ficha mostra a linha ATUAL da lista (foto trocada, nome salvo), não o instantâneo de quando foi aberta. */
+  const editingMember = editing ? (team.members.find((member) => member.id === editing.id) ?? editing) : undefined
+
+  async function handleEditAvatar(member: UserProfile): Promise<void> {
+    if (onEditAvatar) return onEditAvatar(member)
+    if (!member.avatarUrl) return
+    const response = await fetch(member.avatarUrl)
+    const blob = await response.blob()
+    setPendingAvatar(new File([blob], 'foto', { type: blob.type }))
+  }
 
   if (!team.enabled) return null
 
@@ -218,15 +241,17 @@ export function TeamWorkspace({
         <TeamMemberForm
           labels={labels}
           roles={roleOptions}
+          {...(renderRoleField ? { renderRoleField } : {})}
           onCancel={() => setIsFormOpen(false)}
           onSubmit={(input) => void handleCreate(input)}
           saving={team.saving}
         />
       )}
 
-      {editing && (
+      {editing && editingMember && (
         <TeamMemberEditForm
           roles={roleOptions}
+          {...(renderRoleField ? { renderRoleField } : {})}
           avatar={
             team.canChangeAvatar ? (
               pendingAvatar ? (
@@ -236,29 +261,54 @@ export function TeamWorkspace({
                   labels={labels}
                   onCancel={() => setPendingAvatar(undefined)}
                   onConfirm={(file) => {
-                    void team.setMemberAvatar(editing.id, file)
+                    void team.setMemberAvatar(editingMember.id, file)
                     setPendingAvatar(undefined)
                   }}
                   {...(backgroundRemoval ? { backgroundRemoval } : {})}
+                  {...(avatarSquareSize ? { squareSize: avatarSquareSize } : {})}
                 />
               ) : (
-                <AvatarField
-                  busy={team.saving}
-                  label={`${labels.teamChangePhoto} ${editing.name}`}
-                  member={editing}
-                  onPick={setPendingAvatar}
-                />
+                <div className="flex flex-wrap items-center gap-3">
+                  <AvatarField
+                    busy={team.saving}
+                    label={`${labels.teamChangePhoto} ${editingMember.name}`}
+                    member={editingMember}
+                    onPick={setPendingAvatar}
+                  />
+                  {editingMember.avatarUrl && (
+                    <>
+                      <button
+                        className="min-h-9 rounded border border-gray-300 px-3 text-sm disabled:opacity-60 dark:border-gray-600"
+                        disabled={team.saving}
+                        onClick={() => void handleEditAvatar(editingMember)}
+                        type="button"
+                      >
+                        {labels.teamEditPhoto}
+                      </button>
+                      {team.canRemoveAvatar && (
+                        <button
+                          className="min-h-9 rounded border border-gray-300 px-3 text-sm disabled:opacity-60 dark:border-gray-600"
+                          disabled={team.saving}
+                          onClick={() => void team.removeMemberAvatar(editingMember.id)}
+                          type="button"
+                        >
+                          {labels.teamRemovePhoto}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               )
             ) : undefined
           }
           labels={labels}
-          member={editing}
+          member={editingMember}
           onCancel={() => {
             setPendingAvatar(undefined)
             setEditing(undefined)
           }}
           onSubmit={(input) => {
-            void team.updateMember(editing.id, input).then((saved) => {
+            void team.updateMember(editingMember.id, input).then((saved) => {
               if (saved) setEditing(undefined)
             })
           }}

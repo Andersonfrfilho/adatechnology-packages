@@ -193,6 +193,8 @@ export type {
 export { createSendProductListAction, PRODUCT_LIST_LIMIT } from './flows/createSendProductListAction'
 export type { CreateSendProductListActionParams } from './flows/createSendProductListAction'
 export { createSendMediaAction } from './flows/createSendMediaAction'
+export { createSendStickerAction, STICKER_MIME_TYPE } from './flows/createSendStickerAction'
+export type { CreateSendStickerActionParams, StickerSource } from './flows/createSendStickerAction'
 export { FlowMediaIdRepository } from './repositories/FlowMediaIdRepository'
 export type {
   CreateSendMediaActionParams,

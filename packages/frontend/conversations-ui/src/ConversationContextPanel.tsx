@@ -29,6 +29,11 @@ export interface ConversationContextEntry {
   value?: string | undefined
   icon?: string
   status?: ConversationContextStatus
+  /**
+   * Opt-in: com valor preenchido, o valor vira um botão (foco, clique, toque). Serve ao host para
+   * abrir o texto inteiro quando o card trunca — o toque não mostra dica de hover.
+   */
+  onSelect?: () => void
 }
 
 export interface ConversationContextPanelLabels {
@@ -265,7 +270,17 @@ export function ConversationContextPanel({
                         )}
                         data-cv-tooltip={entry.value ?? labels.notCollected}
                       >
-                        {entry.value ?? labels.notCollected}
+                        {entry.value && entry.onSelect ? (
+                          <button
+                            type="button"
+                            onClick={entry.onSelect}
+                            className="w-full cursor-pointer truncate rounded text-center font-semibold hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                          >
+                            {entry.value}
+                          </button>
+                        ) : (
+                          (entry.value ?? labels.notCollected)
+                        )}
                       </dd>
                     </div>
                   )
