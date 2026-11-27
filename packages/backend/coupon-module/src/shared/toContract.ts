@@ -49,6 +49,7 @@ export function toCampaign(row: CampaignRow): Campaign {
     scope: row.scope,
     isAutomatic: row.isAutomatic,
     leadCapture: row.leadCapture,
+    leadTag: row.leadTag,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }

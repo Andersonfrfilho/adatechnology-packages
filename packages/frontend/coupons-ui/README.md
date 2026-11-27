@@ -32,6 +32,17 @@ import '@adatechnology/coupons-ui/styles.css'
   nome rola até o campo e põe o foco. Moeda e inteiros com máscara durante a digitação.
 - `exportRecords` ausente: só "página atual" (gerada no navegador com o mesmo gerador do servidor).
 
+### Só leitura (recepção)
+
+`<CampaignsWorkspace readOnly />` lista e abre campanhas direto nos contatos, sem criar, editar, excluir nem lote.
+Combine com `config.leadReadScopes` no módulo e uma API injetada sem os métodos de escrita nem `exportRecords`.
+
+### Contatos por período
+
+A aba Contatos filtra por período (dias inteiros no fuso `timeZone`, último dia incluso) e exporta com o mesmo filtro.
+O campo padrão são dois campos com máscara; `renderDateRangeInput` troca pelo intervalo do design system do host
+(recebe e devolve `{ from, to }` em `YYYY-MM-DD`).
+
 ## Site
 
 ```tsx

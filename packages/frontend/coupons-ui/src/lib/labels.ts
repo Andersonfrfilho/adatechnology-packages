@@ -43,6 +43,7 @@ export const FIELD_LABEL_KEY: Readonly<Record<string, keyof CouponsMessages>> = 
   'leadCapture.enabled': 'fieldLeadCaptureEnabled',
   'leadCapture.fields': 'fieldLeadPhone',
   'leadCapture.consentText': 'fieldConsentText',
+  leadTag: 'fieldLeadTag',
 }
 
 export function fieldLabel(messages: CouponsMessages, field: string): string {

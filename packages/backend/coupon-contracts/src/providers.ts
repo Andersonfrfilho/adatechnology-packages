@@ -100,7 +100,12 @@ export type ExportedEvent = {
 export type CouponHooks = {
   readonly onCampaignChanged?: (event: { readonly campaign: Campaign }) => void | Promise<void>
   /** Uso típico: etiquetar o cliente, abrir conversa. Recebe o lead inteiro; não logue o contato. */
-  readonly onLeadCaptured?: (event: { readonly lead: Lead; readonly campaign: Campaign }) => void | Promise<void>
+  readonly onLeadCaptured?: (event: {
+    readonly lead: Lead
+    readonly campaign: Campaign
+    /** `campaign.leadTag`, à mão: a etiqueta que o host aplica no cliente (`null`: nenhuma). */
+    readonly leadTag: string | null
+  }) => void | Promise<void>
   readonly onRedeemed?: (event: { readonly redemption: Redemption }) => void | Promise<void>
   readonly onReleased?: (event: { readonly redemption: Redemption }) => void | Promise<void>
   /** Exportação é ação sensível: o host grava a auditoria aqui. */
@@ -120,6 +125,11 @@ export type CouponModuleConfig = {
    * nunca servir a campanha de uma empresa no domínio de outra.
    */
   readonly publicCacheControl?: string
+  /**
+   * Escopos que só LEEM contatos (ex.: recepção): dão acesso a listar campanhas, ver uma campanha e
+   * listar os contatos dela. Exportar, editar e apagar continuam exigindo `adminScopes`. Padrão: nenhum.
+   */
+  readonly leadReadScopes?: readonly string[]
   /** Teto de contatos novos por campanha por dia (UTC). Útil no lote, onde cada contato consome um código. */
   readonly maxLeadsPerCampaignPerDay?: number
 }

@@ -47,6 +47,7 @@ export const campaigns = couponsSchema.table(
     scope: jsonb('scope').$type<CampaignScope>().notNull().default({ kind: 'all' }),
     isAutomatic: boolean('is_automatic').notNull().default(false),
     leadCapture: jsonb('lead_capture').$type<LeadCaptureSettings>().notNull(),
+    leadTag: varchar('lead_tag', { length: 40 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

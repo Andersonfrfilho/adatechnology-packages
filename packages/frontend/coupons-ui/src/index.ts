@@ -17,6 +17,9 @@ export type {
   RenderSelect,
   DateTimeInputProps,
   RenderDateTimeInput,
+  DateRangeValue,
+  DateRangeInputProps,
+  RenderDateRangeInput,
 } from './providers/types'
 
 // Telas compostas (padrão de consumo).
@@ -42,6 +45,11 @@ export { ReportPanel } from './components/ReportPanel'
 export { StateChip } from './components/StateChip'
 export { Pagination } from './components/Pagination'
 export type { PaginationProps } from './components/Pagination'
+export { DateRangeField } from './components/DateRangeField'
+export { DateTimeField } from './components/DateTimeField'
+export { SelectField } from './components/SelectField'
+export { ConfirmDialog } from './components/ConfirmDialog'
+export type { ConfirmDialogProps } from './components/ConfirmDialog'
 export { ListToolbar } from './components/ListToolbar'
 export type { ListToolbarProps } from './components/ListToolbar'
 export { ExportMenu } from './components/ExportMenu'
@@ -84,6 +92,9 @@ export {
   formatCentsInput,
   formatPhone,
   maskPhoneInput,
+  dayRangeToInstants,
+  toDateTimeLocalValue,
+  fromDateTimeLocalValue,
 } from './lib/format'
 export { readErrorCode, readFieldIssues, readRejections } from './lib/apiError'
 export { rejectionMessage, fieldLabel, STATE_LABEL_KEY } from './lib/labels'

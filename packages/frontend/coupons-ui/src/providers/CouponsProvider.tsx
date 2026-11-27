@@ -11,7 +11,13 @@ import {
   type CouponsLocale,
   type CouponsMessages,
 } from '../locales'
-import type { CouponsAdminApi, CouponsPublicApi, RenderDateTimeInput, RenderSelect } from './types'
+import type {
+  CouponsAdminApi,
+  CouponsPublicApi,
+  RenderDateRangeInput,
+  RenderDateTimeInput,
+  RenderSelect,
+} from './types'
 
 type CouponsContextValue = {
   readonly adminApi?: CouponsAdminApi
@@ -22,6 +28,7 @@ type CouponsContextValue = {
   readonly timeZone?: string
   readonly renderSelect?: RenderSelect
   readonly renderDateTimeInput?: RenderDateTimeInput
+  readonly renderDateRangeInput?: RenderDateRangeInput
 }
 
 const CouponsContext = createContext<CouponsContextValue | null>(null)
@@ -43,8 +50,10 @@ export type CouponsProviderProps = {
   readonly timeZone?: string
   /** Menu de seleção do design system do host (padrão: `<select>` nativo, só em listas curtas). */
   readonly renderSelect?: RenderSelect
-  /** Seletor de data e hora do host (padrão: `datetime-local` nativo). */
+  /** Seletor de data e hora do host (padrão: dois campos com máscara, do pacote). */
   readonly renderDateTimeInput?: RenderDateTimeInput
+  /** Seletor de intervalo de datas do host para o filtro de período (padrão: dois campos com máscara). */
+  readonly renderDateRangeInput?: RenderDateRangeInput
   readonly children: ReactNode
 }
 
@@ -57,6 +66,7 @@ export function CouponsProvider({
   timeZone,
   renderSelect,
   renderDateTimeInput,
+  renderDateRangeInput,
   children,
 }: CouponsProviderProps) {
   const value = useMemo<CouponsContextValue>(
@@ -65,12 +75,23 @@ export function CouponsProvider({
       ...(publicApi ? { publicApi } : {}),
       ...(renderSelect ? { renderSelect } : {}),
       ...(renderDateTimeInput ? { renderDateTimeInput } : {}),
+      ...(renderDateRangeInput ? { renderDateRangeInput } : {}),
       ...(timeZone ? { timeZone } : {}),
       locale,
       currency,
       messages: { ...resolveCouponsMessages(locale), ...messages },
     }),
-    [adminApi, publicApi, locale, messages, currency, timeZone, renderSelect, renderDateTimeInput],
+    [
+      adminApi,
+      publicApi,
+      locale,
+      messages,
+      currency,
+      timeZone,
+      renderSelect,
+      renderDateTimeInput,
+      renderDateRangeInput,
+    ],
   )
   return <CouponsContext.Provider value={value}>{children}</CouponsContext.Provider>
 }

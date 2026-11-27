@@ -187,5 +187,15 @@
   "timeZoneLocal": "Time on this computer.",
   "confirm": "Confirm",
   "cancel": "Cancel",
-  "selectPlaceholder": "Choose"
+  "selectPlaceholder": "Choose",
+  "fieldLeadTag": "Customer tag",
+  "fieldLeadTagHint": "Optional. People who leave their contact get this tag.",
+  "leadAlreadyResent": "You were already registered. We resent your coupon to the contact you registered with.",
+  "leadAlreadyNotResent": "You were already registered. The coupon went to the contact of your first registration.",
+  "leadSuccessSent": "We also sent the coupon to your contact.",
+  "leadAutomaticNote": "The discount applies by itself to the order; the code is just for your records.",
+  "filterPeriod": "Period",
+  "periodFrom": "From",
+  "periodTo": "To",
+  "periodInvalid": "Invalid period."
 }

@@ -139,3 +139,34 @@ export function maskPhoneInput(raw: string): string {
   if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
 }
+
+/** `31/12/2026` → `2026-12-31`; incompleto ou inválido → `''`. */
+export function parseDateInput(date: string): string {
+  return joinDateTimeParts(date, '00:00').slice(0, 10)
+}
+
+export function formatDateInput(day: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : ''
+}
+
+/**
+ * Dias inteiros no fuso da empresa → limites meio abertos em instantes: `from` = 00:00 do primeiro
+ * dia; `to` = 00:00 do dia SEGUINTE ao último (o último dia entra inteiro).
+ */
+export function dayRangeToInstants(
+  range: { readonly from: string; readonly to: string },
+  timeZone?: string,
+): { from?: string; to?: string } {
+  const result: { from?: string; to?: string } = {}
+  const from = range.from ? fromDateTimeLocalValue(`${range.from}T00:00`, timeZone) : null
+  if (from) result.from = from
+  if (range.to) {
+    const [year, month, day] = range.to.split('-').map(Number) as [number, number, number]
+    const next = new Date(Date.UTC(year, month - 1, day + 1))
+    const nextDay = next.toISOString().slice(0, 10)
+    const to = fromDateTimeLocalValue(`${nextDay}T00:00`, timeZone)
+    if (to) result.to = to
+  }
+  return result
+}

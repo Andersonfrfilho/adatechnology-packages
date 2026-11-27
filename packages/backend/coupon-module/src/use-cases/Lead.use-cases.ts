@@ -8,6 +8,7 @@
 import {
   CampaignNotFoundError,
   CampaignUnavailableError,
+  CAPTURE_OUTCOME,
   canonicalEmail,
   canonicalPhone,
   CODE_MODE,
@@ -116,11 +117,13 @@ export class CaptureLeadUseCase {
     if (campaign.codeMode === CODE_MODE.FIXED && !campaign.fixedCode) throw new CampaignUnavailableError()
 
     const captured = await persistence.transaction((stores) => this.capture(stores, campaign, contact))
-    await this.afterCapture({ campaign, contact, captured })
+    const { codeResent } = await this.afterCapture({ campaign, contact, captured })
     const isPublicCode = campaign.codeMode === CODE_MODE.FIXED
     return {
       leadId: captured.lead.id,
+      outcome: captured.isNew ? CAPTURE_OUTCOME.CREATED : CAPTURE_OUTCOME.ALREADY_REGISTERED,
       isNew: captured.isNew,
+      codeResent,
       couponCode: captured.isNew || isPublicCode ? captured.lead.couponCode : null,
       discount: toPublicCampaign(campaign).discount,
       endsAt: campaign.endsAt ? campaign.endsAt.toISOString() : null,
@@ -189,7 +192,7 @@ export class CaptureLeadUseCase {
     campaign: CampaignRow
     contact: LeadContact
     captured: Captured
-  }): Promise<void> {
+  }): Promise<{ codeResent: boolean }> {
     const { campaign, contact, captured } = params
     const { customerIdentity, leadNotifier, hooks, logger, persistence } = this.dependencies
     const meta = { campaignId: campaign.id, leadId: captured.lead.id }
@@ -212,29 +215,33 @@ export class CaptureLeadUseCase {
     // Repetição só reenvia se o contato informado é exatamente o guardado; e o envio vai sempre para o
     // contato GUARDADO. Telefone de um com e-mail de outro não desvia o código de ninguém.
     const isResendAllowed = captured.isNew || isSameContact(lead, contact)
+    let codeResent = false
     if (leadNotifier && code && isResendAllowed) {
       const storedContact: LeadContact = { name: lead.name, phone: lead.phone, email: lead.email }
       await runHook({
         name: 'leadNotifier.sendCoupon',
         logger,
         meta,
-        run: () =>
-          leadNotifier.sendCoupon({
+        run: async () => {
+          await leadNotifier.sendCoupon({
             companyId: campaign.companyId,
             leadId: lead.id,
             contact: storedContact,
             campaign: toPublicCampaign(campaign),
             code,
             isResend: !captured.isNew,
-          }),
+          })
+          codeResent = true
+        },
       })
     }
     const hook = hooks?.onLeadCaptured
     if (captured.isNew && hook) {
-      const event = { lead: toLead(lead), campaign: toCampaign(campaign) }
+      const event = { lead: toLead(lead), campaign: toCampaign(campaign), leadTag: campaign.leadTag }
       await runHook({ name: 'onLeadCaptured', logger, meta, run: () => hook(event) })
     }
-    logger?.info('coupons: lead captado', { ...meta, isNew: captured.isNew })
+    logger?.info('coupons: lead captado', { ...meta, isNew: captured.isNew, codeResent })
+    return { codeResent }
   }
 }
 

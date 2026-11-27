@@ -133,6 +133,8 @@ export type Campaign = {
   /** Vale sem digitar código: o host pergunta `findAutomatic` no carrinho. */
   readonly isAutomatic: boolean
   readonly leadCapture: LeadCaptureSettings
+  /** Etiqueta do cliente captado por esta campanha (o host aplica no `onLeadCaptured`). */
+  readonly leadTag: string | null
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -250,10 +252,26 @@ export type Paginated<TItem> = {
   readonly pagination: Pagination
 }
 
+/**
+ * Resultado explícito da captação, para o site nunca mostrar um código vazio:
+ * - `created`: cadastro novo, `couponCode` preenchido;
+ * - `already-registered`: a pessoa já estava; `couponCode` só no modo fixo (é público). Nos outros
+ *   modos volta `null`, e `codeResent` diz se o código foi reenviado ao contato guardado (só quando o
+ *   contato informado é exatamente o guardado).
+ */
+export const CAPTURE_OUTCOME = {
+  CREATED: 'created',
+  ALREADY_REGISTERED: 'already-registered',
+} as const
+export type CaptureOutcome = (typeof CAPTURE_OUTCOME)[keyof typeof CAPTURE_OUTCOME]
+
 export type CaptureLeadResult = {
   readonly leadId: string
-  /** `false`: a pessoa já estava cadastrada; nada novo foi gravado. */
+  readonly outcome: CaptureOutcome
+  /** `false`: a pessoa já estava cadastrada; nada novo foi gravado. Mesmo que `outcome`. */
   readonly isNew: boolean
+  /** `true` quando o código foi (re)enviado pelo `leadNotifier` agora. */
+  readonly codeResent: boolean
   /**
    * O código, quando pode ir para a tela: sempre no modo `fixed` (é público) e no primeiro cadastro
    * dos outros modos. Cadastro repetido de código pessoal volta sem ele — só o dono recebe de novo,
@@ -262,4 +280,10 @@ export type CaptureLeadResult = {
   readonly couponCode: string | null
   readonly discount: CampaignDiscount
   readonly endsAt: string | null
+}
+
+/** Cotação: o desconto calculado sobre o pedido, sem resgatar. */
+export type CouponQuote = CouponValidation & {
+  /** Subtotal menos o desconto (nunca negativo). */
+  readonly totalCents: number
 }

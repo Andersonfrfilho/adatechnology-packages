@@ -58,8 +58,10 @@ export {
   FindAutomaticUseCase,
   ListPublicCampaignsUseCase,
   GetPublicCampaignUseCase,
+  QuoteCouponUseCase,
+  SUBTOTAL_ITEM_ID,
 } from './use-cases/Validation.use-cases'
-export type { ValidateCouponParams, AutomaticDiscount } from './use-cases/Validation.use-cases'
+export type { ValidateCouponParams, AutomaticDiscount, QuoteCouponParams } from './use-cases/Validation.use-cases'
 export { RedeemCouponUseCase, ReleaseRedemptionUseCase, ListRedemptionsUseCase } from './use-cases/Redemption.use-cases'
 export type { RedeemCouponParams, RedeemCouponResult } from './use-cases/Redemption.use-cases'
 export { AnonymiseLeadUseCase, CaptureLeadUseCase, ListLeadsUseCase } from './use-cases/Lead.use-cases'

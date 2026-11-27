@@ -48,6 +48,7 @@ export type CampaignDraft = {
   readonly leadCaptureEnabled: boolean
   readonly leadFields: LeadCaptureFields
   readonly consentText: string
+  readonly leadTag: string
 }
 
 export const EMPTY_CAMPAIGN_DRAFT: CampaignDraft = {
@@ -75,6 +76,7 @@ export const EMPTY_CAMPAIGN_DRAFT: CampaignDraft = {
   leadCaptureEnabled: false,
   leadFields: { name: 'optional', phone: 'required', email: 'required' },
   consentText: '',
+  leadTag: '',
 }
 
 const limitText = (value: number | null) => (value === null ? '' : String(value))
@@ -114,6 +116,7 @@ export function draftFromCampaign(campaign: Campaign, timeZone?: string): Campai
     leadCaptureEnabled: campaign.leadCapture.enabled,
     leadFields: campaign.leadCapture.fields,
     consentText: campaign.leadCapture.consentText,
+    leadTag: campaign.leadTag ?? '',
   }
 }
 
@@ -162,6 +165,7 @@ export function draftToInput(draft: CampaignDraft, timeZone?: string): CreateCam
     scope: scopeOf(draft),
     isAutomatic: draft.isAutomatic,
     leadCapture: { enabled: draft.leadCaptureEnabled, fields: draft.leadFields, consentText: draft.consentText },
+    leadTag: draft.leadTag.trim() || null,
   }
 }
 

@@ -1064,6 +1064,9 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Relatório (usos, liberações, desconto total, vendido, leads, códigos), listas paginadas de contatos, usos e códigos, exportação CSV/XLSX de todos os resultados do filtro com gancho de auditoria `onExported`
   - Rotas por `createCouponRoutes`: painel (`coupons:admin`), serviço para o backend do host (`coupons:service`) e públicas (banner, prévia, captação) que só sobem com `companyResolver` **e** `rateLimiter`; sem IP recusam; prévia pública responde recusa genérica; banner com `Vary: Host`
   - LGPD: `anonymiseLead` e `DELETE /campaigns/:id/leads/:leadId`; teto diário de contatos por campanha
+  - `quoteCoupon` (`POST /coupons/quote`): desconto e total sem resgatar, por itens ou só subtotal — reserva como pedido (resgata na criação, libera ao recusar)
+  - Contatos por período (`from`/`to`), `leadTag` da campanha no `onLeadCaptured`, automática que também capta, `outcome`/`codeResent` explícitos na captação, `leadReadScopes` só de leitura
+  - Bun SQL e postgres.js (integração nos dois)
   - Nenhum dado pessoal nem código em log; `createInMemoryCouponPersistence` para teste do host
 - **Entradas:** `createCouponModule` em `src/CouponModule.ts`; `createCouponRoutes`; `runCouponMigrations`; `couponOpenApiPaths` em `./openapi`
 - **Precisa de:** PostgreSQL (Drizzle). Peers: `drizzle-orm`.
@@ -1078,6 +1081,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Editor validado com os schemas do servidor; aviso "Confira: …" com atalho para cada campo; máscara de moeda e inteiros
   - Site: `CouponField` (desconto e todos os motivos), `LeadCaptureDialog` (só os campos pedidos, aceite, código com copiar), `CampaignBanner`
   - Headless: `useCampaignList`, `useCampaignEditor`, `useRecordList`, `useCouponPreview`, `useLeadCapture`
+  - `CampaignsWorkspace readOnly` (recepção), filtro de período nos contatos com slot `renderDateRangeInput`, campo de etiqueta do cliente
   - Controles próprios sem nativo (grupo de botões, `listbox`, data/hora com máscara e fuso da empresa em `timeZone`, diálogo de confirmação)
   - Rótulos por `messages` (pt-BR padrão, `en`), slots opcionais `renderSelect`/`renderDateTimeInput` para os componentes do design system do host, tema por variáveis `--acp-*`
 - **Entradas:** `src/index.ts`

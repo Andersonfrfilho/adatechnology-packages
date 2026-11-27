@@ -11,6 +11,7 @@ import { readErrorCode, readFieldIssues, readRejections } from './apiError'
 import { draftFromCampaign, draftToInput, EMPTY_CAMPAIGN_DRAFT, validateDraft } from './campaignDraft'
 import { buildCampaignTable } from './campaignSpreadsheet'
 import {
+  dayRangeToInstants,
   formatCentsInput,
   formatPhone,
   fromDateTimeLocalValue,
@@ -46,6 +47,7 @@ const CAMPAIGN: Campaign = {
   scope: { kind: 'tags', tags: ['verao', 'praia'] },
   isAutomatic: false,
   leadCapture: { enabled: true, fields: { name: 'optional', phone: 'required', email: 'off' }, consentText: 'Aceito.' },
+  leadTag: null,
   createdAt: '2026-11-01T00:00:00.000Z',
   updatedAt: '2026-11-01T00:00:00.000Z',
 }
@@ -197,5 +199,23 @@ describe('fuso da empresa', () => {
     const draft = draftFromCampaign(CAMPAIGN, 'America/Sao_Paulo')
     expect(draft.endsAt).toBe('2026-12-31T20:59')
     expect(draftToInput(draft, 'America/Sao_Paulo').endsAt).toBe('2026-12-31T23:59:00.000Z')
+  })
+})
+
+describe('período em dias inteiros', () => {
+  it('meio aberto no fuso da empresa: o último dia entra inteiro', () => {
+    expect(dayRangeToInstants({ from: '2026-11-01', to: '2026-11-30' }, 'America/Sao_Paulo')).toEqual({
+      from: '2026-11-01T03:00:00.000Z',
+      to: '2026-12-01T03:00:00.000Z',
+    })
+    expect(dayRangeToInstants({ from: '', to: '2026-12-31' }, 'America/Sao_Paulo')).toEqual({
+      to: '2027-01-01T03:00:00.000Z',
+    })
+    expect(dayRangeToInstants({ from: '', to: '' })).toEqual({})
+  })
+
+  it('rascunho leva a etiqueta (vazio vira null)', () => {
+    expect(draftToInput({ ...EMPTY_CAMPAIGN_DRAFT, leadTag: '  ' }).leadTag).toBeNull()
+    expect(draftToInput(draftFromCampaign({ ...CAMPAIGN, leadTag: 'vip' })).leadTag).toBe('vip')
   })
 })
