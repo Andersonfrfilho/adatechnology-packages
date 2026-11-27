@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/payment-module",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "license": "MIT",
   "description": "Stateful payments and subscriptions — schema, migrations, idempotent webhooks, entitlements and a declarative route table, behind pluggable payment providers",
   "publishConfig": {

@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/login-lockout",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Progressive login lockout: escalating lock time, HMAC-hashed identifiers (known or unknown), atomic Postgres store",
   "type": "module",
   "main": "dist/index.js",
