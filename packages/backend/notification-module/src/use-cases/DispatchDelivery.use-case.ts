@@ -21,6 +21,7 @@ import type { DeliveryAttachmentAudit } from '../schema/schema'
 import { applyDeliveryOutcome } from './applyDeliveryOutcome'
 import { resolveEmailAttachments } from './resolveEmailAttachments'
 import type { DispatchDeliveryConfig, DispatchDeliveryDependencies } from './dispatchDelivery.types'
+import { buildPushData } from './pushData'
 
 function permanentOutcome(errorCode: string): DeliveryAttemptResult {
   return { outcome: 'permanent', errorCode }
@@ -102,7 +103,7 @@ export class DispatchDeliveryUseCase {
       rendered,
       recipient,
       template,
-      notification: { templateKey: notification.templateKey, payload: notification.payload },
+      notification: { id: notification.id, templateKey: notification.templateKey, payload: notification.payload },
       address,
     })
 
@@ -124,7 +125,7 @@ export class DispatchDeliveryUseCase {
     recipient: { email?: string; phone?: string }
     template: { whatsappTemplateName?: string | null }
     /** Chave e payload da notificação: é o par que descobre quais valores são anexo. */
-    notification: { templateKey: string; payload: Readonly<Record<string, unknown>> }
+    notification: { id: string; templateKey: string; payload: Readonly<Record<string, unknown>> }
     address?: string
   }): Promise<{
     outcome: DeliveryAttemptResult
@@ -145,6 +146,7 @@ export class DispatchDeliveryUseCase {
         platform: device.platform as SendPushParams['platform'],
         title: rendered.title,
         body: rendered.body,
+        data: buildPushData({ notificationId: notification.id, payload: notification.payload }),
       }
       return { outcome: await this.dependencies.channels.push.send(sendPushParams) }
     }
