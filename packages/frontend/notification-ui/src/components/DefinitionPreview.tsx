@@ -204,7 +204,8 @@ function InboxDefinitionPreview(props: DefinitionPreviewProps) {
 
 export function DefinitionPreview(props: DefinitionPreviewProps) {
   const { channel } = props.item
-  if (channel === 'email') return <EmailDefinitionPreview {...props} />
-  if ((PHONE_CHANNELS as readonly string[]).includes(channel)) return <PhoneDefinitionPreview {...props} />
-  return <InboxDefinitionPreview {...props} />
+  const isPhoneChannel = (PHONE_CHANNELS as readonly string[]).includes(channel)
+  const Preview =
+    channel === 'email' ? EmailDefinitionPreview : isPhoneChannel ? PhoneDefinitionPreview : InboxDefinitionPreview
+  return <Preview {...props} />
 }
