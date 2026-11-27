@@ -22,6 +22,7 @@ export type ProductsFilterBarProps = {
   readonly sections: readonly Section[]
   readonly showSection: boolean
   readonly renderMultiSelect: NonNullable<ProductsListingOptions['renderMultiSelect']>
+  readonly renderSearch?: ProductsListingOptions['renderSearch']
   readonly onChange: (patch: Partial<ProductsListQuery>) => void
   readonly onReplace: (query: ProductsListQuery) => void
   readonly actions: ReactNode
@@ -31,7 +32,7 @@ const BUTTON_CLASS =
   'inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
 
 export function ProductsFilterBar(props: ProductsFilterBarProps) {
-  const { labels, query, total, catalogs, sections, showSection, renderMultiSelect, onChange, onReplace, actions } =
+  const { labels, query, total, catalogs, sections, showSection, renderMultiSelect, renderSearch, onChange, onReplace, actions } =
     props
   const baseId = useId()
 
@@ -54,19 +55,28 @@ export function ProductsFilterBar(props: ProductsFilterBarProps) {
 
   return (
     <div role="search" className="flex flex-wrap items-end gap-2">
-      <div className="relative min-w-48 max-w-md flex-[2_1_16rem]">
-        <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input
-          type="search"
-          value={query.search}
-          onChange={(event) => onChange({ search: event.target.value })}
-          placeholder={labels.search}
-          aria-label={labels.search}
-          autoComplete="off"
-          className="min-h-11 w-full rounded-lg border border-gray-300 py-2 !pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-        />
-      </div>
-
+      {renderSearch ? (
+        renderSearch({
+          id: `${baseId}-search`,
+          label: labels.searchLabel,
+          placeholder: labels.search,
+          value: query.search,
+          onChange: (search) => onChange({ search }),
+        })
+      ) : (
+        <div className="relative min-w-48 max-w-md flex-[2_1_16rem]">
+          <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            value={query.search}
+            onChange={(event) => onChange({ search: event.target.value })}
+            placeholder={labels.search}
+            aria-label={labels.search}
+            autoComplete="off"
+            className="min-h-11 w-full rounded-lg border border-gray-300 py-2 !pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+      )}
       {renderMultiSelect({
         id: `${baseId}-catalog`,
         label: labels.catalog,
