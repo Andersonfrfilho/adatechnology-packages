@@ -1,7 +1,7 @@
 ---
-'@adatechnology/coupon-contracts': patch
-'@adatechnology/coupon-module': patch
-'@adatechnology/coupons-ui': patch
+'@adatechnology/coupon-contracts': minor
+'@adatechnology/coupon-module': minor
+'@adatechnology/coupons-ui': minor
 ---
 
 Cupons com postgres.js: as condições de data usam os comparadores de coluna do Drizzle (o `Date` cru em `sql` quebrava com `ERR_INVALID_ARG_TYPE`); integração roda com Bun SQL e postgres.js.
