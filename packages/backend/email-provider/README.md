@@ -23,6 +23,13 @@ const email = createEmailProvider({ driver: 'smtp', host, port, auth })
 
 Diretos: `createSmtpEmailProvider`, `createResendEmailProvider`, `createSesEmailProvider`.
 
+## Etiquetas e cabeçalhos
+
+`send({ ..., tags: { env: 'staging', template: 'reserva' }, headers: { 'X-Environment': 'staging' } })`.
+Resend: `tags` viram tags do provedor (valor saneado para letras, números, `_` e `-`) e `headers` vão como estão.
+SMTP: `tags` viram `X-Tag-<nome>` e `headers` vão como estão. SES ainda ignora ambos. O `notification-module` já manda
+`tags.template` com a chave do modelo.
+
 ## Recibos são metade do pacote
 
 Enviar é a parte fácil. O que faz e-mail funcionar a longo prazo é **processar o retorno**: cada

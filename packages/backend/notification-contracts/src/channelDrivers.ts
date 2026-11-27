@@ -54,6 +54,13 @@ export type SendEmailParams = {
   readonly attachments?: readonly EmailAttachment[]
   /** Correlaciona o recibo assíncrono (bounce/complaint) com a `delivery` que o originou. */
   readonly idempotencyKey?: string
+  /**
+   * Etiquetas de rastreio do provedor (Resend `tags`; SMTP: cabeçalho `X-Tag-<nome>`). Valores livres: o driver troca o
+   * que o provedor não aceita por `_`. O módulo preenche `template`; o host pode somar `env` e o que mais precisar.
+   */
+  readonly tags?: Readonly<Record<string, string>>
+  /** Cabeçalhos extras da mensagem (ex.: `X-Environment`). Provedor sem suporte a cabeçalho ignora. */
+  readonly headers?: Readonly<Record<string, string>>
 }
 
 export type SendWhatsAppTemplateParams = {

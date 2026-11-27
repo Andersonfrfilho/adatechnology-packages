@@ -69,3 +69,44 @@ describe('createResendEmailProvider', () => {
     await expect(provider.send(params)).rejects.toThrow()
   })
 })
+
+describe('createResendEmailProvider — tags e cabeçalhos', () => {
+  it('repassa tags (valor saneado para o que a Resend aceita) e cabeçalhos', async () => {
+    let received: Parameters<ResendClientLike['emails']['send']>[0] | undefined
+    const provider = createResendEmailProvider({
+      from: 'contato@ada.tech',
+      client: fakeResend(async (message) => {
+        received = message
+        return { data: { id: 'email_1' }, error: null }
+      }),
+    })
+
+    await provider.send({
+      ...params,
+      tags: { env: 'staging', template: 'guest.reservation_confirmed' },
+      headers: { 'X-Environment': 'staging' },
+    })
+
+    expect(received?.tags).toEqual([
+      { name: 'env', value: 'staging' },
+      { name: 'template', value: 'guest_reservation_confirmed' },
+    ])
+    expect(received?.headers).toEqual({ 'X-Environment': 'staging' })
+  })
+
+  it('sem tags nem cabeçalhos não envia os campos', async () => {
+    let received: Parameters<ResendClientLike['emails']['send']>[0] | undefined
+    const provider = createResendEmailProvider({
+      from: 'contato@ada.tech',
+      client: fakeResend(async (message) => {
+        received = message
+        return { data: { id: 'email_1' }, error: null }
+      }),
+    })
+
+    await provider.send(params)
+
+    expect(received && 'tags' in received).toBe(false)
+    expect(received && 'headers' in received).toBe(false)
+  })
+})

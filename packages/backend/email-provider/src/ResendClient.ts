@@ -27,6 +27,8 @@ export type ResendEmailsClient = {
     readonly html: string
     readonly text: string
     readonly replyTo?: string
+    readonly tags?: { name: string; value: string }[]
+    readonly headers?: Record<string, string>
     /**
      * O Resend recebe o arquivo no proprio JSON, em base64 — nao ha upload separado nem URL. Por
      * isso o driver baixa antes: o que ele envia e conteudo, nao referencia.
