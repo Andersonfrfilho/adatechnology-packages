@@ -147,5 +147,15 @@
   "definitions.restored": "Default restored.",
   "definitions.actionError": "Couldn't complete that. Try again.",
   "definitions.version": "version",
-  "definitions.notSaved": "not saved yet"
+  "definitions.notSaved": "not saved yet",
+  "definitions.deviceLabel": "Screen size",
+  "definitions.device.desktop": "Computer",
+  "definitions.device.tablet": "Tablet",
+  "definitions.device.mobile": "Phone",
+  "definitions.previewError": "Couldn't build the preview.",
+  "definitions.channel.email": "E-mail",
+  "definitions.channel.whatsapp": "WhatsApp",
+  "definitions.channel.sms": "SMS",
+  "definitions.channel.push": "Browser alert",
+  "definitions.channel.inbox": "Inbox"
 }

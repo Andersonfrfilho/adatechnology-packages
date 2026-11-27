@@ -29,6 +29,12 @@ export type TemplatePreviewProps = {
    * o pacote não conhece logo, cartão de usuário nem rodapé. Ausente, o corpo aparece como texto.
    */
   readonly emailHtml?: string
+  /**
+   * Endereço de um documento de e-mail já renderizado pelo produto, servido com política de
+   * conteúdo própria. Prevalece sobre `emailHtml`: um `srcDoc` herda a CSP do painel, e uma CSP
+   * sem `unsafe-inline` descarta todo `style=""` do e-mail — a prévia sairia sem estilo.
+   */
+  readonly emailSrc?: string
   /** Nome do produto, para o cabeçalho do e-mail e o do push. O pacote não sabe de quem é a marca. */
   readonly senderName?: string
   /**
@@ -185,12 +191,14 @@ const ICON = {
 function EmailDesktop({
   rendered,
   emailHtml,
+  emailSrc,
   senderName,
   labels,
   attachment,
 }: {
   rendered: RenderedTemplatePreview
   emailHtml: string | undefined
+  emailSrc: string | undefined
   senderName: string
   labels: PreviewLabels
   attachment: PreviewAttachment | undefined
@@ -280,7 +288,7 @@ function EmailDesktop({
                 </span>
               </div>
 
-              <MailBody html={emailHtml} text={rendered.body} />
+              <MailBody html={emailHtml} src={emailSrc} text={rendered.body} />
               {attachment ? <AttachmentCard attachment={attachment} block="adn-preview-attachment--mail" /> : null}
             </div>
           </div>
@@ -301,6 +309,7 @@ function EmailDesktop({
 function EmailMobile({
   rendered,
   emailHtml,
+  emailSrc,
   senderName,
   os,
   labels,
@@ -308,6 +317,7 @@ function EmailMobile({
 }: {
   rendered: RenderedTemplatePreview
   emailHtml: string | undefined
+  emailSrc: string | undefined
   senderName: string
   os: string
   labels: PreviewLabels
@@ -349,7 +359,7 @@ function EmailMobile({
             </span>
           </div>
 
-          <MailBody html={emailHtml} text={rendered.body} />
+          <MailBody html={emailHtml} src={emailSrc} text={rendered.body} />
           {attachment ? <AttachmentCard attachment={attachment} block="adn-preview-attachment--mail" /> : null}
 
           <div className="adn-preview-mail__reply">
@@ -508,7 +518,17 @@ function AttachmentCard({ attachment, block }: { attachment: PreviewAttachment; 
  * Altura fixa com rolagem interna: `sandbox=""` impede ler `contentDocument`, então medir o
  * conteúdo não é possível — e um iframe que se auto-mede exigiria devolver a mesma-origem.
  */
-function MailBody({ html, text }: { html: string | undefined; text: string }) {
+function MailBody({ html, src, text }: { html: string | undefined; src?: string | undefined; text: string }) {
+  if (src) {
+    return (
+      <iframe
+        className="adn-preview-mail__body adn-preview-mail__frame"
+        sandbox=""
+        src={src}
+        title={text.slice(0, 60)}
+      />
+    )
+  }
   if (!html) return <div className="adn-preview-mail__body">{text}</div>
 
   return (
@@ -526,6 +546,7 @@ export function TemplatePreview({
   viewport,
   rendered,
   emailHtml,
+  emailSrc,
   senderName,
   attachment,
   labels,
@@ -548,6 +569,7 @@ export function TemplatePreview({
     <EmailDesktop
       rendered={rendered}
       emailHtml={emailHtml}
+      emailSrc={emailSrc}
       senderName={sender}
       labels={labels}
       attachment={attachment}
@@ -556,6 +578,7 @@ export function TemplatePreview({
     <EmailMobile
       rendered={rendered}
       emailHtml={emailHtml}
+      emailSrc={emailSrc}
       senderName={sender}
       os={viewport}
       labels={labels}

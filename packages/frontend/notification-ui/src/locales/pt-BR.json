@@ -147,5 +147,15 @@
   "definitions.restored": "Padrão restaurado.",
   "definitions.actionError": "Não foi possível concluir. Tente de novo.",
   "definitions.version": "versão",
-  "definitions.notSaved": "ainda não gravada"
+  "definitions.notSaved": "ainda não gravada",
+  "definitions.deviceLabel": "Tamanho da tela",
+  "definitions.device.desktop": "Computador",
+  "definitions.device.tablet": "Tablet",
+  "definitions.device.mobile": "Celular",
+  "definitions.previewError": "Não foi possível montar a pré-visualização.",
+  "definitions.channel.email": "E-mail",
+  "definitions.channel.whatsapp": "WhatsApp",
+  "definitions.channel.sms": "SMS",
+  "definitions.channel.push": "Aviso no navegador",
+  "definitions.channel.inbox": "Caixa de avisos"
 }

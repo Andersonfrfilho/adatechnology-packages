@@ -1,0 +1,5 @@
+---
+"@adatechnology/notification-ui": minor
+---
+
+`TemplateDefinitionsEditor`: a pré-visualização agora desenha a mensagem de verdade. O e-mail aparece renderizado (`<iframe sandbox>` dentro da moldura do cliente de e-mail, antes o HTML saía como texto) e os canais de aparelho (WhatsApp, push, SMS) dentro do aparelho, com o cartão do sino para a caixa de avisos, com seletor de tamanho acessível (Computador / Tablet / Celular no e-mail; iPhone / Android no WhatsApp) e quadro que encolhe para caber no painel. Novas props opcionais: `loadEmailPreview` (o produto renderiza o e-mail com o mesmo renderer do envio, com as variáveis de HTML do sistema, e pode devolver `url` de um documento com CSP própria: `TemplatePreview` ganha `emailSrc`), `systemHtmlVariables` (preview local sem escape para essas variáveis), `senderName` e `renderList` (slot para o host trocar a lista lateral por uma tabela própria). O canal passa a ser rotulado ("E-mail", "WhatsApp") em vez do identificador cru. Exporta `PreviewDeviceSwitch`.

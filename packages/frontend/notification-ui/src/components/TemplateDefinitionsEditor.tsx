@@ -6,9 +6,8 @@
  * (versão nova) e restaurar o padrão. Nada de HTML bruto: o preview entra como nós React.
  */
 
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { parseWhatsAppFormatting } from '@adatechnology/conversations-ui'
 import type {
   NotificationChannel,
   NotificationTemplate,
@@ -21,10 +20,10 @@ import {
   groupTemplateEditorItems,
   insertVariable,
   isDraftDirty,
-  renderDefinitionPreview,
   resolveEditorBody,
   templateEditorItemId,
 } from '../templateDefinitions.util'
+import { DefinitionPreview, type DefinitionPreviewProps } from './DefinitionPreview'
 
 export type TemplateDefinitionsEditorProps = {
   readonly className?: string
@@ -32,7 +31,26 @@ export type TemplateDefinitionsEditorProps = {
   readonly channels?: readonly NotificationChannel[]
   readonly onSaved?: (template: NotificationTemplate) => void
   readonly onRestored?: (template: NotificationTemplate) => void
+  /**
+   * Substitui a lista lateral (ex.: uma tabela do host, com busca, zebra e paginação). O pacote só
+   * cuida do editor; escolher a mensagem é `onSelect`.
+   */
+  readonly renderList?: (params: DefinitionListParams) => ReactNode
+} & Pick<DefinitionPreviewProps, 'senderName' | 'systemHtmlVariables' | 'loadEmailPreview'>
+
+export type DefinitionListParams = {
+  readonly items: readonly TemplateEditorItem[]
+  readonly selectedId: string | undefined
+  readonly onSelect: (item: TemplateEditorItem) => void
 }
+
+const CHANNEL_LABEL_KEYS = {
+  email: 'definitions.channel.email',
+  whatsapp: 'definitions.channel.whatsapp',
+  sms: 'definitions.channel.sms',
+  push: 'definitions.channel.push',
+  inbox: 'definitions.channel.inbox',
+} as const
 
 type Feedback = 'saved' | 'restored' | 'error' | undefined
 
@@ -41,6 +59,10 @@ export function TemplateDefinitionsEditor({
   channels,
   onSaved,
   onRestored,
+  renderList,
+  senderName,
+  systemHtmlVariables,
+  loadEmailPreview,
 }: TemplateDefinitionsEditorProps) {
   const { messages, theme } = useNotificationContext()
   const definitions = useTemplateDefinitions()
@@ -144,6 +166,11 @@ export function TemplateDefinitionsEditor({
 
   return (
     <section className={rootClassName} aria-label={messages['definitions.title']}>
+      {renderList ? (
+        <div className="adn-definitions__list adn-definitions__list--custom">
+          {renderList({ items, selectedId, onSelect: handleSelect })}
+        </div>
+      ) : (
       <nav className="adn-definitions__list" aria-label={messages['definitions.listLabel']}>
         <h2 className="adn-definitions__title">{messages['definitions.title']}</h2>
         {groupTemplateEditorItems(items).map((group) => (
@@ -172,6 +199,7 @@ export function TemplateDefinitionsEditor({
           </div>
         ))}
       </nav>
+      )}
 
       {selected ? (
         <DefinitionForm
@@ -181,6 +209,7 @@ export function TemplateDefinitionsEditor({
           isSaving={upsert.isPending}
           isRestoring={restore.isPending}
           feedback={feedback}
+          preview={{ ...(senderName ? { senderName } : {}), ...(systemHtmlVariables ? { systemHtmlVariables } : {}), ...(loadEmailPreview ? { loadEmailPreview } : {}) }}
           textareaRef={textareaRef}
           onChange={(body) => handleChange(templateEditorItemId(selected), body)}
           onInsertVariable={(name) => handleInsertVariable(selected, name)}
@@ -201,6 +230,7 @@ type DefinitionFormProps = {
   readonly isSaving: boolean
   readonly isRestoring: boolean
   readonly feedback: Feedback
+  readonly preview: Pick<DefinitionPreviewProps, 'senderName' | 'systemHtmlVariables' | 'loadEmailPreview'>
   readonly textareaRef: React.RefObject<HTMLTextAreaElement | null>
   readonly onChange: (body: string) => void
   readonly onInsertVariable: (name: string) => void
@@ -212,7 +242,6 @@ function DefinitionForm(props: DefinitionFormProps) {
   const { item, draftBody, isBusy, isSaving, isRestoring, feedback, textareaRef } = props
   const { messages } = useNotificationContext()
   const body = resolveEditorBody(item, draftBody)
-  const rendered = renderDefinitionPreview(item, body)
   const fieldId = `adn-definition-body-${templateEditorItemId(item)}`
   const canRestore = item.current !== undefined && (item.isCustomized || isDraftDirty(item, draftBody))
   const feedbackMessage = {
@@ -230,7 +259,7 @@ function DefinitionForm(props: DefinitionFormProps) {
         </h3>
         {item.description ? <p className="adn-definitions__description">{item.description}</p> : null}
         <p className="adn-definitions__meta">
-          {item.channel} · {item.locale} ·{' '}
+          {CHANNEL_LABEL_KEYS[item.channel] ? messages[CHANNEL_LABEL_KEYS[item.channel]] : item.channel} · {item.locale} ·{' '}
           {item.current
             ? `${messages['definitions.version']} ${item.current.version}`
             : messages['definitions.notSaved']}
@@ -275,9 +304,7 @@ function DefinitionForm(props: DefinitionFormProps) {
 
       <div>
         <p className="adn-definitions__field-label">{messages['definitions.preview']}</p>
-        <div className="adn-definitions__preview" data-channel={item.channel}>
-          {item.channel === 'whatsapp' ? parseWhatsAppFormatting(rendered.body) : rendered.body}
-        </div>
+        <DefinitionPreview item={item} body={body} {...props.preview} />
       </div>
 
       <div className="adn-definitions__actions">
