@@ -19,6 +19,9 @@ export const COVER_MIME_TYPES: readonly string[] = ['image/jpeg', 'image/png', '
 export type EditorFeedback =
   'saved' | 'saveError' | 'coverTooLarge' | 'coverInvalidType' | 'coverUploadError' | 'errorSchedule'
 
+export type UploadImageResult =
+  { readonly url: string } | { readonly error: 'coverTooLarge' | 'coverInvalidType' | 'coverUploadError' }
+
 export function usePostEditor(params: {
   readonly postId?: string
   readonly defaults?: Partial<PostDraft>
@@ -137,19 +140,26 @@ export function usePostEditor(params: {
     }
   }
 
-  async function uploadCover(file: File): Promise<void> {
-    if (!api.uploadCoverImage) return
-    if (!COVER_MIME_TYPES.includes(file.type)) return setFeedback('coverInvalidType')
-    if (file.size > COVER_MAX_BYTES) return setFeedback('coverTooLarge')
+  /** Envia uma imagem pela API do host e devolve a URL — serve à capa e às imagens do corpo. */
+  async function uploadImage(file: File): Promise<UploadImageResult> {
+    if (!api.uploadCoverImage) return { error: 'coverUploadError' }
+    if (!COVER_MIME_TYPES.includes(file.type)) return { error: 'coverInvalidType' }
+    if (file.size > COVER_MAX_BYTES) return { error: 'coverTooLarge' }
     setIsUploading(true)
     try {
       const { url } = await api.uploadCoverImage(file)
-      update('coverImageUrl', url)
+      return { url }
     } catch {
-      setFeedback('coverUploadError')
+      return { error: 'coverUploadError' }
     } finally {
       setIsUploading(false)
     }
+  }
+
+  async function uploadCover(file: File): Promise<void> {
+    const result = await uploadImage(file)
+    if ('error' in result) return setFeedback(result.error)
+    update('coverImageUrl', result.url)
   }
 
   return {
@@ -172,6 +182,7 @@ export function usePostEditor(params: {
     unpublish,
     archive,
     uploadCover,
+    uploadImage,
   }
 }
 

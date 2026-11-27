@@ -18,6 +18,21 @@ function isPublic(row: PostRow, now: Date): boolean {
   return live && row.publishedAt !== null && row.publishedAt <= now
 }
 
+function adminComparator(query: PostAdminListQuery) {
+  const sign = query.order === 'asc' ? 1 : -1
+  const value = (row: PostRow): number | string => {
+    if (query.sort === 'title') return row.title.toLowerCase()
+    if (query.sort === 'status') return row.status
+    if (query.sort === 'publishedAt') return row.publishedAt?.getTime() ?? sign * Number.POSITIVE_INFINITY
+    return row.updatedAt.getTime()
+  }
+  return (left: PostRow, right: PostRow): number => {
+    const a = value(left)
+    const b = value(right)
+    return (a < b ? -1 : a > b ? 1 : 0) * sign || left.id.localeCompare(right.id)
+  }
+}
+
 function paginate(rows: PostRow[], page: number, pageSize: number): PostPage {
   return { rows: rows.slice((page - 1) * pageSize, page * pageSize).map((row) => ({ ...row })), total: rows.length }
 }
@@ -28,6 +43,7 @@ class UniqueViolation extends Error {
 
 export function createInMemoryPostStore(seed: PostRow[] = []): PostStorePort & { readonly rows: PostRow[] } {
   const rows: PostRow[] = [...seed]
+  const formerSlugs: { companyId: string; slug: string; postId: string }[] = []
 
   const assertUniqueSlug = (companyId: string, slug: string, ownId?: string): void => {
     if (rows.some((row) => row.companyId === companyId && row.slug === slug && row.id !== ownId)) {
@@ -37,6 +53,30 @@ export function createInMemoryPostStore(seed: PostRow[] = []): PostStorePort & {
 
   return {
     rows,
+
+    async findByShortId({ companyId, shortId }) {
+      const row = rows.find((candidate) => candidate.companyId === companyId && candidate.shortId === shortId)
+      return row ? { ...row } : undefined
+    },
+
+    async findPublicByShortId({ companyId, shortId, now }) {
+      const row = rows.find(
+        (candidate) => candidate.companyId === companyId && candidate.shortId === shortId && isPublic(candidate, now),
+      )
+      return row ? { ...row } : undefined
+    },
+
+    async findPublicByFormerSlug({ companyId, slug, now }) {
+      const former = formerSlugs.find((entry) => entry.companyId === companyId && entry.slug === slug)
+      const row = rows.find((candidate) => candidate.id === former?.postId && isPublic(candidate, now))
+      return row ? { ...row } : undefined
+    },
+
+    async recordFormerSlug(params) {
+      if (!formerSlugs.some((entry) => entry.companyId === params.companyId && entry.slug === params.slug)) {
+        formerSlugs.push({ ...params })
+      }
+    },
 
     async create(values: NewPostRow): Promise<PostRow> {
       assertUniqueSlug(values.companyId, values.slug)
@@ -48,7 +88,9 @@ export function createInMemoryPostStore(seed: PostRow[] = []): PostStorePort & {
         coverImageUrl: null,
         coverImageAlt: null,
         tags: [],
+        tagLabels: {},
         status: POST_STATUS.DRAFT,
+        isTemplate: false,
         publishedAt: null,
         authorName: null,
         seoTitle: null,
@@ -92,11 +134,36 @@ export function createInMemoryPostStore(seed: PostRow[] = []): PostStorePort & {
       const search = query.search?.toLowerCase()
       const matched = rows
         .filter((row) => row.companyId === query.companyId)
+        .filter((row) => (query.isTemplate ? row.isTemplate && row.status !== POST_STATUS.ARCHIVED : !row.isTemplate))
         .filter((row) => !query.status || effectiveStatus(row, query.now) === query.status)
-        .filter((row) => !query.tag || row.tags.includes(query.tag))
+        .filter((row) => !query.tags?.length || query.tags.some((tag) => row.tags.includes(tag)))
         .filter((row) => !search || row.title.toLowerCase().includes(search) || row.slug.includes(search))
-        .sort((left, right) => right.updatedAt.getTime() - left.updatedAt.getTime())
+        .sort(adminComparator(query))
       return paginate(matched, query.page, query.pageSize)
+    },
+
+    async countByStatus({ companyId, now }) {
+      const counts = { published: 0, scheduled: 0, draft: 0, archived: 0, templates: 0 }
+      for (const row of rows) {
+        if (row.companyId !== companyId) continue
+        if (row.isTemplate) {
+          if (row.status !== POST_STATUS.ARCHIVED) counts.templates += 1
+          continue
+        }
+        counts[effectiveStatus(row, now) as keyof typeof counts] += 1
+      }
+      return counts
+    },
+
+    async claimDueScheduled({ now, limit }) {
+      const due = rows
+        .filter(
+          (row) => row.status === POST_STATUS.SCHEDULED && !row.isTemplate && row.publishedAt && row.publishedAt <= now,
+        )
+        .sort((left, right) => (left.publishedAt?.getTime() ?? 0) - (right.publishedAt?.getTime() ?? 0))
+        .slice(0, limit)
+      for (const row of due) row.status = POST_STATUS.PUBLISHED
+      return due.map((row) => ({ ...row }))
     },
 
     async listPublic(query: PostPublicListQuery) {

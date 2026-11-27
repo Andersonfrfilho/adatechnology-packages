@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import type { PublicPostSummary } from '@adatechnology/content-contracts'
+import { formatTagLabel, type PublicPostSummary } from '@adatechnology/content-contracts'
 
 import { formatPostDate } from '../lib/format'
 import { useContentText, useRenderLink } from '../providers/ContentProvider'
@@ -44,7 +44,7 @@ export function PostCard({ post, href, headingLevel = 2 }: PostCardProps) {
           <ul className="adc-tag-list">
             {post.tags.map((tag) => (
               <li key={tag} className="adc-tag">
-                {tag}
+                {formatTagLabel(tag, post.tagLabels)}
               </li>
             ))}
           </ul>

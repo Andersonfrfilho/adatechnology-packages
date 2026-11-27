@@ -87,6 +87,12 @@ escrevia o catálogo. Ao atualizar, o `authResolver` do host precisa devolver `c
 ### Formato da listagem
 
 `GET /products` e `GET /catalogs` respondem `{ data, pagination: { total, page, pageSize, totalPages } }`.
+
+`GET /products` filtra e ordena no servidor: `search`, `catalogId`, `sectionId`, `active`, `syncStatus`, mais
+`catalogIds` e `sectionIds` (lista separada por vírgula; `none` casa "sem catálogo"/"sem seção"), `priceOnRequest`,
+`sortBy` (`name`, `price`, `catalog`, `section`, `active`, `sortOrder`) e `sortDirection` (`asc`/`desc`). Preço sob
+consulta fica no fim da ordem por preço nos dois sentidos. Sem `sortBy`, a ordem é a de exibição. Cada produto traz
+`catalogName` e `sectionName`.
 Cada produto traz `catalogName` quando tem catálogo, e cada catálogo traz `productCount` (produtos
 não removidos). O `products-ui` lê esse formato direto com `createCatalogModuleProductsApi`.
 

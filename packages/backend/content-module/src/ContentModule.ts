@@ -16,7 +16,8 @@ import type {
 
 import type { ContentDatabase } from './database.types'
 import { PostRepository } from './repositories/PostRepository'
-import type { ContentDependencies, PostStorePort } from './use-cases/contentModule.types'
+import { RecurrenceRepository } from './repositories/RecurrenceRepository'
+import type { ContentDependencies, PostStorePort, RecurrenceStorePort } from './use-cases/contentModule.types'
 import { BuildFeedUseCase, ListSitemapEntriesUseCase } from './use-cases/Feed.use-cases'
 import {
   ArchivePostUseCase,
@@ -32,6 +33,14 @@ import {
   ListPublishedPostsUseCase,
   ListTagsUseCase,
 } from './use-cases/PublicPost.use-cases'
+import {
+  CreateRecurrenceUseCase,
+  ListRecurrencesUseCase,
+  RemoveRecurrenceUseCase,
+  UpdateRecurrenceUseCase,
+} from './use-cases/Recurrence.use-cases'
+import { PublishDueUseCase, RepublishPostUseCase } from './use-cases/Scheduling.use-cases'
+import { CountPostsUseCase, CreateFromTemplateUseCase, SaveAsTemplateUseCase } from './use-cases/Template.use-cases'
 import { UploadCoverImageUseCase } from './use-cases/UploadCoverImage.use-case'
 
 export type ContentModuleProviders = {
@@ -42,6 +51,7 @@ export type ContentModuleProviders = {
   readonly logger?: LoggerPort
   /** Troca a persistência (ex.: dublê em memória num teste do host). Padrão: Drizzle sobre `db`. */
   readonly postStore?: PostStorePort
+  readonly recurrenceStore?: RecurrenceStorePort
 }
 
 export type CreateContentModuleParams = {
@@ -63,6 +73,16 @@ export type ContentModule = {
     readonly getPublishedPostBySlug: GetPublishedPostBySlugUseCase
     readonly listPublishedPosts: ListPublishedPostsUseCase
     readonly listTags: ListTagsUseCase
+    readonly countPosts: CountPostsUseCase
+    readonly saveAsTemplate: SaveAsTemplateUseCase
+    readonly createFromTemplate: CreateFromTemplateUseCase
+    readonly republishPost: RepublishPostUseCase
+    readonly createRecurrence: CreateRecurrenceUseCase
+    readonly listRecurrences: ListRecurrencesUseCase
+    readonly updateRecurrence: UpdateRecurrenceUseCase
+    readonly removeRecurrence: RemoveRecurrenceUseCase
+    /** O host chama num intervalo (ver `startContentScheduler`): publica o agendado vencido e as recorrências. */
+    readonly publishDue: PublishDueUseCase
     /** Capacidade por ausência: sem `providers.imageStorage`, não existe. */
     readonly uploadCoverImage?: UploadCoverImageUseCase
     /** Sem `config.feed`, feed e sitemap não existem. */
@@ -91,9 +111,12 @@ export function createContentModule(params: CreateContentModuleParams): ContentM
 
   const posts = params.providers?.postStore ?? (params.db ? new PostRepository(params.db) : undefined)
   if (!posts) throw new ConfigMissingError('db')
+  const recurrences = params.providers?.recurrenceStore ?? (params.db ? new RecurrenceRepository(params.db) : undefined)
+  if (!recurrences) throw new ConfigMissingError('db')
 
   const dependencies: ContentDependencies = {
     posts,
+    recurrences,
     config,
     clock: params.providers?.clock ?? SYSTEM_CLOCK,
     ...(params.hooks ? { hooks: params.hooks } : {}),
@@ -113,6 +136,15 @@ export function createContentModule(params: CreateContentModuleParams): ContentM
       getPublishedPostBySlug: new GetPublishedPostBySlugUseCase(dependencies),
       listPublishedPosts: new ListPublishedPostsUseCase(dependencies),
       listTags: new ListTagsUseCase(dependencies),
+      countPosts: new CountPostsUseCase(dependencies),
+      saveAsTemplate: new SaveAsTemplateUseCase(dependencies),
+      createFromTemplate: new CreateFromTemplateUseCase(dependencies),
+      republishPost: new RepublishPostUseCase(dependencies),
+      createRecurrence: new CreateRecurrenceUseCase(dependencies),
+      listRecurrences: new ListRecurrencesUseCase(dependencies),
+      updateRecurrence: new UpdateRecurrenceUseCase(dependencies),
+      removeRecurrence: new RemoveRecurrenceUseCase(dependencies),
+      publishDue: new PublishDueUseCase(dependencies),
       ...(dependencies.imageStorage ? { uploadCoverImage: new UploadCoverImageUseCase(dependencies) } : {}),
       ...(config.feed
         ? {

@@ -65,6 +65,8 @@ export interface DocumentsWorkspaceProps {
   readonly classNames?: Partial<DocumentsWorkspaceClassNames>
   /** Espelhar filtros e paginação na URL. Desligado em preview, onde não há rota de verdade. */
   readonly syncUrl?: boolean
+  /** Seletor de data do host para o recorte por período. Padrão: `<input type="date">`. */
+  readonly renderDateInput?: RenderDateInput
   /** Ausente: sem exportação. Opt-in do host, na barra de filtros (os mesmos parâmetros do `getAllDocuments`). */
   readonly renderExport?: (context: ListExportContext) => ReactNode
 }
@@ -82,6 +84,16 @@ export interface ListExportContext {
   readonly pageCount: number
   readonly filters: Readonly<Record<string, string>>
 }
+
+export interface DateInputProps {
+  readonly label: string
+  /** `YYYY-MM-DD` ou vazio. */
+  readonly value: string
+  readonly onChange: (value: string) => void
+}
+
+/** Troca o `<input type="date">` nativo pelo seletor de data do host. */
+export type RenderDateInput = (props: DateInputProps) => ReactNode
 
 export interface DocumentsFiltersContext {
   readonly extra: Readonly<Record<string, string | number>>
@@ -101,6 +113,7 @@ export function DocumentsWorkspace({
   classNames,
   syncUrl = true,
   renderExport,
+  renderDateInput,
 }: DocumentsWorkspaceProps) {
   const labels = { ...DEFAULT_DOCUMENTS_WORKSPACE_LABELS, ...labelsOverride }
   const context = useConversations()
@@ -189,14 +202,25 @@ export function DocumentsWorkspace({
     }
     // `extraKey` no lugar de `extra`: o objeto é remontado a cada render do host e a identidade
     // sozinha dispararia a busca em loop.
-
-  }, [fetchAll, debouncedSearch, source, category, startDate, endDate, sortField, sortDirection, page, perPage, extraKey, reloadToken])
+  }, [
+    fetchAll,
+    debouncedSearch,
+    source,
+    category,
+    startDate,
+    endDate,
+    sortField,
+    sortDirection,
+    page,
+    perPage,
+    extraKey,
+    reloadToken,
+  ])
 
   // Trocar de filtro mantendo a página 7 mostra "nenhum resultado" com dados existindo na página 1.
   useEffect(() => {
     setPage(1)
     setSelectedIds(new Set())
-
   }, [debouncedSearch, source, category, startDate, endDate, perPage, extraKey])
 
   function toggleSort(field: string): void {
@@ -315,27 +339,42 @@ export function DocumentsWorkspace({
 
         {dateFilter ? (
           <>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              aria-label={labels.startDate}
-              className="rounded-md border border-gray-300 px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              aria-label={labels.endDate}
-              className="rounded-md border border-gray-300 px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
-            />
+            {renderDateInput ? (
+              <>
+                {renderDateInput({ label: labels.startDate, value: startDate, onChange: setStartDate })}
+                {renderDateInput({ label: labels.endDate, value: endDate, onChange: setEndDate })}
+              </>
+            ) : (
+              <>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  aria-label={labels.startDate}
+                  className="rounded-md border border-gray-300 px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
+                />
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  aria-label={labels.endDate}
+                  className="rounded-md border border-gray-300 px-2 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
+                />
+              </>
+            )}
           </>
         ) : null}
 
         {renderFilters?.({ extra, setExtra })}
 
         {hasFilters ? (
-          <button data-cv-tooltip={labels.clearFilters} aria-label={labels.clearFilters} type="button" onClick={clearFilters} className="cv-header-action inline-flex items-center gap-1">
+          <button
+            data-cv-tooltip={labels.clearFilters}
+            aria-label={labels.clearFilters}
+            type="button"
+            onClick={clearFilters}
+            className="cv-header-action inline-flex items-center gap-1"
+          >
             <X size={12} aria-hidden="true" />
             {labels.clearFilters}
           </button>
@@ -399,7 +438,8 @@ export function DocumentsWorkspace({
         >
           {downloadArchive ? (
             <button
-              data-cv-tooltip={labels.bulkDownloadZip} aria-label={labels.bulkDownloadZip}
+              data-cv-tooltip={labels.bulkDownloadZip}
+              aria-label={labels.bulkDownloadZip}
               type="button"
               onClick={() => void handleDownloadArchive()}
               disabled={busy}
@@ -411,10 +451,12 @@ export function DocumentsWorkspace({
           ) : null}
           {removeDocument ? (
             <button
-              data-cv-tooltip={labels.bulkRemove(selectedIds.size)} aria-label={labels.bulkRemove(selectedIds.size)}
+              data-cv-tooltip={labels.bulkRemove(selectedIds.size)}
+              aria-label={labels.bulkRemove(selectedIds.size)}
               type="button"
               onClick={() => {
-                if (window.confirm(labels.bulkRemoveConfirm(selectedIds.size))) void handleRemove(Array.from(selectedIds))
+                if (window.confirm(labels.bulkRemoveConfirm(selectedIds.size)))
+                  void handleRemove(Array.from(selectedIds))
               }}
               disabled={busy}
               className="cv-header-action cv-header-action--danger inline-flex items-center gap-1 disabled:opacity-40"
@@ -448,12 +490,53 @@ export function DocumentsWorkspace({
                   />
                 </th>
               ) : null}
-              <SortableHead label={labels.columnFilename} field="filename" activeField={sortField} direction={direction} onSort={toggleSort} />
-              <SortableHead label={labels.columnContact} field="conversationId" activeField={sortField} direction={direction} onSort={toggleSort} className="hidden sm:table-cell" />
-              <SortableHead label={labels.columnType} field="mimeType" activeField={sortField} direction={direction} onSort={toggleSort} className="hidden md:table-cell" />
-              <SortableHead label={labels.columnSize} field="sizeBytes" activeField={sortField} direction={direction} onSort={toggleSort} className="hidden lg:table-cell" />
-              <SortableHead label={labels.columnSource} field="source" activeField={sortField} direction={direction} onSort={toggleSort} className="hidden lg:table-cell" />
-              <SortableHead label={labels.columnDate} field="linkedAt" activeField={sortField} direction={direction} onSort={toggleSort} className="hidden xl:table-cell" />
+              <SortableHead
+                label={labels.columnFilename}
+                field="filename"
+                activeField={sortField}
+                direction={direction}
+                onSort={toggleSort}
+              />
+              <SortableHead
+                label={labels.columnContact}
+                field="conversationId"
+                activeField={sortField}
+                direction={direction}
+                onSort={toggleSort}
+                className="hidden sm:table-cell"
+              />
+              <SortableHead
+                label={labels.columnType}
+                field="mimeType"
+                activeField={sortField}
+                direction={direction}
+                onSort={toggleSort}
+                className="hidden md:table-cell"
+              />
+              <SortableHead
+                label={labels.columnSize}
+                field="sizeBytes"
+                activeField={sortField}
+                direction={direction}
+                onSort={toggleSort}
+                className="hidden lg:table-cell"
+              />
+              <SortableHead
+                label={labels.columnSource}
+                field="source"
+                activeField={sortField}
+                direction={direction}
+                onSort={toggleSort}
+                className="hidden lg:table-cell"
+              />
+              <SortableHead
+                label={labels.columnDate}
+                field="linkedAt"
+                activeField={sortField}
+                direction={direction}
+                onSort={toggleSort}
+                className="hidden xl:table-cell"
+              />
               <th scope="col" className="px-3 py-2 text-left text-xs font-medium">
                 {labels.columnActions}
               </th>
@@ -490,14 +573,17 @@ export function DocumentsWorkspace({
                     <button
                       type="button"
                       onClick={() => onOpenConversation(document.conversationId)}
-                      data-cv-tooltip={labels.openConversation} aria-label={labels.openConversation}
+                      data-cv-tooltip={labels.openConversation}
+                      aria-label={labels.openConversation}
                       className="cv-header-action inline-flex items-center gap-1"
                     >
                       <MessageSquare size={12} aria-hidden="true" />
                       {document.contactName ?? formatPhone(document.conversationId)}
                     </button>
                   ) : (
-                    <span className="text-xs text-gray-500">{document.contactName ?? formatPhone(document.conversationId)}</span>
+                    <span className="text-xs text-gray-500">
+                      {document.contactName ?? formatPhone(document.conversationId)}
+                    </span>
                   )}
                 </td>
 
@@ -508,11 +594,15 @@ export function DocumentsWorkspace({
                 <td className="hidden px-3 py-2 md:table-cell" data-cv-tooltip={document.mimeType}>
                   <span className="cv-type-tag">{documentTypeLabel(document.filename, document.mimeType)}</span>
                 </td>
-                <td className="hidden whitespace-nowrap px-3 py-2 text-xs lg:table-cell">{formatFileSize(document.sizeBytes)}</td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-xs lg:table-cell">
+                  {formatFileSize(document.sizeBytes)}
+                </td>
                 <td className="hidden whitespace-nowrap px-3 py-2 text-xs lg:table-cell">
                   {labels.sourceLabels[document.source] ?? document.source}
                 </td>
-                <td className="hidden whitespace-nowrap px-3 py-2 text-xs xl:table-cell">{formatDateTime(document.linkedAt)}</td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-xs xl:table-cell">
+                  {formatDateTime(document.linkedAt)}
+                </td>
 
                 <td className="px-3 py-2">
                   <div className="flex gap-1">

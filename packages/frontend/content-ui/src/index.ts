@@ -13,10 +13,14 @@ export type { ContentProviderProps, ContentText } from './providers/ContentProvi
 export type {
   ContentAdminApi,
   ContentPublicApi,
+  DateTimeInputProps,
   ListPostsParams,
   ListPublishedPostsParams,
+  RenderDateTimeInput,
   RenderLink,
   RenderLinkProps,
+  RenderSelect,
+  SelectInputProps,
 } from './providers/types'
 
 export { ContentWorkspace } from './components/ContentWorkspace'
@@ -25,6 +29,14 @@ export { PostList } from './components/PostList'
 export type { PostListProps, ListExportContext } from './components/PostList'
 export { PostEditor } from './components/PostEditor'
 export type { PostEditorProps } from './components/PostEditor'
+export { Tooltip } from './components/Tooltip'
+export type { TooltipProps } from './components/Tooltip'
+export { MarkdownEditor } from './components/MarkdownEditor'
+export type { MarkdownEditorProps } from './components/MarkdownEditor'
+export { EmojiPicker } from './components/EmojiPicker'
+export type { EmojiPickerProps } from './components/EmojiPicker'
+export { FilePicker } from './components/FilePicker'
+export type { FilePickerProps } from './components/FilePicker'
 export { StatusChip } from './components/StatusChip'
 export type { StatusChipProps } from './components/StatusChip'
 export { TagsInput } from './components/TagsInput'
@@ -45,9 +57,12 @@ export type { PaginationProps } from './components/Pagination'
 
 // Camada headless: monte a própria tela sobre a mesma lógica.
 export { usePostEditor, COVER_MAX_BYTES, COVER_MIME_TYPES } from './hooks/usePostEditor'
-export type { PostEditorState, EditorFeedback } from './hooks/usePostEditor'
+export type { PostEditorState, EditorFeedback, UploadImageResult } from './hooks/usePostEditor'
 export { usePostList } from './hooks/usePostList'
-export type { PostListFilters } from './hooks/usePostList'
+export type { PostListFilters, PostListTab } from './hooks/usePostList'
+export { parseListUrlState, serializeListUrlState, PAGE_SIZE_OPTIONS } from './lib/listUrlState'
+export type { ListUrlState } from './lib/listUrlState'
+export { POST_LIST_TAB } from './hooks/usePostList'
 export { useUnsavedChangesGuard } from './hooks/useUnsavedChangesGuard'
 export { useAsyncResource } from './hooks/useAsyncResource'
 export type { AsyncResource } from './hooks/useAsyncResource'
@@ -57,6 +72,9 @@ export type { ShareNetwork, ShareLink } from './lib/share'
 export { buildPostMeta } from './lib/seo'
 export type { PostMeta } from './lib/seo'
 export { formatPostDate, toDateTimeLocalValue, fromDateTimeLocalValue } from './lib/format'
+export { insertImage, insertLink, insertText, toggleLinePrefix, toggleWrap } from './lib/markdownFormat'
+export type { LinePrefixKind, TextSelection } from './lib/markdownFormat'
+export { searchEmoji, EMOJI_BY_CATEGORY, EMOJI_CATEGORIES } from './lib/emoji'
 export { buildPageItems } from './lib/pagination'
 export type { PageItem } from './lib/pagination'
 export {

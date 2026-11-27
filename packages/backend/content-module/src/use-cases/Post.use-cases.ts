@@ -7,6 +7,7 @@
  */
 
 import {
+  buildTagLabels,
   createPostSchema,
   DuplicateSlugError,
   estimateReadingTimeMinutes,
@@ -15,8 +16,9 @@ import {
   POST_EVENT,
   POST_STATUS,
   PostNotFoundError,
+  TemplateNotPublishableError,
   publishPostSchema,
-  slugify,
+  buildShortSlug,
   updatePostSchema,
   withSlugSuffix,
   type CreatePostInput,
@@ -30,6 +32,7 @@ import {
 } from '@adatechnology/content-contracts'
 
 import type { NewPostRow, PostRow } from '../schema/schema'
+import { generateShortId } from '../shared/shortId'
 import { isUniqueViolation } from '../shared/isUniqueViolation'
 import { notifyPostChanged } from '../shared/notifyPostChanged'
 import { toPagination, toPost, toPostSummary } from '../shared/toContract'
@@ -40,7 +43,7 @@ const FALLBACK_SLUG = 'post'
 
 export type PostReference = { readonly companyId: string; readonly id: string }
 
-abstract class PostUseCaseBase {
+export abstract class PostUseCaseBase {
   constructor(protected readonly dependencies: ContentDependencies) {}
 
   protected now(): Date {
@@ -64,6 +67,15 @@ abstract class PostUseCaseBase {
     return post
   }
 
+  /** Id curto livre na empresa; a colisão (~1 em 2 bilhões) só repete o sorteio. */
+  protected async generateShortId(companyId: string): Promise<string> {
+    for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt += 1) {
+      const candidate = generateShortId()
+      if (!(await this.dependencies.posts.findByShortId({ companyId, shortId: candidate }))) return candidate
+    }
+    throw new Error('content-module: sem id curto livre')
+  }
+
   protected readingTime(body: string): number {
     return estimateReadingTimeMinutes(body, this.dependencies.config.wordsPerMinute)
   }
@@ -75,7 +87,10 @@ abstract class PostUseCaseBase {
 
   /** `titulo`, `titulo-2`, `titulo-3`… Sequencial de propósito: cada tentativa depende da anterior. */
   protected async generateSlug(companyId: string, title: string): Promise<string> {
-    const base = slugify(title) || FALLBACK_SLUG
+    return this.uniqueSlug(companyId, buildShortSlug(title, this.dependencies.config.slug) || FALLBACK_SLUG)
+  }
+
+  protected async uniqueSlug(companyId: string, base: string): Promise<string> {
     for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt += 1) {
       const candidate = withSlugSuffix(base, attempt)
       if (!(await this.dependencies.posts.findBySlug({ companyId, slug: candidate }))) return candidate
@@ -84,7 +99,9 @@ abstract class PostUseCaseBase {
   }
 }
 
-function optionalFields(input: Omit<UpdatePostInput, 'slug' | 'title' | 'body' | 'tags'>): Partial<NewPostRow> {
+function optionalFields(
+  input: Omit<UpdatePostInput, 'slug' | 'title' | 'body' | 'tags' | 'tagLabels'>,
+): Partial<NewPostRow> {
   const values: Partial<NewPostRow> = {}
   if (input.excerpt !== undefined) values.excerpt = input.excerpt || null
   if (input.coverImageUrl !== undefined) values.coverImageUrl = input.coverImageUrl || null
@@ -107,9 +124,11 @@ export class CreatePostUseCase extends PostUseCaseBase {
       .create({
         companyId,
         slug,
+        shortId: await this.generateShortId(companyId),
         title: input.title,
         body: input.body,
         tags: normalizeTags(input.tags ?? []),
+        tagLabels: buildTagLabels({ typed: input.tags ?? [], explicit: input.tagLabels }),
         status: POST_STATUS.DRAFT,
         readingTimeMinutes: this.readingTime(input.body),
         ...optionalFields(input),
@@ -137,10 +156,24 @@ export class UpdatePostUseCase extends PostUseCaseBase {
       values.body = input.body
       values.readingTimeMinutes = this.readingTime(input.body)
     }
-    if (input.tags !== undefined) values.tags = normalizeTags(input.tags)
+    if (input.tags !== undefined || input.tagLabels !== undefined) {
+      const tags = normalizeTags(input.tags ?? existing.tags)
+      values.tags = tags
+      values.tagLabels = buildTagLabels({
+        typed: input.tags ?? tags,
+        explicit: input.tagLabels,
+        previous: existing.tagLabels,
+      })
+    }
     if (input.slug !== undefined && input.slug !== existing.slug) {
       await this.assertSlugAvailable(params.companyId, input.slug, existing.id)
       values.slug = input.slug
+      // O endereço antigo continua abrindo o post: o host o redireciona ao canônico.
+      await this.dependencies.posts.recordFormerSlug({
+        companyId: params.companyId,
+        postId: existing.id,
+        slug: existing.slug,
+      })
     }
     return this.save(params, values, POST_EVENT.UPDATED)
   }
@@ -150,7 +183,8 @@ export class PublishPostUseCase extends PostUseCaseBase {
   /** Sem data: publica agora. Data futura: agenda. Data passada: publica com a data informada. */
   async execute(params: PostReference & { readonly input?: PublishPostInput }): Promise<Post> {
     const input = publishPostSchema.parse(params.input ?? {})
-    await this.findOrFail(params)
+    const existing = await this.findOrFail(params)
+    if (existing.isTemplate) throw new TemplateNotPublishableError(params.id)
     const now = this.now()
     const publishedAt = input.publishedAt ? new Date(input.publishedAt) : now
     const status = publishedAt > now ? POST_STATUS.SCHEDULED : POST_STATUS.PUBLISHED
@@ -184,9 +218,16 @@ export class ListPostsUseCase extends PostUseCaseBase {
   async execute(params: { readonly companyId: string } & Partial<ListPostsQuery>): Promise<Paginated<PostSummary>> {
     const { companyId, ...rawQuery } = params
     const query = listPostsQuerySchema.parse(rawQuery)
-    const tag = query.tag ? normalizeTags([query.tag])[0] : undefined
+    const { tag: rawTag, ...rest } = query
+    const tags = rawTag ? normalizeTags(rawTag.split(',')) : []
     const now = this.now()
-    const page = await this.dependencies.posts.listForAdmin({ companyId, ...query, now, ...(tag ? { tag } : {}) })
+    const page = await this.dependencies.posts.listForAdmin({
+      companyId,
+      ...rest,
+      isTemplate: query.isTemplate ?? false,
+      now,
+      ...(tags.length > 0 ? { tags } : {}),
+    })
     return {
       data: page.rows.map((row) => toPostSummary(row, now)),
       pagination: toPagination({ total: page.total, page: query.page, pageSize: query.pageSize }),

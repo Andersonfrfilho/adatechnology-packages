@@ -91,4 +91,30 @@ describe('createCatalogModuleProductsApi', () => {
       createCatalogModuleProductsApi({ baseUrl: '/v1', fetch: fetchImpl, imageUpload: true }).uploadImage,
     ).toBeDefined()
   })
+
+  it('manda filtros múltiplos, ordenação e itens por página; lote não para no primeiro erro', async () => {
+    const { calls, fetchImpl } = fakeFetch((call) =>
+      call.init.method === 'PUT' && call.url.includes('/products/bad')
+        ? json({ error: { code: 'X', message: 'falhou' } }, 400)
+        : call.init.method === 'PUT'
+          ? json({ data: {} })
+          : json({ data: [], pagination: { total: 0, page: 1, pageSize: 20, totalPages: 0 } }),
+    )
+    const api = createCatalogModuleProductsApi({ baseUrl: '/v1/catalog', fetch: fetchImpl })
+
+    await api.listProducts({
+      catalogIds: ['a', 'none'],
+      priceOnRequest: true,
+      sortBy: 'price',
+      sortDirection: 'desc',
+      pageSize: 20,
+    })
+    const url = new URL(calls[0]!.url, 'http://x')
+    expect(url.searchParams.get('catalogIds')).toBe('a,none')
+    expect(url.searchParams.get('priceOnRequest')).toBe('true')
+    expect(url.searchParams.get('sortBy')).toBe('price')
+    expect(url.searchParams.get('pageSize')).toBe('20')
+
+    expect(await api.updateProducts?.(['ok', 'bad', 'ok2'], { active: false })).toEqual({ succeeded: 2, failed: 1 })
+  })
 })

@@ -88,6 +88,9 @@ export type UserLabels = {
   readonly profilePhotoChange: string
   readonly teamPhoto: string
   readonly teamChangePhoto: string
+  readonly teamEditPhoto: string
+  readonly teamRemovePhoto: string
+  readonly teamNothingChanged: string
   readonly teamSendPasswordReset: string
   readonly teamPasswordResetSent: string
   readonly teamSetPassword: string
@@ -185,6 +188,9 @@ export const DEFAULT_USER_LABELS: UserLabels = {
   profilePhotoChange: 'Trocar',
   teamPhoto: 'Foto',
   teamChangePhoto: 'Trocar a foto de',
+  teamEditPhoto: 'Editar foto',
+  teamRemovePhoto: 'Remover foto',
+  teamNothingChanged: 'Nada mudou ainda.',
   teamSendPasswordReset: 'Enviar redefinicao de senha',
   teamPasswordResetSent: 'E-mail enviado',
   teamSetPassword: 'Definir nova senha',

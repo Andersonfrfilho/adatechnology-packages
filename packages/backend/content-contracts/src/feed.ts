@@ -51,17 +51,17 @@ export function escapeXml(value: string): string {
   )
 }
 
-/** `{slug}` no modelo vira o slug codificado; o modelo é relativo ao `siteUrl`. */
+/** `{slug}` (e `{shortId}`) no modelo viram o valor codificado; o modelo é relativo ao `siteUrl`. */
 export function buildPostUrl(params: {
   readonly siteUrl: string
   readonly slug: string
+  readonly shortId?: string
   readonly postPathTemplate?: string
 }): string {
   const base = params.siteUrl.replace(/\/+$/, '')
-  const path = (params.postPathTemplate ?? DEFAULT_POST_PATH_TEMPLATE).replace(
-    '{slug}',
-    encodeURIComponent(params.slug),
-  )
+  const path = (params.postPathTemplate ?? DEFAULT_POST_PATH_TEMPLATE)
+    .replace('{shortId}', encodeURIComponent(params.shortId ?? ''))
+    .replace('{slug}', encodeURIComponent(params.slug))
   return `${base}${path.startsWith('/') ? path : `/${path}`}`
 }
 

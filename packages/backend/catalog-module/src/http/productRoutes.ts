@@ -10,6 +10,7 @@ import {
   createProductSchema,
   listProductsQuerySchema,
   updateProductSchema,
+  type ListProductsQuery,
 } from '@adatechnology/catalog-contracts'
 import type { ModuleRoute } from '@adatechnology/module-http'
 import { z } from 'zod'
@@ -65,15 +66,7 @@ export function buildProductRoutes(module: CatalogModule): ModuleRoute[] {
       summary: 'Lista produtos da empresa, paginado',
       async handler(context) {
         const companyId = requireCompany(context)
-        const query = context.query as unknown as {
-          page: number
-          pageSize: number
-          search?: string
-          catalogId?: string
-          sectionId?: string
-          active?: boolean
-          syncStatus?: string
-        }
+        const query = context.query as unknown as ListProductsQuery
 
         const result = await useCases.listProducts.execute({ companyId, ...query })
         return {

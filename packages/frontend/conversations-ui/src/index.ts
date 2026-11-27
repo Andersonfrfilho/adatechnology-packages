@@ -109,6 +109,8 @@ export type {
   DocumentsWorkspaceClassNames,
   DocumentsFiltersContext,
   ListExportContext,
+  DateInputProps,
+  RenderDateInput,
 } from './documents'
 export { SortableHead, MultiSelectFilter, BulkActionBar, ListingPagination } from './listing'
 export type {

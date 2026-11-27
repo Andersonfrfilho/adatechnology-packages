@@ -9,6 +9,7 @@ import type { Post } from '@adatechnology/content-contracts'
 import { useState } from 'react'
 
 import type { PostDraft } from '../lib/postDraft'
+import type { RenderDateTimeInput, RenderSelect } from '../providers/types'
 import { PostEditor } from './PostEditor'
 import { PostList, type PostListProps } from './PostList'
 
@@ -21,9 +22,26 @@ export type ContentWorkspaceProps = {
   /** Valores iniciais do post novo (ex.: autor logado). */
   readonly newPostDefaults?: Partial<PostDraft>
   readonly onPostSaved?: (post: Post) => void
+  /** Seletor de data e hora do host (padrão: `datetime-local` nativo). */
+  readonly renderDateTimeInput?: RenderDateTimeInput
+  /** Menu de seleção do host (padrão: `<select>` nativo). */
+  readonly renderSelect?: RenderSelect
+  /** Busca, aba, tags, página, tamanho e ordem da lista na URL (padrão: não). */
+  readonly syncUrl?: boolean
+  /** Barra de formatação do corpo do post (padrão: ligada). */
+  readonly showFormattingToolbar?: boolean
 }
 
-export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved, renderExport }: ContentWorkspaceProps) {
+export function ContentWorkspace({
+  pageSize,
+  newPostDefaults,
+  onPostSaved,
+  renderDateTimeInput,
+  renderSelect,
+  syncUrl,
+  renderExport,
+  showFormattingToolbar,
+}: ContentWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -40,6 +58,8 @@ export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved, rende
         key={view.postId ?? 'new'}
         {...(view.postId ? { postId: view.postId } : {})}
         {...(newPostDefaults ? { defaults: newPostDefaults } : {})}
+        {...(showFormattingToolbar === undefined ? {} : { showFormattingToolbar })}
+        {...(renderDateTimeInput ? { renderDateTimeInput } : {})}
         onSaved={handleSaved}
         onArchived={() => {
           setReloadKey((value) => value + 1)
@@ -53,6 +73,9 @@ export function ContentWorkspace({ pageSize, newPostDefaults, onPostSaved, rende
   return (
     <PostList
       reloadKey={reloadKey}
+      {...(renderDateTimeInput ? { renderDateTimeInput } : {})}
+      {...(renderSelect ? { renderSelect } : {})}
+      {...(syncUrl ? { syncUrl } : {})}
       {...(pageSize ? { pageSize } : {})}
       onSelect={(post) => setView({ kind: 'editor', postId: post.id })}
       onCreate={() => setView({ kind: 'editor' })}

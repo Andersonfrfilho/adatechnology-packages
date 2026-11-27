@@ -3,14 +3,20 @@ import { useState } from 'react'
 
 import { BulkImport } from '../BulkImport'
 import { CatalogList } from '../CatalogList'
+import { ProductsListing } from '../listing/ProductsListing'
+import type { ProductsListingOptions } from '../listing/listing.types'
 import { ProductList } from '../ProductList'
 import { useProducts } from '../providers/ProductsProvider'
+import type { Section } from '../providers/types'
 import type { ProductsWorkspaceLabels } from './labels'
 import type { useProductsWorkspace } from './useProductsWorkspace'
 
 export type ProductsAreaProps = {
   readonly labels: ProductsWorkspaceLabels
   readonly workspace: ReturnType<typeof useProductsWorkspace>
+  /** Presente = lista em tabela (filtros múltiplos, ordem, lote, paginação); ausente = lista simples de antes. */
+  readonly listing?: ProductsListingOptions
+  readonly sections?: readonly Section[]
 }
 
 const BUTTON_CLASS =
@@ -24,7 +30,7 @@ const BUTTON_PRIMARY = `${BUTTON_CLASS} bg-brand-600 text-white hover:bg-brand-7
  * As ações vivem aqui, e não no cabeçalho da tela: "Novo produto" e "Importar CSV" não significam
  * nada enquanto se edita catálogo, e botão que não faz sentido na área aberta é convite a erro.
  */
-export function ProductsArea({ labels, workspace }: ProductsAreaProps) {
+export function ProductsArea({ labels, workspace, listing, sections = [] }: ProductsAreaProps) {
   const api = useProducts()
   const [importing, setImporting] = useState(false)
 
@@ -32,17 +38,17 @@ export function ProductsArea({ labels, workspace }: ProductsAreaProps) {
     // `min-w-0` porque filho de flex não encolhe abaixo do conteúdo por padrão: a tabela de produtos
     // é larga, e sem isto ela empurrava o painel de edição para fora da janela.
     <div className="flex flex-1 min-h-0 min-w-0 flex-col desktop:flex-row">
-      <aside className="desktop:w-64 shrink-0 border-b desktop:border-b-0 desktop:border-r border-gray-200 dark:border-gray-700 overflow-y-auto p-3">
+      {listing ? null : <aside className="desktop:w-64 shrink-0 border-b desktop:border-b-0 desktop:border-r border-gray-200 dark:border-gray-700 overflow-y-auto p-3">
         <CatalogList
           variant="sidebar"
           selectedId={workspace.catalogId}
           onSelect={workspace.setCatalogId}
           showNoneOption
         />
-      </aside>
+      </aside>}
 
       <main className="flex-1 min-w-0 overflow-y-auto p-4 space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
+        {listing ? null : <div className="flex flex-wrap items-center gap-2">
           {/* `flex-1`, e nao `w-full`: com largura de 100% a busca reservava 24rem inteiros e a soma
               com os dois botoes passava da linha por uma dezena de pixels, jogando ambos para baixo.
               Agora ela ocupa a sobra ate o teto de 24rem e cede quando a linha aperta; o `min-w-40`
@@ -75,7 +81,7 @@ export function ProductsArea({ labels, workspace }: ProductsAreaProps) {
             <Plus aria-hidden="true" className="w-4 h-4" />
             {labels.newProduct}
           </button>
-        </div>
+        </div>}
 
         {importing && (
           <BulkImport
@@ -93,9 +99,22 @@ export function ProductsArea({ labels, workspace }: ProductsAreaProps) {
           </p>
         )}
 
-        <ProductList selectable products={workspace.products} onSelect={workspace.openDraft} />
-
-        <Pagination labels={labels} workspace={workspace} />
+        {listing ? (
+          <ProductsListing
+            options={listing}
+            workspace={workspace}
+            sections={sections}
+            onImport={() => setImporting((value) => !value)}
+            onCreate={() => workspace.openDraft(null)}
+            importLabel={labels.bulkImport}
+            createLabel={labels.newProduct}
+          />
+        ) : (
+          <>
+            <ProductList selectable products={workspace.products} onSelect={workspace.openDraft} />
+            <Pagination labels={labels} workspace={workspace} />
+          </>
+        )}
       </main>
     </div>
   )

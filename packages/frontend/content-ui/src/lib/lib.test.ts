@@ -26,6 +26,9 @@ const post: Post = {
   id: 'p1',
   companyId: 'c1',
   slug: 'ola',
+  shortId: 'abc123',
+  tagLabels: {},
+  isTemplate: false,
   title: 'Olá',
   excerpt: null,
   body: '# Oi\n\nTexto do post.',
@@ -139,6 +142,8 @@ describe('SEO', () => {
     const publicPost: PublicPost = {
       id: post.id,
       slug: post.slug,
+      shortId: post.shortId,
+      tagLabels: post.tagLabels,
       title: post.title,
       excerpt: post.excerpt,
       body: post.body,

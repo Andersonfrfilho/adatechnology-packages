@@ -4,6 +4,8 @@ export type {
   DocumentsWorkspaceClassNames,
   DocumentsFiltersContext,
   ListExportContext,
+  DateInputProps,
+  RenderDateInput,
 } from './DocumentsWorkspace'
 export { DEFAULT_DOCUMENTS_WORKSPACE_LABELS } from './labels'
 export type { DocumentsWorkspaceLabels } from './labels'

@@ -62,6 +62,7 @@ export type UseTeamResult = {
   readonly canDeactivate: boolean
   readonly canEdit: boolean
   readonly canChangeAvatar: boolean
+  readonly canRemoveAvatar: boolean
   readonly canSendPasswordReset: boolean
   /** `false` quando a `UserApi` nao traz `setTeamMemberPassword` — a acao de definir senha some. */
   readonly canSetPassword: boolean
@@ -76,6 +77,7 @@ export type UseTeamResult = {
   readonly passwordResetSentTo: string | undefined
   updateMember: (userId: string, input: UpdateTeamMemberInput) => Promise<boolean>
   setMemberAvatar: (userId: string, file: File) => Promise<void>
+  removeMemberAvatar: (userId: string) => Promise<void>
   sendPasswordReset: (userId: string) => Promise<void>
   goToPage: (page: number) => void
   createMember: (input: CreateTeamMemberInput) => Promise<UserProfile | undefined>
@@ -91,6 +93,7 @@ export type TeamApi = Pick<
   | 'updateTeamMember'
   | 'setTeamMemberActive'
   | 'setTeamMemberAvatar'
+  | 'removeTeamMemberAvatar'
   | 'sendPasswordReset'
   | 'setTeamMemberPassword'
   | 'unlockTeamMember'
@@ -267,6 +270,7 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
     canDeactivate: Boolean(api.setTeamMemberActive),
     canEdit: Boolean(api.updateTeamMember),
     canChangeAvatar: Boolean(api.setTeamMemberAvatar),
+    canRemoveAvatar: Boolean(api.removeTeamMemberAvatar),
     updateMember: async (userId: string, input: UpdateTeamMemberInput) => {
       if (!api.updateTeamMember) return false
       setSaving(true)
@@ -332,6 +336,19 @@ export function useTeam({ pageSize = TEAM_DEFAULT_PAGE_SIZE, api: override }: Us
         await load()
       } catch (cause) {
         setError(messageOf(cause, 'Nao foi possivel trocar a foto'))
+      } finally {
+        setSaving(false)
+      }
+    },
+    removeMemberAvatar: async (userId: string) => {
+      if (!api.removeTeamMemberAvatar) return
+      setSaving(true)
+      setError(undefined)
+      try {
+        await api.removeTeamMemberAvatar(userId)
+        await load()
+      } catch (cause) {
+        setError(messageOf(cause, 'Nao foi possivel remover a foto'))
       } finally {
         setSaving(false)
       }

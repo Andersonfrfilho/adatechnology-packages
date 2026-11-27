@@ -569,3 +569,9 @@ pública e não mudam sem nova versão maior.
 `ConversationChannel` agora inclui `'app'` e `'portal'`. Quem tem um `switch` exaustivo sobre o tipo (sem
 `default`) passa a ter erro de compilação até tratar os dois novos valores. Quem só escreve o tipo não é
 afetado.
+
+## Seletor de data próprio (`renderDateInput`)
+
+O filtro por período de `DocumentsWorkspace` usa `<input type="date">` por padrão. Passe
+`renderDateInput` para usar o seletor do seu design system; recebe `{ label, value, onChange }`, com
+valor `YYYY-MM-DD` ou vazio, e é chamado uma vez para a data inicial e outra para a final.

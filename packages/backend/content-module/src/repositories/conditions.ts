@@ -6,7 +6,7 @@
  * de empresa quebra o teste na hora.
  */
 
-import { and, arrayContains, eq, gt, inArray, lte, or, sql, type SQL } from 'drizzle-orm'
+import { and, arrayContains, arrayOverlaps, eq, gt, inArray, lte, ne, or, sql, type SQL } from 'drizzle-orm'
 import { POST_STATUS, type PostStatus } from '@adatechnology/content-contracts'
 
 import { posts } from '../schema/schema'
@@ -22,18 +22,25 @@ export function postSlugCondition(params: { companyId: string; slug: string }): 
 export function postAdminListCondition(params: {
   companyId: string
   status?: PostStatus
-  tag?: string
+  tags?: readonly string[]
   search?: string
+  /** `true`: só modelos (menos os arquivados). Ausente/`false`: só posts — modelo nunca aparece misturado. */
+  isTemplate?: boolean
   now: Date
 }): SQL {
-  const conditions: SQL[] = [eq(posts.companyId, params.companyId)]
+  const conditions: SQL[] = [eq(posts.companyId, params.companyId), templateCondition(params.isTemplate)]
   if (params.status) conditions.push(statusCondition(params.status, params.now))
-  if (params.tag) conditions.push(arrayContains(posts.tags, [params.tag]))
+  if (params.tags?.length) conditions.push(arrayOverlaps(posts.tags, [...params.tags]))
   if (params.search) {
     const pattern = `%${params.search.replace(/[\\%_]/g, (character) => `\\${character}`)}%`
     conditions.push(sql`(${posts.title} ilike ${pattern} or ${posts.slug} ilike ${pattern})`)
   }
   return and(...conditions) as SQL
+}
+
+function templateCondition(isTemplate: boolean | undefined): SQL {
+  if (isTemplate) return and(eq(posts.isTemplate, true), ne(posts.status, POST_STATUS.ARCHIVED)) as SQL
+  return eq(posts.isTemplate, false)
 }
 
 /**
@@ -69,4 +76,24 @@ export function postPublicCondition(params: { companyId: string; now: Date; tag?
 
 export function postPublicSlugCondition(params: { companyId: string; slug: string; now: Date }): SQL {
   return and(postPublicCondition(params), eq(posts.slug, params.slug)) as SQL
+}
+
+/**
+ * Agendado cuja hora chegou, de qualquer empresa: é a única condição sem `company_id`, de propósito —
+ * o `publishDue` é tarefa do sistema e varre todas as empresas. Modelo nunca entra.
+ */
+export function postDueCondition(params: { now: Date }): SQL {
+  return and(
+    eq(posts.status, POST_STATUS.SCHEDULED),
+    eq(posts.isTemplate, false),
+    lte(posts.publishedAt, params.now),
+  ) as SQL
+}
+
+export function postShortIdCondition(params: { companyId: string; shortId: string }): SQL {
+  return and(eq(posts.companyId, params.companyId), eq(posts.shortId, params.shortId)) as SQL
+}
+
+export function postPublicShortIdCondition(params: { companyId: string; shortId: string; now: Date }): SQL {
+  return and(postPublicCondition(params), eq(posts.shortId, params.shortId)) as SQL
 }

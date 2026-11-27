@@ -67,3 +67,50 @@ describe('listagem para a tela de catálogo', () => {
     await expect(get.execute({ companyId: randomUUID(), id: drinks.id })).rejects.toMatchObject({ statusCode: 404 })
   })
 })
+
+describe('listagem com filtros múltiplos e ordenação', () => {
+  async function seed() {
+    const dependencies = build()
+    const catalogCreate = new CreateCatalogUseCase(dependencies)
+    const drinks = await catalogCreate.execute({ companyId: COMPANY_ID, name: 'Bebidas' })
+    const food = await catalogCreate.execute({ companyId: COMPANY_ID, name: 'Pratos' })
+    const create = new CreateProductUseCase(dependencies)
+    await create.execute({ companyId: COMPANY_ID, name: 'Suco', priceInCents: 900, catalogId: drinks.id })
+    await create.execute({ companyId: COMPANY_ID, name: 'Feijoada', priceInCents: 4500, catalogId: food.id })
+    await create.execute({ companyId: COMPANY_ID, name: 'Pacote festa', priceInCents: null, catalogId: food.id })
+    await create.execute({ companyId: COMPANY_ID, name: 'Avulso', priceInCents: 100 })
+    return { dependencies, drinks, food }
+  }
+
+  const list = (dependencies: CatalogDependencies, extra: Record<string, unknown>) =>
+    new ListProductsUseCase(dependencies).execute({ companyId: COMPANY_ID, page: 1, pageSize: 20, ...extra })
+
+  it('catalogIds aceita vários e o valor reservado "none" casa produto sem catálogo', async () => {
+    const { dependencies, drinks, food } = await seed()
+
+    const both = await list(dependencies, { catalogIds: [drinks.id, food.id] })
+    expect(both.total).toBe(3)
+
+    const noneAndDrinks = await list(dependencies, { catalogIds: ['none', drinks.id] })
+    expect(noneAndDrinks.data.map((product) => product.name).sort()).toEqual(['Avulso', 'Suco'])
+  })
+
+  it('priceOnRequest filtra os sem preço; ordenar por preço manda "sob consulta" para o fim nos dois sentidos', async () => {
+    const { dependencies } = await seed()
+
+    const onRequest = await list(dependencies, { priceOnRequest: true })
+    expect(onRequest.data.map((product) => product.name)).toEqual(['Pacote festa'])
+
+    const ascending = await list(dependencies, { sortBy: 'price', sortDirection: 'asc' })
+    const descending = await list(dependencies, { sortBy: 'price', sortDirection: 'desc' })
+    expect(ascending.data.map((product) => product.name)).toEqual(['Avulso', 'Suco', 'Feijoada', 'Pacote festa'])
+    expect(descending.data.map((product) => product.name)).toEqual(['Feijoada', 'Suco', 'Avulso', 'Pacote festa'])
+  })
+
+  it('ordena por nome nos dois sentidos', async () => {
+    const { dependencies } = await seed()
+
+    const descending = await list(dependencies, { sortBy: 'name', sortDirection: 'desc' })
+    expect(descending.data[0]?.name).toBe('Suco')
+  })
+})
