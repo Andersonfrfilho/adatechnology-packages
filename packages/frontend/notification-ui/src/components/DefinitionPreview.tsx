@@ -53,7 +53,7 @@ export type DefinitionPreviewProps = {
    * Renderiza o e-mail no produto (mesmo renderer do envio), para a prévia ser idêntica ao enviado.
    * Ausente, o pacote interpola os exemplos declarados no navegador.
    */
-  readonly loadEmailPreview?: (request: EmailPreviewRequest) => Promise<EmailPreviewResult>
+  loadEmailPreview?(request: EmailPreviewRequest): Promise<EmailPreviewResult>
 }
 
 function buildLabels(messages: NotificationMessages): PreviewLabels {
