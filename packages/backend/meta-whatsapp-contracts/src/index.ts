@@ -69,6 +69,8 @@ export type {
   SendTextOptions,
   ChannelInteractiveListParams,
   ChannelInteractiveButtonsParams,
+  ChannelCtaUrlParams,
+  ChannelLocationParams,
 } from './providers'
 export type {
   FlowNodeType,

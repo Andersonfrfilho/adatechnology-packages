@@ -38,6 +38,13 @@ function collectRows(payload: InteractivePayload): InteractiveOption[] {
   return (payload.action?.sections ?? []).flatMap((section) => section.rows ?? [])
 }
 
+/** Só http(s): o payload vem do banco, mas um esquema inesperado nunca vira link clicável. */
+function readCtaLink(payload: InteractivePayload): { displayText: string; url: string } | undefined {
+  const parameters = payload.action?.parameters
+  if (payload.action?.name !== 'cta_url' || !parameters?.url || !/^https?:\/\//i.test(parameters.url)) return undefined
+  return { displayText: parameters.display_text ?? parameters.url, url: parameters.url }
+}
+
 function collectButtons(payload: InteractivePayload): InteractiveOption[] {
   return (payload.action?.buttons ?? [])
     .map((button) => button.reply)
@@ -49,6 +56,7 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
   const [isListOpen, setIsListOpen] = useState(false)
 
   const buttons = collectButtons(payload)
+  const link = readCtaLink(payload)
   const sections = payload.action?.sections ?? []
   const hasRows = collectRows(payload).length > 0
   const isInteractable = onSelect !== undefined
@@ -76,6 +84,20 @@ export function InteractiveMessage({ payload, onSelect, labels, className }: Int
       {payload.footer?.text ? (
         <div className={cn('text-xs text-gray-500 dark:text-gray-400', FORMATTING_CLASSES)}>
           {parseWhatsAppFormatting(payload.footer.text)}
+        </div>
+      ) : null}
+
+      {link ? (
+        <div className="mt-1 border-t border-gray-200 pt-1 dark:border-gray-700">
+          <a
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-cv-tooltip={link.url}
+            className="block rounded-md px-3 py-1.5 text-center text-sm font-medium text-teal-700 transition-colors hover:bg-teal-50 dark:text-teal-300 dark:hover:bg-teal-900/30"
+          >
+            ↗ {link.displayText}
+          </a>
         </div>
       ) : null}
 

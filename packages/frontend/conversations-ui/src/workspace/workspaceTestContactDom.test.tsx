@@ -75,6 +75,46 @@ describe('novo contato de teste', () => {
   })
 })
 
+describe('reiniciar conversa do simulador', () => {
+  function resetButton(container: HTMLElement): HTMLButtonElement | undefined {
+    return Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'Reiniciar conversa')
+  }
+
+  it('sem resetConversation o botão não existe', async () => {
+    const { container, unmount } = mountWorkspace({
+      createTestContact: () => ({ handle: '05511900001234' }),
+      transports: { whatsapp: () => ({ sendText: async () => {}, sendReply: async () => {} }) },
+    })
+    await wait(5)
+    await act(async () => { newContactButton(container)?.click() })
+    await wait(5)
+
+    expect(resetButton(container)).toBeUndefined()
+    unmount()
+  })
+
+  it('apaga a sessão no host e recomeça mandando o texto que leva ao menu', async () => {
+    const sent: string[] = []
+    const reset: string[] = []
+    const { container, unmount } = mountWorkspace({
+      createTestContact: () => ({ handle: '05511900001234' }),
+      resetConversation: async ({ handle }) => void reset.push(handle),
+      transports: { whatsapp: () => ({ sendText: async (text) => void sent.push(text), sendReply: async () => {} }) },
+    })
+    await wait(5)
+    await act(async () => { newContactButton(container)?.click() })
+    await wait(5)
+
+    await act(async () => { resetButton(container)?.click() })
+    await wait(20)
+
+    expect(reset).toEqual(['05511900001234'])
+    expect(sent).toEqual(['menu'])
+    expect(container.querySelector('.cv-simulator-panel')).not.toBeNull()
+    unmount()
+  })
+})
+
 describe('rótulos do painel de contexto', () => {
   it('o workspace repassa contextLabels ao painel', async () => {
     const store = createPreviewStore({ conversations: PREVIEW_CONVERSATIONS, messages: PREVIEW_MESSAGES })

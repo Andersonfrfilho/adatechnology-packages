@@ -70,11 +70,15 @@ function matchesOption(text: string, option: readonly [string, string]): boolean
  * qualquer ordem. Empate devolve `undefined` de propósito: repetir a pergunta custa uma mensagem,
  * mandar o cliente para o caminho errado custa a conversa.
  */
-export function matchFlowChoice(answer: string, options: readonly (readonly [string, string])[]): string | undefined {
+export function matchFlowChoice(
+  answer: string,
+  options: readonly (readonly [string, string])[],
+  settings: { readonly matchByPosition?: boolean } = {},
+): string | undefined {
   const text = normalizeFlowText(answer)
   if (text.length === 0) return undefined
 
-  if (/^\d+$/.test(text)) {
+  if (settings.matchByPosition !== false && /^\d+$/.test(text)) {
     const byPosition = options[Number(text) - 1]
     if (byPosition) return byPosition[0]
   }

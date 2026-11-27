@@ -48,7 +48,18 @@ export interface InteractivePayload {
     button?: string
     sections?: InteractiveSection[]
     buttons?: { reply?: InteractiveOption }[]
+    /** `cta_url`: o botão abre um link em vez de responder. */
+    name?: string
+    parameters?: { display_text?: string; url?: string }
   }
+}
+
+/** Localização nativa enviada ou recebida (`type: 'location'`). */
+export interface LocationPayload {
+  latitude: number
+  longitude: number
+  name?: string
+  address?: string
 }
 
 /** Como o cliente respondeu a um menu: por botão ou por item de lista. */
@@ -59,7 +70,9 @@ export type InteractiveSelection = {
 
 export interface MessagePayload {
   id: string
-  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'template' | 'interactive'
+  type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'template' | 'interactive' | 'location'
+  /** Localização (`type: 'location'`): o cartão com o pino. */
+  location?: LocationPayload
   /** Payload cru da mensagem. Em `type: 'interactive'`, carrega o menu que o cliente vê. */
   payload?: InteractivePayload | null
   content?: string

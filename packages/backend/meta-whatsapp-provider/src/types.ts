@@ -64,6 +64,14 @@ export type SendInteractiveButtonsParams = {
   readonly buttons: readonly InteractiveButton[]
 }
 
+export type SendInteractiveCtaUrlParams = {
+  readonly to: string
+  readonly bodyText: string
+  /** Texto do botão que abre o link; a Meta aceita até 20 caracteres. */
+  readonly displayText: string
+  readonly url: string
+}
+
 export type InteractiveListRow = {
   readonly id: string
   readonly title: string

@@ -13,6 +13,7 @@ import type {
   SendTemplateParams,
   FetchMediaResult,
   SendInteractiveButtonsParams,
+  SendInteractiveCtaUrlParams,
   SendInteractiveListParams,
   SendLocationParams,
   SendTextOptions,
@@ -32,6 +33,7 @@ function stripMimeTypeParameters(mimeType: string): string {
   return (mimeType.split(';')[0] ?? mimeType).trim()
 }
 const MAX_INTERACTIVE_BUTTONS = 3
+const MAX_CTA_URL_DISPLAY_TEXT = 20
 const MAX_INTERACTIVE_LIST_ROWS = 10
 
 export class WhatsAppMessageProvider {
@@ -199,6 +201,31 @@ export class WhatsAppMessageProvider {
         action: {
           buttons: buttons.map((button) => ({ type: 'reply', reply: { id: button.id, title: button.title } })),
         },
+      },
+    })
+  }
+
+  /** Texto com um botão que abre o link (`interactive` `cta_url`). Só http(s); botão com até 20 caracteres. */
+  async sendInteractiveCtaUrl(params: SendInteractiveCtaUrlParams): Promise<SendMessageResult> {
+    const { to, bodyText, displayText, url } = params
+    if (!/^https?:\/\//i.test(url)) {
+      throw new WhatsAppRejectionError('WHATSAPP_INVALID_INPUT', 'cta_url must be an http(s) link', null)
+    }
+    if (displayText.trim().length === 0 || Array.from(displayText).length > MAX_CTA_URL_DISPLAY_TEXT) {
+      throw new WhatsAppRejectionError(
+        'WHATSAPP_INVALID_INPUT',
+        `cta_url display text must have 1 to ${MAX_CTA_URL_DISPLAY_TEXT} characters`,
+        null,
+      )
+    }
+    return this.postMessage({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'cta_url',
+        body: { text: bodyText },
+        action: { name: 'cta_url', parameters: { display_text: displayText, url } },
       },
     })
   }

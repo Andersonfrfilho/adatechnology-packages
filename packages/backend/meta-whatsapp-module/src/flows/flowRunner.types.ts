@@ -16,7 +16,7 @@ import type {
 } from '@adatechnology/meta-whatsapp-contracts'
 
 /** Qual texto do runner está sendo pedido ao resolvedor. */
-export type FlowTextKind = 'fallback' | 'rejection' | 'non-text-answer' | 'handoff' | 'handoff-out-of-hours'
+export type FlowTextKind = 'fallback' | 'rejection' | 'non-text-answer' | 'handoff' | 'handoff-out-of-hours' | 'cancel'
 
 export type FlowTextContext = {
   readonly companyId: string
@@ -63,8 +63,12 @@ export type FlowAnswerValidator = (params: {
   readonly context: Readonly<Record<string, unknown>>
 }) => FlowAnswerValidatorResult | Promise<FlowAnswerValidatorResult>
 
-/** `restart` volta ao início do fluxo de partida; `handoff` chama uma pessoa; `flow:<chave>` abre outro fluxo. */
-export type FlowGlobalKeywordTarget = 'restart' | 'handoff' | `flow:${string}`
+/**
+ * `restart` volta ao início do fluxo de partida; `handoff` chama uma pessoa; `flow:<chave>` abre outro fluxo;
+ * `cancel` apaga o que foi coletado, despede-se (`cancelMessage`) e encerra o fluxo; `back` refaz a pergunta
+ * anterior com o contexto que ela tinha (sem pergunta anterior, equivale a `restart`).
+ */
+export type FlowGlobalKeywordTarget = 'restart' | 'handoff' | 'cancel' | 'back' | `flow:${string}`
 
 /** `exact`: a mensagem inteira é a palavra; `word`: a palavra aparece inteira dentro da mensagem. */
 export type FlowGlobalKeywordMatch = 'exact' | 'word'
@@ -113,6 +117,10 @@ export type FlowRunnerConfig = {
   /** Fluxo de quem chega sem conversa em andamento. Padrão `main`. */
   readonly startFlowKey?: string
   readonly globalKeywords?: readonly FlowGlobalKeyword[]
+  /** Despedida da palavra global `cancel`. Aceita `{{chave}}` das variáveis do host. Padrão do pacote se ausente. */
+  readonly cancelMessage?: FlowConfigText
+  /** Chaves do contexto que sobrevivem ao `cancel` (ex.: "já foi recebido"). O resto é apagado. */
+  readonly preserveOnCancel?: readonly string[]
   /** Respostas inválidas seguidas no mesmo nó antes de chamar uma pessoa. Padrão 2; o nó pode sobrescrever. */
   readonly maxInvalidAnswers?: number
   /** Texto de nova tentativa quando o nó não declara `fallbackMessage`. */
@@ -125,6 +133,12 @@ export type FlowRunnerConfig = {
   readonly listButtonLabel?: string
   /** Rótulo da linha que pede a próxima página de um `dynamic_choice`. */
   readonly seeMoreLabel?: string
+  /**
+   * Paginação de ida e volta no `dynamic_choice`: `pageSize` itens por página (padrão e teto 8, para caber
+   * "ver mais" e "voltar" nas 10 linhas da lista) e a linha de página anterior a partir da segunda página.
+   * Ausente, vale o comportamento antigo (só "ver mais").
+   */
+  readonly pagination?: { readonly pageSize?: number; readonly nextLabel?: string; readonly previousLabel?: string }
   readonly dateLocale?: FlowDateLocale
   /**
    * Fuso de "hoje" na validação de data (IANA). Obrigatório — ou derivado de

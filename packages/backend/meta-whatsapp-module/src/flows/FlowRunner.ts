@@ -38,6 +38,7 @@ import type { FlowOutboundMessage } from './buildFlowChoiceMessage'
 import { isChoiceNode, resolveFlowAnswer } from './resolveFlowAnswer'
 import { FlowQuestionRenderer } from './FlowQuestionRenderer'
 import { runtimeOf, withRuntime } from './flowRuntimeState'
+import { trailOf, withTrail, withTrailEntry } from './flowTrail'
 import type { FlowTurnLockInterface } from './flowTurnLock'
 import { readFlowInbound, type FlowInbound } from './readFlowInbound'
 import {
@@ -328,11 +329,40 @@ export class FlowRunner {
       await this.handOff(turn, context)
       return 'handled'
     }
+    if (target === 'cancel') return this.cancel(turn)
+    if (target === 'back') return this.goBack(turn)
     const flowKey = target === 'restart' ? this.startFlowKey() : crossFlowKey(target)
     const graph = await this.loadGraph(turn.companyId, flowKey)
     if (!graph) return 'no-flow'
     await this.claim(turn)
-    await this.runFrom(turn, { graph, nodeId: graph.startNodeId, context, enterInitialNode: true })
+    await this.runFrom(turn, { graph, nodeId: graph.startNodeId, context: withTrail(context, []), enterInitialNode: true })
+    return 'handled'
+  }
+
+  /** Apaga o que foi coletado e encerra o fluxo; a próxima mensagem do cliente começa do início. */
+  private async cancel(turn: FlowTurn): Promise<FlowRunnerOutcome> {
+    await this.claim(turn)
+    const kept = (this.dependencies.config.preserveOnCancel ?? []).filter((key) => key in turn.session.context)
+    const context = Object.fromEntries(kept.map((key) => [key, turn.session.context[key]]))
+    await this.save(turn, { flowKey: null, nodeId: null, context })
+    const text = await this.configText(turn, undefined, { chain: [this.dependencies.config.cancelMessage], kind: 'cancel' })
+    await this.say(turn, text ?? DEFAULT_FLOW_TEXT.CANCEL, {})
+    return 'handled'
+  }
+
+  /** Refaz a pergunta anterior com o contexto que ela tinha; sem anterior, volta ao início como `restart`. */
+  private async goBack(turn: FlowTurn): Promise<FlowRunnerOutcome> {
+    const { flowKey, currentNodeId } = turn.session
+    const trail = trailOf(turn.session.context)
+    const last = trail.at(-1)
+    const isAtLast = last !== undefined && last.flowKey === flowKey && last.nodeId === currentNodeId
+    const previous = isAtLast ? trail.at(-2) : undefined
+    const graph = previous ? await this.loadGraph(turn.companyId, previous.flowKey) : undefined
+    const node = previous ? graph?.nodes[previous.nodeId] : undefined
+    if (!previous || !graph || !node) return this.applyGlobalTarget(turn, 'restart')
+    await this.claim(turn)
+    const context = withRuntime(withTrail({ ...previous.context }, trail.slice(0, -1)), {})
+    await this.awaitAnswer(turn, graph, node, context, 0)
     return 'handled'
   }
 
@@ -369,6 +399,7 @@ export class FlowRunner {
 
     if (decision.kind === 'jump') return this.jumpTo(turn, graph, decision.target, withRuntime(context, {}))
     if (decision.kind === 'see-more') return this.awaitAnswer(turn, graph, node, context, page + 1)
+    if (decision.kind === 'see-previous') return this.awaitAnswer(turn, graph, node, context, Math.max(0, page - 1))
     if (decision.kind === 'invalid' && this.followsDefaultWhenUnmatched(node)) {
       return this.runFrom(turn, {
         graph,
@@ -461,7 +492,7 @@ export class FlowRunner {
   }
 
   private followsDefaultWhenUnmatched(node: FlowNodeData): boolean {
-    if (!isChoiceNode(node)) return false
+    if (!isChoiceNode(node) && node.type !== 'dynamic_choice') return false
     return (node.unmatchedChoice ?? this.dependencies.config.unmatchedChoice ?? 'reask') === 'default'
   }
 
@@ -603,7 +634,8 @@ export class FlowRunner {
         context,
         page,
       })
-      await this.save(turn, { flowKey: graph.key, nodeId: node.id, context: renderedContext })
+      const trailed = withTrailEntry(renderedContext, { flowKey: graph.key, nodeId: node.id })
+      await this.save(turn, { flowKey: graph.key, nodeId: node.id, context: trailed })
       if (message) await this.send(turn, message)
     } catch (error) {
       await this.report(turn, graph.key, node.id, 'render', error)

@@ -13,12 +13,13 @@ import {
   type FlowClock,
   type FlowNodeData,
 } from '@adatechnology/meta-whatsapp-contracts'
-import { DYNAMIC_CHOICE_MORE_ID } from './flowRunner.constant'
+import { DYNAMIC_CHOICE_MORE_ID, DYNAMIC_CHOICE_PREVIOUS_ID } from './flowRunner.constant'
 
 export type FlowAnswerDecision =
   | { readonly kind: 'answer'; readonly userAnswer: string; readonly value?: unknown }
   | { readonly kind: 'jump'; readonly target: string }
   | { readonly kind: 'see-more' }
+  | { readonly kind: 'see-previous' }
   | { readonly kind: 'invalid'; readonly rejection?: FlowAnswerRejection }
 
 export type ResolveFlowAnswerParams = {
@@ -51,21 +52,23 @@ function matchOption(
   answer: string,
   options: readonly (readonly [string, string])[],
   isInteractiveReply: boolean,
+  matchByPosition: boolean | undefined,
 ): string | undefined {
   if (isInteractiveReply) return options.some(([id]) => id === answer) ? answer : undefined
-  return matchFlowChoice(answer, options)
+  return matchFlowChoice(answer, options, { matchByPosition })
 }
 
 function resolveChoice(params: ResolveFlowAnswerParams, answer: string): FlowAnswerDecision {
-  const optionId = matchOption(answer, params.options ?? params.node.options ?? [], params.isInteractiveReply)
+  const optionId = matchOption(answer, params.options ?? params.node.options ?? [], params.isInteractiveReply, params.node.matchByPosition)
   if (optionId) return { kind: 'answer', userAnswer: optionId }
   const target = keywordRoute(params.node, answer, params.isInteractiveReply)
   return target ? { kind: 'jump', target } : { kind: 'invalid' }
 }
 
 function resolveDynamicChoice(params: ResolveFlowAnswerParams, answer: string): FlowAnswerDecision {
-  const optionId = matchOption(answer, params.dynamicOptions ?? [], params.isInteractiveReply)
+  const optionId = matchOption(answer, params.dynamicOptions ?? [], params.isInteractiveReply, params.node.matchByPosition)
   if (optionId === DYNAMIC_CHOICE_MORE_ID) return { kind: 'see-more' }
+  if (optionId === DYNAMIC_CHOICE_PREVIOUS_ID) return { kind: 'see-previous' }
   if (optionId) return { kind: 'answer', userAnswer: optionId }
   const target = keywordRoute(params.node, answer, params.isInteractiveReply)
   return target ? { kind: 'jump', target } : { kind: 'invalid' }

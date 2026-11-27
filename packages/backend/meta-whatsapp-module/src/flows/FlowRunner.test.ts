@@ -207,6 +207,99 @@ describe('FlowRunner — validation, actions and cross-flow', () => {
   })
 })
 
+describe('FlowRunner — global cancel and back', () => {
+  const KEYWORDS = [
+    { keywords: ['sair', 'cancelar'], target: 'cancel' as const },
+    { keywords: ['voltar'], target: 'back' as const },
+    { keywords: ['menu'], target: 'restart' as const },
+  ]
+
+  async function midBooking() {
+    const harness = frontDesk({ globalKeywords: KEYWORDS, cancelMessage: 'Tudo bem, {{contactFirstName}}! Cancelei.' })
+    await harness.handle(textMessage('oi'), 'Ana Souza')
+    await harness.handle(replyMessage('book'))
+    await harness.handle(textMessage('25/12'))
+    harness.takeSent()
+    return harness
+  }
+
+  it('cancels at the first, middle and last step, clearing what was collected', async () => {
+    const harness = await midBooking()
+    expect(harness.row.currentNodeId).toBe('people')
+    expect(harness.row.context['date']).toBeDefined()
+
+    await harness.handle(textMessage('Sair'), 'Ana Souza')
+    expect(harness.takeSent()).toEqual([{ kind: 'text', body: 'Tudo bem, Ana! Cancelei.' }])
+    expect(harness.row.flowKey).toBeNull()
+    expect(harness.row.currentNodeId).toBeNull()
+    expect(harness.row.context['date']).toBeUndefined()
+
+    await harness.handle(textMessage('oi'))
+    expect(harness.row.currentNodeId).toBe('menu')
+    await harness.handle(textMessage('cancelar'))
+    expect(harness.takeSent().at(-1)).toMatchObject({ kind: 'text' })
+    expect(harness.row.currentNodeId).toBeNull()
+  })
+
+  it('keeps only the context keys listed in preserveOnCancel', async () => {
+    const harness = frontDesk({ globalKeywords: KEYWORDS, preserveOnCancel: ['date'] })
+    await harness.handle(textMessage('oi'))
+    await harness.handle(replyMessage('book'))
+    await harness.handle(textMessage('25/12'))
+    await harness.handle(textMessage('sair'))
+    expect(harness.row.context['date']).toBeDefined()
+    expect(harness.row.context['people']).toBeUndefined()
+  })
+
+  it('uses the package default farewell when none is configured', async () => {
+    const harness = frontDesk({ globalKeywords: KEYWORDS })
+    await harness.handle(textMessage('oi'))
+    harness.takeSent()
+    await harness.handle(textMessage('sair'))
+    expect(harness.takeSent()).toEqual([{ kind: 'text', body: expect.stringContaining('Cancelei') }])
+  })
+
+  it('does not cancel when the command is only part of a sentence', async () => {
+    const harness = await midBooking()
+    await harness.handle(textMessage('quero sair para jantar dia 10'))
+    expect(harness.row.currentNodeId).toBe('people')
+    expect(harness.row.context['date']).toBeDefined()
+  })
+
+  it('goes back to the previous question with the context it had, then forward again', async () => {
+    const back = await midBooking()
+    await back.handle(textMessage('voltar'))
+    expect(back.takeSent()).toEqual([{ kind: 'text', body: 'Para qual dia?' }])
+    expect(back.row.currentNodeId).toBe('date')
+    expect(back.row.context['date']).toBeUndefined()
+
+    await back.handle(textMessage('26/12'))
+    expect(back.row.currentNodeId).toBe('people')
+    await back.handle(textMessage('voltar'))
+    await back.handle(textMessage('voltar'))
+    expect(back.row.flowKey).toBe('main')
+    expect(back.row.currentNodeId).toBe('menu')
+  })
+
+  it('at the first question of the conversation, back shows the start menu', async () => {
+    const harness = frontDesk({ globalKeywords: KEYWORDS })
+    await harness.handle(textMessage('oi'))
+    harness.takeSent()
+    await harness.handle(textMessage('voltar'))
+    expect(harness.takeSent()[0]).toMatchObject({ kind: 'interactive' })
+    expect(harness.row.currentNodeId).toBe('menu')
+  })
+
+  it('restart clears the trail, so back after the menu does not return to the abandoned flow', async () => {
+    const harness = await midBooking()
+    await harness.handle(textMessage('menu'))
+    harness.takeSent()
+    await harness.handle(textMessage('voltar'))
+    expect(harness.row.flowKey).toBe('main')
+    expect(harness.row.currentNodeId).toBe('menu')
+  })
+})
+
 describe('FlowRunner — global keywords and handoff', () => {
   const HOURS = {
     timeZone: 'America/Sao_Paulo',
@@ -256,6 +349,68 @@ describe('FlowRunner — global keywords and handoff', () => {
     await harness.handle(replyMessage('human'))
     expect(harness.takeSent()).toEqual([{ kind: 'text', body: 'Já chamei alguém.' }])
     expect(harness.humanRequests).toHaveLength(1)
+  })
+})
+
+describe('FlowRunner — dynamic choice pagination', () => {
+  async function pagedRunner(total: number) {
+    const items = Array.from({ length: total }, (_, index) => ({ id: `item-${index + 1}`, title: `Item ${index + 1}` }))
+    const harness = buildRunner({
+      graphs: [
+        graph('main', 'pick', [
+          { id: 'pick', type: 'dynamic_choice', question: 'Escolha', choiceProvider: 'items', contextKey: 'item', next: 'done' },
+          { id: 'done', type: 'action', directMessage: 'Escolhido: {{item}}' },
+        ]),
+      ],
+      config: {
+        pagination: {},
+        dynamicChoiceProviders: {
+          items: async ({ page, pageSize }) => ({
+            options: items.slice(page * pageSize, (page + 1) * pageSize),
+            hasMore: (page + 1) * pageSize < items.length,
+          }),
+        },
+      },
+    })
+    await harness.handle(textMessage('oi'))
+    return harness
+  }
+  const rowIds = (message: ReturnType<Awaited<ReturnType<typeof pagedRunner>>['takeSent']>[number] | undefined): string[] =>
+    message?.kind === 'interactive' && message.interactive.kind === 'list' ? message.interactive.sections[0]!.rows.map((row) => row.id) : []
+
+  it.each([
+    [8, 8, false],
+    [9, 9, true],
+    [10, 9, true],
+    [11, 9, true],
+  ])('with %i items the first page has %i rows (next row: %s)', async (total, rows, hasNext) => {
+    const harness = await pagedRunner(total)
+    const ids = rowIds(harness.takeSent()[0])
+    expect(ids.length).toBe(total === 8 ? 8 : 9)
+    expect(ids.includes('__more__')).toBe(hasNext)
+    expect(ids.includes('__previous__')).toBe(false)
+    expect(rows).toBeGreaterThan(0)
+  })
+
+  it('goes forward, back, and picks an item on the second page by id or typed number', async () => {
+    const harness = await pagedRunner(20)
+    expect(rowIds(harness.takeSent()[0])).toEqual([...Array.from({ length: 8 }, (_, i) => `item-${i + 1}`), '__more__'])
+
+    await harness.handle(replyMessage('__more__', 'list'))
+    expect(rowIds(harness.takeSent()[0])).toEqual([...Array.from({ length: 8 }, (_, i) => `item-${i + 9}`), '__more__', '__previous__'])
+
+    await harness.handle(replyMessage('__more__', 'list'))
+    expect(rowIds(harness.takeSent()[0])).toEqual(['item-17', 'item-18', 'item-19', 'item-20', '__previous__'])
+
+    await harness.handle(replyMessage('__previous__', 'list'))
+    expect(rowIds(harness.takeSent()[0])[0]).toBe('item-9')
+    await harness.handle(replyMessage('__previous__', 'list'))
+    expect(rowIds(harness.takeSent()[0])[0]).toBe('item-1')
+
+    await harness.handle(replyMessage('__more__', 'list'))
+    harness.takeSent()
+    await harness.handle(textMessage('2'))
+    expect(harness.takeSent()).toEqual([{ kind: 'text', body: 'Escolhido: item-10' }])
   })
 })
 
