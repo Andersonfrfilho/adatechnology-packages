@@ -25,6 +25,8 @@ export interface QuickRepliesBarProps {
   readonly items: readonly QuickReply[]
   readonly onSelect: (quickReply: QuickReply) => void
   readonly maxVisible?: number
+  /** Sem campo para receber o texto (conversa ainda com o robô): os botões ficam visíveis e desabilitados. */
+  readonly isDisabled?: boolean
   readonly labels?: Partial<QuickRepliesBarLabels>
   readonly className?: string
 }
@@ -35,7 +37,7 @@ export function splitQuickReplies<TItem>(items: readonly TItem[], maxVisible: nu
   return { visible: items.slice(0, limit), overflow: items.slice(limit) }
 }
 
-export function QuickRepliesBar({ items, onSelect, maxVisible = DEFAULT_QUICK_REPLIES_BAR_MAX_VISIBLE, labels, className }: QuickRepliesBarProps): ReactNode {
+export function QuickRepliesBar({ items, onSelect, maxVisible = DEFAULT_QUICK_REPLIES_BAR_MAX_VISIBLE, isDisabled = false, labels, className }: QuickRepliesBarProps): ReactNode {
   const text = { ...DEFAULT_QUICK_REPLIES_BAR_LABELS, ...labels }
   const menuId = useId()
   const [isOpen, setIsOpen] = useState(false)
@@ -81,7 +83,7 @@ export function QuickRepliesBar({ items, onSelect, maxVisible = DEFAULT_QUICK_RE
   return (
     <div ref={rootRef} role="toolbar" aria-label={text.toolbar} className={className ? `cv-qr-bar ${className}` : 'cv-qr-bar'}>
       {visible.map((quickReply) => (
-        <button key={quickReply.id} type="button" className="cv-qr-bar-button" title={quickReply.body} onClick={() => handleSelect(quickReply)}>
+        <button key={quickReply.id} type="button" className="cv-qr-bar-button" disabled={isDisabled} title={quickReply.body} onClick={() => handleSelect(quickReply)}>
           {quickReply.title}
         </button>
       ))}
@@ -93,6 +95,7 @@ export function QuickRepliesBar({ items, onSelect, maxVisible = DEFAULT_QUICK_RE
             className="cv-qr-bar-button cv-qr-bar-button--more"
             aria-haspopup="menu"
             aria-expanded={isOpen}
+            disabled={isDisabled}
             aria-controls={isOpen ? menuId : undefined}
             aria-label={text.moreMenu}
             onClick={() => setIsOpen((current) => !current)}

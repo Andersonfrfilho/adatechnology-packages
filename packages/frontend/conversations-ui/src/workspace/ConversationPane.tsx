@@ -393,6 +393,7 @@ export function ConversationPane({
           listQuickReplies={listSavedQuickReplies}
           variables={quickReplyVariables}
           maxVisible={typeof quickRepliesBar === 'object' ? quickRepliesBar.maxVisible : undefined}
+          isDisabled={botOwnsConversation}
           onInsert={insertIntoDraft}
         />
       ) : null}

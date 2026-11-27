@@ -465,7 +465,9 @@
   cursor: pointer;
 }
 
-.cv-qr-bar-button:hover,
+.cv-qr-bar-button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.cv-qr-bar-button:hover:not(:disabled),
 .cv-qr-bar-button:focus-visible {
   border-color: var(--cv-qr-bar-accent, #2563eb);
 }

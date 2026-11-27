@@ -37,6 +37,11 @@ describe('QuickRepliesBar', () => {
     expect(renderToStaticMarkup(<QuickRepliesBar items={[]} onSelect={() => {}} />)).toBe('')
   })
 
+  it('desabilita os botões enquanto não há campo para receber o texto', () => {
+    const markup = renderToStaticMarkup(<QuickRepliesBar items={ITEMS} isDisabled onSelect={() => {}} />)
+    expect(markup.match(/disabled=""/g)?.length).toBe(5)
+  })
+
   it('aceita o vocabulário trocado', () => {
     const markup = renderToStaticMarkup(<QuickRepliesBar items={ITEMS} maxVisible={2} labels={{ more: 'More', toolbar: 'Saved replies' }} onSelect={() => {}} />)
     expect(markup).toContain('More')

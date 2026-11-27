@@ -14,12 +14,13 @@ export interface ConversationQuickRepliesBarProps {
   readonly listQuickReplies?: ((params?: { search?: string }) => Promise<QuickReply[]>) | undefined
   readonly variables?: Readonly<Record<string, string>> | undefined
   readonly maxVisible?: number | undefined
+  readonly isDisabled?: boolean | undefined
   readonly labels?: Partial<QuickRepliesBarLabels> | undefined
   /** Recebe o texto já com as variáveis aplicadas; o host o põe no campo, sem enviar. */
   readonly onInsert: (text: string, quickReply: QuickReply) => void
 }
 
-export function ConversationQuickRepliesBar({ conversationId, listQuickReplies, variables, maxVisible, labels, onInsert }: ConversationQuickRepliesBarProps): ReactNode {
+export function ConversationQuickRepliesBar({ conversationId, listQuickReplies, variables, maxVisible, isDisabled, labels, onInsert }: ConversationQuickRepliesBarProps): ReactNode {
   const [items, setItems] = useState<readonly QuickReply[]>([])
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export function ConversationQuickRepliesBar({ conversationId, listQuickReplies, 
     <QuickRepliesBar
       items={items}
       {...(maxVisible === undefined ? {} : { maxVisible })}
+      isDisabled={isDisabled === true}
       {...(labels ? { labels } : {})}
       onSelect={(quickReply) => onInsert(applyQuickReplyVariables(quickReply.body, variables), quickReply)}
     />
