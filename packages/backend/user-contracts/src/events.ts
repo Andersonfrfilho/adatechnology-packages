@@ -19,6 +19,11 @@ export const USER_EVENT = {
   PASSWORD_RESET_REQUESTED: 'user.password_reset.requested',
   PASSWORD_RESET_COMPLETED: 'user.password_reset.completed',
   PROFILE_UPDATED: 'user.profile.updated',
+  EMAIL_CHANGE_REQUESTED: 'user.email_change.requested',
+  EMAIL_CHANGED: 'user.email.changed',
+  PHONE_CHANGED: 'user.phone.changed',
+  PHONE_VERIFIED: 'user.phone.verified',
+  ACCOUNT_RECOVERED: 'user.account.recovered',
 } as const
 
 export type UserEventType = (typeof USER_EVENT)[keyof typeof USER_EVENT]
@@ -107,7 +112,51 @@ export type ProfileUpdatedEvent = BaseEvent & {
   readonly user: UserProfile
 }
 
+/** Pedido de troca de e-mail: o host entrega o link ao NOVO endereço (o módulo também envia, se houver driver de e-mail). */
+export type EmailChangeRequestedEvent = BaseEvent & {
+  readonly type: typeof USER_EVENT.EMAIL_CHANGE_REQUESTED
+  readonly userId: string
+  readonly newEmail: string
+  readonly confirmUrl: string
+  readonly expiresInSeconds: number
+}
+
+/** A troca foi confirmada. `previousEmail` é o endereço que o host avisa ("seu e-mail foi alterado"). */
+export type EmailChangedEvent = BaseEvent & {
+  readonly type: typeof USER_EVENT.EMAIL_CHANGED
+  readonly userId: string
+  readonly previousEmail: string
+  readonly newEmail: string
+}
+
+/** Sem o número: quem precisa dele lê a conta. `isVerificationStarted` diz se um código saiu. */
+export type PhoneChangedEvent = BaseEvent & {
+  readonly type: typeof USER_EVENT.PHONE_CHANGED
+  readonly userId: string
+  readonly isVerificationStarted: boolean
+}
+
+export type PhoneVerifiedEvent = BaseEvent & {
+  readonly type: typeof USER_EVENT.PHONE_VERIFIED
+  readonly userId: string
+}
+
+/** Trilha da recuperação assistida: quem agiu, em quem e o quê — nunca os valores. */
+export type AccountRecoveredEvent = BaseEvent & {
+  readonly type: typeof USER_EVENT.ACCOUNT_RECOVERED
+  readonly userId: string
+  readonly actorUserId?: string
+  readonly isEmailUpdated: boolean
+  readonly isUnlocked: boolean
+  readonly isResetSent: boolean
+}
+
 export type UserDomainEvent =
+  | EmailChangeRequestedEvent
+  | EmailChangedEvent
+  | PhoneChangedEvent
+  | PhoneVerifiedEvent
+  | AccountRecoveredEvent
   | UserCreatedEvent
   | UserUpdatedEvent
   | LoginSucceededEvent
@@ -130,4 +179,9 @@ export type UserHooks = {
   readonly onPasswordResetRequested?: (event: PasswordResetRequestedEvent) => Promise<void> | void
   readonly onPasswordResetCompleted?: (event: PasswordResetCompletedEvent) => Promise<void> | void
   readonly onProfileUpdated?: (event: ProfileUpdatedEvent) => Promise<void> | void
+  readonly onEmailChangeRequested?: (event: EmailChangeRequestedEvent) => Promise<void> | void
+  readonly onEmailChanged?: (event: EmailChangedEvent) => Promise<void> | void
+  readonly onPhoneChanged?: (event: PhoneChangedEvent) => Promise<void> | void
+  readonly onPhoneVerified?: (event: PhoneVerifiedEvent) => Promise<void> | void
+  readonly onAccountRecovered?: (event: AccountRecoveredEvent) => Promise<void> | void
 }

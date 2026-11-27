@@ -6,6 +6,7 @@ import { describe, expect, it } from 'bun:test'
 import { EmailAlreadyExistsError, InvalidCredentialsError } from '@adatechnology/user-contracts'
 
 import {
+  createInMemoryAccountChallenges,
   createInMemoryPasswordResetTokens,
   createInMemoryRefreshTokenStore,
   createInMemoryUsers,
@@ -13,6 +14,7 @@ import {
 import { TokenService } from '../shared/TokenService'
 import { UserRepository } from '../repositories/UserRepository'
 import { PasswordResetTokenRepository } from '../repositories/PasswordResetTokenRepository'
+import type { AccountChallengeRepository } from '../repositories/AccountChallengeRepository'
 import { AuthenticateLocalUseCase } from './AuthenticateLocal.use-case'
 import { CreateUserUseCase } from './CreateUser.use-case'
 import type { UserDependencies } from './userModule.types'
@@ -21,6 +23,7 @@ function buildDependencies(overrides: Partial<UserDependencies> = {}): UserDepen
   return {
     users: createInMemoryUsers() as unknown as UserRepository,
     passwordResetTokens: createInMemoryPasswordResetTokens() as unknown as PasswordResetTokenRepository,
+    accountChallenges: createInMemoryAccountChallenges() as unknown as AccountChallengeRepository,
     refreshTokenStore: createInMemoryRefreshTokenStore(),
     tokenService: new TokenService({ secret: 'test-secret-test-secret-test-secret' }),
     config: {

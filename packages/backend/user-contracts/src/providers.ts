@@ -132,6 +132,36 @@ export type EmailDriverPort = {
   send(params: SendEmailParams): Promise<DeliveryAttemptResult>
 }
 
+/**
+ * Canal de entrega do código de verificação (WhatsApp, SMS...). Cada provedor declara o seu `channel`
+ * e o host escolhe a ordem de tentativa em `config.phoneVerification.channelOrder`: o primeiro que
+ * devolve `sent` encerra; `invalid_target`/`retriable`/`permanent` passam ao próximo.
+ *
+ * O módulo gera, grava só o hash, expira e limita o código; o provedor só entrega o texto que recebe.
+ */
+export type VerificationCodeSenderPort = {
+  readonly channel: string
+  send(params: {
+    readonly code: string
+    readonly destination: string
+    readonly channel: string
+    readonly expiresInSeconds: number
+    readonly userId: string
+    readonly companyId?: string
+  }): Promise<DeliveryAttemptResult>
+}
+
+/**
+ * Métodos de verificação do telefone conhecidos. O id de um método de envio é o `channel` do provedor;
+ * `whatsapp-inbound` é o gratuito (a pessoa envia o código) e não precisa de provedor de envio.
+ * A escolha do método é do host/empresa (configuração), nunca fixa no código.
+ */
+export const PHONE_VERIFICATION_METHOD = {
+  WHATSAPP_INBOUND: 'whatsapp-inbound',
+  WHATSAPP_TEMPLATE: 'whatsapp-template',
+  SMS: 'sms',
+} as const
+
 export type ClockPort = {
   now(): Date
 }
@@ -226,6 +256,61 @@ export type RefreshTokenConfig = {
   readonly sessionExpiresInSeconds?: number
 }
 
+export type EmailChangeEmailParams = {
+  readonly confirmUrl: string
+  readonly name: string
+  readonly expiresInSeconds: number
+}
+
+/**
+ * Troca de e-mail por confirmação no endereço novo. Ausente = a rota não é publicada.
+ * A conta mantém o e-mail antigo até o link ser aberto.
+ */
+export type EmailChangeConfig = {
+  readonly confirmUrlTemplate: string // must contain {token}
+  readonly tokenExpiresInSeconds?: number
+  readonly buildEmail?: (params: EmailChangeEmailParams) => PasswordResetEmailContent
+}
+
+/** Telefone da conta. `normalize` devolve o número canônico ou `undefined` se inválido (regra do país é do host). */
+export type PhoneConfig = {
+  readonly normalize?: (raw: string) => string | undefined
+}
+
+/**
+ * Prova de posse do telefone por código de uso único. Ausente = o número é salvo como não verificado
+ * e as rotas de verificação não são publicadas.
+ */
+export type PhoneVerificationConfig = {
+  /**
+   * Verificação por mensagem RECEBIDA (padrão gratuito): a tela abre o chat do host com um texto pronto
+   * ("Confirmar meu número: 482913") e a pessoa só envia. O host chama `matchInboundPhoneVerification`
+   * ao receber a mensagem. Ausente = só os canais de envio (`verificationSenders`).
+   */
+  /**
+   * Método da empresa, lido a cada envio (ex.: de uma configuração por empresa). Devolve um id de
+   * `PHONE_VERIFICATION_METHOD` ou o `channel` de um provedor. Ausente, ou método não configurado,
+   * cai em `whatsapp-inbound` (se ligado) e depois no primeiro canal de envio.
+   */
+  readonly selectMethod?: (params: { readonly companyId?: string }) => Promise<string | undefined> | string | undefined
+  readonly inbound?: {
+    /** Texto antes do código, na mensagem pronta. Ausente = `Confirmar meu número:`. */
+    readonly messagePrefix?: string
+    /** Reconhece a mensagem; o grupo 1 é o código. Ausente = o padrão do prefixo (aceita espaços, caixa e acento). */
+    readonly pattern?: RegExp
+  }
+  /** Ordem de tentativa dos canais (`channel` dos provedores). Ausente = a ordem em que os provedores foram plugados. */
+  readonly channelOrder?: readonly string[]
+  readonly codeLength?: number
+  readonly expiresInSeconds?: number
+  /** Tentativas de digitar o código antes de ele ser invalidado. */
+  readonly maxAttempts?: number
+  /** Intervalo mínimo entre dois envios para a mesma conta. */
+  readonly resendCooldownSeconds?: number
+  /** Chave do HMAC que protege o hash do código (mín. 16 caracteres). */
+  readonly hashSecret: string
+}
+
 export type PasswordResetEmailContent = {
   readonly subject: string
   readonly html: string
@@ -316,6 +401,9 @@ export type UserModuleConfig = {
   readonly accessToken: AccessTokenConfig
   readonly refreshToken?: RefreshTokenConfig
   readonly passwordReset?: PasswordResetConfig
+  readonly emailChange?: EmailChangeConfig
+  readonly phone?: PhoneConfig
+  readonly phoneVerification?: PhoneVerificationConfig
   readonly keycloak?: KeycloakConfig
 }
 
@@ -326,6 +414,7 @@ export type UserModuleConfig = {
 export type UserModuleProviders = {
   readonly refreshTokenStore?: RefreshTokenStorePort
   readonly email?: EmailDriverPort
+  readonly verificationSenders?: readonly VerificationCodeSenderPort[]
   readonly clock?: ClockPort
   readonly logger?: LoggerPort
 }

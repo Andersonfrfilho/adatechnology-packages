@@ -20,6 +20,12 @@ export const USER_ERROR_CODE = {
   CONFIG_MISSING: 'USER_CONFIG_MISSING',
   AVATAR_REJECTED: 'USER_AVATAR_REJECTED',
   PASSWORD_NOT_LOCAL: 'USER_PASSWORD_NOT_LOCAL',
+  CURRENT_PASSWORD_INVALID: 'USER_CURRENT_PASSWORD_INVALID',
+  PHONE_ALREADY_EXISTS: 'USER_PHONE_ALREADY_EXISTS',
+  PHONE_INVALID: 'USER_PHONE_INVALID',
+  CONFIRMATION_TOKEN_INVALID: 'USER_CONFIRMATION_TOKEN_INVALID',
+  VERIFICATION_CODE_INVALID: 'USER_VERIFICATION_CODE_INVALID',
+  VERIFICATION_RATE_LIMITED: 'USER_VERIFICATION_RATE_LIMITED',
 } as const
 
 export type UserErrorCode = (typeof USER_ERROR_CODE)[keyof typeof USER_ERROR_CODE]
@@ -66,6 +72,7 @@ export class EmailAlreadyExistsError extends UserError {
       message: 'Email already exists',
       statusCode: 409,
       code: USER_ERROR_CODE.EMAIL_ALREADY_EXISTS,
+      details: { field: 'email' },
     })
     this.name = 'EmailAlreadyExistsError'
   }
@@ -188,5 +195,78 @@ export class AvatarRejectedError extends UserError {
       details: { reason },
     })
     this.name = 'AvatarRejectedError'
+  }
+}
+
+/** A senha atual conferida antes de uma troca sensível não bate (ou a conta está bloqueada). 403, não 401: a sessão segue válida. */
+export class CurrentPasswordInvalidError extends UserError {
+  constructor() {
+    super({
+      message: 'Current password does not match',
+      statusCode: 403,
+      code: USER_ERROR_CODE.CURRENT_PASSWORD_INVALID,
+      details: { field: 'currentPassword' },
+    })
+    this.name = 'CurrentPasswordInvalidError'
+  }
+}
+
+export class PhoneAlreadyExistsError extends UserError {
+  constructor() {
+    super({
+      message: 'Phone already exists',
+      statusCode: 409,
+      code: USER_ERROR_CODE.PHONE_ALREADY_EXISTS,
+      details: { field: 'phone' },
+    })
+    this.name = 'PhoneAlreadyExistsError'
+  }
+}
+
+export class PhoneInvalidError extends UserError {
+  constructor() {
+    super({
+      message: 'Invalid phone number',
+      statusCode: 400,
+      code: USER_ERROR_CODE.PHONE_INVALID,
+      details: { field: 'phone' },
+    })
+    this.name = 'PhoneInvalidError'
+  }
+}
+
+/** Link de confirmação desconhecido, vencido ou já usado: a mesma resposta para os três. */
+export class ConfirmationTokenInvalidError extends UserError {
+  constructor() {
+    super({
+      message: 'Confirmation link is invalid or expired',
+      statusCode: 400,
+      code: USER_ERROR_CODE.CONFIRMATION_TOKEN_INVALID,
+    })
+    this.name = 'ConfirmationTokenInvalidError'
+  }
+}
+
+export class VerificationCodeInvalidError extends UserError {
+  constructor() {
+    super({
+      message: 'Verification code is invalid or expired',
+      statusCode: 400,
+      code: USER_ERROR_CODE.VERIFICATION_CODE_INVALID,
+    })
+    this.name = 'VerificationCodeInvalidError'
+  }
+}
+
+/** Reenvio antes do intervalo mínimo, ou tentativas do código esgotadas. `details.retryAfterSeconds` quando houver. */
+export class VerificationRateLimitedError extends UserError {
+  constructor(retryAfterSeconds?: number) {
+    super({
+      message: 'Too many verification attempts',
+      statusCode: 429,
+      code: USER_ERROR_CODE.VERIFICATION_RATE_LIMITED,
+      ...(retryAfterSeconds === undefined ? {} : { details: { retryAfterSeconds } }),
+    })
+    this.name = 'VerificationRateLimitedError'
   }
 }

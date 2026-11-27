@@ -8,12 +8,21 @@
 import {
   AVATAR_REJECTION,
   AvatarRejectedError,
+  changeEmailSchema,
+  changePasswordSchema,
+  changePhoneSchema,
+  confirmEmailChangeSchema,
   confirmPasswordResetSchema,
   keycloakCallbackSchema,
   localCredentialsSchema,
   requestPasswordResetSchema,
   signUpSchema,
   updateProfileSchema,
+  verifyPhoneSchema,
+  type ChangeEmailInput,
+  type ChangePasswordInput,
+  type ChangePhoneInput,
+  type ConfirmEmailChangeInput,
   type ConfirmPasswordResetInput,
   type KeycloakCallbackInput,
   type LocalCredentials,
@@ -21,6 +30,7 @@ import {
   type SignUpInput,
   type UserSession,
   type UpdateProfileInput,
+  type VerifyPhoneInput,
 } from '@adatechnology/user-contracts'
 import type { HttpResult, ModuleRoute, RequestContext } from '@adatechnology/module-http'
 
@@ -162,7 +172,127 @@ export function buildAuthRoutes(module: UserModule): ModuleRoute[] {
       ]
     : []
 
+  const emailChangeRoutes: ModuleRoute[] = module.hasEmailChange
+    ? [
+        {
+          method: 'POST',
+          path: '/auth/email/change',
+          scope: 'user',
+          bodySchema: changeEmailSchema,
+          operationId: 'requestEmailChange',
+          summary: 'Pede a troca de e-mail (senha atual); o link de confirmação vai ao endereço novo',
+          async handler(context) {
+            const body = context.body as ChangeEmailInput
+            await useCases.requestEmailChange.execute({
+              id: requireUser(context),
+              currentPassword: body.currentPassword,
+              newEmail: body.newEmail,
+              companyId: context.auth?.companyId,
+            })
+            return { kind: 'empty', status: 202 }
+          },
+        },
+        {
+          method: 'POST',
+          path: '/auth/email/confirm',
+          scope: 'public',
+          bodySchema: confirmEmailChangeSchema,
+          operationId: 'confirmEmailChange',
+          summary: 'Confirma a troca de e-mail com o link recebido (uso único)',
+          async handler(context) {
+            const body = context.body as ConfirmEmailChangeInput
+            await useCases.confirmEmailChange.execute({ rawToken: body.token })
+            return { kind: 'empty', status: 204 }
+          },
+        },
+      ]
+    : []
+
+  const phoneVerificationRoutes: ModuleRoute[] = module.hasPhoneVerification
+    ? [
+        {
+          method: 'POST',
+          path: '/auth/phone/verification',
+          scope: 'user',
+          operationId: 'startPhoneVerification',
+          summary: 'Envia (ou reenvia) o código de verificação do telefone; no modo inbound devolve a mensagem pronta',
+          async handler(context) {
+            const result = await useCases.startPhoneVerification.execute({
+              id: requireUser(context),
+              companyId: context.auth?.companyId,
+            })
+            return { kind: 'json', status: 200, body: { data: result } }
+          },
+        },
+        {
+          method: 'POST',
+          path: '/auth/phone/verify',
+          scope: 'user',
+          bodySchema: verifyPhoneSchema,
+          operationId: 'verifyPhone',
+          summary: 'Confere o código digitado e marca o telefone como verificado',
+          async handler(context) {
+            const body = context.body as VerifyPhoneInput
+            const profile = await useCases.verifyPhone.execute({
+              id: requireUser(context),
+              code: body.code,
+              companyId: context.auth?.companyId,
+            })
+            return { kind: 'json', status: 200, body: { data: profile } }
+          },
+        },
+      ]
+    : []
+
   return [
+    {
+      method: 'POST',
+      path: '/auth/password/change',
+      scope: 'user',
+      bodySchema: changePasswordSchema,
+      operationId: 'changePassword',
+      summary: 'Troca a senha com a senha atual; encerra as outras sessões e mantém a atual',
+      async handler(context) {
+        const body = context.body as ChangePasswordInput
+        const presented = readRefreshCookie(context.headers['cookie'])
+        const kept = await useCases.changePassword.execute({
+          id: requireUser(context),
+          currentPassword: body.currentPassword,
+          newPassword: body.newPassword,
+          companyId: context.auth?.companyId,
+          keepSession: presented?.rememberMe === undefined ? {} : { rememberMe: presented.rememberMe },
+        })
+        return {
+          kind: 'empty',
+          status: 204,
+          ...(kept ? { headers: { 'Set-Cookie': buildSessionCookie(kept, kept.rememberMe) } } : {}),
+        }
+      },
+    },
+
+    {
+      method: 'POST',
+      path: '/auth/phone/change',
+      scope: 'user',
+      bodySchema: changePhoneSchema,
+      operationId: 'changePhone',
+      summary: 'Troca o telefone (senha atual); fica não verificado até o código ser confirmado',
+      async handler(context) {
+        const body = context.body as ChangePhoneInput
+        const result = await useCases.changePhone.execute({
+          id: requireUser(context),
+          currentPassword: body.currentPassword,
+          phone: body.phone,
+          companyId: context.auth?.companyId,
+        })
+        return { kind: 'json', status: 200, body: { data: result.profile, verification: result.verification } }
+      },
+    },
+
+    ...emailChangeRoutes,
+
+    ...phoneVerificationRoutes,
+
     {
       method: 'POST',
       path: '/auth/login',

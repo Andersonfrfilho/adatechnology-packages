@@ -140,6 +140,51 @@ Off by default: without `signUp` the route is not published. `POST /auth/signup`
 opens a session like login (201 + refresh cookie). A taken e-mail answers 409, so this route does
 reveal which e-mails exist; rate-limit it at the host.
 
+## Account self-service (password, e-mail, phone, assisted recovery)
+
+All opt-in; every sensitive change asks for the **current password** (wrong answers count in the account lockout; a
+locked account is refused) and answers `403 USER_CURRENT_PASSWORD_INVALID`.
+
+| Route | What it does |
+|---|---|
+| `POST /auth/password/change` | Current + new password. Ends every other session; the caller keeps theirs (new refresh cookie). |
+| `POST /auth/email/change` | Needs `config.emailChange`. Sends a single-use link (24 h by default) to the **new** address; the account keeps the old e-mail until it is opened. |
+| `POST /auth/email/confirm` | Public. Consumes the link, switches the e-mail, marks it verified. Unknown, expired and used links answer the same `400`. |
+| `POST /auth/phone/change` | Valid (`config.phone.normalize`) and unique per company/audience (`409 USER_PHONE_ALREADY_EXISTS`, `details.field = phone`). Saved as **not verified**. |
+| `POST /auth/phone/verification`, `POST /auth/phone/verify` | Need `config.phoneVerification`. Resend (cooldown) and type-the-code check. |
+| `POST /admin/users/:id/recovery` | Needs `config.passwordReset`. Staff, after checking identity off-line: `{ email }` swaps the e-mail, ends sessions and sends the reset link to the new address; `{ unlock: true }` clears the lockout. |
+
+Host notifications are hooks (the module never owns your copy): `onEmailChangeRequested` (new address + link),
+`onEmailChanged` (`previousEmail`: tell the old address "your e-mail was changed"), `onPhoneChanged`,
+`onPhoneVerified`, `onPasswordChanged`, and `onAccountRecovered` (audit: actor, target, flags — never values).
+Logs carry ids and codes, never addresses or numbers.
+
+### Phone verification methods
+
+The method is a **provider chosen by the host's configuration**, not by code. Ids (`PHONE_VERIFICATION_METHOD`):
+`whatsapp-inbound` (default, free), `whatsapp-template` and `sms` (outbound, prepared and off until you plug a provider).
+`phoneVerification.selectMethod({ companyId })` returns the company's choice; a method that is not configured falls back
+to `whatsapp-inbound`. `listPhoneVerificationMethods({ config, senders })` returns each option with `isAvailable` and a
+`reason`, for a settings screen to disable what is missing.
+
+- **Inbound (`config.phoneVerification.inbound`)**: the start response carries `inbound: { code, message }`
+  (`"Confirmar meu número: 482913"`). The UI opens `https://wa.me/<company number>?text=<message>`. When the person sends it,
+  the WhatsApp host calls, before its bot flow:
+
+  ```ts
+  const result = await userModule.useCases.matchInboundPhoneVerification.execute({ text, senderPhone, companyId })
+  // 'ignored'  -> not a confirmation, run the bot as usual
+  // 'verified' -> reply "Pronto, seu número foi confirmado"
+  // 'rejected' -> short generic reply (wrong code, expired, used, wrong sender, too many attempts)
+  ```
+
+  The account is found **by the sender's number**, so one can only confirm their own number. The code is stored as an
+  HMAC, expires (10 min), is single use and limited to `maxAttempts` (5). Spaces, case and accents in the text are tolerated.
+- **Outbound**: implement `VerificationCodeSenderPort` (`channel`, `send({ code, destination, channel, ... })` returning a
+  `DeliveryAttemptResult`) and pass it in `providers.verificationSenders`. `channelOrder` sets the fallback chain.
+  *WhatsApp template*: wrap `@adatechnology/meta-whatsapp-module` sending an `AUTHENTICATION` template with the code.
+  *SMS*: wrap your SMS gateway. `createInMemoryVerificationSender()` is the test provider; nothing real is wired by default.
+
 ## Audiences
 
 ```ts

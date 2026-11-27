@@ -90,3 +90,43 @@ export const updateUserSchema = z
   })
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
+
+/** Troca de senha pela própria pessoa: a senha atual é sempre exigida. */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  newPassword: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+})
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
+
+export const changeEmailSchema = z.object({
+  currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  newEmail: z.string().trim().toLowerCase().email().max(320),
+})
+
+export type ChangeEmailInput = z.infer<typeof changeEmailSchema>
+
+export const confirmEmailChangeSchema = z.object({ token: z.string().min(1).max(200) })
+
+export type ConfirmEmailChangeInput = z.infer<typeof confirmEmailChangeSchema>
+
+export const changePhoneSchema = z.object({
+  currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+  phone: z.string().trim().min(5).max(30),
+})
+
+export type ChangePhoneInput = z.infer<typeof changePhoneSchema>
+
+export const verifyPhoneSchema = z.object({ code: z.string().trim().min(4).max(10) })
+
+export type VerifyPhoneInput = z.infer<typeof verifyPhoneSchema>
+
+/** Recuperação assistida pela equipe: e-mail novo (com link de nova senha) e/ou destravar. */
+export const recoverAccountSchema = z
+  .object({
+    email: z.string().trim().toLowerCase().email().max(320).optional(),
+    unlock: z.literal(true).optional(),
+  })
+  .refine((value) => value.email !== undefined || value.unlock === true, { message: 'Informe email ou unlock' })
+
+export type RecoverAccountInput = z.infer<typeof recoverAccountSchema>

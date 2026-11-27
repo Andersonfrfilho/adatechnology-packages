@@ -64,3 +64,7 @@ export function userByProviderExternalCondition(
     eq(users.externalId, params.externalId),
   )!
 }
+
+export function userByPhoneCondition(params: UserScope & { phone: string }): SQL {
+  return and(userListCondition(params), eq(users.phone, params.phone))!
+}

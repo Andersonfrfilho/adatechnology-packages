@@ -14,8 +14,10 @@ import type {
   RefreshTokenStorePort,
   UserModuleConfig,
   UserHooks,
+  VerificationCodeSenderPort,
 } from '@adatechnology/user-contracts'
 
+import type { AccountChallengeRepository } from '../repositories/AccountChallengeRepository'
 import type { PasswordResetTokenRepository } from '../repositories/PasswordResetTokenRepository'
 import type { UserRepository } from '../repositories/UserRepository'
 import type { KeycloakVerifierPort } from '../shared/keycloak.types'
@@ -24,6 +26,7 @@ import type { TokenService } from '../shared/TokenService'
 export type UserDependencies = {
   readonly users: UserRepository
   readonly passwordResetTokens: PasswordResetTokenRepository
+  readonly accountChallenges: AccountChallengeRepository
   readonly refreshTokenStore: RefreshTokenStorePort
   readonly tokenService: TokenService
   readonly config: UserModuleConfig
@@ -33,6 +36,7 @@ export type UserDependencies = {
   readonly email?: EmailDriverPort
   readonly keycloak?: KeycloakVerifierPort
   readonly avatar?: AvatarStoragePort
+  readonly verificationSenders?: readonly VerificationCodeSenderPort[]
   /** Presente com `lockout.identifierSecret`: bloqueia também o e-mail que não existe. */
   readonly unknownIdentifierLockout?: LoginLockout
 }

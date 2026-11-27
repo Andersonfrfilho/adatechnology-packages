@@ -17,6 +17,9 @@ export type UserProfile = {
   readonly lockedUntil?: string
   /** URL assinada e de vida curta. Ausente = sem foto, ou sem armazenamento no host. */
   readonly avatarUrl?: string
+  readonly emailVerified?: boolean
+  readonly phone?: string
+  readonly phoneVerified?: boolean
 }
 
 export type UserSession = {
@@ -59,6 +62,20 @@ export type ConfirmPasswordResetParams = {
   readonly newPassword: string
 }
 
+export type ChangePasswordParams = { readonly currentPassword: string; readonly newPassword: string }
+export type ChangeEmailParams = { readonly currentPassword: string; readonly newEmail: string }
+export type ChangePhoneParams = { readonly currentPassword: string; readonly phone: string }
+
+/** Como confirmar o telefone: o `method` que valeu e, no modo inbound, a mensagem pronta para o chat. */
+export type PhoneVerificationStart = {
+  readonly method?: string
+  readonly isSent?: boolean
+  readonly isFallback?: boolean
+  readonly inbound?: { readonly code: string; readonly message: string }
+}
+
+export type RecoverAccountParams = { readonly email?: string; readonly unlock?: boolean }
+
 export type TeamPage = {
   readonly items: readonly UserProfile[]
   readonly total: number
@@ -97,6 +114,15 @@ export type UserApi = {
   readonly updateProfile: (input: UpdateProfileInput) => Promise<UserProfile>
   /** Foto do proprio usuario. Ausente = host sem armazenamento; o controle nao aparece. */
   readonly setOwnAvatar?: (file: File) => Promise<UserProfile>
+  /** Troca de senha com a senha atual. Ausente = o painel de segurança não mostra o formulário. */
+  readonly changePassword?: (params: ChangePasswordParams) => Promise<void>
+  readonly requestEmailChange?: (params: ChangeEmailParams) => Promise<void>
+  readonly changePhone?: (
+    params: ChangePhoneParams,
+  ) => Promise<{ readonly profile: UserProfile; readonly verification?: PhoneVerificationStart }>
+  readonly startPhoneVerification?: () => Promise<PhoneVerificationStart>
+  /** Confere o código digitado (métodos de envio). */
+  readonly verifyPhone?: (code: string) => Promise<UserProfile>
   readonly requestPasswordReset: (email: string) => Promise<void>
   readonly confirmPasswordReset: (params: ConfirmPasswordResetParams) => Promise<void>
   /**
@@ -128,6 +154,8 @@ export type UserApi = {
    * `user-module`, que revoga as sessoes dela). Ausente, a acao nao existe: nem todo produto quer um
    * administrador digitando senha alheia.
    */
+  /** Recuperação assistida (troca de e-mail + link de nova senha e/ou destravar). Ausente = a seção da equipe não aparece. */
+  readonly recoverTeamMember?: (userId: string, params: RecoverAccountParams) => Promise<UserProfile>
   readonly setTeamMemberPassword?: (userId: string, password: string) => Promise<void>
 }
 

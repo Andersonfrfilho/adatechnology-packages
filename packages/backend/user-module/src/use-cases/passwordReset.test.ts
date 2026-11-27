@@ -17,6 +17,7 @@ import {
 } from '@adatechnology/user-contracts'
 
 import {
+  createInMemoryAccountChallenges,
   createInMemoryPasswordResetTokens,
   createInMemoryRefreshTokenStore,
   createInMemoryUsers,
@@ -24,6 +25,7 @@ import {
 import { TokenService } from '../shared/TokenService'
 import { hashToken } from '../shared/tokenHash'
 import type { UserRepository } from '../repositories/UserRepository'
+import type { AccountChallengeRepository } from '../repositories/AccountChallengeRepository'
 import type { PasswordResetTokenRepository } from '../repositories/PasswordResetTokenRepository'
 import { ConfirmPasswordResetUseCase } from './ConfirmPasswordReset.use-case'
 import { CreateUserUseCase } from './CreateUser.use-case'
@@ -36,6 +38,7 @@ function buildDependencies(overrides: Partial<UserDependencies> = {}): UserDepen
   return {
     users: createInMemoryUsers() as unknown as UserRepository,
     passwordResetTokens: createInMemoryPasswordResetTokens() as unknown as PasswordResetTokenRepository,
+    accountChallenges: createInMemoryAccountChallenges() as unknown as AccountChallengeRepository,
     refreshTokenStore: createInMemoryRefreshTokenStore(),
     tokenService: new TokenService({ secret: 'test-secret-test-secret-test-secret' }),
     config: {
@@ -133,7 +136,11 @@ describe('RequestPasswordResetUseCase', () => {
         accessToken: { secret: 'test-secret-test-secret-test-secret' },
         passwordReset: {
           resetUrlTemplate: RESET_URL_TEMPLATE,
-          buildEmail: ({ resetUrl }) => ({ subject: 'Assunto do host', html: `<a href="${resetUrl}">ir</a>`, text: resetUrl }),
+          buildEmail: ({ resetUrl }) => ({
+            subject: 'Assunto do host',
+            html: `<a href="${resetUrl}">ir</a>`,
+            text: resetUrl,
+          }),
         },
       },
       email: { driver: 'test', send: async (params) => (sent.push(params), { outcome: 'sent' }) },
@@ -162,7 +169,8 @@ describe('RequestPasswordResetUseCase', () => {
 
     await new RequestPasswordResetUseCase(dependencies).execute({ email: 'ana@example.com' })
 
-    const tokens = (dependencies.passwordResetTokens as unknown as ReturnType<typeof createInMemoryPasswordResetTokens>).rows
+    const tokens = (dependencies.passwordResetTokens as unknown as ReturnType<typeof createInMemoryPasswordResetTokens>)
+      .rows
     expect(tokens).toHaveLength(1)
     expect(events).toHaveLength(1)
     expect(warnings[0]?.meta?.outcome).toBe('retriable')

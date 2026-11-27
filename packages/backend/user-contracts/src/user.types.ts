@@ -13,6 +13,12 @@ export type UserProfile = {
   readonly role: string // livre, sem enum — vocabulário é do host
   readonly companyId?: string // ausente em single-tenant
   readonly isActive: boolean
+  /** O link enviado ao e-mail atual já foi aberto (ou o e-mail foi trocado por confirmação). */
+  readonly emailVerified?: boolean
+  /** Telefone da conta, quando cadastrado. Nunca vai para log nem para hook. */
+  readonly phone?: string
+  /** Presente com `phone`: `false` até um código (ou outro meio do host) provar a posse. */
+  readonly phoneVerified?: boolean
   readonly lastSeenAt?: Date
   /** Presente só enquanto a conta está bloqueada por tentativas falhas. */
   readonly lockedUntil?: Date

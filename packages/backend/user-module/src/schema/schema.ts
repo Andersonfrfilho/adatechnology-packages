@@ -30,6 +30,11 @@ export const users = userSchema.table(
     // URL no banco daria uma coluna cheia de links mortos.
     avatarKey: varchar('avatar_key', { length: 512 }),
     isActive: boolean('is_active').notNull().default(true),
+    // Quando o e-mail foi provado (link aberto ou troca confirmada). Nulo = não verificado.
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+    // Número canônico (o `normalize` do host); único por empresa e audiência. Nulo = sem telefone.
+    phone: varchar('phone', { length: 20 }),
+    phoneVerifiedAt: timestamp('phone_verified_at', { withTimezone: true }),
     // Bloqueio por tentativas falhas (`config.lockout`). Zerados e nulos enquanto o recurso está desligado.
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
@@ -61,6 +66,12 @@ export const users = userSchema.table(
     uniqueIndex('idx_users_provider_external_single_tenant')
       .on(table.audience, table.providerId, table.externalId)
       .where(sql`${table.externalId} is not null and ${table.companyId} is null`),
+    uniqueIndex('idx_users_company_phone')
+      .on(table.companyId, table.audience, table.phone)
+      .where(sql`${table.phone} is not null and ${table.companyId} is not null and ${table.deletedAt} is null`),
+    uniqueIndex('idx_users_phone_single_tenant')
+      .on(table.audience, table.phone)
+      .where(sql`${table.phone} is not null and ${table.companyId} is null and ${table.deletedAt} is null`),
     index('idx_users_company_active').on(table.companyId, table.isActive),
   ],
 )
@@ -82,6 +93,32 @@ export const passwordResetTokens = userSchema.table(
   (table) => [
     uniqueIndex('idx_password_reset_tokens_hash').on(table.tokenHash),
     index('idx_password_reset_tokens_user').on(table.userId),
+  ],
+)
+
+/**
+ * Desafios de uso único da própria conta: o link de troca de e-mail (`kind = email_change`, `target` = novo
+ * endereço) e o código de verificação do telefone (`kind = phone_code`, `target` = número). Só o hash é gravado;
+ * um desafio novo do mesmo tipo invalida o anterior.
+ */
+export const accountChallenges = userSchema.table(
+  'account_challenges',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: varchar('kind', { length: 32 }).notNull(),
+    secretHash: varchar('secret_hash', { length: 64 }).notNull(),
+    target: varchar('target', { length: 320 }).notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumedAt: timestamp('consumed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('idx_account_challenges_user_kind').on(table.userId, table.kind),
+    index('idx_account_challenges_secret').on(table.kind, table.secretHash),
   ],
 )
 
@@ -109,6 +146,9 @@ export type NewUserRow = typeof users.$inferInsert
 
 export type PasswordResetTokenRow = typeof passwordResetTokens.$inferSelect
 export type NewPasswordResetTokenRow = typeof passwordResetTokens.$inferInsert
+
+export type AccountChallengeRow = typeof accountChallenges.$inferSelect
+export type NewAccountChallengeRow = typeof accountChallenges.$inferInsert
 
 export type RefreshTokenRow = typeof refreshTokens.$inferSelect
 export type NewRefreshTokenRow = typeof refreshTokens.$inferInsert
