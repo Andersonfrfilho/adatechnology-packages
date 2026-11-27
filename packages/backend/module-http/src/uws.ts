@@ -29,7 +29,7 @@ export type UwsResponse = {
   writeStatus(status: string): UwsResponse
   writeHeader(key: string, value: string): UwsResponse
   write(chunk: string): boolean
-  end(body?: string): UwsResponse
+  end(body?: string | Uint8Array): UwsResponse
   cork(callback: () => void): void
   onAborted(callback: () => void): void
   onData(callback: (chunk: ArrayBuffer, isLast: boolean) => void): void
@@ -197,6 +197,11 @@ function writeResult(params: { response: UwsResponse; result: HttpResult; isAbor
 
     if (result.kind === 'empty') {
       response.end()
+      return
+    }
+    if (result.kind === 'binary') {
+      response.writeHeader('Content-Type', result.contentType)
+      response.end(result.body)
       return
     }
     if (result.kind === 'text') {

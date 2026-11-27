@@ -15,6 +15,7 @@ export type {
   JsonResult,
   EmptyResult,
   TextResult,
+  BinaryResult,
   HttpResult,
   ModuleRoute,
   ModuleRouteTable,

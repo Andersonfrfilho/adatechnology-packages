@@ -138,6 +138,13 @@ function toStreamResponse(result: Extract<HttpResult, { kind: 'stream' }>, signa
 export function toFetchResponse(result: HttpResult, signal: AbortSignal): Response {
   if (result.kind === 'stream') return toStreamResponse(result, signal)
   if (result.kind === 'empty') return new Response(null, { status: result.status, headers: result.headers })
+  if (result.kind === 'binary') {
+    // Cópia num ArrayBuffer próprio: `BodyInit` não aceita a view sobre um `SharedArrayBuffer`.
+    return new Response(new Uint8Array(result.body).buffer, {
+      status: result.status,
+      headers: { ...result.headers, 'Content-Type': result.contentType },
+    })
+  }
   if (result.kind === 'text') {
     return new Response(result.body, {
       status: result.status,

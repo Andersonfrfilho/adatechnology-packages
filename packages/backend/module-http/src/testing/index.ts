@@ -62,7 +62,8 @@ export function createUwsHarness(): UwsHarness {
           writeHeader: () => response,
           write: () => true,
           end(value) {
-            resolve({ status, body: value === undefined || value === '' ? undefined : JSON.parse(value) })
+            const text = value instanceof Uint8Array ? new TextDecoder().decode(value) : value
+            resolve({ status, body: text === undefined || text === '' ? undefined : JSON.parse(text) })
             return response
           },
           cork: (callback) => callback(),

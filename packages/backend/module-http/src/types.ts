@@ -108,7 +108,19 @@ export type TextResult = {
   readonly headers?: Readonly<Record<string, string>>
 }
 
-export type HttpResult = JsonResult | EmptyResult | TextResult | StreamResult
+/**
+ * Bytes com tipo declarado: arquivo para baixar (planilha XLSX, PDF). Sem isto o módulo teria de
+ * mandar o arquivo em base64 dentro de JSON, e o navegador não o trataria como download.
+ */
+export type BinaryResult = {
+  readonly kind: 'binary'
+  readonly status: number
+  readonly body: Uint8Array
+  readonly contentType: string
+  readonly headers?: Readonly<Record<string, string>>
+}
+
+export type HttpResult = JsonResult | EmptyResult | TextResult | BinaryResult | StreamResult
 
 export type ModuleRoute = {
   readonly method: HttpMethod
@@ -149,6 +161,11 @@ export type DomainErrorShape = {
   readonly code: string
   readonly message: string
   readonly details?: Record<string, unknown>
+  /**
+   * O que o erro declara seguro para o cliente (campos recusados, motivos), e só isso vai para
+   * `error.details` na resposta. `details` continua só no log.
+   */
+  readonly publicDetails?: Readonly<Record<string, unknown>>
 }
 
 export function isDomainErrorShape(error: unknown): error is DomainErrorShape {
