@@ -210,6 +210,9 @@ export {
 } from './emailHtml'
 export type { EmailLogo, InterpolateEmailHtmlParams, UnsafeEmailHtmlRule } from './emailHtml'
 
+export { buildEnvironmentBannerHtml, markEmailForEnvironment } from './emailEnvironmentMark'
+export type { EmailEnvironmentMark, MarkableEmail } from './emailEnvironmentMark'
+
 export {
   STANDARD_EMAIL_BUILTIN_TEMPLATE,
   STANDARD_EMAIL_CHANNEL,

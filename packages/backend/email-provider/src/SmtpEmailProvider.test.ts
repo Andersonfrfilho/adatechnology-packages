@@ -75,3 +75,39 @@ describe('createSmtpEmailProvider', () => {
     await expect(provider.send(params)).rejects.toThrow()
   })
 })
+
+describe('createSmtpEmailProvider — tags e cabeçalhos', () => {
+  it('tags viram X-Tag-<nome> e cabeçalhos seguem como vieram, sem quebra de linha', async () => {
+    let received: Parameters<SmtpTransportClient['sendMail']>[0] | undefined
+    const provider = createSmtpEmailProvider({
+      from: 'contato@ada.tech',
+      transportClient: fakeTransport(async (message) => {
+        received = message
+        return { messageId: '<x>', accepted: ['x'], rejected: [] }
+      }),
+    })
+
+    await provider.send({
+      ...params,
+      tags: { env: 'staging', 'tem espaco': 'a\r\nb' },
+      headers: { 'X-Environment': 'staging' },
+    })
+
+    expect(received?.headers).toEqual({ 'X-Tag-env': 'staging', 'X-Tag-tem-espaco': 'a b', 'X-Environment': 'staging' })
+  })
+
+  it('sem tags nem cabeçalhos não envia o campo headers', async () => {
+    let received: Parameters<SmtpTransportClient['sendMail']>[0] | undefined
+    const provider = createSmtpEmailProvider({
+      from: 'contato@ada.tech',
+      transportClient: fakeTransport(async (message) => {
+        received = message
+        return { messageId: '<x>', accepted: ['x'], rejected: [] }
+      }),
+    })
+
+    await provider.send(params)
+
+    expect(received && 'headers' in received).toBe(false)
+  })
+})

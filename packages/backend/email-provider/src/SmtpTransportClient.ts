@@ -23,6 +23,7 @@ export type SmtpMailMessage = {
   readonly html: string
   readonly text: string
   readonly replyTo?: string
+  readonly headers?: Record<string, string>
   /** O nodemailer monta o MIME sozinho — aqui basta entregar os bytes. */
   readonly attachments?: SmtpAttachment[]
 }

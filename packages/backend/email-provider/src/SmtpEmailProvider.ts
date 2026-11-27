@@ -31,6 +31,22 @@ function classifySmtpError(error: unknown): DeliveryAttemptResult {
   return { outcome: 'permanent', errorCode: `smtp_${responseCode}` }
 }
 
+const HEADER_NAME_INVALID_CHARACTERS = /[^A-Za-z0-9-]/g
+// Quebra de linha em valor de cabeçalho abriria injeção de cabeçalho.
+const HEADER_VALUE_LINE_BREAKS = /[\r\n]+/g
+
+function buildSmtpHeaders(params: SendEmailParams): Record<string, string> {
+  const tagHeaders = Object.entries(params.tags ?? {}).map(
+    ([name, value]) => [`X-Tag-${name.replace(HEADER_NAME_INVALID_CHARACTERS, '-')}`, value] as const,
+  )
+  const extraHeaders = Object.entries(params.headers ?? {}).map(
+    ([name, value]) => [name.replace(HEADER_NAME_INVALID_CHARACTERS, '-'), value] as const,
+  )
+  return Object.fromEntries(
+    [...tagHeaders, ...extraHeaders].map(([name, value]) => [name, value.replace(HEADER_VALUE_LINE_BREAKS, ' ')]),
+  )
+}
+
 async function initNodemailerTransport(config: SmtpEmailProviderConfig): Promise<SmtpTransportClient> {
   if (!config.smtpUrl) throw new ConfigMissingError('smtpUrl')
 
@@ -51,6 +67,7 @@ export function createSmtpEmailProvider(config: SmtpEmailProviderConfig): EmailD
     driver: EMAIL_DRIVER.SMTP,
     async send(params: SendEmailParams): Promise<DeliveryAttemptResult> {
       const client = await resolveClient()
+      const headers = buildSmtpHeaders(params)
 
       /**
        * Anexo antes da conexao: um arquivo inalcancavel nao vira mensagem pela metade, e o motivo
@@ -75,6 +92,7 @@ export function createSmtpEmailProvider(config: SmtpEmailProviderConfig): EmailD
           html: params.html,
           text: params.text,
           replyTo: params.replyTo,
+          ...(Object.keys(headers).length > 0 ? { headers } : {}),
           ...(attachments.length > 0
             ? {
                 attachments: attachments.map((attachment) => ({

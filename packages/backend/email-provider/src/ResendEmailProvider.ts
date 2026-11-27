@@ -25,6 +25,17 @@ const RETRIABLE_NAMES = new Set([
   'application_error',
 ])
 
+// A Resend só aceita letras ASCII, números, `_` e `-` em nome e valor de tag (máx. 256).
+const TAG_INVALID_CHARACTERS = /[^A-Za-z0-9_-]/g
+const TAG_MAX_LENGTH = 256
+
+function toResendTags(tags: SendEmailParams['tags']): { name: string; value: string }[] {
+  return Object.entries(tags ?? {}).map(([name, value]) => ({
+    name: name.replace(TAG_INVALID_CHARACTERS, '_').slice(0, TAG_MAX_LENGTH),
+    value: value.replace(TAG_INVALID_CHARACTERS, '_').slice(0, TAG_MAX_LENGTH),
+  }))
+}
+
 function classifyResendError(error: NonNullable<ResendSendResult['error']>): DeliveryAttemptResult {
   if (error.statusCode === 429 || (error.statusCode !== null && error.statusCode >= 500)) {
     return { outcome: 'retriable', errorCode: error.name }
@@ -71,6 +82,8 @@ export function createResendEmailProvider(config: ResendEmailProviderConfig): Em
         html: params.html,
         text: params.text,
         replyTo: params.replyTo,
+        ...(params.tags && Object.keys(params.tags).length > 0 ? { tags: toResendTags(params.tags) } : {}),
+        ...(params.headers && Object.keys(params.headers).length > 0 ? { headers: { ...params.headers } } : {}),
         ...(attachments.length > 0
           ? {
               attachments: attachments.map((attachment) => ({

@@ -170,6 +170,7 @@ export class DispatchDeliveryUseCase {
         subject: rendered.title,
         html: rendered.html ?? rendered.body,
         text: rendered.body,
+        tags: { template: notification.templateKey },
         ...(attachments.length > 0 ? { attachments } : {}),
       }
 
