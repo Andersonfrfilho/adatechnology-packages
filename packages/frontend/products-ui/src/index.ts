@@ -112,6 +112,7 @@ export type {
   ProductsSelectOption,
   ProductsSelectRenderProps,
   ProductsMultiSelectRenderProps,
+  ProductsSearchRenderProps,
   ProductsExportContext,
 } from './listing/listing.types'
 export {

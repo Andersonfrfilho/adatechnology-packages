@@ -1,5 +1,7 @@
 export type ProductsListingLabels = {
   readonly search: string
+  /** Rótulo visível do campo de busca quando o host injeta `renderSearch`. */
+  readonly searchLabel: string
   readonly catalog: string
   readonly section: string
   readonly availability: string
@@ -53,6 +55,7 @@ export type ProductsListingLabels = {
 
 export const DEFAULT_PRODUCTS_LISTING_LABELS: ProductsListingLabels = {
   search: 'Buscar produto',
+  searchLabel: 'Buscar',
   catalog: 'Catálogo',
   section: 'Seção',
   availability: 'Disponibilidade',
