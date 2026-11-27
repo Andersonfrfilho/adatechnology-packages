@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useProducts } from '../providers/ProductsProvider'
 import { CATALOG_NONE } from '../CatalogList'
 import type { Catalog, CreateProductInput, Product, UpdateProductInput } from '../providers/types'
+import { DEFAULT_PRODUCTS_LIST_QUERY, toListProductsParams } from '../listing/listQuery'
+import type { ProductsListQuery, ProductsListingOptions } from '../listing/listing.types'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -20,6 +22,10 @@ export type ProductsWorkspaceState = {
   readonly search: string
   readonly catalogId: string | null
   readonly draft: ProductDraft
+  /** Estado da listagem em tabela (busca, filtros, ordem, página). Só é usado com `listing`. */
+  readonly listQuery: ProductsListQuery
+  /** Mudar filtro, busca ou ordem volta para a página 1; mudar só `page` ou `perPage` não. */
+  readonly setListQuery: (patch: Partial<ProductsListQuery>) => void
   readonly setSearch: (value: string) => void
   readonly setCatalogId: (value: string | null) => void
   readonly setPage: (value: number) => void
@@ -33,8 +39,13 @@ export type ProductsWorkspaceState = {
 // A listagem é do servidor, não do cliente: busca, filtro por catálogo e página vão para a API
 // porque a base cresce além do que cabe numa resposta. Filtrar em memória mostraria "nenhum
 // produto" para um item que existe na página seguinte.
-export function useProductsWorkspace(): ProductsWorkspaceState {
+export function useProductsWorkspace(listing?: ProductsListingOptions): ProductsWorkspaceState {
   const api = useProducts()
+  const isListing = listing !== undefined
+  const controlledQuery = listing?.query
+  const onListQueryChange = listing?.onQueryChange
+  const [internalQuery, setInternalQuery] = useState<ProductsListQuery>(DEFAULT_PRODUCTS_LIST_QUERY)
+  const listQuery = controlledQuery ?? internalQuery
 
   const [products, setProducts] = useState<readonly Product[]>([])
   const [catalogs, setCatalogs] = useState<readonly Catalog[]>([])
@@ -51,10 +62,16 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
 
   const requestRef = useRef(0)
 
+  const searchText = isListing ? listQuery.search : search
+  // A busca digitada não entra na chave: ela só dispara a consulta depois do debounce.
+  const listRequestKey = JSON.stringify({ ...listQuery, search: '' })
+  const listQueryRef = useRef(listQuery)
+  listQueryRef.current = listQuery
+
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS)
+    const timer = setTimeout(() => setDebouncedSearch(searchText.trim()), SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [search])
+  }, [searchText])
 
   useEffect(() => {
     let active = true
@@ -77,15 +94,21 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
     const requestId = ++requestRef.current
     setLoading(true)
 
+    const params = isListing
+      ? toListProductsParams({ ...listQueryRef.current, search: debouncedSearch })
+      : {
+          page,
+          ...(debouncedSearch ? { search: debouncedSearch } : {}),
+          ...(catalogId && catalogId !== CATALOG_NONE ? { catalogId } : {}),
+        }
+
     api
-      .listProducts({
-        page,
-        ...(debouncedSearch ? { search: debouncedSearch } : {}),
-        ...(catalogId && catalogId !== CATALOG_NONE ? { catalogId } : {}),
-      })
+      .listProducts(params)
       .then((result) => {
         if (requestId !== requestRef.current) return
-        setProducts(catalogId === CATALOG_NONE ? result.data.filter((item) => !item.catalogId) : result.data)
+        setProducts(
+          !isListing && catalogId === CATALOG_NONE ? result.data.filter((item) => !item.catalogId) : result.data,
+        )
         setTotal(result.total)
         setTotalPages(result.totalPages)
         setError(undefined)
@@ -98,13 +121,22 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
       .finally(() => {
         if (requestId === requestRef.current) setLoading(false)
       })
-  }, [api, page, debouncedSearch, catalogId, reloadToken])
+  }, [api, page, debouncedSearch, catalogId, reloadToken, isListing, listRequestKey])
 
   const reload = useCallback(() => setReloadToken((value) => value + 1), [])
 
   // Estavel de proposito: a tela assina o Esc com esta referencia, e uma funcao nova a cada resposta
   // da listagem tiraria e recolocaria o listener a cada tecla digitada na busca.
   const closeDraft = useCallback(() => setDraft(undefined), [])
+
+  const setListQuery = useCallback(
+    (patch: Partial<ProductsListQuery>) => {
+      const next = { ...listQuery, ...(patch.page === undefined ? { page: 1 } : {}), ...patch }
+      if (onListQueryChange) onListQueryChange(next)
+      else setInternalQuery(next)
+    },
+    [listQuery, onListQueryChange],
+  )
 
   const setSearch = useCallback((value: string) => {
     setSearchValue(value)
@@ -148,6 +180,8 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
       search,
       catalogId,
       draft,
+      listQuery,
+      setListQuery,
       setSearch,
       setCatalogId,
       setPage,
@@ -168,6 +202,8 @@ export function useProductsWorkspace(): ProductsWorkspaceState {
       search,
       catalogId,
       draft,
+      listQuery,
+      setListQuery,
       setSearch,
       setCatalogId,
       closeDraft,

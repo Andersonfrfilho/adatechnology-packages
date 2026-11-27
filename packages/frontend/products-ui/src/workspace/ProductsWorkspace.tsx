@@ -2,6 +2,7 @@ import { Trash2, X } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { CatalogList } from '../CatalogList'
+import type { ProductsListingOptions } from '../listing/listing.types'
 import { ProductForm } from '../ProductForm'
 import type { ProductFormProps } from '../ProductForm'
 import type { Section } from '../providers/types'
@@ -25,6 +26,12 @@ export type ProductsWorkspaceProps = {
    */
   readonly area?: ProductsWorkspaceArea
   readonly onAreaChange?: (area: ProductsWorkspaceArea) => void
+  /**
+   * Opt-in da lista em tabela: busca no servidor, filtros de seleção múltipla, ordenação por coluna,
+   * seleção com ações em lote e paginação. `{}` liga com os padrões; o host injeta o `Select` dele e o
+   * estado da URL por aqui. Ausente, a tela segue como antes (barra de catálogos + lista simples).
+   */
+  readonly listing?: ProductsListingOptions
 }
 
 const BUTTON_CLASS =
@@ -38,9 +45,10 @@ export function ProductsWorkspace({
   renderHeaderActions,
   area: areaProp,
   onAreaChange,
+  listing,
 }: ProductsWorkspaceProps) {
   const labels = { ...DEFAULT_PRODUCTS_WORKSPACE_LABELS, ...labelsOverride }
-  const workspace = useProductsWorkspace()
+  const workspace = useProductsWorkspace(listing)
   const [internalArea, setInternalArea] = useState<ProductsWorkspaceArea>(PRODUCTS_WORKSPACE_AREA.PRODUCTS)
 
   const area = areaProp ?? internalArea
@@ -87,7 +95,7 @@ export function ProductsWorkspace({
             <CatalogList showSortOrder />
           </main>
         ) : (
-          <ProductsArea labels={labels} workspace={workspace} />
+          <ProductsArea labels={labels} workspace={workspace} sections={sections} {...(listing ? { listing } : {})} />
         )}
 
         {isDraftOpen ? (

@@ -68,17 +68,51 @@ export function createInMemoryProducts(seed: ProductRow[] = []) {
         rows.find((row) => row.companyId === params.companyId && row.barcode === params.barcode && !row.deletedAt),
       )
     },
-    async list(query: { companyId: string; page: number; pageSize: number; search?: string; active?: boolean }) {
+    async list(query: {
+      companyId: string
+      page: number
+      pageSize: number
+      search?: string
+      active?: boolean
+      catalogId?: string
+      sectionId?: string
+      catalogIds?: readonly string[]
+      sectionIds?: readonly string[]
+      priceOnRequest?: boolean
+      sortBy?: string
+      sortDirection?: 'asc' | 'desc'
+    }) {
+      const matchesIds = (value: string | null | undefined, ids: readonly string[] | undefined): boolean =>
+        !ids || ids.length === 0 || (value == null ? ids.includes('none') : ids.includes(value))
       const filtered = rows.filter(
         (row) =>
           row.companyId === query.companyId &&
           !row.deletedAt &&
           (query.search ? row.name.toLowerCase().includes(query.search.toLowerCase()) : true) &&
-          (query.active === undefined ? true : row.active === query.active),
+          (query.active === undefined ? true : row.active === query.active) &&
+          (query.catalogId ? row.catalogId === query.catalogId : true) &&
+          (query.sectionId ? row.sectionId === query.sectionId : true) &&
+          (query.priceOnRequest === undefined ? true : (row.priceInCents == null) === query.priceOnRequest) &&
+          matchesIds(row.catalogId, query.catalogIds) &&
+          matchesIds(row.sectionId, query.sectionIds),
       )
+      const sign = query.sortDirection === 'desc' ? -1 : 1
+      const byName = (left: ProductRow, right: ProductRow): number => left.name.localeCompare(right.name)
+      const ordered = [...filtered].sort((left, right) => {
+        if (query.sortBy === 'name') return byName(left, right) * sign
+        if (query.sortBy === 'price') {
+          if (left.priceInCents === null || right.priceInCents === null) {
+            return Number(left.priceInCents === null) - Number(right.priceInCents === null) || byName(left, right)
+          }
+          return (left.priceInCents - right.priceInCents) * sign || byName(left, right)
+        }
+        if (query.sortBy === 'active') return (Number(left.active) - Number(right.active)) * sign || byName(left, right)
+        if (query.sortBy === 'sortOrder') return (left.sortOrder - right.sortOrder) * sign || byName(left, right)
+        return left.sortOrder - right.sortOrder || byName(left, right)
+      })
       return {
-        rows: filtered.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
-        total: filtered.length,
+        rows: ordered.slice((query.page - 1) * query.pageSize, query.page * query.pageSize),
+        total: ordered.length,
       }
     },
     async listActive(params: { companyId: string; catalogId?: string; sectionId?: string; limit: number }) {

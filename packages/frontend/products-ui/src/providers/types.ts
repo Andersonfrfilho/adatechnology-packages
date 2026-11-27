@@ -1,16 +1,49 @@
 import type { BackgroundRemovalConfig } from '@adatechnology/image-cutout'
 
+// Colunas que o servidor sabe ordenar (espelha `PRODUCT_SORT_FIELD` do `catalog-contracts`).
+export const PRODUCT_SORT_FIELD = {
+  NAME: 'name',
+  PRICE: 'price',
+  CATALOG: 'catalog',
+  SECTION: 'section',
+  ACTIVE: 'active',
+  SORT_ORDER: 'sortOrder',
+} as const
+export type ProductSortField = (typeof PRODUCT_SORT_FIELD)[keyof typeof PRODUCT_SORT_FIELD]
+export type SortDirection = 'asc' | 'desc'
+
+/** Valor reservado em `catalogIds`/`sectionIds` para "sem catálogo" / "sem seção". */
+export const PRODUCT_FILTER_NONE = 'none'
+
+export type ListProductsParams = {
+  page?: number
+  pageSize?: number
+  search?: string
+  catalogId?: string
+  sectionId?: string
+  active?: boolean
+  // Opt-in da listagem em tabela: filtros de seleção múltipla, preço sob consulta e ordenação no servidor.
+  catalogIds?: readonly string[]
+  sectionIds?: readonly string[]
+  priceOnRequest?: boolean
+  sortBy?: ProductSortField
+  sortDirection?: SortDirection
+}
+
+export type ProductsBatchResult = { readonly succeeded: number; readonly failed: number }
+
 export type ProductsApi = {
-  listProducts(params?: {
-    page?: number
-    search?: string
-    catalogId?: string
-    active?: boolean
-  }): Promise<PaginatedResponse<Product>>
+  listProducts(params?: ListProductsParams): Promise<PaginatedResponse<Product>>
   getProduct(id: string): Promise<Product>
   createProduct(data: CreateProductInput): Promise<Product>
   updateProduct(id: string, data: UpdateProductInput): Promise<Product>
   deleteProduct(id: string): Promise<void>
+  /**
+   * Ações em lote da listagem. Ausentes, a tela repete `updateProduct`/`deleteProduct` por item; o host
+   * implementa quando quer um único aviso ao fim (em vez de um por produto) ou uma rota própria.
+   */
+  updateProducts?(ids: readonly string[], data: UpdateProductInput): Promise<ProductsBatchResult>
+  deleteProducts?(ids: readonly string[]): Promise<ProductsBatchResult>
 
   listCatalogs(params?: { page?: number; search?: string }): Promise<PaginatedResponse<Catalog>>
   getCatalog(id: string): Promise<Catalog>

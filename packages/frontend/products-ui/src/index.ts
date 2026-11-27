@@ -97,3 +97,30 @@ export {
 } from './providers/createCatalogModuleProductsApi'
 export type { CreateCatalogModuleProductsApiParams } from './providers/createCatalogModuleProductsApi'
 export { parseBulkImportCsv } from './lib/csv'
+
+export { DEFAULT_PRODUCTS_LISTING_LABELS } from './listing/listing.labels'
+export type { ProductsListingLabels } from './listing/listing.labels'
+export {
+  PRODUCT_AVAILABILITY_FILTER,
+  PRODUCT_PRICING_FILTER,
+  PRODUCTS_PER_PAGE_OPTIONS,
+  PRODUCTS_DEFAULT_PER_PAGE,
+} from './listing/listing.types'
+export type {
+  ProductsListQuery,
+  ProductsListingOptions,
+  ProductsSelectOption,
+  ProductsSelectRenderProps,
+  ProductsMultiSelectRenderProps,
+  ProductsExportContext,
+} from './listing/listing.types'
+export {
+  DEFAULT_PRODUCTS_LIST_QUERY,
+  PRODUCTS_LIST_QUERY_KEYS,
+  parseProductsListQuery,
+  serializeProductsListQuery,
+  toListProductsParams,
+} from './listing/listQuery'
+export type { ProductsListQueryKey } from './listing/listQuery'
+export { PRODUCT_SORT_FIELD, PRODUCT_FILTER_NONE } from './providers/types'
+export type { ProductSortField, SortDirection, ListProductsParams, ProductsBatchResult } from './providers/types'
