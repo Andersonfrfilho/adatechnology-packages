@@ -33,7 +33,7 @@ export class SetUserPasswordUseCase {
     const row = await this.dependencies.users.update({
       companyId,
       id: params.id,
-      values: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+      values: { passwordHash, failedLoginAttempts: 0, lockedUntil: null, lockLevel: 0, lastFailedLoginAt: null },
     })
     if (!row) throw new UserNotFoundError()
 

@@ -12,12 +12,14 @@ import { SQL } from 'bun'
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import { drizzle } from 'drizzle-orm/bun-sql'
 
+import { resolveLockoutPolicy } from '@adatechnology/login-lockout'
 import { RefreshTokenRepository } from './repositories/RefreshTokenRepository'
 import { UserRepository } from './repositories/UserRepository'
 import { userMigrationsFolder } from './runMigrations'
 import { hashToken } from './shared/tokenHash'
 import type { UserDatabase } from './database.types'
 
+const policyOf = (overrides: Parameters<typeof resolveLockoutPolicy>[0]) => resolveLockoutPolicy(overrides)
 const DATABASE_URL = process.env['USER_MODULE_TEST_DATABASE_URL']
 /**
  * Aplica o `.sql` publicado na ordem do journal, sem o migrator do drizzle-orm: o do 1.x recusa o
@@ -111,7 +113,12 @@ describeWithDatabase('repositórios sobre Postgres', () => {
 
     const results = await Promise.all(
       Array.from({ length: 20 }, () =>
-        users.registerFailedLogin({ id: user.id, now, maxFailedAttempts: 5, lockMinutes: 15 }),
+        users.registerFailedLogin({
+          id: user.id,
+          now,
+          maxFailedAttempts: 5,
+          policy: policyOf({ maxFailedAttempts: 5, baseLockMinutes: 15 }),
+        }),
       ),
     )
 
@@ -124,16 +131,56 @@ describeWithDatabase('repositórios sobre Postgres', () => {
     expect(stored?.lockedUntil?.getTime()).toBe(now.getTime() + 15 * 60_000)
   })
 
+  it('bloqueio progressivo no SQL: 15, 30, teto, e perdão depois de um dia', async () => {
+    const users = new UserRepository(db, 'lockout-progressive')
+    const user = await createUser(users, 'progressivo@example.com')
+    const policy = policyOf({
+      maxFailedAttempts: 1,
+      baseLockMinutes: 15,
+      multiplier: 2,
+      maxLockMinutes: 40,
+      forgiveAfterMinutes: 1440,
+    })
+    let now = new Date('2026-09-01T12:00:00.000Z')
+    const durations: number[] = []
+
+    for (let round = 0; round < 3; round += 1) {
+      const failure = await users.registerFailedLogin({ id: user.id, now, maxFailedAttempts: 1, policy })
+      const minutes = ((failure?.lockedUntil?.getTime() ?? 0) - now.getTime()) / 60_000
+      durations.push(minutes)
+      now = new Date(now.getTime() + minutes * 60_000 + 1000)
+    }
+    now = new Date(now.getTime() + 25 * 60 * 60_000)
+    const forgiven = await users.registerFailedLogin({ id: user.id, now, maxFailedAttempts: 1, policy })
+    durations.push(((forgiven?.lockedUntil?.getTime() ?? 0) - now.getTime()) / 60_000)
+
+    expect(durations).toEqual([15, 30, 40, 15])
+    expect(
+      await users.registerSuccessfulLogin({ id: user.id, now: new Date(now.getTime() + 16 * 60_000) }),
+    ).toBeDefined()
+    expect((await users.findById({ companyId: undefined, id: user.id }))?.lockLevel).toBe(0)
+  })
+
   it('conta bloqueada recusa o sucesso e, vencido o prazo, o contador recomeça', async () => {
     const users = new UserRepository(db, 'lockout-expiry')
     const user = await createUser(users, 'prazo@example.com')
     const now = new Date()
-    await users.registerFailedLogin({ id: user.id, now, maxFailedAttempts: 1, lockMinutes: 10 })
+    await users.registerFailedLogin({
+      id: user.id,
+      now,
+      maxFailedAttempts: 1,
+      policy: policyOf({ maxFailedAttempts: 1, baseLockMinutes: 10 }),
+    })
 
     expect(await users.registerSuccessfulLogin({ id: user.id, now })).toBeUndefined()
 
     const later = new Date(now.getTime() + 11 * 60_000)
-    const failure = await users.registerFailedLogin({ id: user.id, now: later, maxFailedAttempts: 3, lockMinutes: 10 })
+    const failure = await users.registerFailedLogin({
+      id: user.id,
+      now: later,
+      maxFailedAttempts: 3,
+      policy: policyOf({ maxFailedAttempts: 3, baseLockMinutes: 10 }),
+    })
     expect(failure).toMatchObject({ failedLoginAttempts: 1, lockedUntil: null, didLock: false })
     expect(await users.registerSuccessfulLogin({ id: user.id, now: later })).toBeDefined()
     expect((await users.findById({ companyId: undefined, id: user.id }))?.failedLoginAttempts).toBe(0)

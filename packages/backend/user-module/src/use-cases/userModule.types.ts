@@ -5,6 +5,7 @@
  * concreta, para o teste injetar dublê em memória sem Postgres.
  */
 
+import type { LoginLockout } from '@adatechnology/login-lockout'
 import type {
   AvatarStoragePort,
   ClockPort,
@@ -32,6 +33,8 @@ export type UserDependencies = {
   readonly email?: EmailDriverPort
   readonly keycloak?: KeycloakVerifierPort
   readonly avatar?: AvatarStoragePort
+  /** Presente com `lockout.identifierSecret`: bloqueia também o e-mail que não existe. */
+  readonly unknownIdentifierLockout?: LoginLockout
 }
 
 /**

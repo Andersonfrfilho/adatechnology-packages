@@ -5,6 +5,8 @@
 import { describe, expect, it, spyOn } from 'bun:test'
 import { InvalidCredentialsError, type UserHooks, type UserModuleConfig } from '@adatechnology/user-contracts'
 
+import { createInMemoryLockoutStore, createLoginLockout } from '@adatechnology/login-lockout'
+import { resolveUserLockoutPolicy } from '../shared/lockoutPolicy'
 import { AuthenticateLocalUseCase } from './AuthenticateLocal.use-case'
 import { CreateUserUseCase } from './CreateUser.use-case'
 import { buildTestDependencies } from './testDependencies'
@@ -138,5 +140,114 @@ describe('bloqueio por tentativas falhas', () => {
     await authenticate.execute({ email: 'ninguem@example.com', password: PASSWORD }).catch(() => undefined)
 
     expect(events).toEqual([{ reason: 'user_not_found', userId: undefined }])
+  })
+})
+
+describe('bloqueio progressivo', () => {
+  const PROGRESSIVE: UserModuleConfig = {
+    ...LOCKOUT_CONFIG,
+    lockout: {
+      maxFailedAttempts: 3,
+      lockMinutes: 15,
+      lockMultiplier: 2,
+      maxLockMinutes: 50,
+      forgiveAfterMinutes: 1440,
+    },
+  }
+
+  async function lockAndMeasure(params: {
+    authenticate: AuthenticateLocalUseCase
+    dependencies: UserDependencies
+    now: Date
+  }) {
+    for (let attempt = 0; attempt < 3; attempt += 1)
+      await signIn(params.authenticate, 'x-errada-123').catch(() => undefined)
+    const stored = await params.dependencies.users.findByEmail({ companyId: undefined, email: 'ana@example.com' })
+    return Math.round(((stored?.lockedUntil?.getTime() ?? 0) - params.now.getTime()) / 60_000)
+  }
+
+  it('cada bloqueio dura o dobro do anterior, até o teto', async () => {
+    let current = new Date('2026-09-01T12:00:00.000Z')
+    const { authenticate, dependencies } = await setUp({ config: PROGRESSIVE, now: () => current })
+
+    const minutes: number[] = []
+    for (let round = 0; round < 4; round += 1) {
+      minutes.push(await lockAndMeasure({ authenticate, dependencies, now: current }))
+      current = new Date(current.getTime() + (minutes.at(-1) ?? 0) * 60_000 + 1000)
+    }
+
+    expect(minutes).toEqual([15, 30, 50, 50])
+  })
+
+  it('um dia sem falhas perdoa: o nível volta ao primeiro bloqueio', async () => {
+    let current = new Date('2026-09-01T12:00:00.000Z')
+    const { authenticate, dependencies } = await setUp({ config: PROGRESSIVE, now: () => current })
+    await lockAndMeasure({ authenticate, dependencies, now: current })
+    current = new Date(current.getTime() + 25 * 60 * 60_000)
+
+    expect(await lockAndMeasure({ authenticate, dependencies, now: current })).toBe(15)
+  })
+
+  it('login com sucesso zera o nível', async () => {
+    let current = new Date('2026-09-01T12:00:00.000Z')
+    const { authenticate, dependencies } = await setUp({ config: PROGRESSIVE, now: () => current })
+    await lockAndMeasure({ authenticate, dependencies, now: current })
+    current = new Date(current.getTime() + 16 * 60_000)
+    await signIn(authenticate, PASSWORD)
+
+    expect(await lockAndMeasure({ authenticate, dependencies, now: current })).toBe(15)
+  })
+
+  it('sem lockMultiplier a duração continua fixa', async () => {
+    let current = new Date('2026-09-01T12:00:00.000Z')
+    const { authenticate, dependencies } = await setUp({ now: () => current })
+
+    const first = await lockAndMeasure({ authenticate, dependencies, now: current })
+    current = new Date(current.getTime() + 16 * 60_000)
+    const second = await lockAndMeasure({ authenticate, dependencies, now: current })
+
+    expect([first, second]).toEqual([15, 15])
+  })
+})
+
+describe('bloqueio de e-mail que não existe', () => {
+  const GUARDED: UserModuleConfig = {
+    ...LOCKOUT_CONFIG,
+    lockout: { maxFailedAttempts: 3, lockMinutes: 15, identifierSecret: 'segredo-com-tamanho-suficiente' },
+  }
+
+  function withUnknownLockout(dependencies: UserDependencies): AuthenticateLocalUseCase {
+    return new AuthenticateLocalUseCase({
+      ...dependencies,
+      unknownIdentifierLockout: createLoginLockout({
+        store: createInMemoryLockoutStore(),
+        secret: GUARDED.lockout?.identifierSecret ?? '',
+        policy: resolveUserLockoutPolicy(GUARDED.lockout as NonNullable<UserModuleConfig['lockout']>),
+      }),
+    })
+  }
+
+  it('depois do limite o e-mail fantasma recusa com o mesmo erro, e o evento passa a dizer user_locked', async () => {
+    const failed: string[] = []
+    const { dependencies } = await setUp({
+      config: GUARDED,
+      hooks: { onLoginFailed: (event) => void failed.push(event.reason) },
+    })
+    const authenticate = withUnknownLockout(dependencies)
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await expect(authenticate.execute({ email: 'fantasma@example.com', password: PASSWORD })).rejects.toBeInstanceOf(
+        InvalidCredentialsError,
+      )
+    }
+
+    expect(failed).toEqual(['user_not_found', 'user_not_found', 'user_not_found', 'user_locked'])
+  })
+
+  it('conta que existe segue o caminho de sempre', async () => {
+    const { dependencies } = await setUp({ config: GUARDED })
+    const authenticate = withUnknownLockout(dependencies)
+
+    expect((await signIn(authenticate, PASSWORD)).user.email).toBe('ana@example.com')
   })
 })

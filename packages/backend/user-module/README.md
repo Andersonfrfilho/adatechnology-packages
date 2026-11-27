@@ -27,8 +27,18 @@ Every option below is **optional**. Without it the module behaves as it always d
 
 ```ts
 config.lockout = { maxFailedAttempts: 5, lockMinutes: 15 }
+// progressive + unknown e-mails:
+config.lockout = { maxFailedAttempts: 5, lockMinutes: 15, lockMultiplier: 2, identifierSecret: env.LOCKOUT_SECRET }
 ```
 
+- Progressive (opt-in): `lockMultiplier: 2` makes each new lock last twice the previous one
+  (`lockMinutes`, 2x, 4x ...) up to `maxLockMinutes` (default 1440). Without it the duration stays fixed.
+  `forgiveAfterMinutes` (default 1440) of silence restarts the counter and the level; a successful login,
+  a password reset or an admin unlock also reset the level.
+- Unknown e-mails: set `identifierSecret` (>= 16 chars) and an e-mail that does not exist is counted and
+  locked like a real account (stored only as an HMAC in `user.login_lockouts`), answering the same
+  `InvalidCredentialsError`. The `onLoginFailed` reason becomes `user_locked` once it is locked.
+  Built on `@adatechnology/login-lockout`, which you can also use directly for other logins (guest, PIN).
 - Off unless `lockout` is set. `maxFailedAttempts` and `lockMinutes` must be integers >= 1, or the
   module throws `ConfigMissingError` at boot.
 - The counter and the lock are written by one `UPDATE ... RETURNING` (no read-modify-write), so

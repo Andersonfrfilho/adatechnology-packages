@@ -31,3 +31,6 @@ export type { ValidationIssue } from './errorFilter'
 
 export { compilePath, matchPath } from './pathMatcher'
 export type { CompiledPath } from './pathMatcher'
+
+export { resolveClientIp, TRUSTED_PROXY_HEADER, UNKNOWN_CLIENT_IP } from './clientIp'
+export type { ResolveClientIpParams, TrustedProxyHeader } from './clientIp'

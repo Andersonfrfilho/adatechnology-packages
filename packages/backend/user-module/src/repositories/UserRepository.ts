@@ -2,8 +2,9 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { and, asc, isNull, lte, or, sql } from 'drizzle-orm'
+import type { LockoutPolicy } from '@adatechnology/login-lockout'
 import { DEFAULT_USER_AUDIENCE } from '@adatechnology/user-contracts'
+import { and, asc, isNull, lte, or, sql } from 'drizzle-orm'
 
 import type { UserDatabase } from '../database.types'
 import { users, type NewUserRow, type UserRow } from '../schema/schema'
@@ -30,7 +31,7 @@ export type RegisterFailedLoginParams = {
   readonly id: string
   readonly now: Date
   readonly maxFailedAttempts: number
-  readonly lockMinutes: number
+  readonly policy: LockoutPolicy
 }
 
 export type RegisterFailedLoginResult = {
@@ -134,21 +135,28 @@ export class UserRepository {
    * Conta a falha e decide o bloqueio num único `UPDATE ... RETURNING`: sem ler antes de escrever,
    * duas tentativas simultâneas somam as duas, e só uma cruza o limite.
    *
-   * Bloqueio vencido recomeça o contador em 1. Conta já bloqueada não conta de novo (a cláusula
-   * `WHERE` a ignora), então o prazo não se estende por tentativa de quem está de fora.
-   * `now` vem do relógio do módulo e não do `now()` do banco para o teste controlar o tempo.
+   * Bloqueio vencido recomeça o contador em 1 e mantém o nível; silêncio por `forgiveAfterMinutes` zera contador e
+   * nível. Cada bloqueio dura `lockMinutes * multiplier^nivel`, limitado a `maxLockMinutes` (multiplier 1 = fixo).
+   * Conta já bloqueada não conta de novo (a cláusula `WHERE` a ignora), então o prazo não se estende por tentativa de
+   * quem está de fora. `now` vem do relógio do módulo e não do `now()` do banco para o teste controlar o tempo.
    */
   async registerFailedLogin(params: RegisterFailedLoginParams): Promise<RegisterFailedLoginResult | undefined> {
+    const { policy } = params
     const nowValue = sql`${params.now.toISOString()}::timestamptz`
     const isExpiredLock = sql`(${users.lockedUntil} is not null and ${users.lockedUntil} <= ${nowValue})`
-    const nextAttempts = sql`(case when ${isExpiredLock} then 1 else ${users.failedLoginAttempts} + 1 end)`
-    const lockedUntil = new Date(params.now.getTime() + params.lockMinutes * 60_000).toISOString()
+    const isForgiven = sql`(${users.lastFailedLoginAt} is not null and ${users.lastFailedLoginAt} <= ${nowValue} - make_interval(secs => ${policy.forgiveAfterMinutes * 60}::float8))`
+    const nextAttempts = sql`(case when ${isExpiredLock} or ${isForgiven} then 1 else ${users.failedLoginAttempts} + 1 end)`
+    const currentLevel = sql`(case when ${isForgiven} then 0 else ${users.lockLevel} end)`
+    const lockSeconds = sql`(least(${policy.baseLockMinutes}::float8 * power(${policy.multiplier}::float8, ${currentLevel}), ${policy.maxLockMinutes}::float8) * 60)`
+    const willLock = sql`(${nextAttempts} >= ${params.maxFailedAttempts}::int)`
 
     const [row] = await this.db
       .update(users)
       .set({
         failedLoginAttempts: sql`${nextAttempts}`,
-        lockedUntil: sql`(case when ${nextAttempts} >= ${params.maxFailedAttempts}::int then ${lockedUntil}::timestamptz else null end)`,
+        lockedUntil: sql`(case when ${willLock} then ${nowValue} + make_interval(secs => ${lockSeconds}) else null end)`,
+        lockLevel: sql`(case when ${willLock} then ${currentLevel} + 1 else ${currentLevel} end)`,
+        lastFailedLoginAt: sql`${nowValue}`,
       })
       .where(
         and(
@@ -174,7 +182,14 @@ export class UserRepository {
   async registerSuccessfulLogin(params: { id: string; now: Date }): Promise<UserRow | undefined> {
     const [row] = await this.db
       .update(users)
-      .set({ failedLoginAttempts: 0, lockedUntil: null, lastSeenAt: params.now, updatedAt: params.now })
+      .set({
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        lockLevel: 0,
+        lastFailedLoginAt: null,
+        lastSeenAt: params.now,
+        updatedAt: params.now,
+      })
       .where(
         and(
           userByIdInAudienceCondition({ audience: this.audience, id: params.id }),

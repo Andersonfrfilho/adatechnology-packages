@@ -82,6 +82,18 @@ return {
 ⚠️ **O `idleTimeout` do `Bun.serve` precisa ser MAIOR que o heartbeat.** Menor, a conexão morre
 antes do primeiro batimento e a tela mostra dado velho sem erro nenhum.
 
+## IP do cliente atrás de proxy
+
+```ts
+import { resolveClientIp } from '@adatechnology/module-http'
+
+const ip = resolveClientIp({ headers: request.headers, socketAddress: server.requestIP(request)?.address, trustedHeader: 'x-forwarded-for' })
+```
+
+`trustedHeader` é o **único** cabeçalho em que se acredita (`none`, `x-real-ip` ou `x-forwarded-for`, que usa o
+ÚLTIMO salto, o que a borda acrescentou). Valor que não é endereço nunca vira chave, IPv4 mapeado em IPv6 vira
+IPv4 e IPv6 agrupa por /64. Sem endereço algum, devolve `unknown`. Serve de chave de rate limit e de lockout.
+
 ## Armadilhas do uWS que o adaptador encapsula
 
 1. `res` fica inválido após o abort — `onAborted` marca a flag antes de qualquer escrita assíncrona
