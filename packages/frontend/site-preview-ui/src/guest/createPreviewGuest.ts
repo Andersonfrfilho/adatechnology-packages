@@ -15,7 +15,9 @@ import {
 
 import { computeScrollTop } from './scrollTarget'
 
-const RESTORE_TIMEOUT_MILLISECONDS = 6000
+const RESTORE_TIMEOUT_MILLISECONDS = 8000
+const RESTORE_POLL_MILLISECONDS = 120
+const RESTORE_HOLD_MILLISECONDS = 700
 const USER_INPUT_EVENTS = ['wheel', 'touchstart', 'keydown'] as const
 
 export type PreviewGuestOptions = {
@@ -29,6 +31,8 @@ export type PreviewGuestOptions = {
   readonly onState?: (payload: unknown) => void
   /** O painel avisa que algo mudou no servidor (ex.: foto nova): o site recarrega os dados sem recarregar a página. */
   readonly onRefresh?: () => void
+  /** A seção em edição mudou (`undefined` = nenhuma): o site pode, por exemplo, abrir um modal que só aparece enquanto se edita. */
+  readonly onFocusChange?: (key: string | undefined) => void
 }
 
 export type PreviewGuest = {
@@ -56,6 +60,7 @@ export function createPreviewGuest(options: PreviewGuestOptions = {}): PreviewGu
   let pendingReveal: string | undefined
   let pendingRestore: number | undefined
   let restoreDeadline = 0
+  let restoreHoldUntil = 0
   let observer: MutationObserver | undefined
   let frame = 0
   let isStarted = false
@@ -100,6 +105,7 @@ export function createPreviewGuest(options: PreviewGuestOptions = {}): PreviewGu
 
   function focus(key: string | undefined, focusOptions: { readonly reveal?: boolean } = {}): void {
     focusedKey = key
+    options.onFocusChange?.(key)
     reapply()
     if (key === undefined || focusOptions.reveal === false) return
     pendingReveal = reveal(key) ? undefined : key
@@ -114,17 +120,26 @@ export function createPreviewGuest(options: PreviewGuestOptions = {}): PreviewGu
     }
   }
 
+  // Imagens preguiçosas só carregam (e dão altura à página) quando se chega perto: rola até onde dá e tenta de novo até alcançar a posição.
+  // Depois de alcançar, segura por um instante: o próprio site costuma rolar ao topo ao montar, e isso não pode desfazer a volta.
   function tryRestore(): void {
     if (pendingRestore === undefined) return
-    const root = host.document.documentElement
-    const isTallEnough = root.scrollHeight >= pendingRestore + host.innerHeight
-    if (isTallEnough) host.scrollTo({ top: pendingRestore, behavior: 'auto' })
-    if (isTallEnough || Date.now() > restoreDeadline) pendingRestore = undefined
+    const maximum = Math.max(0, host.document.documentElement.scrollHeight - host.innerHeight)
+    const top = Math.min(pendingRestore, maximum)
+    if (Math.abs(host.scrollY - top) > 1) host.scrollTo({ top, behavior: 'instant' })
+    const now = Date.now()
+    if (top >= pendingRestore && restoreHoldUntil === 0) restoreHoldUntil = now + RESTORE_HOLD_MILLISECONDS
+    const isHeld = restoreHoldUntil !== 0 && now > restoreHoldUntil
+    if (!isHeld && now <= restoreDeadline) return
+    pendingRestore = undefined
+    restoreHoldUntil = 0
+    post({ type: 'scroll', top: host.scrollY })
   }
 
   function handleChange(): void {
     reapply()
     tryRestore()
+    if (pendingRestore !== undefined) host.setTimeout(scheduleChange, RESTORE_POLL_MILLISECONDS)
     if (pendingRestore === undefined && pendingReveal !== undefined && reveal(pendingReveal)) pendingReveal = undefined
   }
 
@@ -146,6 +161,7 @@ export function createPreviewGuest(options: PreviewGuestOptions = {}): PreviewGu
     if (message.type === 'restore-scroll') {
       pendingRestore = message.top
       restoreDeadline = Date.now() + RESTORE_TIMEOUT_MILLISECONDS
+      restoreHoldUntil = 0
       tryRestore()
     }
     scheduleChange()
@@ -158,6 +174,7 @@ export function createPreviewGuest(options: PreviewGuestOptions = {}): PreviewGu
 
   function handleUserInput(): void {
     pendingRestore = undefined
+    restoreHoldUntil = 0
     pendingReveal = undefined
   }
 

@@ -169,6 +169,25 @@ describe('createPreviewGuest', () => {
     expect(env.scrolls).toEqual([1500])
   })
 
+  it('rola até onde a página já dá e continua até alcançar a posição (imagens preguiçosas)', () => {
+    const env = createFakeWindow([], 1500)
+    createPreviewGuest({ window: env.host }).start()
+    env.send({ type: 'restore-scroll', top: 3000 })
+    expect(env.scrolls).toEqual([700])
+    ;(env.host.document.documentElement as { scrollHeight: number }).scrollHeight = 5000
+    env.notifyMutation()
+    expect(env.scrolls).toEqual([700, 3000])
+  })
+
+  it('se o próprio site rolar ao topo logo depois da volta, a volta é refeita', () => {
+    const env = createFakeWindow([], 5000)
+    createPreviewGuest({ window: env.host }).start()
+    env.send({ type: 'restore-scroll', top: 1500 })
+    fake.scrollY = 0
+    env.notifyMutation()
+    expect(env.scrolls).toEqual([1500, 1500])
+  })
+
   it('não reporta a rolagem enquanto restaura (não sobrescreve o valor guardado com 0)', () => {
     const env = createFakeWindow([], 500)
     createPreviewGuest({ window: env.host }).start()
@@ -204,6 +223,15 @@ describe('createPreviewGuest', () => {
     env.send({ type: 'refresh' })
     expect(received).toEqual([{ tagline: 'oi' }])
     expect(refreshed).toBe(1)
+  })
+
+  it('avisa o site quando a seção em edição muda', () => {
+    const changes: Array<string | undefined> = []
+    const env = createFakeWindow([createElement('announcement', 100, 100)], 600)
+    createPreviewGuest({ window: env.host, onFocusChange: (key) => changes.push(key) }).start()
+    env.send({ type: 'focus', key: 'announcement' })
+    env.send({ type: 'focus', key: undefined })
+    expect(changes).toEqual(['announcement', undefined])
   })
 
   it('seção registrada à mão também recebe o destaque', () => {
