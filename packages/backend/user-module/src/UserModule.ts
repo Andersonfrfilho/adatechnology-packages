@@ -2,6 +2,8 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
+import { createLoginLockout, type LoginLockout, LockoutPolicyError } from '@adatechnology/login-lockout'
+import { createDrizzleLockoutStore } from '@adatechnology/login-lockout/drizzle'
 import {
   ConfigMissingError,
   DEFAULT_USER_AUDIENCE,
@@ -24,6 +26,8 @@ import { isValidRefreshCookieName, isValidRefreshCookiePath } from './http/cooki
 import { PasswordResetTokenRepository } from './repositories/PasswordResetTokenRepository'
 import { RefreshTokenRepository } from './repositories/RefreshTokenRepository'
 import { UserRepository } from './repositories/UserRepository'
+import { loginLockouts } from './schema/schema'
+import { resolveUserLockoutPolicy } from './shared/lockoutPolicy'
 import { DEFAULT_REFRESH_COOKIE_NAME, DEFAULT_REFRESH_COOKIE_PATH } from './shared/constants'
 import type { AccessTokenClaims } from './shared/TokenService'
 import { TokenService } from './shared/TokenService'
@@ -105,6 +109,23 @@ export type UserModule = {
   readonly audience: string
 }
 
+const MIN_IDENTIFIER_SECRET_LENGTH = 16
+
+function buildUnknownIdentifierLockout(params: {
+  readonly config: UserModuleConfig
+  readonly db: UserDatabase
+  readonly clock: ClockPort | undefined
+}): LoginLockout | undefined {
+  const lockout = params.config.lockout
+  if (!lockout?.identifierSecret) return undefined
+  return createLoginLockout({
+    store: createDrizzleLockoutStore({ database: params.db, table: loginLockouts }),
+    secret: lockout.identifierSecret,
+    policy: resolveUserLockoutPolicy(lockout),
+    ...(params.clock ? { now: () => params.clock!.now() } : {}),
+  })
+}
+
 async function resolveKeycloakVerifier(params: CreateUserModuleParams): Promise<KeycloakVerifierPort | undefined> {
   if (params.providers?.keycloak) return params.providers.keycloak
   if (!params.config.keycloak) return undefined
@@ -170,6 +191,11 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
     email: params.providers?.email,
     keycloak,
     avatar: params.providers?.avatar,
+    unknownIdentifierLockout: buildUnknownIdentifierLockout({
+      config: params.config,
+      db: params.db,
+      clock: params.providers?.clock,
+    }),
   }
 
   return {
@@ -211,11 +237,21 @@ function validateModuleConfig(config: UserModuleConfig): void {
     throw new ConfigMissingError('audience')
   }
   if (config.lockout) {
-    const { maxFailedAttempts, lockMinutes } = config.lockout
+    const { maxFailedAttempts, lockMinutes, identifierSecret } = config.lockout
     if (!Number.isInteger(maxFailedAttempts) || maxFailedAttempts < 1) {
       throw new ConfigMissingError('lockout.maxFailedAttempts')
     }
     if (!Number.isInteger(lockMinutes) || lockMinutes < 1) throw new ConfigMissingError('lockout.lockMinutes')
+    if (identifierSecret !== undefined && identifierSecret.length < MIN_IDENTIFIER_SECRET_LENGTH) {
+      throw new ConfigMissingError('lockout.identifierSecret')
+    }
+    try {
+      resolveUserLockoutPolicy(config.lockout)
+    } catch (error) {
+      if (error instanceof LockoutPolicyError)
+        throw new ConfigMissingError('lockout.multiplier/maxLockMinutes/forgiveAfterMinutes')
+      throw error
+    }
   }
   if (config.signUp) {
     if (!config.signUp.role) throw new ConfigMissingError('signUp.role')

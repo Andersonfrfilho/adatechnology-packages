@@ -62,6 +62,7 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts"
   },
   "dependencies": {
+    "@adatechnology/login-lockout": "workspace:*",
     "@adatechnology/user-contracts": "workspace:*",
     "@adatechnology/module-http": "workspace:*",
     "zod": "^3.24.1",

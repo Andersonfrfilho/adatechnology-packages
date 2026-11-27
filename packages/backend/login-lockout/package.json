@@ -1,0 +1,61 @@
+{
+  "name": "@adatechnology/login-lockout",
+  "version": "0.1.0",
+  "description": "Progressive login lockout: escalating lock time, HMAC-hashed identifiers (known or unknown), atomic Postgres store",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./drizzle": {
+      "types": "./dist/drizzle/index.d.ts",
+      "import": "./dist/drizzle/index.js",
+      "default": "./dist/drizzle/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "drizzle": [
+        "dist/drizzle/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "keywords": [
+    "lockout",
+    "brute-force",
+    "login",
+    "security"
+  ],
+  "author": "Ada Technology",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.36.0 <2"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "drizzle-orm": "1.0.0-rc.4",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  }
+}

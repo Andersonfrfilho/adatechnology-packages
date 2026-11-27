@@ -11,7 +11,7 @@ import { resolveScopeCompanyId } from '../shared/tenancy'
 import { toUserProfile } from '../shared/toContract'
 import { nowOf, runHook, type UserDependencies } from './userModule.types'
 
-const CLEARED_LOCKOUT = { failedLoginAttempts: 0, lockedUntil: null } as const
+const CLEARED_LOCKOUT = { failedLoginAttempts: 0, lockedUntil: null, lockLevel: 0, lastFailedLoginAt: null } as const
 
 export type UpdateUserParams = {
   readonly id: string

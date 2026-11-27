@@ -31,7 +31,7 @@ export class ConfirmPasswordResetUseCase {
     const user = await this.dependencies.users.updateById({
       id: consumed.userId,
       // Provar posse do e-mail destrava a conta: o bloqueio existe contra adivinhação, não contra o dono.
-      values: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+      values: { passwordHash, failedLoginAttempts: 0, lockedUntil: null, lockLevel: 0, lastFailedLoginAt: null },
     })
     if (!user) throw new ResetTokenInvalidError()
 

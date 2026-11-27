@@ -55,6 +55,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | Pacote | O que resolve | Entrada |
 |---|---|---|
 | [`user-module`](#adatechnologyuser-module) | login local ou Keycloak, refresh, reset de senha, perfil, lista de equipe | `createUserModule`, `createUserRoutes` |
+| [`login-lockout`](#adatechnologylogin-lockout) | bloqueio progressivo de login por tentativas (15, 30, 60 min...), inclusive de identificador que não existe | `createLoginLockout` |
 | [`user-ui`](#adatechnologyuser-ui) | telas de login, recuperação, perfil e equipe | `UserWorkspace`, `TeamWorkspace` |
 | [`keycloak-jwt`](#adatechnologykeycloak-jwt) | validar access token no backend Bun | `createKeycloakJwtVerifier` |
 | [`keycloak-admin`](#adatechnologykeycloak-admin) | gerenciar usuários do realm por service account | `createKeycloakAdminClient` |
@@ -515,12 +516,26 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Cookie de refresh com `sameSite` `lax` (padrão), `none` ou `strict`
   - Avatar por storage injetável
   - "Lembrar de mim" opcional no login: `rememberMe` + `refreshToken.rememberExpiresInSeconds` / `sessionExpiresInSeconds`; a escolha fica gravada no refresh token (servidor) e `refreshToken.absoluteExpiresInSeconds` põe teto absoluto na sessão; `parseRefreshCookieValue` exportado
+  - Bloqueio progressivo por tentativas falhas (`config.lockout`): `lockMultiplier`, `maxLockMinutes`, `forgiveAfterMinutes` (padrão sem escalada: duração fixa) e `identifierSecret`, que bloqueia também e-mail inexistente (grava só o HMAC). Usa `login-lockout`; migration `0004` acrescenta `lock_level`, `last_failed_login_at` e `user.login_lockouts`
   - Rotas prontas (`createUserRoutes`; adaptadores `./http/fetch`, `./http/uws`, `./openapi`)
 - **Entradas:** `createUserModule` em `src/UserModule.ts`; `createUserRoutes` em `src/http/`; `runUserMigrations`
 - **Precisa de:** PostgreSQL (Drizzle). Providers opcionais: `refreshTokenStore`, `email` (reset de senha), `keycloak` (verificador), `avatar`. Peers: `drizzle-orm`.
 - **Compatibilidade:** Drizzle peer `>=0.36.0 <2`; schema `user`; migrations com `meta/_journal.json`.
 - **Usado por:** `ada-technology`, `quickcart`, `transportada`, `supermercado-noemia`, `entrelacos`
-- **Atenção / não verificado:** Sem README. Bloqueio por tentativas de login (lockout) não foi encontrado no código do pacote.
+- **Atenção / não verificado:** Sem README no `user-contracts`; o `user-module` documenta o lockout no próprio README.
+
+### @adatechnology/login-lockout
+- **Versão:** `0.1.0` (nova) · `packages/backend/login-lockout` · subpath: `./drizzle`
+- **Para quê:** Bloqueio progressivo de login para qualquer app (convidado por telefone, equipe por e-mail, PIN): cada bloqueio dura o dobro do anterior até um teto, e um dia sem falhas perdoa.
+- **O que você ganha:**
+  - `createLoginLockout({ store, secret, policy? })`: `check`, `assertNotLocked` (lança `LoginLockedError` genérico com `retryAfterSeconds`), `registerFailure`, `clear`
+  - Identificador desconhecido bloqueia igual ao real; só o HMAC é gravado (nunca telefone ou e-mail); chave por combinação (`[ip, telefone]`)
+  - `./drizzle`: `createDrizzleLockoutStore`, tabela `loginLockouts` (ou `loginLockoutColumns()` dentro do seu `pgSchema`); atualização atômica (`FOR UPDATE`)
+  - Política pura exportada (`applyFailure`, `lockMinutesForLevel`, `resolveLockoutPolicy`) e `createInMemoryLockoutStore` para teste
+- **Entradas:** `src/index.ts`; `src/drizzle/index.ts`
+- **Precisa de:** PostgreSQL (Drizzle) para o armazenamento persistente; a migration da tabela é do host (o `user-module` já a traz).
+- **Compatibilidade:** Bun/Node; peer opcional `drizzle-orm` `>=0.36.0 <2`.
+- **Usado por:** `user-module`
 
 ### @adatechnology/user-ui
 - **Versão:** `0.2.0` · `packages/frontend/user-ui`
@@ -1001,6 +1016,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Para quê:** Camada HTTP compartilhada dos módulos: a rota é dado, e dela saem o adaptador `fetch`, o adaptador uWebSockets e o OpenAPI.
 - **O que você ganha:**
   - `compileRoutes`, `dispatchRoute`, `findRoute`
+  - `resolveClientIp({ headers, socketAddress, trustedHeader })`: IP do cliente atrás de proxy, só confia no cabeçalho que a borda põe (`x-real-ip` ou último salto de `x-forwarded-for`), recusa texto que não é endereço e agrupa IPv6 por /64
   - `./fetch` (`createModuleFetchRouter`), `./uws`, `./openapi`, `./testing`
   - Escopo checado no despachante: `requiredScopes` (basta um, senão 403); rota `admin`/`service` sem declarar exige ao menos um escopo na identidade
 - **Entradas:** `src/index.ts`

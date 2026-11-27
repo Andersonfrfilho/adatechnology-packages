@@ -29,6 +29,13 @@
       "when": 1795701600000,
       "tag": "0003_refresh_remember_me_session_start",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795788000000,
+      "tag": "0004_progressive_lockout",
+      "breakpoints": true
     }
   ]
 }

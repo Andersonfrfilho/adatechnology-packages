@@ -270,8 +270,23 @@ export const DEFAULT_USER_AUDIENCE = 'default'
 export type LockoutConfig = {
   /** Falhas consecutivas que travam a conta. Inteiro >= 1. */
   readonly maxFailedAttempts: number
-  /** Minutos de bloqueio. Inteiro >= 1. Passado o prazo, o contador recomeça do zero. */
+  /** Minutos do primeiro bloqueio. Inteiro >= 1. Passado o prazo, o contador recomeça do zero. */
   readonly lockMinutes: number
+  /**
+   * Cada bloqueio novo dura `multiplier` vezes o anterior (`lockMinutes * multiplier^nivel`). Padrão `1`: duração fixa,
+   * como sempre foi. Use `2` para 15, 30, 60... minutos. Número >= 1.
+   */
+  readonly lockMultiplier?: number
+  /** Teto de um bloqueio, em minutos. Padrão: o maior entre `lockMinutes` e 1440 (24 h). */
+  readonly maxLockMinutes?: number
+  /** Sem falha por este tempo (minutos, padrão 1440), contador e nível de escalada recomeçam. */
+  readonly forgiveAfterMinutes?: number
+  /**
+   * Chave HMAC (mín. 16 caracteres). Quando presente, e-mail que NÃO existe também é bloqueado — grava-se só o
+   * HMAC do e-mail, nunca o e-mail — e o login recusa com o mesmo erro genérico de credencial inválida. Sem ela, só
+   * conta existente é bloqueada, e quem erra o e-mail nunca esbarra no limite.
+   */
+  readonly identifierSecret?: string
 }
 
 /**

@@ -8,6 +8,7 @@
 
 import { randomUUID, createHash } from 'node:crypto'
 
+import { isForgiven, type LockoutPolicy, lockMinutesForLevel } from '@adatechnology/login-lockout'
 import type { RefreshRotationResult, RefreshTokenStorePort } from '@adatechnology/user-contracts'
 
 import type { NewPasswordResetTokenRow, NewUserRow, PasswordResetTokenRow, UserRow } from '../schema/schema'
@@ -49,6 +50,8 @@ export function createInMemoryUsers(seed: UserRow[] = [], audience = 'default', 
         isActive: true,
         failedLoginAttempts: 0,
         lockedUntil: null,
+        lockLevel: 0,
+        lastFailedLoginAt: null,
         lastSeenAt: null,
         deletedAt: null,
         createdAt: EPOCH,
@@ -88,20 +91,34 @@ export function createInMemoryUsers(seed: UserRow[] = [], audience = 'default', 
       id: string
       now: Date
       maxFailedAttempts: number
-      lockMinutes: number
+      policy: LockoutPolicy
     }): Promise<{ failedLoginAttempts: number; lockedUntil: Date | null; didLock: boolean } | undefined> {
       const row = findInAudience(params.id)
       if (!row || (row.lockedUntil && row.lockedUntil > params.now)) return undefined
       const isExpiredLock = row.lockedUntil !== null && row.lockedUntil <= params.now
-      row.failedLoginAttempts = isExpiredLock ? 1 : row.failedLoginAttempts + 1
+      const forgiven =
+        row.lastFailedLoginAt !== null &&
+        isForgiven({ state: { lastFailureAt: row.lastFailedLoginAt }, now: params.now, policy: params.policy })
+      const level = forgiven ? 0 : row.lockLevel
+      row.failedLoginAttempts = isExpiredLock || forgiven ? 1 : row.failedLoginAttempts + 1
       const didLock = row.failedLoginAttempts >= params.maxFailedAttempts
-      row.lockedUntil = didLock ? new Date(params.now.getTime() + params.lockMinutes * 60_000) : null
+      row.lockedUntil = didLock
+        ? new Date(params.now.getTime() + lockMinutesForLevel({ policy: params.policy, level }) * 60_000)
+        : null
+      row.lockLevel = didLock ? level + 1 : level
+      row.lastFailedLoginAt = params.now
       return { failedLoginAttempts: row.failedLoginAttempts, lockedUntil: row.lockedUntil, didLock }
     },
     async registerSuccessfulLogin(params: { id: string; now: Date }): Promise<UserRow | undefined> {
       const row = findInAudience(params.id)
       if (!row || (row.lockedUntil && row.lockedUntil > params.now)) return undefined
-      Object.assign(row, { failedLoginAttempts: 0, lockedUntil: null, lastSeenAt: params.now })
+      Object.assign(row, {
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        lockLevel: 0,
+        lastFailedLoginAt: null,
+        lastSeenAt: params.now,
+      })
       return snapshot(row)
     },
     async update(params: {

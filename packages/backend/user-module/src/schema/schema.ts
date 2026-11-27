@@ -2,6 +2,7 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
+import { loginLockoutColumns, loginLockoutIndexes } from '@adatechnology/login-lockout/drizzle'
 import { sql } from 'drizzle-orm'
 import { boolean, index, integer, pgSchema, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core'
 
@@ -32,6 +33,9 @@ export const users = userSchema.table(
     // Bloqueio por tentativas falhas (`config.lockout`). Zerados e nulos enquanto o recurso está desligado.
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    // Escalada (`lockout.lockMultiplier`): quantos bloqueios seguidos a conta já teve, e quando foi a última falha contada.
+    lockLevel: integer('lock_level').notNull().default(0),
+    lastFailedLoginAt: timestamp('last_failed_login_at', { withTimezone: true }),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -96,6 +100,9 @@ export const refreshTokens = userSchema.table('refresh_tokens', {
   sessionStartedAt: timestamp('session_started_at', { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+/** Bloqueio de e-mail que não existe (`lockout.identifierSecret`): só o HMAC do e-mail é gravado. */
+export const loginLockouts = userSchema.table('login_lockouts', loginLockoutColumns(), loginLockoutIndexes)
 
 export type UserRow = typeof users.$inferSelect
 export type NewUserRow = typeof users.$inferInsert

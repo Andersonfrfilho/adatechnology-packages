@@ -2,10 +2,16 @@
  * Copyright (c) 2026 Ada Technology. MIT License.
  */
 
-import { InvalidCredentialsError, USER_EVENT, type UserSession } from '@adatechnology/user-contracts'
+import {
+  DEFAULT_USER_AUDIENCE,
+  InvalidCredentialsError,
+  USER_EVENT,
+  type UserSession,
+} from '@adatechnology/user-contracts'
 
 import type { UserRow } from '../schema/schema'
 import { verifyAgainstDummyHash } from '../shared/dummyPasswordHash'
+import { resolveUserLockoutPolicy } from '../shared/lockoutPolicy'
 import { resolveRefreshExpiresInSeconds } from '../shared/refreshLifetime'
 import { resolveScopeCompanyId } from '../shared/tenancy'
 import { toUserProfile } from '../shared/toContract'
@@ -45,7 +51,14 @@ export class AuthenticateLocalUseCase {
       ? await Bun.password.verify(params.password, row.passwordHash)
       : await verifyAgainstDummyHash(params.password)
 
-    if (!row) return this.rejectLogin({ attempt, row, reason: FAILURE_REASON.USER_NOT_FOUND })
+    if (!row) {
+      const isUnknownLocked = (await this.unknownIdentifierStatus(attempt)).isLocked
+      return this.rejectLogin({
+        attempt,
+        row,
+        reason: isUnknownLocked ? FAILURE_REASON.USER_LOCKED : FAILURE_REASON.USER_NOT_FOUND,
+      })
+    }
     const reason = this.failureReasonOf({ row, isPasswordValid })
     if (reason) return this.rejectLogin({ attempt, row, reason })
     const user = row
@@ -93,6 +106,19 @@ export class AuthenticateLocalUseCase {
     }
   }
 
+  private unknownSubject(attempt: LoginAttempt) {
+    return {
+      partition: attempt.companyId ?? '',
+      scope: `login:${this.dependencies.config.audience ?? DEFAULT_USER_AUDIENCE}`,
+      identifier: attempt.email,
+    }
+  }
+
+  private async unknownIdentifierStatus(attempt: LoginAttempt) {
+    const guard = this.dependencies.unknownIdentifierLockout
+    return guard ? guard.check(this.unknownSubject(attempt)) : { isLocked: false as const }
+  }
+
   private failureReasonOf(params: { row: UserRow; isPasswordValid: boolean }): FailureReason | undefined {
     const { row, isPasswordValid } = params
     if (row.lockedUntil && row.lockedUntil > nowOf(this.dependencies)) return FAILURE_REASON.USER_LOCKED
@@ -117,9 +143,13 @@ export class AuthenticateLocalUseCase {
             id: row.id,
             now,
             maxFailedAttempts: lockout.maxFailedAttempts,
-            lockMinutes: lockout.lockMinutes,
+            policy: resolveUserLockoutPolicy(lockout),
           })
         : undefined
+
+    if (!row && reason === FAILURE_REASON.USER_NOT_FOUND) {
+      await this.dependencies.unknownIdentifierLockout?.registerFailure(this.unknownSubject(attempt))
+    }
 
     await runHook({
       dependencies: this.dependencies,
