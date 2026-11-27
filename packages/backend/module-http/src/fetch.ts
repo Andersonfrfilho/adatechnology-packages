@@ -20,7 +20,11 @@ import {
 export type ModuleFetchRouter = {
   /** `true` quando o pedido pertence ao módulo — o host decide se delega antes do próprio 404. */
   match(request: Request): boolean
-  handle(request: Request): Promise<Response>
+  /**
+   * `options.ip`: IP do cliente que o host resolveu (no `Bun.serve`, `server.requestIP(request)` ou
+   * `resolveClientIp` atrás de proxy). Chega às rotas em `context.ip` — é a chave dos limitadores.
+   */
+  handle(request: Request, options?: { readonly ip?: string }): Promise<Response>
   readonly routes: ModuleRouteTable
 }
 
@@ -138,6 +142,13 @@ function toStreamResponse(result: Extract<HttpResult, { kind: 'stream' }>, signa
 export function toFetchResponse(result: HttpResult, signal: AbortSignal): Response {
   if (result.kind === 'stream') return toStreamResponse(result, signal)
   if (result.kind === 'empty') return new Response(null, { status: result.status, headers: result.headers })
+  if (result.kind === 'binary') {
+    // Cópia num ArrayBuffer próprio: `BodyInit` não aceita a view sobre um `SharedArrayBuffer`.
+    return new Response(new Uint8Array(result.body).buffer, {
+      status: result.status,
+      headers: { ...result.headers, 'Content-Type': result.contentType },
+    })
+  }
   if (result.kind === 'text') {
     return new Response(result.body, {
       status: result.status,
@@ -162,7 +173,7 @@ export function createModuleFetchRouter(params: CreateModuleFetchRouterParams): 
       return findRoute(compiledRoutes, { method: request.method, pathname }) !== undefined
     },
 
-    async handle(request: Request): Promise<Response> {
+    async handle(request: Request, options?: { readonly ip?: string }): Promise<Response> {
       const url = new URL(request.url)
       const query = parseQueryParams(url.searchParams)
 
@@ -188,6 +199,7 @@ export function createModuleFetchRouter(params: CreateModuleFetchRouterParams): 
           query,
           headers: headersToRecord(request.headers),
           rawBody,
+          ...(options?.ip ? { ip: options.ip } : {}),
         },
         authResolver: params.authResolver,
         logger: params.logger,

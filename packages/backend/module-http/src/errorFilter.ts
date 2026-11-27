@@ -32,11 +32,19 @@ function errorResult(params: {
   code: string
   message: string
   issues?: readonly ValidationIssue[]
+  details?: Readonly<Record<string, unknown>>
 }): JsonResult {
   return {
     kind: 'json',
     status: params.status,
-    body: { error: { code: params.code, message: params.message, issues: params.issues } },
+    body: {
+      error: {
+        code: params.code,
+        message: params.message,
+        issues: params.issues,
+        ...(params.details ? { details: params.details } : {}),
+      },
+    },
   }
 }
 
@@ -67,7 +75,13 @@ export function toErrorResult(params: { error: unknown; logger?: LoggerPort }): 
     // `details` NÃO vai para a resposta: carrega userId, deviceId e afins, que são contexto de
     // servidor. O cliente recebe código estável + mensagem; o resto vive no log.
     params.logger?.warn('module.http.domain_error', { code: params.error.code, details: params.error.details })
-    return errorResult({ status: params.error.statusCode, code: params.error.code, message: params.error.message })
+    const { publicDetails } = params.error
+    return errorResult({
+      status: params.error.statusCode,
+      code: params.error.code,
+      message: params.error.message,
+      ...(publicDetails ? { details: publicDetails } : {}),
+    })
   }
 
   // Erro desconhecido → 500 genérico, sem stack trace para o cliente (`code-standart.md` §7).

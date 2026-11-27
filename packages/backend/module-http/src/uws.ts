@@ -29,7 +29,7 @@ export type UwsResponse = {
   writeStatus(status: string): UwsResponse
   writeHeader(key: string, value: string): UwsResponse
   write(chunk: string): boolean
-  end(body?: string): UwsResponse
+  end(body?: string | Uint8Array): UwsResponse
   cork(callback: () => void): void
   onAborted(callback: () => void): void
   onData(callback: (chunk: ArrayBuffer, isLast: boolean) => void): void
@@ -193,10 +193,19 @@ function writeResult(params: { response: UwsResponse; result: HttpResult; isAbor
 
   response.cork(() => {
     response.writeStatus(statusText(result.status))
-    for (const [key, value] of Object.entries(result.headers ?? {})) response.writeHeader(key, value)
+    // O `Content-Type` sai uma vez só, escrito abaixo por tipo de resultado; o dos `headers` não duplica.
+    for (const [key, value] of Object.entries(result.headers ?? {})) {
+      if (result.kind !== 'empty' && key.toLowerCase() === 'content-type') continue
+      response.writeHeader(key, value)
+    }
 
     if (result.kind === 'empty') {
       response.end()
+      return
+    }
+    if (result.kind === 'binary') {
+      response.writeHeader('Content-Type', result.contentType)
+      response.end(result.body)
       return
     }
     if (result.kind === 'text') {
