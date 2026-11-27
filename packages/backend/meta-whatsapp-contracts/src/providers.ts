@@ -35,6 +35,11 @@ type SendChannelMediaCommon = {
   mimeType: string
   filename: string
   caption?: string
+  /**
+   * Envia como figurinha (`type: 'sticker'`), e não como imagem. Só vale com `image/webp`: a Meta
+   * exige WebP estático de 512x512 (até 100 KB), e figurinha não aceita legenda.
+   */
+  asSticker?: boolean
 }
 
 /**
