@@ -36,6 +36,7 @@ import type {
   QueuedAttachment,
   QuickReply as SavedQuickReply,
 } from '../quickReplies/quickReply.types'
+import { ConversationQuickRepliesBar } from '../quickReplies/ConversationQuickRepliesBar'
 import { queuedAttachmentsFromQuickReply } from '../quickReplies/quickReplyAttachments'
 import { resolveConversationVariables } from '../quickReplies/resolveConversationVariables'
 import { QueuedAttachmentsList } from './QueuedAttachmentsList'
@@ -93,6 +94,11 @@ export interface ConversationPaneProps {
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
   ) => ReactNode
+  /**
+   * Faixa de botões com as mensagens prontas do host (`api.listQuickReplies`) no topo da conversa.
+   * Clicar insere o texto no campo, sem enviar; o que passa de `maxVisible` (4) vai para "Mais".
+   */
+  readonly quickRepliesBar?: boolean | { readonly maxVisible?: number }
   readonly onAttach?: ((file: File) => Promise<void>) | undefined
   /**
    * `rich` troca o `textarea` pelo campo com a formatação do WhatsApp desenhada enquanto se escreve.
@@ -146,6 +152,7 @@ export function ConversationPane({
   messageSelection,
   initialComposerText,
   renderAboveTranscript,
+  quickRepliesBar,
   onAttach,
   composer = 'simple',
   composerVariablesFor,
@@ -344,10 +351,20 @@ export function ConversationPane({
         },
       }
     : undefined
+  const listSavedQuickReplies = useCallback(
+    (params?: { search?: string }) => (api.listQuickReplies ? api.listQuickReplies(params) : Promise.resolve([])),
+    [api],
+  )
+  const paneRef = useRef<HTMLDivElement>(null)
+  // Insere sem enviar: o texto entra no fim do que já foi digitado e o campo ganha o foco.
+  const insertIntoDraft = (text: string): void => {
+    setDraft((current) => (current.trim() === '' ? text : `${current.replace(/\s+$/, '')} ${text}`))
+    paneRef.current?.querySelector<HTMLElement>('textarea, [contenteditable="true"]')?.focus()
+  }
   const botOwnsConversation = Boolean(requireTakeoverToReply) && conversation.mode !== 'human'
 
   return (
-    <div className="cv-workspace-pane">
+    <div ref={paneRef} className="cv-workspace-pane">
       <ConversationHeader
         conversation={conversation}
         busy={busy}
@@ -369,6 +386,17 @@ export function ConversationPane({
         />
       ) : null}
       <ConversationDocumentsPanel conversationId={conversation.id} open={documentsOpen} />
+
+      {quickRepliesBar ? (
+        <ConversationQuickRepliesBar
+          conversationId={conversation.id}
+          listQuickReplies={listSavedQuickReplies}
+          variables={quickReplyVariables}
+          maxVisible={typeof quickRepliesBar === 'object' ? quickRepliesBar.maxVisible : undefined}
+          isDisabled={botOwnsConversation}
+          onInsert={insertIntoDraft}
+        />
+      ) : null}
 
       {renderAboveTranscript?.(conversation, conversationContext)}
 

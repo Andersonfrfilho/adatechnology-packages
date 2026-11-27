@@ -291,8 +291,8 @@ export {
 } from './quickReplies/quickReplyAttachments'
 export type { MaxAttachmentSizeBytes, OutgoingItems } from './quickReplies/quickReplyAttachments'
 export type { AttachmentFileRejection, ValidateAttachmentFilesResult } from './quickReplies/quickReplyAttachmentUpload'
-export { QuickRepliesWorkspace, QuickRepliesPicker } from './quickReplies'
-export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps } from './quickReplies'
+export { QuickRepliesWorkspace, QuickRepliesPicker, QuickRepliesBar, ConversationQuickRepliesBar, splitQuickReplies } from './quickReplies'
+export type { QuickRepliesWorkspaceProps, QuickRepliesPickerProps, QuickRepliesBarProps, QuickRepliesBarLabels, ConversationQuickRepliesBarProps } from './quickReplies'
 export { DEFAULT_QUICK_REPLIES_PICKER_LABELS, DEFAULT_QUICK_REPLIES_WORKSPACE_LABELS } from './quickReplies/labels'
 export type { QuickRepliesPickerLabels, QuickRepliesWorkspaceLabels } from './quickReplies/labels'
 export {

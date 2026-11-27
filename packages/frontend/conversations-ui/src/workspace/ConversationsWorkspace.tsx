@@ -194,6 +194,8 @@ export interface ConversationsWorkspaceProps {
   readonly renderFilters?: (inbox: UseConversationsInboxResult) => ReactNode
   readonly renderBulkActions?: (inbox: UseConversationsInboxResult) => ReactNode
   readonly renderRow?: (conversation: ConversationSummary) => ReactNode
+  /** Faixa de mensagens prontas no topo da conversa (ver `ConversationPaneProps.quickRepliesBar`). */
+  readonly quickRepliesBar?: boolean | { readonly maxVisible?: number }
   readonly renderAboveTranscript?: (
     conversation: ConversationSummary,
     context: Record<string, unknown> | undefined,
@@ -234,6 +236,7 @@ export function ConversationsWorkspace({
   renderBulkActions,
   renderRow,
   renderAboveTranscript,
+  quickRepliesBar,
   renderHeaderActions,
   onSendTemplateToSelected,
   signInHref,
@@ -505,6 +508,7 @@ export function ConversationsWorkspace({
               {...(quickReplies ? { quickReplies } : {})}
               {...(quickReplyVariablesFor ? { quickReplyVariablesFor } : {})}
               {...(renderAboveTranscript ? { renderAboveTranscript } : {})}
+              {...(quickRepliesBar ? { quickRepliesBar } : {})}
               {...(onAttach ? { onAttach: (file: File) => onAttach(selected, file) } : {})}
             />
           ) : (
