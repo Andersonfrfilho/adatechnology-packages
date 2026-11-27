@@ -3370,3 +3370,61 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ── Preview com seletor de aparelho ──────────────────────────────────────────── */
+
+.adn-definitions__device-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adn-space-2);
+  min-width: 0;
+}
+
+.adn-definitions__list--custom {
+  min-width: 0;
+}
+
+.adn-device-switch {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px;
+  border: 1px solid var(--adn-color-border);
+  border-radius: var(--adn-radius);
+  background: var(--adn-color-canvas);
+}
+
+.adn-device-switch__option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--adn-space-1);
+  min-height: 32px;
+  padding: 0 var(--adn-space-3);
+  border: 0;
+  border-radius: var(--adn-radius-sm);
+  background: transparent;
+  color: var(--adn-color-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.adn-device-switch__option[aria-checked='true'] {
+  background: var(--adn-color-surface);
+  color: var(--adn-color-accent);
+  box-shadow: var(--adn-shadow-card);
+}
+
+.adn-device-switch__option:focus-visible {
+  outline: 2px solid var(--adn-color-accent);
+  outline-offset: 2px;
+}
+
+.adn-scaled-frame {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.adn-scaled-frame__inner {
+  margin: 0 auto;
+}
