@@ -10,6 +10,9 @@ export {
 } from './providers/CustomersProvider'
 export type { CustomersProviderProps } from './providers/CustomersProvider'
 
+export { BrazilianDocumentInput } from './BrazilianDocumentInput'
+export type { BrazilianDocumentInputProps } from './BrazilianDocumentInput'
+
 export { CustomerList } from './CustomerList'
 export type { CustomerListProps } from './CustomerList'
 
