@@ -3,6 +3,7 @@ export type {
   DocumentsWorkspaceProps,
   DocumentsWorkspaceClassNames,
   DocumentsFiltersContext,
+  ListExportContext,
   DateInputProps,
   RenderDateInput,
 } from './DocumentsWorkspace'

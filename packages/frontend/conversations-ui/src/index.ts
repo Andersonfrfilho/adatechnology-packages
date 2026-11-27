@@ -108,6 +108,7 @@ export type {
   DocumentsWorkspaceLabels,
   DocumentsWorkspaceClassNames,
   DocumentsFiltersContext,
+  ListExportContext,
   DateInputProps,
   RenderDateInput,
 } from './documents'

@@ -11,11 +11,13 @@ import { useState } from 'react'
 import type { PostDraft } from '../lib/postDraft'
 import type { RenderDateTimeInput, RenderSelect } from '../providers/types'
 import { PostEditor } from './PostEditor'
-import { PostList } from './PostList'
+import { PostList, type PostListProps } from './PostList'
 
 type WorkspaceView = { readonly kind: 'list' } | { readonly kind: 'editor'; readonly postId?: string }
 
 export type ContentWorkspaceProps = {
+  /** Repassado à lista: botão de exportação do host (opt-in). */
+  readonly renderExport?: PostListProps['renderExport']
   readonly pageSize?: number
   /** Valores iniciais do post novo (ex.: autor logado). */
   readonly newPostDefaults?: Partial<PostDraft>
@@ -37,6 +39,7 @@ export function ContentWorkspace({
   renderDateTimeInput,
   renderSelect,
   syncUrl,
+  renderExport,
   showFormattingToolbar,
 }: ContentWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
@@ -76,6 +79,7 @@ export function ContentWorkspace({
       {...(pageSize ? { pageSize } : {})}
       onSelect={(post) => setView({ kind: 'editor', postId: post.id })}
       onCreate={() => setView({ kind: 'editor' })}
+      {...(renderExport ? { renderExport } : {})}
     />
   )
 }

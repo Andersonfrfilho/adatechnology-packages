@@ -136,6 +136,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Corpo renderizado do AST em elementos React, sem `dangerouslySetInnerHTML`; `buildPostMeta` para o `<head>` do host; `renderLink` para o roteador do host
   - Pontos de customização: `renderDateTimeInput` (seletor de data e hora do host para agendar) e seletor de arquivo estilizado com textos nas mensagens (`coverUpload`, `fileNoneChosen`)
   - Tema por variáveis `--adc-*`; `pt-BR` e `en`; headless `usePostEditor`, `usePostList`, `useUnsavedChangesGuard`
+  - Slot opt-in `renderExport({ total, page, pageSize, pageCount, filters })` em `ContentWorkspace`/`PostList`: o host põe o botão de exportar planilha na barra da lista
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `content-module` (interfaces `ContentAdminApi`, `ContentPublicApi`). Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
@@ -362,6 +363,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - **Cliente das respostas rápidas do módulo:** `createMetaWhatsAppQuickRepliesClient({ baseUrl, getHeaders? })` devolve `listQuickReplies`, `createQuickReply`, `updateQuickReply` e `deleteQuickReply` prontos para espalhar em `ConversationsApi` ou passar ao `QuickRepliesWorkspace`/`QuickRepliesPicker`; desembrulha `{ data }`, traduz a validação para `details` por campo e propaga `QUICK_REPLY_SHORTCUT_TAKEN` (`QuickRepliesApiError`). Só texto: sem a porta de anexos, a tela não oferece anexos (a publicar na 0.18.0)
   - `./participant`: a conversa vista por quem participa (`ParticipantConversations`, `ConversationThread`), com adapter REST
   - Tema por variáveis CSS, modo escuro (`useDarkMode`), textos por `ConversationLocalesProvider`
+  - Slot opt-in `renderExport({ total, page, pageSize, pageCount, filters })` em `DocumentsWorkspace` para o botão de exportar planilha do host (a lista de conversas já tem `renderFilters(inbox)`)
 - **Entradas:** `ConversationSimulatorPanel` em `src/preview/ConversationSimulatorPanel.tsx`; `createPreviewBridgeClient` em `src/preview/createPreviewBridgeClient.ts`; `FlowsWorkspace` em `src/flows/FlowsWorkspace.tsx`; `FlowWhatsAppPreview` em `src/flows/FlowWhatsAppPreview.tsx`; `ConversationsWorkspace` em `src/workspace/`; Subpaths: `./flows`, `./preview`, `./participant`, `./styles.css` (`./whatsapp` existe no `exports`, mas hoje não exporta nada)
 - **Precisa de:** API REST do host injetada por `ConversationsProvider` (tipo `ConversationsApi` em `src/providers/types.ts`) e SSE. O lado servidor do simulador é do host: uma rota que receba o comando e entregue ao `meta-whatsapp-module` o webhook assinado (builders em `meta-whatsapp-contracts/testing`). `@xyflow/react` é peer do editor de fluxos. Peers: `@xyflow/react`, `react`, `react-dom`.
 - **Compatibilidade:** React 18+, ESM, CSS em `./styles.css`; Tailwind do host.
@@ -528,6 +530,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - `SignInScreen showRememberMe` (caixa "Lembrar de mim", opt-in)
   - `TeamWorkspace` define a senha de outra pessoa quando a `UserApi` traz `setTeamMemberPassword` (`TeamMemberPasswordForm`)
   - `TeamWorkspace` (equipe e papéis via `buildDefaultTeamRoles`), `AvatarPicker` com recorte de fundo (`image-cutout`)
+  - Slot opt-in `renderExport({ total, page, pageSize, pageCount, filters })` em `TeamWorkspace` para o botão de exportar planilha do host
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `user-module` (`UserProvider`, `useUserApi`). Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.

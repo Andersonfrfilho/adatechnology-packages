@@ -7,9 +7,10 @@
 
 import type { Post, PostSummary } from '@adatechnology/content-contracts'
 import { CopyPlus, FilePlus2, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { POST_LIST_TAB, usePostList } from '../hooks/usePostList'
+import type { ListUrlState } from '../lib/listUrlState'
 import { useContentAdminApi, useContentText } from '../providers/ContentProvider'
 import type { RenderDateTimeInput, RenderSelect } from '../providers/types'
 import { BatchBar } from './BatchBar'
@@ -23,6 +24,30 @@ import { Tooltip } from './Tooltip'
 
 type RowAction = 'saveAsTemplate' | 'fromTemplate' | 'republish'
 
+/**
+ * O que a lista está mostrando agora, para o host montar um botão "Exportar" ao lado dos filtros.
+ *
+ * O pacote não exporta nada: quem gera o arquivo é o backend do host, com os mesmos filtros da tela.
+ * `filters` traz os filtros ativos já como texto; `pageCount`, quantas linhas a página tem.
+ */
+export type ListExportContext = {
+  readonly total: number
+  readonly page: number
+  readonly pageSize: number
+  readonly pageCount: number
+  readonly filters: Readonly<Record<string, string>>
+}
+
+function buildExportFilters(state: ListUrlState, tab: string | undefined): Readonly<Record<string, string>> {
+  return {
+    ...(tab ? { tab } : {}),
+    ...(state.search ? { search: state.search } : {}),
+    ...(state.tags.length > 0 ? { tag: state.tags.join(',') } : {}),
+    sort: state.sort,
+    order: state.order,
+  }
+}
+
 export type PostListProps = {
   readonly onSelect: (post: PostSummary) => void
   /** Ausente: sem botão "Novo post". */
@@ -34,6 +59,8 @@ export type PostListProps = {
   readonly syncUrl?: boolean
   readonly renderDateTimeInput?: RenderDateTimeInput
   readonly renderSelect?: RenderSelect
+  /** Ausente: sem exportação. Opt-in do host, na barra do título. */
+  readonly renderExport?: (context: ListExportContext) => ReactNode
 }
 
 export function PostList({
@@ -44,6 +71,7 @@ export function PostList({
   syncUrl,
   renderDateTimeInput,
   renderSelect,
+  renderExport,
 }: PostListProps) {
   const { messages } = useContentText()
   const api = useContentAdminApi()
@@ -102,6 +130,15 @@ export function PostList({
     <section className="adc-root adc-post-list">
       <header className="adc-toolbar">
         <h2 className="adc-title">{messages.listTitle}</h2>
+        {renderExport && posts.data
+          ? renderExport({
+              total: posts.data.pagination.total,
+              page: state.page,
+              pageSize: list.pageSize,
+              pageCount: posts.data.data.length,
+              filters: buildExportFilters(list.state, tab),
+            })
+          : null}
       </header>
 
       <PostListToolbar

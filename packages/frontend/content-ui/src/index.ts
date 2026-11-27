@@ -26,7 +26,7 @@ export type {
 export { ContentWorkspace } from './components/ContentWorkspace'
 export type { ContentWorkspaceProps } from './components/ContentWorkspace'
 export { PostList } from './components/PostList'
-export type { PostListProps } from './components/PostList'
+export type { PostListProps, ListExportContext } from './components/PostList'
 export { PostEditor } from './components/PostEditor'
 export type { PostEditorProps } from './components/PostEditor'
 export { Tooltip } from './components/Tooltip'
