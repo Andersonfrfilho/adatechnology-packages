@@ -28,3 +28,10 @@ Map the admin actions to `PATCH /admin/users/:id` with `{ role }`, `{ isActive }
   `<select>`; receives `{ id, label, value, options, onChange }`. `TeamRoleOption.description` carries one line per role for it.
 - `avatarSquareSize?` (`TeamWorkspace`) / `squareSize?` (`AvatarPicker`): the photo is center-cropped to a square of at most this many
   pixels before upload (`cropToSquare` is exported). Absent, the file goes as it came.
+
+## Account security screens
+
+`ChangePasswordWithCurrentForm`, `ChangeEmailForm`, `ChangePhoneForm`, `PhoneVerificationPanel` and (staff side)
+`StaffAccountRecoveryPanel`. Each takes `labels` (pt-BR defaults) and `controls` (`{ Field, Button }` slots: pass your own
+inputs and buttons; the defaults are minimal). They call the matching optional `UserApi` methods
+(`changePassword`, `requestEmailChange`, `changePhone`, `startPhoneVerification`, `verifyPhone`, `recoverTeamMember`).

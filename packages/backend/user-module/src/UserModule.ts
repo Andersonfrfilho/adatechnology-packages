@@ -18,11 +18,13 @@ import type {
   RefreshCookieSameSite,
   RefreshTokenStorePort,
   UserHooks,
+  VerificationCodeSenderPort,
   UserModuleConfig,
 } from '@adatechnology/user-contracts'
 
 import type { UserDatabase } from './database.types'
 import { isValidRefreshCookieName, isValidRefreshCookiePath } from './http/cookies'
+import { AccountChallengeRepository } from './repositories/AccountChallengeRepository'
 import { PasswordResetTokenRepository } from './repositories/PasswordResetTokenRepository'
 import { RefreshTokenRepository } from './repositories/RefreshTokenRepository'
 import { UserRepository } from './repositories/UserRepository'
@@ -34,6 +36,14 @@ import { TokenService } from './shared/TokenService'
 import type { KeycloakVerifierPort } from './shared/keycloak.types'
 import { AuthenticateKeycloakUseCase } from './use-cases/AuthenticateKeycloak.use-case'
 import { AuthenticateLocalUseCase } from './use-cases/AuthenticateLocal.use-case'
+import { ChangePasswordUseCase } from './use-cases/ChangePassword.use-case'
+import { ChangePhoneUseCase } from './use-cases/ChangePhone.use-case'
+import { ConfirmEmailChangeUseCase } from './use-cases/ConfirmEmailChange.use-case'
+import { MatchInboundPhoneVerificationUseCase } from './use-cases/MatchInboundPhoneVerification.use-case'
+import { RecoverAccountUseCase } from './use-cases/RecoverAccount.use-case'
+import { RequestEmailChangeUseCase } from './use-cases/RequestEmailChange.use-case'
+import { StartPhoneVerificationUseCase } from './use-cases/StartPhoneVerification.use-case'
+import { VerifyPhoneUseCase } from './use-cases/VerifyPhone.use-case'
 import { ConfirmPasswordResetUseCase } from './use-cases/ConfirmPasswordReset.use-case'
 import { CreateUserUseCase } from './use-cases/CreateUser.use-case'
 import { GetProfileUseCase } from './use-cases/GetProfile.use-case'
@@ -56,6 +66,8 @@ export type UserModuleProviders = {
   readonly email?: EmailDriverPort
   readonly keycloak?: KeycloakVerifierPort
   readonly avatar?: AvatarStoragePort
+  /** Canais de entrega do código de verificação do telefone; vazio = só o modo `inbound`, ou nenhuma verificação. */
+  readonly verificationSenders?: readonly VerificationCodeSenderPort[]
   readonly clock?: ClockPort
   readonly logger?: LoggerPort
 }
@@ -83,6 +95,14 @@ export type UserModule = {
     readonly getProfile: GetProfileUseCase
     readonly listUsers: ListUsersUseCase
     readonly setAvatar: SetAvatarUseCase
+    readonly changePassword: ChangePasswordUseCase
+    readonly requestEmailChange: RequestEmailChangeUseCase
+    readonly confirmEmailChange: ConfirmEmailChangeUseCase
+    readonly changePhone: ChangePhoneUseCase
+    readonly startPhoneVerification: StartPhoneVerificationUseCase
+    readonly verifyPhone: VerifyPhoneUseCase
+    readonly matchInboundPhoneVerification: MatchInboundPhoneVerificationUseCase
+    readonly recoverAccount: RecoverAccountUseCase
   }
   /** Exportado para o host montar seu próprio `AuthContextResolverPort` sem tocar em `jose`. */
   verifyAccessToken(accessToken: string): Promise<AccessTokenClaims | undefined>
@@ -104,6 +124,12 @@ export type UserModule = {
     readonly path: string
     readonly sameSite: RefreshCookieSameSite
   }
+  /** Sem `config.emailChange` as rotas de troca de e-mail não são publicadas. */
+  readonly hasEmailChange: boolean
+  /** Sem `config.phoneVerification` o telefone é salvo como não verificado e as rotas de verificação não existem. */
+  readonly hasPhoneVerification: boolean
+  /** Sem `config.passwordReset` a recuperação assistida não tem como mandar o link: a rota não é publicada. */
+  readonly hasAccountRecovery: boolean
   /** Sem `config.signUp` a rota de cadastro não é publicada. */
   readonly hasSignUp: boolean
   readonly audience: string
@@ -152,6 +178,15 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
   if (params.config.tenancy.mode === 'single' && !params.config.tenancy.defaultCompanyId) {
     throw new ConfigMissingError('tenancy.defaultCompanyId')
   }
+  if (params.config.emailChange && !params.config.emailChange.confirmUrlTemplate.includes(RESET_TOKEN_PLACEHOLDER)) {
+    throw new ConfigMissingError('emailChange.confirmUrlTemplate')
+  }
+  if (
+    params.config.phoneVerification &&
+    params.config.phoneVerification.hashSecret.length < MIN_IDENTIFIER_SECRET_LENGTH
+  ) {
+    throw new ConfigMissingError('phoneVerification.hashSecret')
+  }
   if (params.config.passwordReset && !params.config.passwordReset.resetUrlTemplate.includes(RESET_TOKEN_PLACEHOLDER)) {
     throw new ConfigMissingError('passwordReset.resetUrlTemplate')
   }
@@ -182,6 +217,7 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
   const dependencies: UserDependencies = {
     users: new UserRepository(params.db, audience),
     passwordResetTokens: new PasswordResetTokenRepository(params.db),
+    accountChallenges: new AccountChallengeRepository(params.db),
     refreshTokenStore: params.providers?.refreshTokenStore ?? new RefreshTokenRepository(params.db),
     tokenService,
     config: params.config,
@@ -191,6 +227,7 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
     email: params.providers?.email,
     keycloak,
     avatar: params.providers?.avatar,
+    verificationSenders: params.providers?.verificationSenders,
     unknownIdentifierLockout: buildUnknownIdentifierLockout({
       config: params.config,
       db: params.db,
@@ -214,6 +251,14 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
       getProfile: new GetProfileUseCase(dependencies),
       listUsers: new ListUsersUseCase(dependencies),
       setAvatar: new SetAvatarUseCase(dependencies),
+      changePassword: new ChangePasswordUseCase(dependencies),
+      requestEmailChange: new RequestEmailChangeUseCase(dependencies),
+      confirmEmailChange: new ConfirmEmailChangeUseCase(dependencies),
+      changePhone: new ChangePhoneUseCase(dependencies),
+      startPhoneVerification: new StartPhoneVerificationUseCase(dependencies),
+      verifyPhone: new VerifyPhoneUseCase(dependencies),
+      matchInboundPhoneVerification: new MatchInboundPhoneVerificationUseCase(dependencies),
+      recoverAccount: new RecoverAccountUseCase(dependencies),
     },
     verifyAccessToken: (accessToken: string) => tokenService.verify(accessToken),
     hasKeycloak: Boolean(keycloak),
@@ -226,6 +271,9 @@ export async function createUserModule(params: CreateUserModuleParams): Promise<
       path: params.config.refreshToken?.cookiePath ?? DEFAULT_REFRESH_COOKIE_PATH,
       sameSite,
     },
+    hasEmailChange: Boolean(params.config.emailChange),
+    hasPhoneVerification: Boolean(params.config.phoneVerification),
+    hasAccountRecovery: Boolean(params.config.passwordReset),
     hasSignUp: Boolean(params.config.signUp),
     audience,
   }

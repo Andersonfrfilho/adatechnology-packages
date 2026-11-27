@@ -212,3 +212,37 @@ describe('lembrar de mim nas rotas', () => {
     expect(setCookieOf(persistent)).toContain('Max-Age=3600')
   })
 })
+
+describe('rotas de autoatendimento da conta', () => {
+  it('troca de senha e de telefone sempre existem; e-mail, verificação e recuperação só com a configuração', async () => {
+    const base = await buildRoutes(BASE_CONFIG)
+    expect(find(base, 'POST', '/auth/password/change')).toBeDefined()
+    expect(find(base, 'POST', '/auth/phone/change')).toBeDefined()
+    for (const path of [
+      '/auth/email/change',
+      '/auth/email/confirm',
+      '/auth/phone/verification',
+      '/auth/phone/verify',
+    ]) {
+      expect(find(base, 'POST', path)).toBeUndefined()
+    }
+    expect(find(base, 'POST', '/admin/users/:id/recovery')).toBeUndefined()
+
+    const full = await buildRoutes({
+      ...BASE_CONFIG,
+      emailChange: { confirmUrlTemplate: 'https://x.test/c?token={token}' },
+      passwordReset: { resetUrlTemplate: 'https://x.test/r?token={token}' },
+      phoneVerification: { hashSecret: 'segredo-de-16-caracteres', inbound: {} },
+    })
+    for (const path of [
+      '/auth/email/change',
+      '/auth/email/confirm',
+      '/auth/phone/verification',
+      '/auth/phone/verify',
+    ]) {
+      expect(find(full, 'POST', path)).toBeDefined()
+    }
+    expect(find(full, 'POST', '/admin/users/:id/recovery')?.scope).toBe('admin')
+    expect(find(full, 'POST', '/auth/email/confirm')?.scope).toBe('public')
+  })
+})

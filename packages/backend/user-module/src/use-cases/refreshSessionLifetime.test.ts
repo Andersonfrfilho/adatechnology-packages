@@ -8,6 +8,7 @@ import { describe, expect, it } from 'bun:test'
 import { NotAuthenticatedError } from '@adatechnology/user-contracts'
 
 import {
+  createInMemoryAccountChallenges,
   createInMemoryPasswordResetTokens,
   createInMemoryRefreshTokenStore,
   createInMemoryUsers,
@@ -15,6 +16,7 @@ import {
 import { TokenService } from '../shared/TokenService'
 import { hashToken } from '../shared/tokenHash'
 import type { UserRepository } from '../repositories/UserRepository'
+import type { AccountChallengeRepository } from '../repositories/AccountChallengeRepository'
 import type { PasswordResetTokenRepository } from '../repositories/PasswordResetTokenRepository'
 import { AuthenticateLocalUseCase } from './AuthenticateLocal.use-case'
 import { CreateUserUseCase } from './CreateUser.use-case'
@@ -32,6 +34,7 @@ function setup(refreshToken: NonNullable<UserDependencies['config']['refreshToke
   const dependencies: UserDependencies = {
     users: createInMemoryUsers() as unknown as UserRepository,
     passwordResetTokens: createInMemoryPasswordResetTokens() as unknown as PasswordResetTokenRepository,
+    accountChallenges: createInMemoryAccountChallenges() as unknown as AccountChallengeRepository,
     refreshTokenStore: store,
     tokenService: new TokenService({ secret: 'test-secret-test-secret-test-secret' }),
     config: {

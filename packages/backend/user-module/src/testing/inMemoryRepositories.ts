@@ -11,7 +11,13 @@ import { randomUUID, createHash } from 'node:crypto'
 import { isForgiven, type LockoutPolicy, lockMinutesForLevel } from '@adatechnology/login-lockout'
 import type { RefreshRotationResult, RefreshTokenStorePort } from '@adatechnology/user-contracts'
 
-import type { NewPasswordResetTokenRow, NewUserRow, PasswordResetTokenRow, UserRow } from '../schema/schema'
+import type {
+  AccountChallengeRow,
+  NewPasswordResetTokenRow,
+  NewUserRow,
+  PasswordResetTokenRow,
+  UserRow,
+} from '../schema/schema'
 
 const EPOCH = new Date('2026-08-02T12:00:00.000Z')
 
@@ -53,6 +59,9 @@ export function createInMemoryUsers(seed: UserRow[] = [], audience = 'default', 
         lockLevel: 0,
         lastFailedLoginAt: null,
         lastSeenAt: null,
+        emailVerifiedAt: null,
+        phone: null,
+        phoneVerifiedAt: null,
         deletedAt: null,
         createdAt: EPOCH,
         updatedAt: EPOCH,
@@ -70,6 +79,11 @@ export function createInMemoryUsers(seed: UserRow[] = [], audience = 'default', 
     async findByEmail(params: { companyId: string | undefined; email: string }): Promise<UserRow | undefined> {
       return snapshot(
         rows.find((row) => matchesScope(row, params.companyId) && row.email === params.email && !row.deletedAt),
+      )
+    },
+    async findByPhone(params: { companyId: string | undefined; phone: string }): Promise<UserRow | undefined> {
+      return snapshot(
+        rows.find((row) => matchesScope(row, params.companyId) && row.phone === params.phone && !row.deletedAt),
       )
     },
     async findByProviderExternalId(params: { providerId: string; externalId: string }): Promise<UserRow | undefined> {
@@ -187,6 +201,70 @@ export function createInMemoryPasswordResetTokens(seed: PasswordResetTokenRow[] 
       rows.length = 0
       rows.push(...remaining)
       return before - remaining.length
+    },
+  }
+}
+
+export function createInMemoryAccountChallenges() {
+  const rows: AccountChallengeRow[] = []
+  let sequence = 0
+
+  return {
+    rows,
+    async issue(params: {
+      userId: string
+      kind: string
+      secretHash: string
+      target: string
+      expiresAt: Date
+      now: Date
+    }): Promise<AccountChallengeRow> {
+      for (const row of rows) {
+        if (row.userId === params.userId && row.kind === params.kind && !row.consumedAt) row.consumedAt = params.now
+      }
+      sequence += 1
+      const row: AccountChallengeRow = {
+        id: randomUUID(),
+        userId: params.userId,
+        kind: params.kind,
+        secretHash: params.secretHash,
+        target: params.target,
+        attempts: 0,
+        expiresAt: params.expiresAt,
+        consumedAt: null,
+        // O relógio do teste pode não andar: a sequência desempata o "mais recente".
+        createdAt: new Date(params.now.getTime() + sequence),
+      }
+      rows.push(row)
+      return { ...row }
+    },
+    async consumeBySecret(params: { kind: string; secretHash: string; now: Date }) {
+      const row = rows.find(
+        (candidate) =>
+          candidate.kind === params.kind &&
+          candidate.secretHash === params.secretHash &&
+          !candidate.consumedAt &&
+          candidate.expiresAt > params.now,
+      )
+      if (!row) return undefined
+      row.consumedAt = params.now
+      return { userId: row.userId, target: row.target }
+    },
+    async findLatest(params: { userId: string; kind: string }): Promise<AccountChallengeRow | undefined> {
+      const own = rows.filter((row) => row.userId === params.userId && row.kind === params.kind)
+      return snapshot(own.sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())[0])
+    },
+    async registerAttempt(params: { id: string }): Promise<number | undefined> {
+      const row = rows.find((candidate) => candidate.id === params.id && !candidate.consumedAt)
+      if (!row) return undefined
+      row.attempts += 1
+      return row.attempts
+    },
+    async consume(params: { id: string; now: Date }): Promise<boolean> {
+      const row = rows.find((candidate) => candidate.id === params.id && !candidate.consumedAt)
+      if (!row) return false
+      row.consumedAt = params.now
+      return true
     },
   }
 }

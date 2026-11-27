@@ -7,7 +7,7 @@
 
 export type { UserDatabase, DrizzleMigrateFunction } from './database.types'
 
-export { userSchema, users, passwordResetTokens, refreshTokens } from './schema/schema'
+export { userSchema, users, passwordResetTokens, refreshTokens, accountChallenges } from './schema/schema'
 export type {
   UserRow,
   NewUserRow,
@@ -15,6 +15,8 @@ export type {
   NewPasswordResetTokenRow,
   RefreshTokenRow,
   NewRefreshTokenRow,
+  AccountChallengeRow,
+  NewAccountChallengeRow,
 } from './schema/schema'
 
 export { runUserMigrations, userMigrationsFolder, USER_MIGRATIONS_TABLE } from './runMigrations'
@@ -38,6 +40,7 @@ export type {
   RegisterFailedLoginResult,
 } from './repositories/UserRepository'
 
+export { AccountChallengeRepository, ACCOUNT_CHALLENGE_KIND } from './repositories/AccountChallengeRepository'
 export { PasswordResetTokenRepository } from './repositories/PasswordResetTokenRepository'
 export { RefreshTokenRepository } from './repositories/RefreshTokenRepository'
 
@@ -55,6 +58,23 @@ export { UpdateUserUseCase } from './use-cases/UpdateUser.use-case'
 export { SetUserPasswordUseCase } from './use-cases/SetUserPassword.use-case'
 export type { SetUserPasswordParams } from './use-cases/SetUserPassword.use-case'
 export type { UpdateUserParams } from './use-cases/UpdateUser.use-case'
+export { ChangePasswordUseCase } from './use-cases/ChangePassword.use-case'
+export { RequestEmailChangeUseCase } from './use-cases/RequestEmailChange.use-case'
+export { ConfirmEmailChangeUseCase } from './use-cases/ConfirmEmailChange.use-case'
+export { ChangePhoneUseCase } from './use-cases/ChangePhone.use-case'
+export { StartPhoneVerificationUseCase } from './use-cases/StartPhoneVerification.use-case'
+export { VerifyPhoneUseCase } from './use-cases/VerifyPhone.use-case'
+export {
+  MatchInboundPhoneVerificationUseCase,
+  buildInboundPattern,
+} from './use-cases/MatchInboundPhoneVerification.use-case'
+export type { InboundVerificationOutcome } from './use-cases/MatchInboundPhoneVerification.use-case'
+export { RecoverAccountUseCase } from './use-cases/RecoverAccount.use-case'
+export type { RecoverAccountParams } from './use-cases/RecoverAccount.use-case'
+export { listPhoneVerificationMethods, resolvePhoneVerificationMethod } from './shared/phoneVerificationMethods'
+export type { PhoneVerificationMethodOption } from './shared/phoneVerificationMethods'
+export { createInMemoryVerificationSender } from './testing/inMemoryVerificationSender'
+export type { PhoneVerificationStart } from './shared/phoneVerificationDelivery'
 export { SignUpUseCase } from './use-cases/SignUp.use-case'
 export { SignOutUseCase } from './use-cases/SignOut.use-case'
 export { GetProfileUseCase } from './use-cases/GetProfile.use-case'

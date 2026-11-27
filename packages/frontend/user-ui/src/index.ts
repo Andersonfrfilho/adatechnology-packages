@@ -82,3 +82,30 @@ export { TeamMemberPasswordForm } from './TeamMemberPasswordForm'
 export type { TeamMemberPasswordFormProps } from './TeamMemberPasswordForm'
 export { TeamMemberEditForm } from './TeamMemberEditForm'
 export type { TeamMemberEditFormProps } from './TeamMemberEditForm'
+
+export { ChangePasswordWithCurrentForm } from './account/ChangePasswordWithCurrentForm'
+export type { ChangePasswordWithCurrentFormProps } from './account/ChangePasswordWithCurrentForm'
+export { ChangeEmailForm } from './account/ChangeEmailForm'
+export type { ChangeEmailFormProps } from './account/ChangeEmailForm'
+export { ChangePhoneForm } from './account/ChangePhoneForm'
+export type { ChangePhoneFormProps } from './account/ChangePhoneForm'
+export {
+  PhoneVerificationPanel,
+  buildWhatsappLink,
+  DEFAULT_VERIFICATION_POLL_MILLISECONDS,
+} from './account/PhoneVerificationPanel'
+export type { PhoneVerificationPanelProps } from './account/PhoneVerificationPanel'
+export { StaffAccountRecoveryPanel } from './account/StaffAccountRecoveryPanel'
+export type { StaffAccountRecoveryPanelProps, StaffAccountSummary } from './account/StaffAccountRecoveryPanel'
+export { DEFAULT_ACCOUNT_CONTROLS } from './account/accountControls'
+export type { AccountControls, AccountFieldProps, AccountButtonProps } from './account/accountControls'
+export { DEFAULT_ACCOUNT_LABELS } from './account/accountLabels'
+export type { AccountLabels } from './account/accountLabels'
+export { useAccountAction } from './account/useAccountAction'
+export type {
+  ChangePasswordParams,
+  ChangeEmailParams,
+  ChangePhoneParams,
+  PhoneVerificationStart,
+  RecoverAccountParams,
+} from './providers/types'

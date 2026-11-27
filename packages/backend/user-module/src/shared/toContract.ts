@@ -21,6 +21,8 @@ export function toUserProfile(row: UserRow, avatarUrl?: string): UserProfile {
     role: row.role,
     ...(row.companyId ? { companyId: row.companyId } : {}),
     isActive: row.isActive,
+    emailVerified: row.emailVerifiedAt !== null,
+    ...(row.phone ? { phone: row.phone, phoneVerified: row.phoneVerifiedAt !== null } : {}),
     ...(row.lastSeenAt ? { lastSeenAt: row.lastSeenAt } : {}),
     ...(row.lockedUntil && row.lockedUntil.getTime() > Date.now() ? { lockedUntil: row.lockedUntil } : {}),
   }

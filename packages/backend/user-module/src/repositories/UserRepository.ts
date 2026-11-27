@@ -11,6 +11,7 @@ import { users, type NewUserRow, type UserRow } from '../schema/schema'
 import {
   userByEmailCondition,
   userByIdInAudienceCondition,
+  userByPhoneCondition,
   userByProviderExternalCondition,
   userListCondition,
   userOwnedByCondition,
@@ -74,6 +75,15 @@ export class UserRepository {
       .select()
       .from(users)
       .where(userByEmailCondition({ ...params, audience: this.audience }))
+      .limit(1)
+    return row
+  }
+
+  async findByPhone(params: { companyId: string | undefined; phone: string }): Promise<UserRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(users)
+      .where(userByPhoneCondition({ ...params, audience: this.audience }))
       .limit(1)
     return row
   }

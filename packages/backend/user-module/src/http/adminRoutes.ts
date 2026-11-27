@@ -4,8 +4,10 @@
 
 import {
   createUserSchema,
+  recoverAccountSchema,
   setUserPasswordSchema,
   updateUserSchema,
+  type RecoverAccountInput,
   type SetUserPasswordInput,
   type CreateUserInput,
   type UpdateUserInput,
@@ -88,9 +90,38 @@ export function buildAdminRoutes(module: UserModule): ModuleRoute[] {
         ]
       : []
 
+  /** Precisa de `passwordReset`: trocar o e-mail sem mandar o link de senha deixaria a conta sem saída. */
+  const recoveryRoutes: ModuleRoute[] = module.hasAccountRecovery
+    ? [
+        {
+          method: 'POST',
+          path: '/admin/users/:id/recovery',
+          scope: 'admin',
+          requiredScopes: [USER_ADMIN_SCOPE],
+          bodySchema: recoverAccountSchema,
+          operationId: 'recoverUserAccount',
+          summary:
+            'Recuperação assistida: troca o e-mail (e envia o link de nova senha) e/ou destrava; audita quem agiu',
+          async handler(context) {
+            const body = context.body as RecoverAccountInput
+            const profile = await useCases.recoverAccount.execute({
+              id: context.params.id ?? '',
+              ...(body.email === undefined ? {} : { email: body.email }),
+              ...(body.unlock ? { unlock: true } : {}),
+              ...(context.auth?.userId ? { actorUserId: context.auth.userId } : {}),
+              ...(context.auth?.companyId ? { companyId: context.auth.companyId } : {}),
+              ...(context.ip ? { ipAddress: context.ip } : {}),
+            })
+            return { kind: 'json', status: 200, body: { data: profile } }
+          },
+        },
+      ]
+    : []
+
   return [
     ...avatarRoutes,
     ...passwordResetRoutes,
+    ...recoveryRoutes,
     {
       method: 'GET',
       path: '/admin/users',

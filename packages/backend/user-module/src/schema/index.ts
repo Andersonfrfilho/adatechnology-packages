@@ -6,7 +6,7 @@
  * (`scheduling.schema.ts` → `"user".users`). Mudar o shape aqui é breaking change de major.
  */
 
-export { userSchema, users, passwordResetTokens, refreshTokens, loginLockouts } from './schema'
+export { userSchema, users, passwordResetTokens, refreshTokens, loginLockouts, accountChallenges } from './schema'
 export type {
   UserRow,
   NewUserRow,
@@ -14,4 +14,6 @@ export type {
   NewPasswordResetTokenRow,
   RefreshTokenRow,
   NewRefreshTokenRow,
+  AccountChallengeRow,
+  NewAccountChallengeRow,
 } from './schema'

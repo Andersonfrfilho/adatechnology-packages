@@ -9,12 +9,14 @@ import { describe, expect, it } from 'bun:test'
 import { NotAuthenticatedError, UserNotFoundError } from '@adatechnology/user-contracts'
 
 import {
+  createInMemoryAccountChallenges,
   createInMemoryPasswordResetTokens,
   createInMemoryRefreshTokenStore,
   createInMemoryUsers,
 } from '../testing/inMemoryRepositories'
 import { TokenService } from '../shared/TokenService'
 import type { UserRepository } from '../repositories/UserRepository'
+import type { AccountChallengeRepository } from '../repositories/AccountChallengeRepository'
 import type { PasswordResetTokenRepository } from '../repositories/PasswordResetTokenRepository'
 import { AuthenticateLocalUseCase } from './AuthenticateLocal.use-case'
 import { CreateUserUseCase } from './CreateUser.use-case'
@@ -29,6 +31,7 @@ function buildDependencies(overrides: Partial<UserDependencies> = {}): UserDepen
   return {
     users: createInMemoryUsers() as unknown as UserRepository,
     passwordResetTokens: createInMemoryPasswordResetTokens() as unknown as PasswordResetTokenRepository,
+    accountChallenges: createInMemoryAccountChallenges() as unknown as AccountChallengeRepository,
     refreshTokenStore: createInMemoryRefreshTokenStore(),
     tokenService: new TokenService({ secret: 'test-secret-test-secret-test-secret' }),
     config: {
