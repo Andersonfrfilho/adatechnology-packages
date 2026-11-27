@@ -1,0 +1,63 @@
+/**
+ * Copyright (c) 2026 Ada Technology. MIT License.
+ *
+ * Sem cor própria: tudo sai de custom properties `--spv-*` (o host mapeia a paleta dele).
+ * Os hex abaixo são só o valor de reserva.
+ */
+
+.spv-root {
+  --spv-color-surface: var(--spv-surface, #ffffff);
+  --spv-color-canvas: var(--spv-canvas, #f2f5f5);
+  --spv-color-text: var(--spv-text, #0f172a);
+  --spv-color-accent: var(--spv-accent, #2f4bd8);
+  --spv-color-on-accent: var(--spv-on-accent, #ffffff);
+  --spv-color-border: var(--spv-border, #cbd5e1);
+  --spv-color-scrim: var(--spv-scrim, #0b1220);
+  --spv-radius: var(--spv-radius-base, 12px);
+  --spv-motion: var(--spv-motion-fast, 150ms);
+  --spv-touch: 44px;
+  --spv-offset: var(--spv-sticky-offset, 0px);
+  color: var(--spv-color-text);
+  font-family: var(--spv-font-body, inherit);
+}
+
+.spv-root *, .spv-root *::before, .spv-root *::after { box-sizing: border-box; }
+
+/* Coluna que acompanha a rolagem do formulário. */
+.spv-sticky { position: sticky; top: var(--spv-offset); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px; justify-items: start; height: calc(100dvh - var(--spv-offset) - 24px); min-height: 360px; padding: 16px; border: 1px solid var(--spv-color-border); border-radius: calc(var(--spv-radius) + 6px); background: var(--spv-color-surface); }
+
+.spv-bar, .spv-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+.spv-bar h2 { margin: 0; font-size: 1.1rem; }
+.spv-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.spv-percent { min-width: 48px; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.spv-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 12px; border: 1.5px solid var(--spv-color-border); border-radius: 999px; background: var(--spv-color-surface); color: var(--spv-color-text); font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; transition: background-color var(--spv-motion) ease; }
+.spv-button:hover:not(:disabled) { background: var(--spv-color-canvas); }
+.spv-button:focus-visible { outline: 3px solid var(--spv-color-accent); outline-offset: 2px; }
+.spv-button:disabled { opacity: 0.45; cursor: not-allowed; }
+.spv-button.is-active, .spv-button[aria-pressed='true'] { border-color: var(--spv-color-accent); background: var(--spv-color-accent); color: var(--spv-color-on-accent); }
+.spv-button.is-icon { width: 36px; padding: 0; }
+.spv-icon { flex: none; }
+
+.spv-stage { position: relative; width: 100%; min-height: 0; height: 100%; overflow: auto; border: 1px solid var(--spv-color-border); border-radius: var(--spv-radius); background: var(--spv-color-canvas); }
+.spv-sizer { position: relative; margin-inline: auto; }
+.spv-frame { position: absolute; top: 0; left: 0; border: 0; transform-origin: top left; background: #ffffff; }
+.spv-pan { position: absolute; inset: 0; z-index: 2; cursor: grab; touch-action: none; }
+.spv-pan.is-panning { cursor: grabbing; }
+
+.spv-open { display: none; }
+.spv-scrim { position: fixed; inset: 0; z-index: 79; background: color-mix(in srgb, var(--spv-color-scrim) 55%, transparent); }
+.spv-sticky.is-expanded { position: fixed; inset: 16px; z-index: 80; height: auto; }
+
+@media (max-width: 1100px) {
+  .spv-sticky:not(.is-expanded) { display: none; }
+  .spv-open { display: inline-flex; }
+}
+
+@media (prefers-reduced-motion: reduce) { .spv-button { transition: none; } }
+
+/* Destaque dentro do site (guest): quem usa `createPreviewGuest` pode trocar os nomes das classes. */
+.preview-active { outline: 3px solid var(--spv-accent, #2f4bd8); outline-offset: 4px; border-radius: 8px; }
+@keyframes spv-flash { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 20% { box-shadow: 0 0 0 4px var(--spv-accent, #2f4bd8); } }
+.preview-flash { animation: spv-flash 1s ease-out; }
+@media (prefers-reduced-motion: reduce) { .preview-flash { animation: none; outline: 3px solid var(--spv-accent, #2f4bd8); } }
