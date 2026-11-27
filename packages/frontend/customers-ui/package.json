@@ -25,6 +25,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@adatechnology/document-intake": "workspace:*",
     "lucide-react": "^1.21.0"
   },
   "peerDependencies": {

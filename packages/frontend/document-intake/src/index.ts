@@ -27,6 +27,19 @@ export {
   isValidState,
 } from './checkDigit.service'
 
+export {
+  BRAZILIAN_DOCUMENT_KIND,
+  detectBrazilianDocumentKind,
+  formatBrazilianDocument,
+  isValidBrazilianDocument,
+  maskBrazilianDocumentForDisplay,
+  maskBrazilianDocumentInput,
+  normalizeBrazilianDocument,
+} from './brazilianDocument.service'
+export type { BrazilianDocumentKind } from './brazilianDocument.service'
+
+export { normalizePersonName, PERSON_NAME_PARTICLES } from './personName.service'
+
 export { readCrlv } from './crlv.service'
 export type { CrlvReading, CrlvRemark, CrlvRemarkReason, CrlvValues } from './crlv.service'
 

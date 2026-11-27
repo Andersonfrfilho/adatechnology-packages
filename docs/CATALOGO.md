@@ -67,6 +67,8 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 |---|---|---|
 | [`customer-module`](#adatechnologycustomer-module) | clientes com campos customizados, endereços, documento e telefone | `createCustomerModule` |
 | [`customers-ui`](#adatechnologycustomers-ui) | lista, ficha e configuração de campos | `CustomerList`, `CustomerDetail` |
+| [`document-intake`](#adatechnologydocument-intake) | CPF/CNPJ (inclusive alfanumérico): detectar, validar, formatar, máscara progressiva, exibição mascarada; normalizar nome de pessoa | `isValidBrazilianDocument`, `maskBrazilianDocumentInput`, `normalizePersonName` |
+| [`customers-ui`](#adatechnologycustomers-ui) | campo único de CPF ou CNPJ com máscara progressiva | `BrazilianDocumentInput` |
 
 ### Catálogo, cardápio e produtos
 
@@ -656,8 +658,9 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Para quê:** Lista, ficha e configuração do catálogo de campos do cadastro de clientes, com API injetada.
 - **O que você ganha:**
   - `CustomerList`, `CustomerDetail`, `CustomerSettingsPage`, `CustomersProvider`
+  - `BrazilianDocumentInput`: um campo só para CPF ou CNPJ (inclusive alfanumérico); a máscara muda ao digitar o 12º caractere, `aria-invalid` quando o documento completo não fecha o dígito, `onValueChange` entrega o valor sem máscara
 - **Entradas:** `src/index.ts`
-- **Precisa de:** API compatível com `customer-module`. Peers: `react`, `react-dom`.
+- **Precisa de:** API compatível com `customer-module`; `@adatechnology/document-intake` (dependência). O campo de documento não precisa da API. Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
 - **Usado por:** `quickcart`, `entrelacos`, `supermercado-noemia`
 - **Atenção / não verificado:** Sem README.
@@ -758,12 +761,14 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Para quê:** Leitura de documentos brasileiros no navegador (CRLV, CNH, CCMEI) por camada de texto do PDF e OCR.
 - **O que você ganha:**
   - `readCrlv`, `extractCnhFields`, `readCcmei`; validadores (`isValidCpf`, `isValidCnpj`, `isValidPlate`, `isValidRenavam`)
+  - **Documento brasileiro (puro, também serve no servidor):** `detectBrazilianDocumentKind` (CPF de 11 dígitos ou CNPJ de 14, inclusive o alfanumérico), `isValidBrazilianDocument` (dígitos verificadores; recusa repetidos), `formatBrazilianDocument` (`000.000.000-00` / `00.000.000/0000-00`), `maskBrazilianDocumentInput` (máscara progressiva para um campo só), `maskBrazilianDocumentForDisplay` (`•••.•••.•47-25`, últimos N visíveis), `normalizeBrazilianDocument` (tira só a máscara, nunca a letra)
+  - `normalizePersonName`: apara e colapsa espaços, caixa de título, partículas `da de do das dos e` em minúscula (menos na primeira palavra), `D'Ávila`, `Ana-Maria`
   - `createTesseractOcrClient` como reserva
 - **Entradas:** `src/index.ts`
 - **Precisa de:** Nenhuma no servidor.
-- **Compatibilidade:** Navegador.
+- **Compatibilidade:** Navegador; as funções de documento e de nome são puras e rodam em Bun/Node.
 - **Usado por:** `transportada`
-- **Atenção / não verificado:** Sem README nem descrição no `package.json`.
+- **Atenção / não verificado:** Sem descrição no `package.json`.
 
 ### @adatechnology/recommendation-contracts
 - **Versão:** `0.2.0` · `packages/backend/recommendation-contracts`
