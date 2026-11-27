@@ -15,7 +15,7 @@ import {
   validateDraft,
   type CampaignDraft,
 } from '../lib/campaignDraft'
-import { useCouponsAdminApi } from '../providers/CouponsProvider'
+import { useCouponsAdminApi, useCouponsText } from '../providers/CouponsProvider'
 
 export type CampaignEditorState = {
   readonly draft: CampaignDraft
@@ -33,8 +33,9 @@ export function useCampaignEditor(params: {
   readonly onSaved?: (campaign: Campaign) => void
 }): CampaignEditorState {
   const api = useCouponsAdminApi()
+  const { timeZone } = useCouponsText()
   const [original, setOriginal] = useState<CampaignDraft>(() =>
-    params.campaign ? draftFromCampaign(params.campaign) : EMPTY_CAMPAIGN_DRAFT,
+    params.campaign ? draftFromCampaign(params.campaign, timeZone) : EMPTY_CAMPAIGN_DRAFT,
   )
   const [draft, setDraft] = useState<CampaignDraft>(original)
   const [issues, setIssues] = useState<readonly FieldIssue[]>([])
@@ -49,16 +50,16 @@ export function useCampaignEditor(params: {
   }
 
   async function save(): Promise<Campaign | undefined> {
-    const found = validateDraft(draft, isNew)
+    const found = validateDraft(draft, isNew, timeZone)
     setIssues(found)
     setSaveFailed(false)
     if (found.length > 0) return undefined
     setIsSaving(true)
     try {
       const saved = params.campaign
-        ? await api.updateCampaign(params.campaign.id, draftToUpdate(draft))
-        : await api.createCampaign(draftToInput(draft))
-      const next = draftFromCampaign(saved)
+        ? await api.updateCampaign(params.campaign.id, draftToUpdate(draft, timeZone))
+        : await api.createCampaign(draftToInput(draft, timeZone))
+      const next = draftFromCampaign(saved, timeZone)
       setOriginal(next)
       setDraft(next)
       params.onSaved?.(saved)

@@ -44,6 +44,9 @@ const router = createModuleFetchRouter({
   basePath: '/v1/coupons',
   authResolver,
 })
+
+// O IP do cliente chega às rotas por `handle(request, { ip })` — é a chave do limitador.
+Bun.serve({ fetch: (request, server) => router.handle(request, { ip: server.requestIP(request)?.address }) })
 ```
 
 No checkout/reserva, o **backend do host** resgata (o navegador nunca resgata direto):
@@ -73,12 +76,24 @@ campanha, então limites nunca estouram com pedidos simultâneos.
 | admin | `GET /campaigns/:id/report` | usos, liberações, desconto total, vendido, leads e códigos |
 | admin | `POST/GET /campaigns/:id/codes`, `PATCH /campaigns/:id/codes/:codeId` | gerar lote, listar, ativar/desativar código |
 | admin | `GET /campaigns/:id/leads`, `GET /campaigns/:id/redemptions` | contatos e usos paginados |
+| admin | `DELETE /campaigns/:id/leads/:leadId` | LGPD: apaga nome, telefone, e-mail, cliente e código do contato (linha fica anônima) |
 | admin | `GET /campaigns/:id/{leads,redemptions,codes}/export?format=csv\|xlsx` | todos os resultados do filtro, arquivo para baixar |
 | service | `POST /coupons/validate`, `POST /coupons/automatic` | prévia do desconto; melhor automática do carrinho |
 | service | `POST /redemptions`, `POST /redemptions/release` | resgate (201/200) e liberação idempotentes |
 | public | `GET /public/campaigns`, `GET /public/campaigns/:id` | banner (sem código, limite nem contagem) |
-| public | `POST /public/coupons/validate` | prévia anônima, **com limitador** |
-| public | `POST /public/campaigns/:id/leads` | captação, **com limitador** (201 novo / 200 repetido) |
+| public | `POST /public/coupons/validate` | prévia anônima, **com limitador**; recusa sai genérica (`not_applicable`), sem motivo nem campanha |
+| public | `POST /public/campaigns/:id/leads` | captação, **com limitador** por IP e por campanha; `200` no novo e no repetido |
+
+Todo `:id`, `:codeId` e `:leadId` que não é UUID responde o mesmo 404 de "não existe".
+
+### Rotas públicas: limite e cache
+
+- **Sem IP, recusa (429).** O limitador recebe o IP de `context.ip`; sem ele não há chave, e a rota não deixa passar.
+  No adaptador fetch o host passa `router.handle(request, { ip })`.
+- A captação consome duas vezes: `lead-capture` por IP e `lead-capture-campaign` com `key = companyId:campaignId`
+  (teto que rotação de IP não fura). `config.maxLeadsPerCampaignPerDay` limita contatos novos por dia (UTC), útil no lote.
+- Banner em cache sai com `Vary: Host` mais o que o resolvedor declarar em `varyHeaders` (ex.: `X-Tenant`). Resolvedor
+  que lê a query string deve usar `publicCacheControl: 'private, max-age=60'`.
 
 Escopos padrão: `coupons:admin` (painel) e `coupons:service` ou `coupons:admin` (serviço); troque em `config`.
 Recusas vêm com `error.details`: `{ reasons: [...] }` no resgate, `{ fields: [{ field, message }] }` em formulário.
@@ -89,6 +104,9 @@ Recusas vêm com `error.details`: `{ reasons: [...] }` no resgate, `{ fields: [{
   e guardado com o texto aceito.
 - Deduplicação por telefone **e** e-mail canônicos na campanha (índice único). Repetir o cadastro não cria lead nem
   código; no modo fixo a resposta traz o código (é público), nos outros só o dono recebe de novo pelo `leadNotifier`.
+- O reenvio vai **sempre para o contato guardado** e só acontece se telefone e e-mail informados são exatamente os
+  guardados. Casamento parcial (telefone de um, e-mail de outro) é "já cadastrado" e não envia nada.
+- A campanha fica travada durante a captação; campanha fixa sem código não capta.
 - Lote: entrega o próximo código livre com `FOR UPDATE SKIP LOCKED`; lote vazio desfaz o cadastro (`409 CODES_EXHAUSTED`).
 - `leadNotifier`, `customerIdentity` e ganchos rodam depois do commit; falha neles é logada e não desfaz o cadastro.
 
@@ -100,7 +118,7 @@ Recusas vêm com `error.details`: `{ reasons: [...] }` no resgate, `{ fields: [{
 | `customerIdentity` | ligar o lead ao cliente do host (`customerRef`) | lead sem cliente |
 | `rateLimiter` (rotas) | limitar prévia e captação anônimas | rotas públicas não sobem |
 | `persistence` | trocar o Drizzle (dublê em memória nos testes do host) | Drizzle sobre `db` |
-| `hooks.onExported` | trilha de auditoria da exportação | só o log |
+| `hooks.onExported` | trilha de auditoria da exportação | só o log (com `userId`) e um aviso no boot |
 
 Logs nunca levam telefone, e-mail, nome nem código: só ids opacos e contagens.
 

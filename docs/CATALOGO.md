@@ -1062,7 +1062,8 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - `validateCoupon` (prévia), `redeemCoupon`/`releaseRedemption` idempotentes por `orderRef` com a campanha travada (limites não estouram em concorrência), código desativável
   - `captureLead`: campos e aceite (LGPD) por campanha, dedupe por telefone e e-mail canônicos (índice único), lote com `FOR UPDATE SKIP LOCKED`; portas `leadNotifier` (envio pelo `notification-module`) e `customerIdentity` (cliente do `customer-module`) depois do commit
   - Relatório (usos, liberações, desconto total, vendido, leads, códigos), listas paginadas de contatos, usos e códigos, exportação CSV/XLSX de todos os resultados do filtro com gancho de auditoria `onExported`
-  - Rotas por `createCouponRoutes`: painel (`coupons:admin`), serviço para o backend do host (`coupons:service`) e públicas (banner, prévia, captação) que só sobem com `companyResolver` **e** `rateLimiter`
+  - Rotas por `createCouponRoutes`: painel (`coupons:admin`), serviço para o backend do host (`coupons:service`) e públicas (banner, prévia, captação) que só sobem com `companyResolver` **e** `rateLimiter`; sem IP recusam; prévia pública responde recusa genérica; banner com `Vary: Host`
+  - LGPD: `anonymiseLead` e `DELETE /campaigns/:id/leads/:leadId`; teto diário de contatos por campanha
   - Nenhum dado pessoal nem código em log; `createInMemoryCouponPersistence` para teste do host
 - **Entradas:** `createCouponModule` em `src/CouponModule.ts`; `createCouponRoutes`; `runCouponMigrations`; `couponOpenApiPaths` em `./openapi`
 - **Precisa de:** PostgreSQL (Drizzle). Peers: `drizzle-orm`.
@@ -1077,7 +1078,8 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Editor validado com os schemas do servidor; aviso "Confira: …" com atalho para cada campo; máscara de moeda e inteiros
   - Site: `CouponField` (desconto e todos os motivos), `LeadCaptureDialog` (só os campos pedidos, aceite, código com copiar), `CampaignBanner`
   - Headless: `useCampaignList`, `useCampaignEditor`, `useRecordList`, `useCouponPreview`, `useLeadCapture`
-  - Rótulos por `messages` (pt-BR padrão, `en`), slots `renderSelect`/`renderDateTimeInput` para os componentes do design system do host, tema por variáveis `--acp-*`
+  - Controles próprios sem nativo (grupo de botões, `listbox`, data/hora com máscara e fuso da empresa em `timeZone`, diálogo de confirmação)
+  - Rótulos por `messages` (pt-BR padrão, `en`), slots opcionais `renderSelect`/`renderDateTimeInput` para os componentes do design system do host, tema por variáveis `--acp-*`
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `coupon-module` (interfaces `CouponsAdminApi`, `CouponsPublicApi`). Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
@@ -1092,6 +1094,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - `./fetch` (`createModuleFetchRouter`), `./uws`, `./openapi`, `./testing`
   - Escopo checado no despachante: `requiredScopes` (basta um, senão 403); rota `admin`/`service` sem declarar exige ao menos um escopo na identidade
   - Resultado `binary` (arquivo para baixar com `Content-Type` próprio, ex.: XLSX) nos dois adaptadores
+  - `router.handle(request, { ip })` no adaptador fetch: o IP do cliente chega à rota em `context.ip` (chave de limitador)
   - Erro de domínio com `publicDetails` (campos recusados, motivos): vai para `error.details` na resposta; `details` continua só no log
 - **Entradas:** `src/index.ts`
 - **Precisa de:** uWebSockets.js é peer opcional (só `./uws`).

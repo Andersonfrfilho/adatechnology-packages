@@ -194,3 +194,13 @@ describe('situação da campanha', () => {
     expect(campaignState({ isActive: true, startsAt: null, endsAt: null }, AT)).toBe('running')
   })
 })
+
+describe('desconto zero', () => {
+  it('1% de 10 centavos arredonda para zero: não vale', () => {
+    const result = evaluate(
+      { discount: { kind: 'percent', value: 1, maxDiscountCents: null, minSubtotalCents: null } },
+      { items: [{ productId: 'p', priceCents: 10, quantity: 1 }] },
+    )
+    expect(result).toMatchObject({ valid: false, discountCents: 0, reasons: [COUPON_REJECTION.ZERO_DISCOUNT] })
+  })
+})

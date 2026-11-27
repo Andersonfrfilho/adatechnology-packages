@@ -63,6 +63,7 @@ export {
   RateLimitedError,
   CouponConfigMissingError,
   InvalidCampaignError,
+  LeadNotFoundError,
 } from './errors'
 export type { CouponErrorCode, LeadFieldIssue, FieldIssue } from './errors'
 

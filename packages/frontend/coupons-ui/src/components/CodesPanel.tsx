@@ -14,7 +14,7 @@ import { RecordsPanel, type RecordColumn } from './RecordsPanel'
 /** Códigos da campanha; no modo lote, gera mais e filtra os ainda não entregues. */
 export function CodesPanel({ campaign }: { readonly campaign: Campaign }) {
   const api = useCouponsAdminApi()
-  const { messages, format, locale } = useCouponsText()
+  const { messages, format, locale, timeZone } = useCouponsText()
   const [onlyUnassigned, setOnlyUnassigned] = useState(false)
   const [count, setCount] = useState('100')
   const [prefix, setPrefix] = useState(campaign.codePrefix ?? '')
@@ -53,7 +53,7 @@ export function CodesPanel({ campaign }: { readonly campaign: Campaign }) {
     {
       key: 'createdAt',
       label: messages.columnCreatedAt,
-      render: (coupon) => formatDateTime(coupon.createdAt, locale),
+      render: (coupon) => formatDateTime(coupon.createdAt, locale, timeZone),
       cell: (coupon) => coupon.createdAt,
     },
     {

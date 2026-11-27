@@ -111,10 +111,40 @@ describe('resgate', () => {
   })
 
   it('código desativado não resgata', async () => {
-    const { redeem, module, persistence } = await setup()
+    const { redeem, module, persistence, campaign } = await setup()
     const coupon = persistence.state.coupons[0]
-    await module.useCases.setCouponStatus.execute({ companyId: COMPANY, id: coupon?.id ?? '', status: 'disabled' })
+    await expect(
+      module.useCases.setCouponStatus.execute({
+        companyId: COMPANY,
+        campaignId: randomUUID(),
+        id: coupon?.id ?? '',
+        status: 'disabled',
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 })
+    await module.useCases.setCouponStatus.execute({
+      companyId: COMPANY,
+      campaignId: campaign.id,
+      id: coupon?.id ?? '',
+      status: 'disabled',
+    })
     await expect(redeem('A')).rejects.toMatchObject({ details: { reasons: ['coupon_disabled'] } })
+  })
+
+  it('repetição do mesmo pedido no limite devolve o resgate existente, não recusa por limite', async () => {
+    const { redeem } = await setup({ usageLimitTotal: 1 })
+    const results = await Promise.all(Array.from({ length: 5 }, () => redeem('A')))
+    expect(results.filter((result) => result.isNew)).toHaveLength(1)
+    expect(new Set(results.map((result) => result.redemption.id)).size).toBe(1)
+  })
+
+  it('desconto que daria zero não vale (zero_discount)', async () => {
+    const { module } = await setup({ discount: { kind: 'percent', value: 1 } })
+    const result = await module.useCases.validateCoupon.execute({
+      companyId: COMPANY,
+      code: 'PROMO10',
+      items: [{ productId: 'p', priceCents: 10, quantity: 1 }],
+    })
+    expect(result.reasons).toEqual(['zero_discount'])
   })
 
   it('concorrência: dez pedidos ao mesmo tempo nunca passam do limite', async () => {

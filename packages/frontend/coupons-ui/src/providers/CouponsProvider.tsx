@@ -19,6 +19,7 @@ type CouponsContextValue = {
   readonly locale: CouponsLocale
   readonly messages: CouponsMessages
   readonly currency: string
+  readonly timeZone?: string
   readonly renderSelect?: RenderSelect
   readonly renderDateTimeInput?: RenderDateTimeInput
 }
@@ -35,6 +36,11 @@ export type CouponsProviderProps = {
   readonly messages?: Partial<CouponsMessages>
   /** Moeda ISO 4217 dos valores. Padrão: `BRL`. */
   readonly currency?: string
+  /**
+   * Fuso IANA da empresa (ex.: `America/Sao_Paulo`). Datas da campanha são digitadas e mostradas
+   * nele, e o campo diz qual é. Ausente: fuso do navegador.
+   */
+  readonly timeZone?: string
   /** Menu de seleção do design system do host (padrão: `<select>` nativo, só em listas curtas). */
   readonly renderSelect?: RenderSelect
   /** Seletor de data e hora do host (padrão: `datetime-local` nativo). */
@@ -48,6 +54,7 @@ export function CouponsProvider({
   locale = DEFAULT_COUPONS_LOCALE,
   messages,
   currency = 'BRL',
+  timeZone,
   renderSelect,
   renderDateTimeInput,
   children,
@@ -58,11 +65,12 @@ export function CouponsProvider({
       ...(publicApi ? { publicApi } : {}),
       ...(renderSelect ? { renderSelect } : {}),
       ...(renderDateTimeInput ? { renderDateTimeInput } : {}),
+      ...(timeZone ? { timeZone } : {}),
       locale,
       currency,
       messages: { ...resolveCouponsMessages(locale), ...messages },
     }),
-    [adminApi, publicApi, locale, messages, currency, renderSelect, renderDateTimeInput],
+    [adminApi, publicApi, locale, messages, currency, timeZone, renderSelect, renderDateTimeInput],
   )
   return <CouponsContext.Provider value={value}>{children}</CouponsContext.Provider>
 }
@@ -88,13 +96,15 @@ export type CouponsText = {
   readonly messages: CouponsMessages
   readonly locale: CouponsLocale
   readonly currency: string
+  /** Fuso da empresa, se o host informou. */
+  readonly timeZone: string | undefined
   readonly format: (key: keyof CouponsMessages, values: Readonly<Record<string, string | number>>) => string
 }
 
 export function useCouponsText(): CouponsText {
-  const { messages, locale, currency } = useCouponsContext()
+  const { messages, locale, currency, timeZone } = useCouponsContext()
   return useMemo(
-    () => ({ messages, locale, currency, format: (key, values) => interpolate(messages[key], values) }),
-    [messages, locale, currency],
+    () => ({ messages, locale, currency, timeZone, format: (key, values) => interpolate(messages[key], values) }),
+    [messages, locale, currency, timeZone],
   )
 }

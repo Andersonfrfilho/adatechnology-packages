@@ -22,7 +22,7 @@ export type CampaignTableProps = {
 }
 
 export function CampaignTable(props: CampaignTableProps) {
-  const { messages, format, locale, currency } = useCouponsText()
+  const { messages, format, locale, currency, timeZone } = useCouponsText()
   const allSelected =
     props.campaigns.length > 0 && props.campaigns.every((campaign) => props.selectedIds.has(campaign.id))
   const direction = (sort: CampaignSortKey) => (props.state.sort === sort ? props.state.order : undefined)
@@ -91,8 +91,8 @@ export function CampaignTable(props: CampaignTableProps) {
                 <StateChip state={campaignState(campaign, props.now)} />
               </td>
               <td>{formatDiscount(campaign.discount, locale, currency)}</td>
-              <td>{formatDateTime(campaign.startsAt, locale)}</td>
-              <td>{formatDateTime(campaign.endsAt, locale)}</td>
+              <td>{formatDateTime(campaign.startsAt, locale, timeZone)}</td>
+              <td>{formatDateTime(campaign.endsAt, locale, timeZone)}</td>
               <td className="acp-number">{campaign.stats.redemptionCount}</td>
               <td className="acp-number">{formatCents(campaign.stats.discountCents, locale, currency)}</td>
               <td className="acp-number">{campaign.stats.leadCount}</td>

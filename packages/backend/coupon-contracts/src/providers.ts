@@ -50,7 +50,10 @@ export interface CustomerIdentityPort {
 }
 
 export const RATE_LIMIT_ACTION = {
+  /** Por cliente (IP) que deixa contato. */
   LEAD_CAPTURE: 'lead-capture',
+  /** Por campanha (`key` = `companyId:campaignId`): teto de cadastros que nenhuma rotação de IP fura. */
+  LEAD_CAPTURE_CAMPAIGN: 'lead-capture-campaign',
   VALIDATE: 'validate',
 } as const
 export type RateLimitAction = (typeof RATE_LIMIT_ACTION)[keyof typeof RATE_LIMIT_ACTION]
@@ -63,7 +66,7 @@ export interface RateLimiterPort {
   consume(params: {
     readonly action: RateLimitAction
     readonly companyId: string
-    /** IP do cliente como o host resolveu (atrás de proxy confiável). */
+    /** IP do cliente como o host resolveu (atrás de proxy confiável), ou `companyId:campaignId`. */
     readonly key: string
   }): Promise<{ readonly allowed: boolean; readonly retryAfterSeconds?: number }>
 }
@@ -111,8 +114,14 @@ export type CouponModuleConfig = {
   readonly serviceScopes?: readonly string[]
   /** DDI de telefone nacional. Padrão: `55`. */
   readonly phoneCountryCode?: string
-  /** Cabeçalho `Cache-Control` do banner público. */
+  /**
+   * Cabeçalho `Cache-Control` do banner público. As respostas saem com `Vary: Host` mais os
+   * cabeçalhos que o resolvedor de empresa declara (`varyHeaders`), para um cache compartilhado
+   * nunca servir a campanha de uma empresa no domínio de outra.
+   */
   readonly publicCacheControl?: string
+  /** Teto de contatos novos por campanha por dia (UTC). Útil no lote, onde cada contato consome um código. */
+  readonly maxLeadsPerCampaignPerDay?: number
 }
 
 export const DEFAULT_ADMIN_SCOPES: readonly string[] = ['coupons:admin']

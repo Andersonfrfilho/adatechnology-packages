@@ -177,5 +177,15 @@
   "bannerDiscount": "{discount} de desconto",
   "bannerCta": "Quero meu cupom",
   "bannerAutomatic": "Desconto aplicado automaticamente no pedido.",
-  "bannerEndsAt": "Até {date}"
+  "bannerEndsAt": "Até {date}",
+  "reason_zero_discount": "O cupom não dá desconto neste pedido.",
+  "reason_not_applicable": "Este cupom não vale para este pedido.",
+  "fieldDate": "Data",
+  "fieldTime": "Hora",
+  "dateTimeInvalid": "Data ou hora inválida.",
+  "timeZoneHint": "Horário de {timeZone}.",
+  "timeZoneLocal": "Horário deste computador.",
+  "confirm": "Confirmar",
+  "cancel": "Cancelar",
+  "selectPlaceholder": "Escolha"
 }

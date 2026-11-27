@@ -63,7 +63,9 @@ export interface CouponCodeStorePort {
   findByCode(params: { readonly companyId: string; readonly code: string }): Promise<CouponRow | undefined>
   findFixed(params: InCampaign): Promise<CouponRow | undefined>
   updateCode(params: Owned & { readonly code: string }): Promise<CouponRow | undefined>
-  setStatus(params: Owned & { readonly status: CouponStatus }): Promise<CouponRow | undefined>
+  setStatus(
+    params: Owned & { readonly campaignId: string; readonly status: CouponStatus },
+  ): Promise<CouponRow | undefined>
   /** Pega um código livre do lote (`FOR UPDATE SKIP LOCKED`) e o entrega ao lead. */
   claimUnassigned(params: InCampaign & { readonly leadId: string }): Promise<CouponRow | undefined>
   adjustUsedCount(params: { readonly companyId: string; readonly code: string; readonly delta: number }): Promise<void>
@@ -80,6 +82,10 @@ export interface LeadStorePort {
   update(params: Owned & { readonly values: Partial<NewLeadRow> }): Promise<LeadRow | undefined>
   list(params: ListLeadsQuery & InCampaign): Promise<Page<LeadRow>>
   count(params: InCampaign): Promise<number>
+  /** Contatos novos da campanha desde `since` (teto diário). */
+  countSince(params: InCampaign & { readonly since: Date }): Promise<number>
+  /** Zera nome, telefone, e-mail, cliente e código do lead da campanha; `undefined` se não existe. */
+  anonymise(params: InCampaign & { readonly leadId: string }): Promise<LeadRow | undefined>
 }
 
 export type RedemptionTotals = {

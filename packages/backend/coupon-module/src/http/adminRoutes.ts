@@ -3,6 +3,9 @@
  */
 
 import {
+  CampaignNotFoundError,
+  CouponCodeNotFoundError,
+  LeadNotFoundError,
   COUPON_STATUSES,
   createCampaignSchema,
   DEFAULT_ADMIN_SCOPES,
@@ -27,7 +30,7 @@ import { z } from 'zod'
 
 import type { CouponModule } from '../CouponModule'
 import type { ExportFilters, ExportResult } from '../use-cases/Export.use-cases'
-import { json, requireCompany } from './requireCompany'
+import { json, requireCompany, uuidParam } from './requireCompany'
 
 const setCouponStatusSchema = z.object({ status: z.enum(COUPON_STATUSES as [CouponStatus, ...CouponStatus[]]) })
 
@@ -37,12 +40,14 @@ const exportRedemptionsQuerySchema = listRedemptionsQuerySchema
   .merge(exportFormatSchema)
 const exportCouponsQuerySchema = listCouponsQuerySchema.omit({ page: true, pageSize: true }).merge(exportFormatSchema)
 
+const campaignNotFound = (value: string) => new CampaignNotFoundError(value)
+
 function reference(context: RequestContext): { companyId: string; id: string } {
-  return { companyId: requireCompany(context), id: context.params.id ?? '' }
+  return { companyId: requireCompany(context), id: uuidParam(context, 'id', campaignNotFound) }
 }
 
 function inCampaign(context: RequestContext): { companyId: string; campaignId: string } {
-  return { companyId: requireCompany(context), campaignId: context.params.id ?? '' }
+  return { companyId: requireCompany(context), campaignId: uuidParam(context, 'id', campaignNotFound) }
 }
 
 /** O arquivo vai como bytes com nome de download; o total cortado pelo teto sai num cabeçalho. */
@@ -106,8 +111,8 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
       summary: 'Campanhas da empresa, com busca, filtro por situação, ordenação, paginação e totais de uso',
       async handler(context) {
         const result = await useCases.listCampaigns.execute({
-          companyId: requireCompany(context),
           ...(context.query as unknown as ListCampaignsQuery),
+          companyId: requireCompany(context),
         })
         return { kind: 'json', status: 200, body: result }
       },
@@ -198,8 +203,8 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
       summary: 'Códigos da campanha, com usos e a quem foram entregues',
       async handler(context) {
         const result = await useCases.listCoupons.execute({
-          ...inCampaign(context),
           ...(context.query as unknown as ListCouponsQuery),
+          ...inCampaign(context),
         })
         return { kind: 'json', status: 200, body: result }
       },
@@ -222,9 +227,10 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
         return json(
           200,
           await useCases.setCouponStatus.execute({
-            companyId: requireCompany(context),
-            id: context.params.codeId ?? '',
             status,
+            campaignId: inCampaign(context).campaignId,
+            id: uuidParam(context, 'codeId', (value) => new CouponCodeNotFoundError(value)),
+            companyId: requireCompany(context),
           }),
         )
       },
@@ -238,10 +244,24 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
       summary: 'Contatos captados pela campanha; busca por nome, e-mail ou dígitos do telefone',
       async handler(context) {
         const result = await useCases.listLeads.execute({
-          ...inCampaign(context),
           ...(context.query as unknown as ListLeadsQuery),
+          ...inCampaign(context),
         })
         return { kind: 'json', status: 200, body: result }
+      },
+    },
+    {
+      ...admin,
+      method: 'DELETE',
+      path: '/campaigns/:id/leads/:leadId',
+      operationId: 'anonymiseCampaignLead',
+      summary: 'LGPD: apaga nome, telefone, e-mail, cliente e código do contato (a linha fica anônima para os totais)',
+      async handler(context) {
+        await useCases.anonymiseLead.execute({
+          ...inCampaign(context),
+          leadId: uuidParam(context, 'leadId', (value) => new LeadNotFoundError(value)),
+        })
+        return { kind: 'empty', status: 204 }
       },
     },
     exportRoute(
@@ -259,8 +279,8 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
       summary: 'Usos da campanha (resgatados e liberados)',
       async handler(context) {
         const result = await useCases.listRedemptions.execute({
-          ...inCampaign(context),
           ...(context.query as unknown as ListRedemptionsQuery),
+          ...inCampaign(context),
         })
         return { kind: 'json', status: 200, body: result }
       },

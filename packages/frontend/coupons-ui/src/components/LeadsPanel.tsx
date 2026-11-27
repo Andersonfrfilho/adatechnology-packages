@@ -11,7 +11,7 @@ import { RecordsPanel, type RecordColumn } from './RecordsPanel'
 
 export function LeadsPanel({ campaign }: { readonly campaign: Campaign }) {
   const api = useCouponsAdminApi()
-  const { messages, locale } = useCouponsText()
+  const { messages, locale, timeZone } = useCouponsText()
   const listLeads = api.listLeads
   const list = useRecordList<Lead>({
     key: `leads-${campaign.id}`,
@@ -21,7 +21,7 @@ export function LeadsPanel({ campaign }: { readonly campaign: Campaign }) {
     {
       key: 'createdAt',
       label: messages.columnDate,
-      render: (lead) => formatDateTime(lead.createdAt, locale),
+      render: (lead) => formatDateTime(lead.createdAt, locale, timeZone),
       cell: (lead) => lead.createdAt,
     },
     { key: 'name', label: messages.columnLeadName, render: (lead) => lead.name ?? '', cell: (lead) => lead.name },

@@ -209,6 +209,10 @@
         "campaigns_discount_value_positive": {
           "name": "campaigns_discount_value_positive",
           "value": "\"discount_value\" > 0"
+        },
+        "campaigns_discount_percent_max": {
+          "name": "campaigns_discount_percent_max",
+          "value": "\"discount_kind\" <> 'percent' or \"discount_value\" <= 100"
         }
       },
       "isRLSEnabled": false

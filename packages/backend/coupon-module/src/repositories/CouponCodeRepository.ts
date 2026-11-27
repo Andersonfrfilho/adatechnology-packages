@@ -52,11 +52,16 @@ export class CouponCodeRepository implements CouponCodeStorePort {
     return row
   }
 
-  async setStatus(params: { companyId: string; id: string; status: CouponStatus }): Promise<CouponRow | undefined> {
+  async setStatus(params: {
+    companyId: string
+    id: string
+    campaignId: string
+    status: CouponStatus
+  }): Promise<CouponRow | undefined> {
     const [row] = await this.db
       .update(coupons)
       .set({ status: params.status })
-      .where(couponOwnedCondition(params))
+      .where(and(couponOwnedCondition(params), eq(coupons.campaignId, params.campaignId)))
       .returning()
     return row
   }

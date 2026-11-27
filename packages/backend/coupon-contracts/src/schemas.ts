@@ -67,6 +67,8 @@ const pageSizeSchema = z.coerce.number().int().min(1).max(COUPON_LIMITS.PAGE_SIZ
 const searchSchema = z.string().trim().min(1).max(COUPON_LIMITS.SEARCH).optional()
 const orderSchema = z.enum(['asc', 'desc']).default('desc')
 const centsSchema = z.number().int().min(0).max(1_000_000_000)
+/** Teto zero zeraria todo desconto: quem não quer teto manda `null`. */
+const positiveCentsSchema = z.number().int().min(1).max(1_000_000_000)
 const limitSchema = z.number().int().min(1).max(1_000_000).nullable()
 const instantSchema = z.string().datetime({ offset: true }).nullable()
 
@@ -88,7 +90,7 @@ export const discountSchema = z
   .object({
     kind: z.enum(DISCOUNT_KINDS as [DiscountKind, ...DiscountKind[]]),
     value: z.number().int().min(1),
-    maxDiscountCents: centsSchema.nullable().default(null),
+    maxDiscountCents: positiveCentsSchema.nullable().default(null),
     minSubtotalCents: centsSchema.nullable().default(null),
   })
   .superRefine((discount, context) => {
@@ -199,7 +201,15 @@ export const updateCampaignSchema = z.object({
   isActive: z.boolean().optional(),
   startsAt: instantSchema.optional(),
   endsAt: instantSchema.optional(),
-  discount: discountSchema.optional(),
+  /** Campo a campo: o que não vier fica como está (o merge com o salvo é revalidado no módulo). */
+  discount: z
+    .object({
+      kind: z.enum(DISCOUNT_KINDS as [DiscountKind, ...DiscountKind[]]).optional(),
+      value: z.number().int().min(1).optional(),
+      maxDiscountCents: positiveCentsSchema.nullable().optional(),
+      minSubtotalCents: centsSchema.nullable().optional(),
+    })
+    .optional(),
   fixedCode: couponCodeSchema.nullable().optional(),
   codePrefix: codePrefixSchema.nullable().optional(),
   usageLimitTotal: limitSchema.optional(),

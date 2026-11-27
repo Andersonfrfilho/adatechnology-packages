@@ -47,6 +47,16 @@ import '@adatechnology/coupons-ui/styles.css'
   host resgata e confere de novo.
 - Camada headless: `useCouponPreview`, `useLeadCapture`, `useCampaignList`, `useCampaignEditor`, `useRecordList`.
 
+## Controles
+
+Sem controle nativo do navegador: seleção de até três opções vira grupo de botões; acima disso, lista suspensa
+acessível (`listbox` com teclado), inclusive "itens por página"; data e hora em dois campos com máscara
+(`DD/MM/AAAA` e `HH:MM`) com o fuso escrito embaixo; confirmação de exclusão em diálogo do pacote. Os slots
+`renderSelect` e `renderDateTimeInput` continuam opcionais para o host usar os do design system dele.
+
+Passe o fuso da empresa em `timeZone` (`<CouponsProvider timeZone="America/Sao_Paulo">`): as datas da campanha são
+digitadas e mostradas nele, mesmo que quem edita esteja em outro fuso.
+
 ## Tema
 
 Sem cor própria: custom properties com fallback neutro. Sobrescreva no escopo do host:

@@ -3,7 +3,7 @@
  */
 
 import type { ListLeadsQuery } from '@adatechnology/coupon-contracts'
-import { and, asc, count, desc, eq } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte } from 'drizzle-orm'
 
 import type { CouponDatabase } from '../database.types'
 import { leads, type LeadRow, type NewLeadRow } from '../schema/schema'
@@ -63,5 +63,33 @@ export class LeadRepository implements LeadStorePort {
       .from(leads)
       .where(and(eq(leads.companyId, params.companyId), eq(leads.campaignId, params.campaignId)))
     return row?.total ?? 0
+  }
+
+  async countSince(params: { companyId: string; campaignId: string; since: Date }): Promise<number> {
+    const [row] = await this.db
+      .select({ total: count() })
+      .from(leads)
+      .where(
+        and(
+          eq(leads.companyId, params.companyId),
+          eq(leads.campaignId, params.campaignId),
+          gte(leads.createdAt, params.since),
+        ),
+      )
+    return row?.total ?? 0
+  }
+
+  async anonymise(params: { companyId: string; campaignId: string; leadId: string }): Promise<LeadRow | undefined> {
+    const [row] = await this.db
+      .update(leads)
+      .set({ name: null, phone: null, email: null, customerRef: null, couponCode: null })
+      .where(
+        and(
+          leadOwnedCondition({ companyId: params.companyId, id: params.leadId }),
+          eq(leads.campaignId, params.campaignId),
+        ),
+      )
+      .returning()
+    return row
   }
 }

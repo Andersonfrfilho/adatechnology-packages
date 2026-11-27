@@ -72,7 +72,7 @@ export function buildServiceRoutes(module: CouponModule): ModuleRoute[] {
       summary: 'Resgata (idempotente por pedido): 201 no primeiro, 200 ao repetir; 422 com os motivos',
       async handler(context) {
         const body = context.body as CartBody & { code?: string; campaignId?: string; orderRef: OrderRef }
-        const result = await useCases.redeemCoupon.execute({ companyId: requireCompany(context), ...body })
+        const result = await useCases.redeemCoupon.execute({ ...body, companyId: requireCompany(context) })
         return json(result.isNew ? 201 : 200, result.redemption)
       },
     },

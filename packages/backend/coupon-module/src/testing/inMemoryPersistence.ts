@@ -180,8 +180,10 @@ function buildStores(state: InMemoryState): CouponStores {
         row.code = code
         return { ...row }
       },
-      async setStatus({ companyId, id, status }) {
-        const row = state.coupons.find((item) => item.companyId === companyId && item.id === id)
+      async setStatus({ companyId, id, campaignId, status }) {
+        const row = state.coupons.find(
+          (item) => item.companyId === companyId && item.id === id && item.campaignId === campaignId,
+        )
         if (!row) return undefined
         row.status = status
         return { ...row }
@@ -267,6 +269,19 @@ function buildStores(state: InMemoryState): CouponStores {
       },
       async count({ companyId, campaignId }) {
         return state.leads.filter((row) => row.companyId === companyId && row.campaignId === campaignId).length
+      },
+      async countSince({ companyId, campaignId, since }) {
+        return state.leads.filter(
+          (row) => row.companyId === companyId && row.campaignId === campaignId && row.createdAt >= since,
+        ).length
+      },
+      async anonymise({ companyId, campaignId, leadId }) {
+        const row = state.leads.find(
+          (item) => item.companyId === companyId && item.campaignId === campaignId && item.id === leadId,
+        )
+        if (!row) return undefined
+        Object.assign(row, { name: null, phone: null, email: null, customerRef: null, couponCode: null })
+        return { ...row }
       },
     },
     redemptions: {

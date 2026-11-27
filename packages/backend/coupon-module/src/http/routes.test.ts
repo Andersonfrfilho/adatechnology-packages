@@ -31,8 +31,8 @@ function setup(params: { allowed?: boolean } = {}) {
     public: {
       companyResolver: { resolve: async ({ headers }) => (headers.host === 'loja.a.test' ? COMPANY_A : undefined) },
       rateLimiter: {
-        async consume({ action }) {
-          consumed.push(action)
+        async consume({ action, key }) {
+          consumed.push(`${action} ${key}`)
           return params.allowed === false ? { allowed: false, retryAfterSeconds: 30 } : { allowed: true }
         },
       },
@@ -41,7 +41,14 @@ function setup(params: { allowed?: boolean } = {}) {
   const router = createModuleFetchRouter({ routes, basePath: '/v1', authResolver })
   const call = (
     path: string,
-    init: { method?: string; body?: unknown; company?: string; scopes?: string; host?: string } = {},
+    init: {
+      method?: string
+      body?: unknown
+      company?: string
+      scopes?: string
+      host?: string
+      ip?: string | null
+    } = {},
   ) =>
     router.handle(
       new Request(`http://localhost/v1${path}`, {
@@ -54,6 +61,7 @@ function setup(params: { allowed?: boolean } = {}) {
         },
         ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
       }),
+      init.ip === null ? {} : { ip: init.ip ?? '203.0.113.9' },
     )
   return { call, persistence, consumed }
 }
@@ -173,9 +181,15 @@ describe('rotas públicas', () => {
       host: 'loja.a.test',
       body: { phone: '(11) 98765-4321', email: 'ana@exemplo.com', consent: true },
     })
-    expect(response.status).toBe(201)
+    expect(response.status).toBe(200)
     expect(((await response.json()) as { data: { couponCode: string } }).data.couponCode).toBe('BEMVINDO')
-    expect(consumed).toEqual(['lead-capture'])
+    expect(consumed).toEqual(['lead-capture 203.0.113.9', `lead-capture-campaign ${COMPANY_A}:${id}`])
+    const repeated = await call(`/public/campaigns/${id}/leads`, {
+      method: 'POST',
+      host: 'loja.a.test',
+      body: { phone: '(11) 98765-4321', email: 'ana@exemplo.com', consent: true },
+    })
+    expect(repeated.status).toBe(200)
   })
 
   it('limitador recusando: 429 com Retry-After, nada gravado', async () => {
@@ -215,5 +229,106 @@ describe('rotas públicas', () => {
     })
     const { data } = (await response.json()) as { data: { valid: boolean; discountCents: number } }
     expect(data).toMatchObject({ valid: true, discountCents: 100 })
+  })
+
+  it('sem IP resolvido, prévia e captação recusam (fail-closed) sem consultar o limitador', async () => {
+    const { call, consumed, persistence } = setup()
+    const id = await createCampaign(call)
+    const capture = await call(`/public/campaigns/${id}/leads`, {
+      method: 'POST',
+      host: 'loja.a.test',
+      ip: null,
+      body: { phone: '11987654321', email: 'ana@exemplo.com', consent: true },
+    })
+    expect(capture.status).toBe(429)
+    const preview = await call('/public/coupons/validate', {
+      method: 'POST',
+      host: 'loja.a.test',
+      ip: null,
+      body: { code: 'BEMVINDO', items: [] },
+    })
+    expect(preview.status).toBe(429)
+    expect(consumed).toEqual([])
+    expect(persistence.state.leads).toHaveLength(0)
+  })
+
+  it('prévia recusada sai genérica: sem motivo, campanha nem código', async () => {
+    const { call } = setup()
+    await createCampaign(call)
+    for (const code of ['BEMVINDO', 'NAOEXISTE']) {
+      const response = await call('/public/coupons/validate', {
+        method: 'POST',
+        host: 'loja.a.test',
+        body: { code, items: [] },
+      })
+      const { data } = (await response.json()) as { data: Record<string, unknown> }
+      expect(data).toEqual({
+        valid: false,
+        discountCents: 0,
+        subtotalCents: 0,
+        eligibleSubtotalCents: 0,
+        reasons: ['not_applicable'],
+      })
+    }
+  })
+
+  it('serviço continua com os motivos detalhados', async () => {
+    const { call } = setup()
+    await createCampaign(call)
+    const response = await call('/coupons/validate', {
+      method: 'POST',
+      company: COMPANY_A,
+      scopes: 'coupons:service',
+      body: { code: 'BEMVINDO', items: [] },
+    })
+    const { data } = (await response.json()) as { data: { reasons: string[]; campaign: unknown } }
+    expect(data.reasons).toEqual(['empty_cart'])
+    expect(data.campaign).toBeDefined()
+  })
+
+  it('cache público varia por Host', async () => {
+    const { call } = setup()
+    await createCampaign(call)
+    expect((await call('/public/campaigns', { host: 'loja.a.test' })).headers.get('vary')).toBe('Host')
+  })
+})
+
+describe('ids no caminho', () => {
+  it('id que não é UUID responde 404, igual a inexistente (nunca 500)', async () => {
+    const { call } = setup()
+    const id = await createCampaign(call)
+    expect((await call('/campaigns/nao-e-uuid', { company: COMPANY_A })).status).toBe(404)
+    expect(
+      (await call(`/campaigns/${id}/codes/x`, { method: 'PATCH', company: COMPANY_A, body: { status: 'disabled' } }))
+        .status,
+    ).toBe(404)
+    expect((await call(`/campaigns/${id}/leads/x`, { method: 'DELETE', company: COMPANY_A })).status).toBe(404)
+    expect((await call('/public/campaigns/x', { host: 'loja.a.test' })).status).toBe(404)
+    const capture = await call('/public/campaigns/x/leads', {
+      method: 'POST',
+      host: 'loja.a.test',
+      body: { phone: '11987654321', consent: true },
+    })
+    expect(capture.status).toBe(404)
+  })
+
+  it('LGPD: apagar o contato pela rota do painel, escopado pela empresa', async () => {
+    const { call, persistence } = setup()
+    const id = await createCampaign(call)
+    await call(`/public/campaigns/${id}/leads`, {
+      method: 'POST',
+      host: 'loja.a.test',
+      body: { phone: '11987654321', email: 'ana@exemplo.com', consent: true },
+    })
+    const leadId = persistence.state.leads[0]?.id ?? ''
+    expect((await call(`/campaigns/${id}/leads/${leadId}`, { method: 'DELETE', company: COMPANY_B })).status).toBe(404)
+    expect((await call(`/campaigns/${id}/leads/${leadId}`, { method: 'DELETE', company: COMPANY_A })).status).toBe(204)
+    expect(persistence.state.leads[0]).toMatchObject({
+      name: null,
+      phone: null,
+      email: null,
+      customerRef: null,
+      couponCode: null,
+    })
   })
 })

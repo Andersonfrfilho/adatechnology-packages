@@ -140,4 +140,31 @@ describe('campanhas', () => {
     expect(new Set(codes).size).toBe(500)
     expect(codes.every((code) => code.startsWith('LOJA-'))).toBe(true)
   })
+
+  it('edição do desconto campo a campo junta com o salvo e revalida o conjunto', async () => {
+    const { module } = buildTestModule()
+    const campaign = await create(module, { discount: { kind: 'percent', value: 10, maxDiscountCents: 5_000 } })
+    const updated = await module.useCases.updateCampaign.execute({
+      companyId: COMPANY,
+      id: campaign.id,
+      input: { discount: { value: 20 } },
+    })
+    expect(updated.discount).toEqual({ kind: 'percent', value: 20, maxDiscountCents: 5_000, minSubtotalCents: null })
+    await expect(
+      module.useCases.updateCampaign.execute({
+        companyId: COMPANY,
+        id: campaign.id,
+        input: { discount: { value: 150 } },
+      }),
+    ).rejects.toMatchObject({
+      code: 'COUPON_CAMPAIGN_INVALID',
+      publicDetails: { fields: [{ field: 'discount.value' }] },
+    })
+    const fixed = await module.useCases.updateCampaign.execute({
+      companyId: COMPANY,
+      id: campaign.id,
+      input: { discount: { kind: 'fixed', value: 1_500 } },
+    })
+    expect(fixed.discount).toMatchObject({ kind: 'fixed', value: 1_500, maxDiscountCents: 5_000 })
+  })
 })

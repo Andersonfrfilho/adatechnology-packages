@@ -1,4 +1,4 @@
-CREATE SCHEMA "coupons";
+CREATE SCHEMA IF NOT EXISTS "coupons";
 --> statement-breakpoint
 CREATE TABLE "coupons"."campaigns" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -25,7 +25,8 @@ CREATE TABLE "coupons"."campaigns" (
 	"lead_capture" jsonb NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "campaigns_discount_value_positive" CHECK ("discount_value" > 0)
+	CONSTRAINT "campaigns_discount_value_positive" CHECK ("discount_value" > 0),
+	CONSTRAINT "campaigns_discount_percent_max" CHECK ("discount_kind" <> 'percent' or "discount_value" <= 100)
 );
 --> statement-breakpoint
 CREATE TABLE "coupons"."coupons" (

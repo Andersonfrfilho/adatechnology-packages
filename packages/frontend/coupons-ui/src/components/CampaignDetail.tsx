@@ -11,6 +11,7 @@ import { readErrorCode } from '../lib/apiError'
 import { useCouponsAdminApi, useCouponsText } from '../providers/CouponsProvider'
 import { CampaignEditor } from './CampaignEditor'
 import { CodesPanel } from './CodesPanel'
+import { ConfirmDialog } from './ConfirmDialog'
 import { LeadsPanel } from './LeadsPanel'
 import { RedemptionsPanel } from './RedemptionsPanel'
 import { ReportPanel } from './ReportPanel'
@@ -38,6 +39,7 @@ export function CampaignDetail({ campaign, onBack, onSaved, onRemoved }: Campaig
   const { messages } = useCouponsText()
   const [tab, setTab] = useState<CampaignTab>(CAMPAIGN_TAB.SETTINGS)
   const [removeError, setRemoveError] = useState<string>()
+  const [isConfirming, setIsConfirming] = useState(false)
   const getReport = api.getReport
   const report = useAsyncResource(
     () => (getReport ? getReport(campaign.id) : Promise.resolve(undefined)),
@@ -52,7 +54,8 @@ export function CampaignDetail({ campaign, onBack, onSaved, onRemoved }: Campaig
   ].filter((item) => item.isAvailable)
 
   async function handleRemove(): Promise<void> {
-    if (!api.removeCampaign || (typeof window !== 'undefined' && !window.confirm(messages.removeConfirm))) return
+    setIsConfirming(false)
+    if (!api.removeCampaign) return
     try {
       await api.removeCampaign(campaign.id)
       onRemoved()
@@ -73,7 +76,7 @@ export function CampaignDetail({ campaign, onBack, onSaved, onRemoved }: Campaig
         </h2>
         <StateChip state={campaignState(campaign, new Date())} />
         {api.removeCampaign ? (
-          <button type="button" className="acp-button acp-button--danger" onClick={() => void handleRemove()}>
+          <button type="button" className="acp-button acp-button--danger" onClick={() => setIsConfirming(true)}>
             <Trash2 aria-hidden="true" className="acp-icon" />
             <span>{messages.remove}</span>
           </button>
@@ -83,6 +86,15 @@ export function CampaignDetail({ campaign, onBack, onSaved, onRemoved }: Campaig
         <p className="acp-error" role="alert">
           {removeError}
         </p>
+      ) : null}
+      {isConfirming ? (
+        <ConfirmDialog
+          message={messages.removeConfirm}
+          confirmLabel={messages.remove}
+          isDanger
+          onConfirm={() => void handleRemove()}
+          onCancel={() => setIsConfirming(false)}
+        />
       ) : null}
       <div className="acp-tabs" role="tablist">
         {tabs.map((item) => (

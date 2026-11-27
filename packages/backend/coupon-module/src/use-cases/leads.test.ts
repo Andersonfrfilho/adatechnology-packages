@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import { randomUUID } from 'node:crypto'
-import { createCampaignSchema, type LeadNotifierPort } from '@adatechnology/coupon-contracts'
+import { createCampaignSchema, type CouponModuleConfig, type LeadNotifierPort } from '@adatechnology/coupon-contracts'
 
 import { buildTestModule } from '../testing/buildTestModule'
 
@@ -16,9 +16,13 @@ const LEAD_CAPTURE = { enabled: true, consentText: 'Aceito receber o cupom (LGPD
 
 type Sent = Parameters<LeadNotifierPort['sendCoupon']>[0]
 
-async function setup(input: Record<string, unknown> = {}, options: { failingNotifier?: boolean } = {}) {
+async function setup(
+  input: Record<string, unknown> = {},
+  options: { failingNotifier?: boolean; config?: CouponModuleConfig } = {},
+) {
   const sent: Sent[] = []
   const built = buildTestModule({
+    ...(options.config ? { config: options.config } : {}),
     leadNotifier: {
       async sendCoupon(params) {
         if (options.failingNotifier) throw new Error('smtp fora do ar')
@@ -60,7 +64,8 @@ describe('captação', () => {
       customerRef: 'customer-1',
       consentText: LEAD_CAPTURE.consentText,
     })
-    expect(sent.map((item) => item.isResend)).toEqual([false, true])
+    // Repetição com e-mail diferente do guardado: "já cadastrado", nada é enviado a ninguém.
+    expect(sent.map((item) => item.isResend)).toEqual([false])
     expect(sent[0]?.campaign.id).toBe(campaign.id)
   })
 
@@ -207,5 +212,92 @@ describe('exportação', () => {
         rowCount: 3,
       },
     ])
+  })
+})
+
+describe('reenvio na repetição', () => {
+  it('contato idêntico: reenvia, e para o contato GUARDADO', async () => {
+    const { capture, sent } = await setup({ codeMode: 'per-lead' })
+    await capture({ name: 'Ana', phone: '(11) 98765-4321', email: 'ana@exemplo.com' })
+    await capture({ name: 'Outro nome', phone: '+55 11 98765-4321', email: 'ANA@exemplo.com' })
+    expect(sent).toHaveLength(2)
+    expect(sent[1]).toMatchObject({
+      isResend: true,
+      contact: { name: 'Ana', phone: '5511987654321', email: 'ana@exemplo.com' },
+    })
+  })
+
+  it('casamento parcial (telefone igual, e-mail outro, ou o contrário) não envia para o endereço novo nem para ninguém', async () => {
+    const { capture, sent } = await setup({ codeMode: 'per-lead' })
+    await capture({ phone: '11987654321', email: 'ana@exemplo.com' })
+    const byPhone = await capture({ phone: '11987654321', email: 'atacante@exemplo.com' })
+    const byEmail = await capture({ phone: '21999998888', email: 'ana@exemplo.com' })
+    expect(byPhone).toMatchObject({ isNew: false, couponCode: null })
+    expect(byEmail).toMatchObject({ isNew: false, couponCode: null })
+    expect(sent).toHaveLength(1)
+    expect(JSON.stringify(sent)).not.toContain('atacante')
+  })
+})
+
+describe('limites da captação', () => {
+  it('teto diário por campanha', async () => {
+    const { capture, clock } = await setup({}, { config: { maxLeadsPerCampaignPerDay: 1 } })
+    await capture({ phone: '11987654321', email: 'ana@exemplo.com' })
+    await expect(capture({ phone: '11911112222', email: 'bia@exemplo.com' })).rejects.toMatchObject({
+      code: 'COUPON_RATE_LIMITED',
+    })
+    // Repetição de quem já está cadastrado não conta como novo.
+    expect((await capture({ phone: '11987654321', email: 'ana@exemplo.com' })).isNew).toBe(false)
+    clock.set('2026-11-21T00:00:01.000Z')
+    expect((await capture({ phone: '11911112222', email: 'bia@exemplo.com' })).isNew).toBe(true)
+  })
+
+  it('campanha fixa sem código não capta (não entrega código vazio)', async () => {
+    const { capture, persistence } = await setup()
+    for (const row of persistence.state.campaigns) row.fixedCode = null
+    await expect(capture({ phone: '11987654321', email: 'ana@exemplo.com' })).rejects.toMatchObject({
+      code: 'COUPON_CAMPAIGN_UNAVAILABLE',
+    })
+    expect(persistence.state.leads).toHaveLength(0)
+  })
+})
+
+describe('LGPD', () => {
+  it('anonimiza só o contato da campanha e da empresa', async () => {
+    const { capture, module, campaign, persistence } = await setup({ codeMode: 'per-lead' })
+    const { leadId } = await capture({ name: 'Ana', phone: '11987654321', email: 'ana@exemplo.com' })
+    await expect(
+      module.useCases.anonymiseLead.execute({ companyId: randomUUID(), campaignId: campaign.id, leadId }),
+    ).rejects.toMatchObject({ statusCode: 404 })
+    await expect(
+      module.useCases.anonymiseLead.execute({ companyId: COMPANY, campaignId: randomUUID(), leadId }),
+    ).rejects.toMatchObject({ statusCode: 404 })
+    await module.useCases.anonymiseLead.execute({ companyId: COMPANY, campaignId: campaign.id, leadId })
+    expect(persistence.state.leads[0]).toMatchObject({
+      name: null,
+      phone: null,
+      email: null,
+      customerRef: null,
+      couponCode: null,
+    })
+    // Depois de anonimizado, o mesmo contato pode se cadastrar de novo.
+    expect((await capture({ phone: '11987654321', email: 'ana@exemplo.com' })).isNew).toBe(true)
+  })
+})
+
+describe('auditoria', () => {
+  it('avisa no boot quando falta o gancho de exportação; exportação loga o usuário', async () => {
+    const { logger, module, campaign } = await setup()
+    expect(logger.entries.some((entry) => entry.level === 'warn' && entry.message.includes('onExported'))).toBe(true)
+    await module.useCases.exportCampaignData.execute({
+      companyId: COMPANY,
+      campaignId: campaign.id,
+      userId: 'user-9',
+      format: 'csv',
+      filters: { kind: 'leads', query: { sort: 'createdAt', order: 'desc' } },
+    })
+    expect(logger.entries.find((entry) => entry.message === 'coupons: exportação')?.meta).toMatchObject({
+      userId: 'user-9',
+    })
   })
 })

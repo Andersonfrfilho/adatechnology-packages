@@ -13,7 +13,7 @@ import { RecordsPanel, type RecordColumn } from './RecordsPanel'
 
 export function RedemptionsPanel({ campaign }: { readonly campaign: Campaign }) {
   const api = useCouponsAdminApi()
-  const { messages, locale, currency } = useCouponsText()
+  const { messages, locale, currency, timeZone } = useCouponsText()
   const [statuses, setStatuses] = useState<RedemptionStatus[]>([])
   const listRedemptions = api.listRedemptions
   const list = useRecordList<Redemption>({
@@ -30,7 +30,7 @@ export function RedemptionsPanel({ campaign }: { readonly campaign: Campaign }) 
     {
       key: 'redeemedAt',
       label: messages.columnDate,
-      render: (item) => formatDateTime(item.redeemedAt, locale),
+      render: (item) => formatDateTime(item.redeemedAt, locale, timeZone),
       cell: (item) => item.redeemedAt,
     },
     {
@@ -68,7 +68,7 @@ export function RedemptionsPanel({ campaign }: { readonly campaign: Campaign }) 
     {
       key: 'releasedAt',
       label: messages.columnReleasedAt,
-      render: (item) => formatDateTime(item.releasedAt, locale),
+      render: (item) => formatDateTime(item.releasedAt, locale, timeZone),
       cell: (item) => item.releasedAt,
     },
   ]

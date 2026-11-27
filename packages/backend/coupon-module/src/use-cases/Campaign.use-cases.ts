@@ -6,11 +6,13 @@ import {
   CampaignInUseError,
   CampaignNotFoundError,
   checkCampaignRules,
+  discountSchema,
   CODE_MODE,
   DuplicateCouponCodeError,
   generateCouponCode,
   InvalidCampaignError,
   type Campaign,
+  type CampaignDiscount,
   type CampaignListItem,
   type CampaignReport,
   type CreateCampaignData,
@@ -34,7 +36,9 @@ function toDate(value: string | null | undefined): Date | null | undefined {
   return value === null ? null : new Date(value)
 }
 
-function toRowValues(input: Partial<CreateCampaignData>): Partial<NewCampaignRow> {
+function toRowValues(
+  input: Partial<Omit<CreateCampaignData, 'discount'>> & { discount?: CampaignDiscount },
+): Partial<NewCampaignRow> {
   const values: Partial<NewCampaignRow> = {
     ...(input.name !== undefined ? { name: input.name } : {}),
     ...(input.title !== undefined ? { title: input.title } : {}),
@@ -60,6 +64,16 @@ function toRowValues(input: Partial<CreateCampaignData>): Partial<NewCampaignRow
     values.minSubtotalCents = input.discount.minSubtotalCents
   }
   return values
+}
+
+/** Edição campo a campo do desconto: junta com o salvo e revalida o conjunto (percentual ≤ 100 etc.). */
+function mergeDiscount(current: CampaignDiscount, patch: UpdateCampaignData['discount']): CampaignDiscount {
+  const parsed = discountSchema.safeParse({ ...current, ...patch })
+  if (!parsed.success)
+    throw new InvalidCampaignError(
+      parsed.error.issues.map((issue) => ({ field: ['discount', ...issue.path].join('.'), message: issue.message })),
+    )
+  return parsed.data
 }
 
 /** Código fixo vira também uma linha em `coupons`: a busca por código é uma só para os três modos. */
@@ -130,10 +144,11 @@ export class UpdateCampaignUseCase {
     const row = await this.dependencies.persistence.transaction(async (stores) => {
       const current = await stores.campaigns.lockById(params)
       if (!current) throw new CampaignNotFoundError(params.id)
-      const merged = { ...toCampaign(current), ...params.input }
+      const discount = mergeDiscount(toCampaign(current).discount, params.input.discount)
+      const merged = { ...toCampaign(current), ...params.input, discount }
       const issues = checkCampaignRules(merged)
       if (issues.length > 0) throw new InvalidCampaignError(issues)
-      const values = toRowValues(params.input)
+      const values = toRowValues({ ...params.input, discount })
       const fixedCode = await this.replaceFixedCode({ stores, current, requested: params.input.fixedCode })
       return (
         (await stores.campaigns.update({

@@ -13,6 +13,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { CouponsProvider, type CouponsProviderProps } from '../providers/CouponsProvider'
 import type { CouponsAdminApi } from '../providers/types'
 import { CampaignBanner } from './CampaignBanner'
+import { ConfirmDialog } from './ConfirmDialog'
+import { DateTimeField } from './DateTimeField'
+import { Pagination } from './Pagination'
 import { CampaignEditor } from './CampaignEditor'
 import { CampaignTable } from './CampaignTable'
 import { CampaignsWorkspace } from './CampaignsWorkspace'
@@ -126,7 +129,12 @@ describe('editor', () => {
   it('campanha nova escolhe o modo de código; existente mostra o modo travado', () => {
     const fresh = render(<CampaignEditor />)
     expect(fresh).toContain('Como o código é entregue')
-    expect(fresh).toContain('<select')
+    // Nada de controle nativo: grupo de botões, lista suspensa e data/hora com máscara.
+    expect(fresh).not.toContain('<select')
+    expect(fresh).not.toContain('datetime-local')
+    expect(fresh).toContain('role="radiogroup"')
+    expect(fresh).toContain('aria-haspopup="listbox"')
+    expect(fresh).toContain('placeholder="DD/MM/AAAA"')
     const existing = render(<CampaignEditor campaign={CAMPAIGN} />)
     expect(existing).toContain('Não muda depois de criada.')
     expect(existing).toContain('value="BEMVINDO"')
@@ -234,5 +242,61 @@ describe('site', () => {
     )
     expect(html).toContain('3 de 10')
     expect(html).toContain('45,00')
+  })
+})
+
+describe('controles próprios', () => {
+  it('data e hora mostram o fuso da empresa e o valor nos dois campos', () => {
+    const html = render(
+      <DateTimeField id="d" label="Termina em" value="2026-12-31T23:59" onChange={() => undefined} />,
+      { timeZone: 'America/Sao_Paulo' },
+    )
+    expect(html).toContain('value="31/12/2026"')
+    expect(html).toContain('value="23:59"')
+    expect(html).toContain('Horário de America/Sao_Paulo.')
+  })
+
+  it('itens por página é lista suspensa acessível, não select nativo', () => {
+    const html = render(
+      <Pagination
+        id="p"
+        page={1}
+        totalPages={3}
+        pageSize={20}
+        onPageChange={() => undefined}
+        onPageSizeChange={() => undefined}
+      />,
+    )
+    expect(html).not.toContain('<select')
+    expect(html).toContain('aria-haspopup="listbox"')
+    expect(html).toContain('aria-current="page"')
+  })
+
+  it('confirmação no desenho do pacote', () => {
+    const html = render(
+      <ConfirmDialog
+        message="Excluir?"
+        confirmLabel="Excluir"
+        isDanger
+        onConfirm={() => undefined}
+        onCancel={() => undefined}
+      />,
+    )
+    expect(html).toContain('role="alertdialog"')
+    expect(html).toContain('Cancelar')
+    expect(html).toContain('Excluir?')
+  })
+
+  it('recusa genérica do site tem texto próprio', () => {
+    const html = render(
+      <CouponField
+        id="c"
+        value="X"
+        onChange={() => undefined}
+        items={[]}
+        check={{ status: 'invalid', reasons: ['not_applicable'] }}
+      />,
+    )
+    expect(html).toContain('Este cupom não vale para este pedido.')
   })
 })

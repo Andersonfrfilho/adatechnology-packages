@@ -38,6 +38,7 @@ export const COUPON_ERROR_CODES = {
   RATE_LIMITED: 'COUPON_RATE_LIMITED',
   CONFIG_MISSING: 'COUPON_CONFIG_MISSING',
   CAMPAIGN_INVALID: 'COUPON_CAMPAIGN_INVALID',
+  LEAD_NOT_FOUND: 'COUPON_LEAD_NOT_FOUND',
 } as const
 export type CouponErrorCode = (typeof COUPON_ERROR_CODES)[keyof typeof COUPON_ERROR_CODES]
 
@@ -167,5 +168,11 @@ export class CouponConfigMissingError extends CouponError {
 export class InvalidCampaignError extends CouponError {
   constructor(public readonly issues: readonly LeadFieldIssue[]) {
     super('Confira a campanha.', 400, COUPON_ERROR_CODES.CAMPAIGN_INVALID, undefined, { fields: [...issues] })
+  }
+}
+
+export class LeadNotFoundError extends CouponError {
+  constructor(public readonly reference: string) {
+    super('Contato não encontrado.', 404, COUPON_ERROR_CODES.LEAD_NOT_FOUND, { reference })
   }
 }

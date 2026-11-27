@@ -30,7 +30,7 @@ import {
 import { GenerateCodesUseCase, ListCouponsUseCase, SetCouponStatusUseCase } from './use-cases/Code.use-cases'
 import type { CouponDependencies, CouponPersistence } from './use-cases/couponModule.types'
 import { ExportCampaignDataUseCase } from './use-cases/Export.use-cases'
-import { CaptureLeadUseCase, ListLeadsUseCase } from './use-cases/Lead.use-cases'
+import { AnonymiseLeadUseCase, CaptureLeadUseCase, ListLeadsUseCase } from './use-cases/Lead.use-cases'
 import { ListRedemptionsUseCase, RedeemCouponUseCase, ReleaseRedemptionUseCase } from './use-cases/Redemption.use-cases'
 import {
   FindAutomaticUseCase,
@@ -79,6 +79,8 @@ export type CouponModule = {
     readonly listRedemptions: ListRedemptionsUseCase
     readonly captureLead: CaptureLeadUseCase
     readonly listLeads: ListLeadsUseCase
+    /** LGPD: apaga os dados pessoais do contato. */
+    readonly anonymiseLead: AnonymiseLeadUseCase
     readonly exportCampaignData: ExportCampaignDataUseCase
   }
   readonly config: CouponModuleConfig
@@ -106,6 +108,10 @@ export function createCouponModule(params: CreateCouponModuleParams): CouponModu
     ...(providers.logger ? { logger: providers.logger } : {}),
   }
 
+  // Exportação é ação sensível: sem o gancho, a única trilha é o log. Avisa no boot, não em silêncio.
+  if (!params.hooks?.onExported)
+    dependencies.logger?.warn('coupons: hooks.onExported ausente — exportações sem trilha de auditoria do host')
+
   return {
     useCases: {
       createCampaign: new CreateCampaignUseCase(dependencies),
@@ -126,6 +132,7 @@ export function createCouponModule(params: CreateCouponModuleParams): CouponModu
       listRedemptions: new ListRedemptionsUseCase(dependencies),
       captureLead: new CaptureLeadUseCase(dependencies),
       listLeads: new ListLeadsUseCase(dependencies),
+      anonymiseLead: new AnonymiseLeadUseCase(dependencies),
       exportCampaignData: new ExportCampaignDataUseCase(dependencies),
     },
     config,

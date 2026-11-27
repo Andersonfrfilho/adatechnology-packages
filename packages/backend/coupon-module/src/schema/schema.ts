@@ -57,6 +57,7 @@ export const campaigns = couponsSchema.table(
       .on(table.companyId)
       .where(sql`"is_automatic" and "is_active"`),
     check('campaigns_discount_value_positive', sql`"discount_value" > 0`),
+    check('campaigns_discount_percent_max', sql`"discount_kind" <> 'percent' or "discount_value" <= 100`),
   ],
 )
 

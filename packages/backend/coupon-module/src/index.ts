@@ -6,6 +6,7 @@ export { createCouponModule } from './CouponModule'
 export type { CouponModule, CouponModuleProviders, CreateCouponModuleParams } from './CouponModule'
 
 export { createCouponRoutes } from './http/routes'
+export { toPublicValidation } from './http/publicRoutes'
 export type { CreateCouponRoutesParams, PublicCompanyResolverPort } from './http/routes'
 
 export { runCouponMigrations, couponMigrationsFolder, COUPON_MIGRATIONS_TABLE } from './runMigrations'
@@ -61,7 +62,7 @@ export {
 export type { ValidateCouponParams, AutomaticDiscount } from './use-cases/Validation.use-cases'
 export { RedeemCouponUseCase, ReleaseRedemptionUseCase, ListRedemptionsUseCase } from './use-cases/Redemption.use-cases'
 export type { RedeemCouponParams, RedeemCouponResult } from './use-cases/Redemption.use-cases'
-export { CaptureLeadUseCase, ListLeadsUseCase } from './use-cases/Lead.use-cases'
+export { AnonymiseLeadUseCase, CaptureLeadUseCase, ListLeadsUseCase } from './use-cases/Lead.use-cases'
 export type { CaptureLeadParams } from './use-cases/Lead.use-cases'
 export { ExportCampaignDataUseCase, EXPORT_HEADERS } from './use-cases/Export.use-cases'
 export type { ExportParams, ExportResult, ExportFilters } from './use-cases/Export.use-cases'

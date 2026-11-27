@@ -87,7 +87,7 @@ function scopeValuesOf(campaign: Campaign): string {
   return ''
 }
 
-export function draftFromCampaign(campaign: Campaign): CampaignDraft {
+export function draftFromCampaign(campaign: Campaign, timeZone?: string): CampaignDraft {
   const { discount } = campaign
   return {
     name: campaign.name,
@@ -95,8 +95,8 @@ export function draftFromCampaign(campaign: Campaign): CampaignDraft {
     text: campaign.text,
     terms: campaign.terms,
     isActive: campaign.isActive,
-    startsAt: toDateTimeLocalValue(campaign.startsAt),
-    endsAt: toDateTimeLocalValue(campaign.endsAt),
+    startsAt: toDateTimeLocalValue(campaign.startsAt, timeZone),
+    endsAt: toDateTimeLocalValue(campaign.endsAt, timeZone),
     discountKind: discount.kind,
     percent: discount.kind === 'percent' ? String(discount.value) : '',
     fixedCents: discount.kind === 'fixed' ? discount.value : null,
@@ -138,15 +138,15 @@ function scopeOf(draft: CampaignDraft): CreateCampaignInput['scope'] {
   return { kind: 'all' }
 }
 
-export function draftToInput(draft: CampaignDraft): CreateCampaignInput {
+export function draftToInput(draft: CampaignDraft, timeZone?: string): CreateCampaignInput {
   return {
     name: draft.name,
     title: draft.title,
     text: draft.text,
     terms: draft.terms,
     isActive: draft.isActive,
-    startsAt: fromDateTimeLocalValue(draft.startsAt),
-    endsAt: fromDateTimeLocalValue(draft.endsAt),
+    startsAt: fromDateTimeLocalValue(draft.startsAt, timeZone),
+    endsAt: fromDateTimeLocalValue(draft.endsAt, timeZone),
     discount: {
       kind: draft.discountKind,
       value: draft.discountKind === 'percent' ? Number(draft.percent || 0) : (draft.fixedCents ?? 0),
@@ -166,16 +166,18 @@ export function draftToInput(draft: CampaignDraft): CreateCampaignInput {
 }
 
 /** Corpo do PATCH: tudo menos o modo de código, que não muda depois de criada. */
-export function draftToUpdate(draft: CampaignDraft): Omit<CreateCampaignInput, 'codeMode'> {
-  const input: Partial<CreateCampaignInput> = { ...draftToInput(draft) }
+export function draftToUpdate(draft: CampaignDraft, timeZone?: string): Omit<CreateCampaignInput, 'codeMode'> {
+  const input: Partial<CreateCampaignInput> = { ...draftToInput(draft, timeZone) }
   delete input.codeMode
   return input as Omit<CreateCampaignInput, 'codeMode'>
 }
 
 /** Todos os campos recusados, sem repetir campo, com o caminho da API (`discount.value`). */
-export function validateDraft(draft: CampaignDraft, isNew: boolean): FieldIssue[] {
-  const input = draftToInput(draft)
-  const parsed = isNew ? createCampaignSchema.safeParse(input) : updateCampaignSchema.safeParse(draftToUpdate(draft))
+export function validateDraft(draft: CampaignDraft, isNew: boolean, timeZone?: string): FieldIssue[] {
+  const input = draftToInput(draft, timeZone)
+  const parsed = isNew
+    ? createCampaignSchema.safeParse(input)
+    : updateCampaignSchema.safeParse(draftToUpdate(draft, timeZone))
   const issues: FieldIssue[] = parsed.success
     ? []
     : parsed.error.issues.map((issue) => ({ field: issue.path.join('.'), message: issue.message }))

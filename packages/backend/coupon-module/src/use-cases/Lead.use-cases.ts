@@ -13,6 +13,8 @@ import {
   CODE_MODE,
   CodesExhaustedError,
   ConsentRequiredError,
+  LeadNotFoundError,
+  RateLimitedError,
   COUPON_LIMITS,
   DEFAULT_PHONE_COUNTRY_CODE,
   FIELD_REQUIREMENT,
@@ -89,6 +91,11 @@ function readContact(campaign: CampaignRow, input: CaptureLeadParams['input'], c
   return { name: checks.name.value, phone: checks.phone.value, email: checks.email.value }
 }
 
+/** Mesmo telefone E mesmo e-mail (canônicos) que o lead guardado; campo não pedido conta como igual. */
+function isSameContact(lead: LeadRow, contact: LeadContact): boolean {
+  return (lead.phone ?? null) === (contact.phone ?? null) && (lead.email ?? null) === (contact.email ?? null)
+}
+
 type Captured = { readonly lead: LeadRow; readonly isNew: boolean }
 
 export class CaptureLeadUseCase {
@@ -106,6 +113,8 @@ export class CaptureLeadUseCase {
       this.dependencies.config.phoneCountryCode ?? DEFAULT_PHONE_COUNTRY_CODE,
     )
 
+    if (campaign.codeMode === CODE_MODE.FIXED && !campaign.fixedCode) throw new CampaignUnavailableError()
+
     const captured = await persistence.transaction((stores) => this.capture(stores, campaign, contact))
     await this.afterCapture({ campaign, contact, captured })
     const isPublicCode = campaign.codeMode === CODE_MODE.FIXED
@@ -120,9 +129,13 @@ export class CaptureLeadUseCase {
 
   private async capture(stores: CouponStores, campaign: CampaignRow, contact: LeadContact): Promise<Captured> {
     const scope = { companyId: campaign.companyId, campaignId: campaign.id }
+    // Trava a campanha: captações simultâneas da mesma campanha entram uma a uma (teto diário exato).
+    const locked = await stores.campaigns.lockById({ companyId: campaign.companyId, id: campaign.id })
+    if (!locked) throw new CampaignUnavailableError()
     const existing = await stores.leads.findByContact({ ...scope, phone: contact.phone, email: contact.email })
     if (existing) return { lead: existing, isNew: false }
     const now = this.dependencies.clock.now()
+    await this.assertDailyCap(stores, campaign, now)
     const inserted = await stores.leads.insert({
       ...scope,
       ...contact,
@@ -144,9 +157,20 @@ export class CaptureLeadUseCase {
     return { lead: lead ?? inserted, isNew: true }
   }
 
+  private async assertDailyCap(stores: CouponStores, campaign: CampaignRow, now: Date): Promise<void> {
+    const cap = this.dependencies.config.maxLeadsPerCampaignPerDay
+    if (cap === undefined) return
+    const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    const today = await stores.leads.countSince({ companyId: campaign.companyId, campaignId: campaign.id, since })
+    if (today >= cap) throw new RateLimitedError(undefined)
+  }
+
   private async issueCode(stores: CouponStores, campaign: CampaignRow, leadId: string): Promise<string> {
     const scope = { companyId: campaign.companyId, campaignId: campaign.id }
-    if (campaign.codeMode === CODE_MODE.FIXED) return campaign.fixedCode ?? ''
+    if (campaign.codeMode === CODE_MODE.FIXED) {
+      if (!campaign.fixedCode) throw new CampaignUnavailableError()
+      return campaign.fixedCode
+    }
     if (campaign.codeMode === CODE_MODE.BATCH) {
       const claimed = await stores.coupons.claimUnassigned({ ...scope, leadId })
       if (!claimed) throw new CodesExhaustedError(campaign.id)
@@ -185,7 +209,11 @@ export class CaptureLeadUseCase {
       })
     }
     const code = lead.couponCode
-    if (leadNotifier && code) {
+    // Repetição só reenvia se o contato informado é exatamente o guardado; e o envio vai sempre para o
+    // contato GUARDADO. Telefone de um com e-mail de outro não desvia o código de ninguém.
+    const isResendAllowed = captured.isNew || isSameContact(lead, contact)
+    if (leadNotifier && code && isResendAllowed) {
+      const storedContact: LeadContact = { name: lead.name, phone: lead.phone, email: lead.email }
       await runHook({
         name: 'leadNotifier.sendCoupon',
         logger,
@@ -194,7 +222,7 @@ export class CaptureLeadUseCase {
           leadNotifier.sendCoupon({
             companyId: campaign.companyId,
             leadId: lead.id,
-            contact,
+            contact: storedContact,
             campaign: toPublicCampaign(campaign),
             code,
             isResend: !captured.isNew,
@@ -218,5 +246,26 @@ export class ListLeadsUseCase {
   ): Promise<Paginated<Lead>> {
     const page = await this.dependencies.persistence.leads.list(params)
     return paginate({ data: page.rows.map(toLead), total: page.total, page: params.page, pageSize: params.pageSize })
+  }
+}
+
+/**
+ * LGPD: apaga os dados pessoais do contato (nome, telefone, e-mail, cliente, código entregue) e
+ * mantém a linha anonimizada, para os totais da campanha não mudarem.
+ */
+export class AnonymiseLeadUseCase {
+  constructor(private readonly dependencies: CouponDependencies) {}
+
+  async execute(params: {
+    readonly companyId: string
+    readonly campaignId: string
+    readonly leadId: string
+  }): Promise<void> {
+    const row = await this.dependencies.persistence.leads.anonymise(params)
+    if (!row) throw new LeadNotFoundError(params.leadId)
+    this.dependencies.logger?.info('coupons: lead anonimizado', {
+      campaignId: params.campaignId,
+      leadId: params.leadId,
+    })
   }
 }

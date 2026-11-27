@@ -151,5 +151,6 @@ export function evaluateCampaign(params: EvaluateCampaignParams): CampaignEvalua
 
   const discountCents =
     reasons.length === 0 ? computeDiscountCents({ discount: campaign.discount, eligibleSubtotalCents }) : 0
+  if (reasons.length === 0 && discountCents === 0) reasons.push(COUPON_REJECTION.ZERO_DISCOUNT)
   return { valid: reasons.length === 0, discountCents, subtotalCents, eligibleSubtotalCents, reasons }
 }

@@ -53,6 +53,11 @@ function isSameRedemption(row: RedemptionRow, params: RedeemCouponParams): boole
     : row.couponCode === null && row.campaignId === params.campaignId
 }
 
+function repeated(existing: RedemptionRow, params: RedeemCouponParams): RedeemCouponResult {
+  if (!isSameRedemption(existing, params)) throw new OrderAlreadyRedeemedError(params.orderRef.kind)
+  return { redemption: toRedemption(existing), isNew: false }
+}
+
 async function resolveTarget(stores: CouponStores, params: RedeemCouponParams): Promise<Target> {
   const notFound = () => new CouponNotApplicableError([COUPON_REJECTION.NOT_FOUND])
   if (params.code !== undefined) {
@@ -95,13 +100,14 @@ export class RedeemCouponUseCase {
   }
 
   private async redeem(stores: CouponStores, params: RedeemCouponParams): Promise<RedeemCouponResult> {
-    const existing = await stores.redemptions.findByOrder(orderKey(params))
-    if (existing?.status === REDEMPTION_STATUS.REDEEMED) {
-      if (!isSameRedemption(existing, params)) throw new OrderAlreadyRedeemedError(params.orderRef.kind)
-      return { redemption: toRedemption(existing), isNew: false }
-    }
+    const before = await stores.redemptions.findByOrder(orderKey(params))
+    if (before?.status === REDEMPTION_STATUS.REDEEMED) return repeated(before, params)
 
     const target = await resolveTarget(stores, params)
+    // Relê com a campanha travada: a repetição do mesmo pedido que esperou na trava encontra o resgate
+    // já confirmado e o devolve, em vez de contar o próprio uso e recusar por limite.
+    const existing = await stores.redemptions.findByOrder(orderKey(params))
+    if (existing?.status === REDEMPTION_STATUS.REDEEMED) return repeated(existing, params)
     const { campaign } = target
     const customerRef = params.customerRef ?? null
     const usage = await stores.redemptions.usage({

@@ -94,3 +94,17 @@ describe('regras da campanha', () => {
     expect(redeemCouponSchema.safeParse({ ...base, code: 'abc' }).success).toBe(true)
   })
 })
+
+describe('desconto no schema', () => {
+  it('teto zero é recusado (sem teto é null)', () => {
+    expect(
+      createCampaignSchema.safeParse({ name: 'x', discount: { kind: 'percent', value: 10, maxDiscountCents: 0 } })
+        .success,
+    ).toBe(false)
+    expect(
+      createCampaignSchema.safeParse({ name: 'x', discount: { kind: 'percent', value: 10, maxDiscountCents: null } })
+        .success,
+    ).toBe(true)
+    expect(createCampaignSchema.safeParse({ name: 'x', discount: { kind: 'fixed', value: 0 } }).success).toBe(false)
+  })
+})

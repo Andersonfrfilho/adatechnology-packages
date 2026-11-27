@@ -164,6 +164,7 @@ export class ExportCampaignDataUseCase {
       kind,
       format: params.format,
       rowCount,
+      userId: params.userId,
     })
     if (!hook) return
     await runHook({

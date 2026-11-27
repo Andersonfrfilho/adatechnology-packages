@@ -20,7 +20,7 @@ export type LeadCaptureDialogProps = {
 
 /** A pessoa deixa o contato (só os campos que a campanha pede), aceita o uso dos dados e vê o código. */
 export function LeadCaptureDialog({ campaign, onClose, privacyNote }: LeadCaptureDialogProps) {
-  const { messages, format, locale, currency } = useCouponsText()
+  const { messages, format, locale, currency, timeZone } = useCouponsText()
   const form = useLeadCapture(campaign)
   const dialogRef = useRef<HTMLDivElement>(null)
   const [isCopied, setIsCopied] = useState(false)
@@ -113,7 +113,9 @@ export function LeadCaptureDialog({ campaign, onClose, privacyNote }: LeadCaptur
               <p>{messages.leadSuccessAgain}</p>
             )}
             {result.endsAt ? (
-              <p className="acp-hint">{format('leadValidUntil', { date: formatDateTime(result.endsAt, locale) })}</p>
+              <p className="acp-hint">
+                {format('leadValidUntil', { date: formatDateTime(result.endsAt, locale, timeZone) })}
+              </p>
             ) : null}
             {campaign.terms ? <p className="acp-hint">{campaign.terms}</p> : null}
             <button type="button" className="acp-button" onClick={onClose}>

@@ -177,5 +177,15 @@
   "bannerDiscount": "{discount} off",
   "bannerCta": "Get my coupon",
   "bannerAutomatic": "Discount applied automatically to the order.",
-  "bannerEndsAt": "Until {date}"
+  "bannerEndsAt": "Until {date}",
+  "reason_zero_discount": "The coupon gives no discount on this order.",
+  "reason_not_applicable": "This coupon does not apply to this order.",
+  "fieldDate": "Date",
+  "fieldTime": "Time",
+  "dateTimeInvalid": "Invalid date or time.",
+  "timeZoneHint": "Time in {timeZone}.",
+  "timeZoneLocal": "Time on this computer.",
+  "confirm": "Confirm",
+  "cancel": "Cancel",
+  "selectPlaceholder": "Choose"
 }

@@ -14,3 +14,15 @@ export function requireCompany(context: RequestContext): string {
 }
 
 export const json = (status: number, data: unknown): HttpResult => ({ kind: 'json', status, body: { data } })
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * Parâmetro de caminho que tem de ser UUID. Inválido responde o mesmo 404 de "não existe": nem
+ * vira 500 no Postgres (`invalid input syntax for type uuid`) nem diz ao chamador que o formato errou.
+ */
+export function uuidParam(context: RequestContext, name: string, notFound: (value: string) => Error): string {
+  const value = context.params[name] ?? ''
+  if (!UUID_PATTERN.test(value)) throw notFound(value)
+  return value
+}

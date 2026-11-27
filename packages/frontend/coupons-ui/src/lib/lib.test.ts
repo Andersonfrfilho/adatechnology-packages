@@ -10,7 +10,17 @@ import { resolveCouponsMessages } from '../locales'
 import { readErrorCode, readFieldIssues, readRejections } from './apiError'
 import { draftFromCampaign, draftToInput, EMPTY_CAMPAIGN_DRAFT, validateDraft } from './campaignDraft'
 import { buildCampaignTable } from './campaignSpreadsheet'
-import { formatCentsInput, formatPhone, maskPhoneInput, parseCentsInput } from './format'
+import {
+  formatCentsInput,
+  formatPhone,
+  fromDateTimeLocalValue,
+  joinDateTimeParts,
+  maskDateInput,
+  maskPhoneInput,
+  maskTimeInput,
+  parseCentsInput,
+  toDateTimeLocalValue,
+} from './format'
 import { fieldLabel, rejectionMessage } from './labels'
 import { DEFAULT_CAMPAIGN_LIST_STATE, parseCampaignListState, serializeCampaignListState } from './listUrlState'
 
@@ -163,5 +173,29 @@ describe('formulário de captação', () => {
     expect(validateLeadForm(campaign, { name: '', phone: '(11) 98765-4321', email: '', consent: true }, texts)).toEqual(
       [],
     )
+  })
+})
+
+describe('fuso da empresa', () => {
+  it('hora de parede no fuso da empresa ida e volta, inclusive outro fuso que o do navegador', () => {
+    expect(fromDateTimeLocalValue('2026-12-31T23:59', 'America/Sao_Paulo')).toBe('2027-01-01T02:59:00.000Z')
+    expect(toDateTimeLocalValue('2027-01-01T02:59:00.000Z', 'America/Sao_Paulo')).toBe('2026-12-31T23:59')
+    expect(fromDateTimeLocalValue('2026-07-01T09:00', 'Europe/Lisbon')).toBe('2026-07-01T08:00:00.000Z')
+    expect(fromDateTimeLocalValue('2026-01-15T09:00', 'Europe/Lisbon')).toBe('2026-01-15T09:00:00.000Z')
+    expect(fromDateTimeLocalValue('lixo', 'America/Sao_Paulo')).toBeNull()
+  })
+
+  it('máscaras de data e hora e junção validada', () => {
+    expect(maskDateInput('31122026')).toBe('31/12/2026')
+    expect(maskTimeInput('2359')).toBe('23:59')
+    expect(joinDateTimeParts('31/12/2026', '23:59')).toBe('2026-12-31T23:59')
+    expect(joinDateTimeParts('31/02/2026', '10:00')).toBe('')
+    expect(joinDateTimeParts('31/12/2026', '24:00')).toBe('')
+  })
+
+  it('o rascunho usa o fuso da empresa nas datas', () => {
+    const draft = draftFromCampaign(CAMPAIGN, 'America/Sao_Paulo')
+    expect(draft.endsAt).toBe('2026-12-31T20:59')
+    expect(draftToInput(draft, 'America/Sao_Paulo').endsAt).toBe('2026-12-31T23:59:00.000Z')
   })
 })

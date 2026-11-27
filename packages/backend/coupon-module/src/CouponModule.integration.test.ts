@@ -82,6 +82,47 @@ describeWithDatabase('coupon-module (integração Postgres real)', () => {
     expect(report).toMatchObject({ redemptionCount: 3, discountCents: 3_000, usedCouponCount: 1 })
   })
 
+  test('repetições simultâneas do MESMO pedido no limite: um resgate, as outras devolvem o mesmo', async () => {
+    await createCampaign({ fixedCode: `RETRY${suffix}`, usageLimitTotal: 1 })
+    const orderRef = { kind: 'order', id: `retry-${suffix}` }
+    const results = await Promise.allSettled(
+      Array.from({ length: 6 }, () =>
+        module.useCases.redeemCoupon.execute({ companyId, code: `RETRY${suffix}`, orderRef, items: CART }),
+      ),
+    )
+    const fulfilled = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
+    expect(fulfilled).toHaveLength(6)
+    expect(fulfilled.filter((result) => result.isNew)).toHaveLength(1)
+    expect(new Set(fulfilled.map((result) => result.redemption.id)).size).toBe(1)
+  })
+
+  test('banco recusa percentual acima de 100 mesmo fora do schema', async () => {
+    const db = drizzle({ client: sql }) as unknown as CouponDatabase
+    const { campaigns } = await import('./schema/schema')
+    const insert = async () =>
+      db.insert(campaigns).values({
+        companyId,
+        name: 'Inválida',
+        discountKind: 'percent',
+        discountValue: 150,
+        codeMode: 'fixed',
+        leadCapture: { enabled: false, fields: { name: 'off', phone: 'off', email: 'off' }, consentText: '' },
+      })
+    await expect(insert()).rejects.toThrow()
+  })
+
+  test('LGPD: anonimizar libera o contato para novo cadastro', async () => {
+    const campaign = await createCampaign({
+      fixedCode: `LGPD${suffix}`,
+      leadCapture: { enabled: true, consentText: 'LGPD' },
+    })
+    const input = { phone: '11955554444', email: `lgpd-${suffix.toLowerCase()}@exemplo.com`, consent: true }
+    const first = await module.useCases.captureLead.execute({ companyId, campaignId: campaign.id, input })
+    await module.useCases.anonymiseLead.execute({ companyId, campaignId: campaign.id, leadId: first.leadId })
+    const again = await module.useCases.captureLead.execute({ companyId, campaignId: campaign.id, input })
+    expect(again.isNew).toBe(true)
+  })
+
   test('resgate e liberação idempotentes', async () => {
     const campaign = await createCampaign({ fixedCode: `IDEM${suffix}` })
     const orderRef = { kind: 'order', id: `idem-${suffix}` }

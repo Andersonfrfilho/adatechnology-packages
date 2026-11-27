@@ -20,7 +20,7 @@ export type CampaignBannerProps = {
 /** Faixa da campanha no site. Sem campanha no ar, não desenha nada. */
 export function CampaignBanner({ campaign: given, privacyNote }: CampaignBannerProps) {
   const api = useCouponsPublicApi()
-  const { messages, format, locale, currency } = useCouponsText()
+  const { messages, format, locale, currency, timeZone } = useCouponsText()
   const [isOpen, setIsOpen] = useState(false)
   const listOpen = api.listOpenCampaigns
   const loaded = useAsyncResource(
@@ -42,7 +42,9 @@ export function CampaignBanner({ campaign: given, privacyNote }: CampaignBannerP
         {campaign.text ? <p className="acp-banner-text">{campaign.text}</p> : null}
         {campaign.isAutomatic ? <p className="acp-hint">{messages.bannerAutomatic}</p> : null}
         {campaign.endsAt ? (
-          <p className="acp-hint">{format('bannerEndsAt', { date: formatDateTime(campaign.endsAt, locale) })}</p>
+          <p className="acp-hint">
+            {format('bannerEndsAt', { date: formatDateTime(campaign.endsAt, locale, timeZone) })}
+          </p>
         ) : null}
       </div>
       {canCapture ? (

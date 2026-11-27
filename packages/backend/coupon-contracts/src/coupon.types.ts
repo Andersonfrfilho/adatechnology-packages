@@ -69,6 +69,10 @@ export const COUPON_REJECTION = {
   EMPTY_CART: 'empty_cart',
   NO_ELIGIBLE_ITEMS: 'no_eligible_items',
   MIN_SUBTOTAL_NOT_MET: 'min_subtotal_not_met',
+  /** O cálculo deu zero (ex.: 1% de poucos centavos): cupom que não desconta nada não é aplicado. */
+  ZERO_DISCOUNT: 'zero_discount',
+  /** Resposta genérica do site anônimo: não diz se o código existe nem por que não vale. */
+  NOT_APPLICABLE: 'not_applicable',
 } as const
 export type CouponRejection = (typeof COUPON_REJECTION)[keyof typeof COUPON_REJECTION]
 

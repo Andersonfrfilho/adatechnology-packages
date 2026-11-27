@@ -72,7 +72,9 @@ export class ListCouponsUseCase {
 export class SetCouponStatusUseCase {
   constructor(private readonly dependencies: CouponDependencies) {}
 
-  async execute(params: CampaignReference & { readonly status: CouponStatus }): Promise<Coupon> {
+  async execute(
+    params: CampaignReference & { readonly campaignId: string; readonly status: CouponStatus },
+  ): Promise<Coupon> {
     const row = await this.dependencies.persistence.coupons.setStatus(params)
     if (!row) throw new CouponCodeNotFoundError(params.id)
     return toCoupon(row)
