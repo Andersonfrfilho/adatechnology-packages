@@ -82,6 +82,7 @@ export function ProductsListing({ options, workspace, sections, onImport, onCrea
         sections={sections}
         showSection={isFieldEnabled(PRODUCT_OPTIONAL_FIELD.SECTION)}
         renderMultiSelect={renderMultiSelect}
+        renderSearch={options.renderSearch}
         onChange={(patch) => { clearSelection(); setListQuery(patch) }}
         onReplace={(query) => { clearSelection(); setListQuery(query) }}
         actions={actions}

@@ -42,6 +42,15 @@ export type ProductsMultiSelectRenderProps = {
   readonly onChange: (values: string[]) => void
 }
 
+/** Campo de busca livre da barra de filtros. O host injeta o campo do design system dele, com rótulo visível como os demais filtros. */
+export type ProductsSearchRenderProps = {
+  readonly id: string
+  readonly label: string
+  readonly placeholder: string
+  readonly value: string
+  readonly onChange: (value: string) => void
+}
+
 /** O que o menu de exportação do host precisa: o filtro aplicado, a página visível e a seleção. */
 export type ProductsExportContext = {
   readonly query: ProductsListQuery
@@ -57,6 +66,7 @@ export type ProductsListingOptions = {
   readonly onQueryChange?: (query: ProductsListQuery) => void
   readonly renderSelect?: (props: ProductsSelectRenderProps) => ReactNode
   readonly renderMultiSelect?: (props: ProductsMultiSelectRenderProps) => ReactNode
+  readonly renderSearch?: (props: ProductsSearchRenderProps) => ReactNode
   /** Encaixe do menu de exportação, ao lado de "Novo produto". Ausente, nada é desenhado. */
   readonly renderExport?: (context: ProductsExportContext) => ReactNode
   readonly perPageOptions?: readonly number[]
