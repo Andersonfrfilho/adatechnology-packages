@@ -170,6 +170,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`conversation-module`](#adatechnologyconversation-module) | anexos de conversa com validação de tipo e tamanho | `RequestAttachmentUploadUseCase` |
 | [`image-cutout`](#adatechnologyimage-cutout) | recorte de fundo de imagem no navegador | `removeBackground` |
 | [`image-editor-ui`](#adatechnologyimage-editor-ui) | editar foto: recorte por formato, girar, espelhar, zoom, brilho/contraste, ponto de foco e texto alternativo | `ImageEditor` |
+| [`site-preview-ui`](#adatechnologysite-preview-ui) | **prévia ao vivo do site no painel**: iframe em escala (Computador/Tablet/Celular, zoom, mão, expandir), rola até a seção em edição e a destaca, guarda a rolagem entre recargas | `SitePreview`, `useSitePreviewChannel`, `createPreviewGuest` (subpath `./guest`) |
 | [`secret-envelope`](#adatechnologysecret-envelope) | cifrar segredo antes de gravar | `createSecretEnvelopeProvider` |
 
 ### Voz: transcrição e moderação
@@ -755,6 +756,19 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Precisa de:** Nenhuma no servidor; o host guarda as versões. Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
 - **Usado por:** `reservada`
+
+### @adatechnology/site-preview-ui
+- **Versão:** `0.0.0` (primeira publicação pelo changeset) · `packages/frontend/site-preview-ui` · subpaths: `./guest`, `./styles.css`
+- **Para quê:** Prévia ao vivo do site dentro do painel que o edita, sem reimplementar o iframe, o zoom nem o protocolo de rolagem.
+- **O que você ganha:**
+  - Painel (host): `SitePreview` (iframe em escala, seletor Computador/Tablet/Celular, zoom, "Ajustar", mão, Expandir lado a lado, tela cheia com foco preso, coluna fixa `spv-sticky`) ou, para desenhar a própria moldura, `useSitePreviewChannel` (envio do rascunho com debounce, foco, recarga de dados e rolagem guardada), `usePreviewPan`, `computePreviewScale`
+  - Site (guest, sem React): `createPreviewGuest` registra as seções por `data-preview-field="chave"` (ou `registerSection`), destaca a seção em edição e rola até ela só se não estiver inteira na janela, devolve a rolagem depois de recarregar e entrega o rascunho (`onState`) e o pedido de recarga (`onRefresh`); fora de um iframe do mesmo domínio não faz nada
+  - Protocolo versionado (`parseHostMessage`, `parseGuestMessage`): só mensagens do mesmo domínio e do canal; formato inválido é descartado
+  - Tema por `--spv-*`; rótulos `sitePreviewLabelsPtBr`/`En`; tooltip da casa por `renderTooltip`
+- **Entradas:** `src/index.ts` (host), `src/guest/index.ts` (site), `styles.css`
+- **Precisa de:** Nenhuma no servidor. O site precisa servir uma rota de prévia (ex.: `/?preview=1`) no mesmo domínio do painel. Peers: `react`, `react-dom` (opcionais: o subpath `./guest` não usa React).
+- **Compatibilidade:** React 18+; navegadores com `MutationObserver` e `sessionStorage` opcional.
+- **Usado por:** `reservada` (hoje com a cópia local de mesma API em `apps/frontend-panel/src/ui/sitePreview` e `apps/frontend-site/src/preview/sdk`, até a publicação)
 
 ### @adatechnology/document-intake
 - **Versão:** `0.1.0` · `packages/frontend/document-intake`
