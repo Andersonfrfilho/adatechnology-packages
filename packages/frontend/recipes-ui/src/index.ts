@@ -29,6 +29,18 @@ export { IngredientDialog } from './components/IngredientDialog'
 export { IngredientTable } from './components/IngredientTable'
 export { IngredientPicker } from './components/IngredientPicker'
 export { SelectField } from './components/SelectField'
+// Peças base, para telas irmãs (ex.: `stock-ui`) ficarem iguais sem copiar: usam o `RecipesProvider`.
+export { Field } from './components/Field'
+export type { FieldProps } from './components/Field'
+export { Pagination } from './components/Pagination'
+export type { PaginationProps } from './components/Pagination'
+export { SortHeader } from './components/SortHeader'
+export { ConfirmDialog } from './components/ConfirmDialog'
+export type { ConfirmDialogProps } from './components/ConfirmDialog'
+export { Feedback } from './components/Feedback'
+export { useDebouncedValue } from './hooks/useDebouncedValue'
+export { useAsyncResource } from './hooks/useAsyncResource'
+export type { AsyncResource } from './hooks/useAsyncResource'
 
 export { useIngredientList } from './hooks/useIngredientList'
 export type { IngredientList, IngredientListState } from './hooks/useIngredientList'
@@ -42,6 +54,7 @@ export {
   formatCents,
   formatQuantity,
   formatBasisPoints,
+  formatDateTime,
   toInputDecimal,
   fromInputDecimal,
 } from './lib/format'
