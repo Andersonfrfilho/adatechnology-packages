@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/coupon-contracts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Shared types, zod schemas, errors, ports and the pure discount evaluator for the coupons/promotions trio — plus dependency-free CSV and XLSX writers; isomorphic, no I/O",
   "publishConfig": {
