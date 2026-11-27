@@ -17,7 +17,7 @@ import type { NotificationMessages } from '../locales'
 import {
   EMAIL_PREVIEW_DEVICES,
   PREVIEW_DEVICE,
-  WHATSAPP_PREVIEW_WIDTH,
+  PHONE_PREVIEW_WIDTH,
   looksLikeHtml,
   type PreviewDevice,
 } from '../previewDevice.util'
@@ -125,9 +125,7 @@ function EmailDefinitionPreview(props: DefinitionPreviewProps) {
   })
 
   const rendered = renderDefinitionPreview(item, body)
-  const emailHtml = loadEmailPreview
-    ? remote.data?.html
-    : buildLocalEmailHtml({ item, body, systemHtmlVariables })
+  const emailHtml = loadEmailPreview ? remote.data?.html : buildLocalEmailHtml({ item, body, systemHtmlVariables })
   const title = remote.data?.subject ?? rendered.title
   const options: PreviewDeviceOption[] = EMAIL_PREVIEW_DEVICES.map((entry) => ({
     id: entry.id,
@@ -164,7 +162,10 @@ function EmailDefinitionPreview(props: DefinitionPreviewProps) {
   )
 }
 
-function WhatsAppDefinitionPreview(props: DefinitionPreviewProps) {
+const PHONE_CHANNELS = ['whatsapp', 'push', 'sms'] as const
+
+/** WhatsApp (balão na conversa), push (cartão na tela bloqueada) e SMS: o mesmo aparelho, iPhone ou Android. */
+function PhoneDefinitionPreview(props: DefinitionPreviewProps) {
   const { messages } = useNotificationContext()
   const [os, setOs] = useState<string>(WHATSAPP_DEVICES[0])
   const rendered = renderDefinitionPreview(props.item, props.body)
@@ -175,16 +176,11 @@ function WhatsAppDefinitionPreview(props: DefinitionPreviewProps) {
   }))
 
   return (
-    <div className="adn-definitions__device-preview" data-device={os}>
-      <PreviewDeviceSwitch
-        label={messages['definitions.deviceLabel']}
-        options={options}
-        value={os}
-        onChange={setOs}
-      />
-      <ScaledPreviewFrame width={WHATSAPP_PREVIEW_WIDTH}>
+    <div className="adn-definitions__device-preview" data-device={os} data-channel={props.item.channel}>
+      <PreviewDeviceSwitch label={messages['definitions.deviceLabel']} options={options} value={os} onChange={setOs} />
+      <ScaledPreviewFrame width={PHONE_PREVIEW_WIDTH}>
         <TemplatePreview
-          channel="whatsapp"
+          channel={props.item.channel}
           viewport={os}
           rendered={rendered}
           labels={buildLabels(messages)}
@@ -195,13 +191,20 @@ function WhatsAppDefinitionPreview(props: DefinitionPreviewProps) {
   )
 }
 
-export function DefinitionPreview(props: DefinitionPreviewProps) {
-  if (props.item.channel === 'email') return <EmailDefinitionPreview {...props} />
-  if (props.item.channel === 'whatsapp') return <WhatsAppDefinitionPreview {...props} />
+/** O aviso dentro do próprio produto (sino): um cartão só, sem aparelho para escolher. */
+function InboxDefinitionPreview(props: DefinitionPreviewProps) {
+  const { messages } = useNotificationContext()
   const rendered = renderDefinitionPreview(props.item, props.body)
   return (
-    <div className="adn-definitions__preview" data-channel={props.item.channel}>
-      {rendered.body}
+    <div className="adn-definitions__device-preview" data-channel="inbox">
+      <TemplatePreview channel="inbox" viewport="browser" rendered={rendered} labels={buildLabels(messages)} />
     </div>
   )
+}
+
+export function DefinitionPreview(props: DefinitionPreviewProps) {
+  const { channel } = props.item
+  if (channel === 'email') return <EmailDefinitionPreview {...props} />
+  if ((PHONE_CHANNELS as readonly string[]).includes(channel)) return <PhoneDefinitionPreview {...props} />
+  return <InboxDefinitionPreview {...props} />
 }

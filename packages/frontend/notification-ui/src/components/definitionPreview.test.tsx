@@ -24,7 +24,12 @@ const EMAIL_ITEM = {
 
 const WHATSAPP_ITEM = { ...EMAIL_ITEM, channel: 'whatsapp', defaultBody: 'Olá *{{guestName}}*' } as TemplateEditorItem
 
-function render(params: { item: TemplateEditorItem; body: string; client?: QueryClient; systemHtmlVariables?: string[] }): string {
+function render(params: {
+  item: TemplateEditorItem
+  body: string
+  client?: QueryClient
+  systemHtmlVariables?: string[]
+}): string {
   return renderToStaticMarkup(
     <QueryClientProvider client={params.client ?? new QueryClient()}>
       <NotificationProvider client={{} as never}>
@@ -102,6 +107,56 @@ describe('pré-visualização de e-mail do editor', () => {
     expect(markup).toContain('adn-preview-phone')
     expect(markup).toContain('iPhone')
     expect(markup).toContain('Android')
+  })
+})
+
+describe('um preview para cada canal', () => {
+  const PUSH_ITEM = {
+    ...EMAIL_ITEM,
+    channel: 'push',
+    defaultBody: 'Chegou {{guestName}}',
+    defaultSubject: 'Aviso de {{guestName}}',
+  } as TemplateEditorItem
+  const SMS_ITEM = { ...EMAIL_ITEM, channel: 'sms', defaultBody: 'Oi {{guestName}}' } as TemplateEditorItem
+  const INBOX_ITEM = {
+    ...EMAIL_ITEM,
+    channel: 'inbox',
+    defaultBody: 'Item {{guestName}}',
+    defaultSubject: 'Título {{guestName}}',
+  } as TemplateEditorItem
+
+  it('push: cartão de notificação na tela do aparelho, com título e corpo, e iPhone/Android', () => {
+    const markup = render({ item: PUSH_ITEM, body: PUSH_ITEM.defaultBody })
+
+    expect(markup).toContain('adn-preview-push__card')
+    expect(markup).toContain('Aviso de Maria')
+    expect(markup).toContain('Chegou Maria')
+    expect(markup).toContain('iPhone')
+    expect(markup).toContain('Android')
+  })
+
+  it('sms: balão no aparelho, com o seletor de aparelho', () => {
+    const markup = render({ item: SMS_ITEM, body: SMS_ITEM.defaultBody })
+
+    expect(markup).toContain('adn-preview-sms__bubble')
+    expect(markup).toContain('Oi Maria')
+    expect(markup.match(/role="radio"/g)).toHaveLength(2)
+  })
+
+  it('caixa de avisos (sino): item da lista com título e corpo, sem aparelho', () => {
+    const markup = render({ item: INBOX_ITEM, body: INBOX_ITEM.defaultBody })
+
+    expect(markup).toContain('adn-preview-inbox__title')
+    expect(markup).toContain('Título Maria')
+    expect(markup).toContain('Item Maria')
+    expect(markup).not.toContain('role="radiogroup"')
+  })
+
+  it('whatsapp: balão sobre o papel de parede, com formatação do WhatsApp aplicada', () => {
+    const markup = render({ item: WHATSAPP_ITEM, body: WHATSAPP_ITEM.defaultBody })
+
+    expect(markup).toContain('adn-preview-wa__bubble')
+    expect(markup).toContain('<strong>Maria</strong>')
   })
 })
 

@@ -22,7 +22,7 @@ export const EMAIL_PREVIEW_DEVICES: readonly {
   { id: PREVIEW_DEVICE.MOBILE, width: 375, viewport: 'ios' },
 ]
 
-export const WHATSAPP_PREVIEW_WIDTH = 375
+export const PHONE_PREVIEW_WIDTH = 375
 
 /** O quadro nunca cresce além do tamanho real: só encolhe para caber, e `zoom` encolhe a caixa junto. */
 export function fitZoom(availableWidth: number, frameWidth: number): number {
