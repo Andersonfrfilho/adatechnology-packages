@@ -89,6 +89,14 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`content-ui`](#adatechnologycontent-ui) | painel (lista e editor com prévia ao vivo) e site público (lista, página do post, compartilhar) | `ContentWorkspace`, `PostListPage`, `PostPage` |
 | [`content-contracts`](#adatechnologycontent-contracts) | Markdown seguro (servidor e navegador), slug, tempo de leitura, feed e sitemap sem o módulo | `renderMarkdownToHtml`, `parseMarkdown`, `buildRssFeed` |
 
+### Cupons, promoções e captação de contatos (não escreva cupom à mão)
+
+| Pacote | O que resolve | Entrada |
+|---|---|---|
+| [`coupon-module`](#adatechnologycoupon-module) | campanhas com desconto percentual ou fixo, código fixo, por lead ou em lote, automática; validar, resgatar e liberar idempotente pelo pedido; captação com dedupe; relatórios e exportação CSV/XLSX | `createCouponModule`, `createCouponRoutes` |
+| [`coupons-ui`](#adatechnologycoupons-ui) | painel inteiro (lista, editor, códigos, contatos, usos, relatório) e peças do site (campo de cupom, captação, banner) | `CampaignsWorkspace`, `CouponField`, `LeadCaptureDialog`, `CampaignBanner` |
+| [`coupon-contracts`](#adatechnologycoupon-contracts) | avaliador puro do desconto (mesma regra no site e no servidor), contato canônico, CSV/XLSX sem dependência | `evaluateCampaign`, `buildCsv`, `buildXlsx` |
+
 ### Notificações e modelos de mensagem/e-mail
 
 | Pacote | O que resolve | Entrada |
@@ -1030,6 +1038,51 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 
 ## Infraestrutura, dados e observabilidade
 
+### Cupons e promoções
+
+### @adatechnology/coupon-contracts
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0` pelo changeset) · `packages/backend/coupon-contracts`
+- **Para quê:** Contratos do trio de cupons: campanha, código, lead, resgate, schemas, erros, portas e o avaliador puro do desconto.
+- **O que você ganha:**
+  - `evaluateCampaign` puro: período (início inclusivo, fim exclusivo), limites total/por código/por cliente, escopo (tudo, produtos, categorias, etiquetas), compra mínima, teto, percentual ou fixo; devolve todos os motivos de recusa de uma vez
+  - Schemas zod compartilhados com o formulário (`createCampaignSchema`, `redeemCouponSchema`, `captureLeadSchema`…) e `checkCampaignRules`
+  - Erros `CouponError` com `publicDetails` (campos e motivos) que chegam ao cliente em `error.details`
+  - `canonicalPhone`/`canonicalEmail` (dedupe), `generateCouponCode` sem caracteres ambíguos, `campaignState`
+  - `buildCsv` (neutraliza fórmula) e `buildXlsx` sem dependência — servem a qualquer exportação de planilha
+- **Entradas:** `src/index.ts`
+- **Precisa de:** Nenhuma.
+- **Compatibilidade:** Isomórfico (Bun, Node, navegador).
+- **Usado por:** nenhum ainda.
+
+### @adatechnology/coupon-module
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/backend/coupon-module` · subpaths: `./http/fetch`, `./http/uws`, `./openapi`
+- **Para quê:** Cupons e promoções com banco, para qualquer produto (reserva, pedido, assinatura): o pedido é uma referência opaca do host.
+- **O que você ganha:**
+  - CRUD de campanhas; código fixo (gerado se vazio), por lead (único por pessoa) ou lote com prefixo (até 10.000 por chamada); campanha automática e `findAutomatic` (maior desconto do carrinho)
+  - `validateCoupon` (prévia), `redeemCoupon`/`releaseRedemption` idempotentes por `orderRef` com a campanha travada (limites não estouram em concorrência), código desativável
+  - `captureLead`: campos e aceite (LGPD) por campanha, dedupe por telefone e e-mail canônicos (índice único), lote com `FOR UPDATE SKIP LOCKED`; portas `leadNotifier` (envio pelo `notification-module`) e `customerIdentity` (cliente do `customer-module`) depois do commit
+  - Relatório (usos, liberações, desconto total, vendido, leads, códigos), listas paginadas de contatos, usos e códigos, exportação CSV/XLSX de todos os resultados do filtro com gancho de auditoria `onExported`
+  - Rotas por `createCouponRoutes`: painel (`coupons:admin`), serviço para o backend do host (`coupons:service`) e públicas (banner, prévia, captação) que só sobem com `companyResolver` **e** `rateLimiter`
+  - Nenhum dado pessoal nem código em log; `createInMemoryCouponPersistence` para teste do host
+- **Entradas:** `createCouponModule` em `src/CouponModule.ts`; `createCouponRoutes`; `runCouponMigrations`; `couponOpenApiPaths` em `./openapi`
+- **Precisa de:** PostgreSQL (Drizzle). Peers: `drizzle-orm`.
+- **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `coupons`; journal `coupon_migrations` no formato clássico (`meta/_journal.json`).
+- **Usado por:** nenhum ainda (Reservada tem a versão à mão a migrar).
+
+### @adatechnology/coupons-ui
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/coupons-ui` · subpath: `./styles.css`
+- **Para quê:** Telas de cupons com API injetada: painel e site.
+- **O que você ganha:**
+  - `CampaignsWorkspace` (tela composta): lista com busca (debounce, servidor), filtro de situação múltiplo, colunas ordenáveis, lote ativar/desativar, total, paginação, estado na URL e exportação da página ou de todos os resultados (CSV/XLSX); campanha com abas Configuração, Códigos, Contatos, Usos e Relatório (cada aba some sem o método da API)
+  - Editor validado com os schemas do servidor; aviso "Confira: …" com atalho para cada campo; máscara de moeda e inteiros
+  - Site: `CouponField` (desconto e todos os motivos), `LeadCaptureDialog` (só os campos pedidos, aceite, código com copiar), `CampaignBanner`
+  - Headless: `useCampaignList`, `useCampaignEditor`, `useRecordList`, `useCouponPreview`, `useLeadCapture`
+  - Rótulos por `messages` (pt-BR padrão, `en`), slots `renderSelect`/`renderDateTimeInput` para os componentes do design system do host, tema por variáveis `--acp-*`
+- **Entradas:** `src/index.ts`
+- **Precisa de:** API compatível com `coupon-module` (interfaces `CouponsAdminApi`, `CouponsPublicApi`). Peers: `react`, `react-dom`.
+- **Compatibilidade:** React 18+.
+- **Usado por:** nenhum ainda.
+
 ### @adatechnology/module-http
 - **Versão:** `0.2.0` · `packages/backend/module-http` · subpaths: `./fetch`, `./uws`, `./openapi`, `./testing`
 - **Para quê:** Camada HTTP compartilhada dos módulos: a rota é dado, e dela saem o adaptador `fetch`, o adaptador uWebSockets e o OpenAPI.
@@ -1038,6 +1091,8 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - `resolveClientIp({ headers, socketAddress, trustedHeader })`: IP do cliente atrás de proxy, só confia no cabeçalho que a borda põe (`x-real-ip` ou último salto de `x-forwarded-for`), recusa texto que não é endereço e agrupa IPv6 por /64
   - `./fetch` (`createModuleFetchRouter`), `./uws`, `./openapi`, `./testing`
   - Escopo checado no despachante: `requiredScopes` (basta um, senão 403); rota `admin`/`service` sem declarar exige ao menos um escopo na identidade
+  - Resultado `binary` (arquivo para baixar com `Content-Type` próprio, ex.: XLSX) nos dois adaptadores
+  - Erro de domínio com `publicDetails` (campos recusados, motivos): vai para `error.details` na resposta; `details` continua só no log
 - **Entradas:** `src/index.ts`
 - **Precisa de:** uWebSockets.js é peer opcional (só `./uws`).
 - **Compatibilidade:** Bun/Node.
