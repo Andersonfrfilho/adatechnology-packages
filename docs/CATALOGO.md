@@ -97,6 +97,14 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`coupons-ui`](#adatechnologycoupons-ui) | painel inteiro (lista, editor, códigos, contatos, usos, relatório) e peças do site (campo de cupom, captação, banner) | `CampaignsWorkspace`, `CouponField`, `LeadCaptureDialog`, `CampaignBanner` |
 | [`coupon-contracts`](#adatechnologycoupon-contracts) | avaliador puro do desconto (mesma regra no site e no servidor), contato canônico, CSV/XLSX sem dependência | `evaluateCampaign`, `buildCsv`, `buildXlsx` |
 
+### Ficha técnica, custo de prato, preparo e lista de compras (não calcule custo à mão)
+
+| Pacote | O que resolve | Entrada |
+|---|---|---|
+| [`recipe-module`](#adatechnologyrecipe-module) | insumos com custo exato, ficha por produto (conversão de unidade, rendimento, tempo e modo de preparo), custo por porção e margem, lista de compras com estoque opcional, exportação CSV/XLSX | `createRecipeModule`, `createRecipeRoutes` |
+| [`recipes-ui`](#adatechnologyrecipes-ui) | lista de insumos completa, editor da ficha dentro do produto com custo ao vivo, resumo de custo e margem, tela de lista de compras | `IngredientsWorkspace`, `RecipeEditor`, `ShoppingListWorkspace` |
+| [`recipe-contracts`](#adatechnologyrecipe-contracts) | aritmética decimal exata, conversão de unidade, custo e necessidade de insumos puros (a mesma regra no navegador, no servidor e na baixa de estoque) | `calculateRecipeCost`, `calculateIngredientNeedsExact`, `buildShoppingList` |
+
 ### Notificações e modelos de mensagem/e-mail
 
 | Pacote | O que resolve | Entrada |
@@ -1082,6 +1090,51 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Rótulos por `messages` (pt-BR padrão, `en`), slots opcionais `renderSelect`/`renderDateTimeInput` para os componentes do design system do host, tema por variáveis `--acp-*`
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `coupon-module` (interfaces `CouponsAdminApi`, `CouponsPublicApi`). Peers: `react`, `react-dom`.
+- **Compatibilidade:** React 18+.
+- **Usado por:** nenhum ainda.
+
+### Fichas técnicas
+
+### @adatechnology/recipe-contracts
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0` pelo changeset) · `packages/backend/recipe-contracts`
+- **Para quê:** Contratos do trio de fichas técnicas: insumo, ficha, custo, lista de compras, schemas, erros, portas e o cálculo puro.
+- **O que você ganha:**
+  - Decimal exato sobre fração de `bigint` (`parseDecimal`, `multiply`, `divide`, `formatDecimal`, `toCents`) — nada de ponto flutuante em custo
+  - Unidades `mg g kg ml l un dz` e `convertQuantity` exata entre as compatíveis
+  - `calculateRecipeCost` (receita, porção, margem em centavos e pontos-base), `calculateIngredientNeedsExact` (consumo por produto, base da baixa de estoque), `buildShoppingList`/`shoppingListTable`
+  - Schemas zod compartilhados com o formulário; decimal aceita vírgula
+  - Portas `StockLevelPort` e `ProductReferencePort`; `buildCsv`/`buildXlsx` sem dependência
+- **Entradas:** `src/index.ts`
+- **Precisa de:** Nenhuma.
+- **Compatibilidade:** Isomórfico (Bun, Node, navegador).
+- **Usado por:** nenhum ainda.
+
+### @adatechnology/recipe-module
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/backend/recipe-module` · subpaths: `./http/fetch`, `./http/uws`, `./openapi`
+- **Para quê:** Ficha técnica com banco para qualquer produto que vende algo produzido (restaurante, confeitaria, cozinha de pousada): o produto e o preço são do host.
+- **O que você ganha:**
+  - Insumos por empresa com custo `numeric(14,4)`, fornecedor e observações; lista paginada com busca, filtro de unidade e ordenação; exportação CSV/XLSX com gancho de auditoria
+  - Ficha por `productId` opaco: linhas com conversão de unidade (200 g de um insumo em kg), rendimento, tempo e modo de preparo; gravação inteira numa transação, ids de linha preservados
+  - Custo por receita e por porção e margem sobre `salePriceCents` do host; lote de até 500 produtos (`POST /recipe-costs`)
+  - Lista de compras a partir de quantidades previstas; desconta estoque se o host ligar `StockLevelPort` (sem ela, necessidade bruta)
+  - Integridade no banco: FK composta (linha só aponta para insumo da mesma empresa), `RESTRICT` ao apagar insumo em uso, troca de unidade que quebraria linhas recusada
+  - Rotas por `createRecipeRoutes`: leitura, escrita e serviço com escopos configuráveis (`recipes:read/write/service`); empresa do token; id inválido = 404
+  - `lookupRecipes` (rota de serviço) para o futuro `stock-module` e para o backend do host; `createInMemoryRecipePersistence` para teste do host
+- **Entradas:** `createRecipeModule` em `src/RecipeModule.ts`; `createRecipeRoutes`; `runRecipeMigrations`; `recipeOpenApiPaths` em `./openapi`
+- **Precisa de:** PostgreSQL (Drizzle). Peers: `drizzle-orm`.
+- **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `recipes`; journal `recipe_migrations` no formato clássico (`meta/_journal.json`).
+- **Usado por:** nenhum ainda (Comandada tem a versão à mão a migrar: `docs/adoption/comandada-recipe-stock.md`).
+
+### @adatechnology/recipes-ui
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/recipes-ui` · subpath: `./styles.css`
+- **Para quê:** Telas de ficha técnica com API injetada.
+- **O que você ganha:**
+  - `IngredientsWorkspace`: busca com rótulo, filtro de unidade múltiplo, ordenação, zebra (cartões no celular), paginação no servidor, total, exportar página ou todos (CSV/Excel), criar/editar/excluir com confirmação; slot `renderRowActions`
+  - `RecipeEditor` dentro do produto do host: busca de insumo enquanto digita, unidade só entre as compatíveis, custo por linha e resumo ao vivo com o mesmo cálculo do servidor
+  - `RecipeCostSummary` e `ShoppingListWorkspace` (origens de quantidade do host, estoque quando ligado, exportação)
+  - Headless: `useIngredientList`, `useRecipeEditor`, `useShoppingList`; sem controle nativo; `renderSelect` do host; rótulos por `messages` (pt-BR, `en`); tema `--arc-*`
+- **Entradas:** `src/index.ts`
+- **Precisa de:** API compatível com `recipe-module` (interface `RecipesApi`). Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
 - **Usado por:** nenhum ainda.
 
