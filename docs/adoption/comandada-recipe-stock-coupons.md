@@ -1,22 +1,22 @@
-# Adoção: ficha técnica e estoque do SDK no Comandada
+# Adoção: ficha técnica, estoque e cupons do SDK no Comandada
 
 Roteiro para trocar a ficha técnica e o estoque feitos à mão no Comandada pelos trios `recipe-*` e `stock-*` do SDK,
 **sem perder dado** e mantendo os ids dos insumos. Escrito a partir da leitura do código do Comandada (só leitura;
 nada foi alterado lá). Nenhum dado de empresa aparece aqui: os exemplos usam ids fictícios.
 
-> Este roteiro só roda **depois da publicação** dos pacotes (merge com ok escrito do dono → `publish.yml`). Antes
-> disso, os pacotes não existem no npm e o CI do Comandada quebra.
+> Todos os pacotes citados já estão publicados no npm (conferido em 2026-11-28). Confira de novo com `npm view` antes
+> de começar e use a versão exata.
 
 ## 1. Pacotes e versões
 
 | Lado | Pacote | Versão |
 |---|---|---|
-| API | `@adatechnology/recipe-contracts` | `<version after publication>` |
-| API | `@adatechnology/recipe-module` | `<version after publication>` |
-| API | `@adatechnology/stock-contracts` | `<version after publication>` |
-| API | `@adatechnology/stock-module` | `<version after publication>` |
-| Web | `@adatechnology/recipes-ui` | `<version after publication>` |
-| Web | `@adatechnology/stock-ui` | `<version after publication>` |
+| API | `@adatechnology/recipe-contracts` | `0.1.0` |
+| API | `@adatechnology/recipe-module` | `0.1.0` |
+| API | `@adatechnology/stock-contracts` | `0.1.0` |
+| API | `@adatechnology/stock-module` | `0.1.0` |
+| Web | `@adatechnology/recipes-ui` | `0.1.0` |
+| Web | `@adatechnology/stock-ui` | `0.1.0` |
 
 Conferir antes: `npm view @adatechnology/recipe-module dist-tags` (o repositório do SDK publica em `rc` quando está em
 modo pré-release: fixar a versão `x.y.z-rc.N` exata). Versão fixa, sem `^`, como o resto das dependências do Comandada.
@@ -306,24 +306,80 @@ conflito de PK antes de ligar.
 - ligar a sincronização da loja nas tabelas novas (§5.5);
 - apagar qualquer tabela ou coluna antiga (não faz parte deste ciclo).
 
-## 10. Prompt de execução
+## 11. Cupons de desconto (novo no Comandada)
+
+Hoje o Comandada **não tem cupom de desconto**: "cupom" no código é o cupom fiscal (`modules/fiscal`), que não muda.
+Esta parte é adoção nova, sem migração de dados.
+
+| Lado | Pacote | Versão |
+|---|---|---|
+| API | `@adatechnology/coupon-contracts` | `0.2.0` |
+| API | `@adatechnology/coupon-module` | `0.2.0` |
+| API | `@adatechnology/module-http` | `0.4.0` ou mais nova (o adaptador fetch recebe o IP: `router.handle(request, { ip })`) |
+| Web | `@adatechnology/coupons-ui` | `0.2.0` |
+
+### 11.1 Ligação na API
+
+- `runCouponMigrations` no boot (schema próprio `coupons`), junto das outras migrations dos módulos.
+- `createCouponModule({ db, config, providers, hooks })` com o relógio do servidor e o fuso do estabelecimento.
+  Funciona com Bun SQL e com postgres.js (a 0.2.0 corrigiu o bind de data no postgres.js).
+- Rotas pelo `router.raw`, `companyId` = `establishment_id` **sempre do token** (nunca do corpo), escopos:
+  administração para dono/gerente; `leadReadScopes` só se alguém precisar ler os contatos sem editar.
+- IP real do cliente (mesma regra de proxy do Comandada) passado ao roteador: sem IP, as rotas públicas respondem 429.
+
+### 11.2 Pedido usa o cupom
+
+- **Aplicar no carrinho/comanda:** `quoteCoupon` com os itens (`productId`, quantidade, preço em centavos) devolve o
+  desconto e o total, **sem gravar nada**. Campanha restrita a produtos/categorias precisa dos itens.
+- **Fechar o pedido:** `redeem` com `orderRef = { kind: 'order', id: <orderId> }` na mesma operação que grava o pedido;
+  se a gravação do pedido falhar, `release`. O desconto gravado no pedido vem do módulo, nunca do cliente.
+- **Cancelar/estornar:** `release` (idempotente). **Reabrir:** `redeem` de novo com o mesmo `orderRef`.
+- **Nota fiscal:** o desconto entra no item/total da NF-e/NFC-e como desconto comercial; conferir o cálculo com o
+  emissor atual antes de ligar (ponto de parada).
+- **Robô do WhatsApp:** aceitar "cupom XYZ" no fechamento chamando `quoteCoupon`; nunca prometer o desconto antes
+  da validação.
+
+### 11.3 Painel e site
+
+- `CampaignsWorkspace` do `coupons-ui` numa página "Campanhas" (tema pelos tokens do Comandada, select e data da casa
+  injetados por `renderSelect` / `renderDateRangeInput`), com contatos, período, exportação e etiqueta por campanha.
+- Campo "Cupom" no fechamento da comanda/pedido do painel e do cardápio online, com o resultado da validação no campo.
+- Captação de contato (`LeadCaptureDialog`) só se o dono quiser campanha de captação; consentimento LGPD obrigatório.
+
+### 11.4 Testes e pronto
+
+- Pedido com cupom percentual e com valor fixo; limite de usos (10 pedidos simultâneos num limite de 3 → 3);
+  cancelar libera; reabrir reaproveita; cupom de outro estabelecimento é recusado (404 genérico).
+- Total do pedido, do caixa e da nota fiscal batem com o desconto do módulo.
+- Painel em 1366 e 375.
+
+### 11.5 Parar e perguntar antes de
+
+- como o desconto entra na nota fiscal e no fechamento de caixa;
+- se cupom vale para delivery, mesa ou os dois, e se soma com taxa de entrega;
+- ligar a captação de contatos (texto de consentimento e uso dos dados).
+
+## 12. Prompt de execução
 
 ```text
-/oh-my-claudecode:autopilot Aplique os módulos de ficha técnica e estoque do SDK no Comandada seguindo
-adatechnology-packages/docs/adoption/comandada-recipe-stock.md (leia o arquivo inteiro e o CLAUDE.md do Comandada
+/oh-my-claudecode:autopilot Aplique os módulos de ficha técnica, estoque e cupons do SDK no Comandada seguindo
+adatechnology-packages/docs/adoption/comandada-recipe-stock-coupons.md (leia o arquivo inteiro e o CLAUDE.md do Comandada
 antes de tocar em código). Trabalhe num worktree novo do Comandada a partir da branch padrão, sem mexer no checkout
 principal. Pacotes: recipe-contracts, recipe-module, stock-contracts, stock-module (API) e recipes-ui, stock-ui (web),
-nas versões publicadas (confira com npm view; se não existirem, pare).
+nas versões da seção 1, e coupon-contracts/coupon-module/coupons-ui 0.2.0 com module-http ≥ 0.4.0 (seção 11);
+confira com npm view.
 Fases e modelos:
   Fase 1 (ligação na API: módulos, migrations, authResolver, rotas por router.raw) → executor model=sonnet
   Fase 2 (migração de dados §3 em banco local descartável com cópia anonimizada, contagens antes/depois) → executor model=sonnet
   T2.x 🧠 decisão da unidade das linhas e do padrão de stock.enabled → parar e perguntar ao dono
   Fase 3 (substituir controllers/use cases §5.1, espelho de preparo §5.3, relatório §5.4) → executor model=sonnet
   Fase 4 (painel §6: IngredientsWorkspace, RecipeEditor, IngredientStockPanel, ShoppingListWorkspace) → executor model=sonnet
+  Fase 4b (cupons §11: módulo, redeem/release no pedido, quoteCoupon no fechamento, página Campanhas) → executor model=sonnet
+  T4b.x 🧠 desconto na nota fiscal e no caixa → parar e perguntar ao dono
   Fase 5 (passes mecânicos: seeds para use cases, textos, remoção de imports mortos) → executor model=haiku
   Revisão final → code-reviewer model=sonnet; gate de publicação → opus
 Escalada: gate falhou 2x → sobe um nível (haiku→sonnet→opus) e registra em evidence.md.
 Cada task fecha com bun run typecheck + bun test (api e web) + commit isolado, evidência em evidence.md.
 Pare e pergunte antes de: migração de dados em staging ou produção, deploy, ligar a sincronização da loja nas
-tabelas novas, apagar tabela ou coluna antiga, e qualquer ponto da seção 9.
+tabelas novas, apagar tabela ou coluna antiga, e qualquer ponto das seções 9 e 11.5.
 ```
