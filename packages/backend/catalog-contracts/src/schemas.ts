@@ -10,6 +10,7 @@ import { z } from 'zod'
 
 import { availabilityScheduleSchema } from './availabilitySchedule'
 import { PRODUCT_SYNC_STATUS } from './catalog.types'
+import { PRODUCT_ORDER_ELIGIBILITY_KEY, productOrderEligibilitySchema } from './orderEligibility'
 
 const MAX_PAGE_SIZE = 100
 const MAX_PRICE_IN_CENTS = 100_000_000 // R$ 1.000.000,00 — teto de sanidade, não regra de negócio
@@ -24,6 +25,15 @@ const MAX_ATTRIBUTES_BYTES = 16_384
 export const productAttributesSchema = z
   .record(z.unknown())
   .refine((value) => JSON.stringify(value).length <= MAX_ATTRIBUTES_BYTES, 'attributes grande demais')
+  // A chave reservada tem formato próprio; as demais continuam livres.
+  .superRefine((value, context) => {
+    if (!(PRODUCT_ORDER_ELIGIBILITY_KEY in value)) return
+    const parsed = productOrderEligibilitySchema.safeParse(value[PRODUCT_ORDER_ELIGIBILITY_KEY])
+    if (parsed.success) return
+    for (const issue of parsed.error.issues) {
+      context.addIssue({ ...issue, path: [PRODUCT_ORDER_ELIGIBILITY_KEY, ...issue.path] })
+    }
+  })
 
 const barcode = z.string().regex(/^\d{8}$|^\d{12,14}$/)
 

@@ -1,5 +1,7 @@
 import type { BackgroundRemovalConfig } from '@adatechnology/image-cutout'
 
+import type { OrderEligibilityLabels } from '../lib/orderEligibility'
+
 // Colunas que o servidor sabe ordenar (espelha `PRODUCT_SORT_FIELD` do `catalog-contracts`).
 export const PRODUCT_SORT_FIELD = {
   NAME: 'name',
@@ -77,6 +79,8 @@ export const PRODUCT_OPTIONAL_FIELD = {
   AVAILABILITY_SCHEDULE: 'availabilitySchedule',
   // Editor de pares chave/valor para `attributes`.
   ATTRIBUTES: 'attributes',
+  // Seção "Quem pode pedir": idade mínima e público. Vive em `attributes.orderEligibility`.
+  ORDER_ELIGIBILITY: 'orderEligibility',
 } as const
 export type ProductOptionalField = (typeof PRODUCT_OPTIONAL_FIELD)[keyof typeof PRODUCT_OPTIONAL_FIELD]
 
@@ -102,6 +106,19 @@ export type AvailabilitySchedule = {
   readonly until?: string
   // Fuso IANA; ausente = o padrão configurado no backend.
   readonly timeZone?: string
+}
+
+export const ORDER_AUDIENCE = {
+  EVERYONE: 'everyone',
+  STAYING_GUESTS: 'staying_guests',
+} as const
+export type OrderAudience = (typeof ORDER_AUDIENCE)[keyof typeof ORDER_AUDIENCE]
+
+// Espelha `ProductOrderEligibility` do `catalog-contracts`.
+export type ProductOrderEligibility = {
+  // Inteiro de 0 a 21; ausente/`null` = sem restrição.
+  readonly minimumAge?: number | null
+  readonly audience?: OrderAudience
 }
 
 export type Product = {
@@ -252,6 +269,8 @@ export type ProductsConfig = {
   // Ausente, o botão de remover fundo não é desenhado — capacidade por ausência. O host informa de
   // onde o modelo é servido porque ele pesa alguns MB e não cabe dentro do pacote.
   readonly backgroundRemoval?: BackgroundRemovalConfig
+  // Textos da seção "Quem pode pedir"; o que não vier usa o padrão em pt-BR.
+  readonly orderEligibilityLabels?: Partial<OrderEligibilityLabels>
 }
 
 export const DEFAULT_UNIT_OPTIONS = ['un', 'kg', 'g', 'l', 'ml', 'pc', 'cx', 'dz'] as const

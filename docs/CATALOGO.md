@@ -686,6 +686,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Versão:** `0.1.0` · `packages/backend/catalog-contracts`
 - **Para quê:** Contratos do trio de catálogo: produto, catálogo, seção, schemas, eventos e portas.
 - **O que você ganha:**
+  - **Quem pode pedir:** `attributes.orderEligibility` (`ProductOrderEligibility`: `minimumAge` inteiro 0–21 ou `null`, `audience` `everyone`|`staying_guests`), validado nos schemas de criar/atualizar produto (`productOrderEligibilitySchema`, `ORDER_AUDIENCE`). Sem migration; o módulo guarda e devolve, quem aplica a regra no pedido é o host
   - Dinheiro em centavos inteiros; portas `MetaCatalogSyncPort`, `ProductImageStoragePort`, `ProductSuggestionPort`; erros com status estável
 - **Entradas:** `src/index.ts`
 - **Precisa de:** Nenhuma.
@@ -744,6 +745,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Para quê:** Gestão de produtos e catálogos com API injetada.
 - **O que você ganha:**
   - `ProductsWorkspace`, `ProductList`, `ProductForm`, `CatalogList`, `BulkImport`, `ImageUpload` (com recorte de fundo)
+  - **Quem pode pedir (opt-in):** campo `PRODUCT_OPTIONAL_FIELD.ORDER_ELIGIBILITY` liga a seção "Quem pode pedir" no `ProductForm` (idade mínima 0–21 com atalho "18", público Todos / Só hóspedes com estadia ativa), gravada em `attributes.orderEligibility`; textos em `config.orderEligibilityLabels`
   - **API pronta para o `catalog-module`:** `createCatalogModuleProductsApi({ baseUrl, getHeaders })` implementa `ProductsApi` sobre as rotas do módulo (envelope, paginação, importação CSV com `parseBulkImportCsv`, erro `CatalogModuleApiError`)
   - **Lista em tabela (opt-in):** `<ProductsWorkspace listing={{}} />` liga busca no servidor, filtros de seleção múltipla (catálogo, seção, disponibilidade, preço sob consulta), colunas ordenáveis, zebra, seleção com ações em lote (ativar/desativar, mover de catálogo, excluir com confirmação), paginação com itens por página, total de resultados e cartões no celular. O host injeta `renderSelect`/`renderMultiSelect` (o `Select` do design system dele), `renderExport` (menu de exportação) e guarda o estado na URL com `parseProductsListQuery`/`serializeProductsListQuery`
 - **Entradas:** `src/index.ts`

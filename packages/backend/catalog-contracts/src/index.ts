@@ -11,6 +11,7 @@ export type {
   ProductSyncStatus,
   ProductAvailability,
   Product,
+  ProductAttributes,
   Catalog,
   Section,
   PaginatedResponse,
@@ -26,6 +27,15 @@ export type {
   BulkImportResult,
   MetaSyncConfig,
 } from './catalog.types'
+
+export {
+  ORDER_AUDIENCE,
+  MIN_ORDER_AGE,
+  MAX_ORDER_AGE,
+  PRODUCT_ORDER_ELIGIBILITY_KEY,
+  productOrderEligibilitySchema,
+} from './orderEligibility'
+export type { OrderAudience, ProductOrderEligibility } from './orderEligibility'
 
 export {
   createProductSchema,

@@ -28,7 +28,12 @@ function build(overrides: Partial<CatalogDependencies> = {}) {
     products,
     catalogs: createInMemoryCatalogs(),
     sections: createInMemorySections(),
-    config: { currency: 'BRL', locale: 'pt-BR', defaultTimeZone: 'America/Sao_Paulo', metaSync: { products: true, catalogs: false } },
+    config: {
+      currency: 'BRL',
+      locale: 'pt-BR',
+      defaultTimeZone: 'America/Sao_Paulo',
+      metaSync: { products: true, catalogs: false },
+    },
     ...overrides,
   } as unknown as CatalogDependencies
   return { dependencies, products }
@@ -48,10 +53,16 @@ describe('preço sob consulta', () => {
 
   it('update pode limpar e definir o preço', async () => {
     const { dependencies } = build()
-    const created = await new CreateProductUseCase(dependencies).execute({ companyId: COMPANY_ID, name: 'X', priceInCents: 500 })
+    const created = await new CreateProductUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      name: 'X',
+      priceInCents: 500,
+    })
     const update = new UpdateProductUseCase(dependencies)
 
-    expect((await update.execute({ companyId: COMPANY_ID, id: created.id, priceInCents: null })).priceInCents).toBeNull()
+    expect(
+      (await update.execute({ companyId: COMPANY_ID, id: created.id, priceInCents: null })).priceInCents,
+    ).toBeNull()
     expect((await update.execute({ companyId: COMPANY_ID, id: created.id, priceInCents: 900 })).priceInCents).toBe(900)
   })
 
@@ -64,9 +75,16 @@ describe('preço sob consulta', () => {
       },
     } as unknown as MetaCatalogSyncPort
     const { dependencies } = build({ metaSync })
-    const created = await new CreateProductUseCase(dependencies).execute({ companyId: COMPANY_ID, name: 'Festa', priceInCents: null })
+    const created = await new CreateProductUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      name: 'Festa',
+      priceInCents: null,
+    })
 
-    const outcome = await new SyncProductToMetaUseCase(dependencies).execute({ companyId: COMPANY_ID, productId: created.id })
+    const outcome = await new SyncProductToMetaUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      productId: created.id,
+    })
 
     expect(outcome.outcome).toBe('permanent')
     expect(calls).toBe(0)
@@ -121,12 +139,19 @@ describe('agenda de disponibilidade', () => {
       available: false,
       reason: 'outside_schedule',
     })
-    expect(await check.execute({ companyId: COMPANY_ID, id: paused.id, at })).toEqual({ available: false, reason: 'inactive' })
+    expect(await check.execute({ companyId: COMPANY_ID, id: paused.id, at })).toEqual({
+      available: false,
+      reason: 'inactive',
+    })
   })
 
   it('esgotado/pausado (`availability`) vence a agenda', async () => {
     const { dependencies, products } = build()
-    const created = await new CreateProductUseCase(dependencies).execute({ companyId: COMPANY_ID, name: 'X', priceInCents: 1 })
+    const created = await new CreateProductUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      name: 'X',
+      priceInCents: 1,
+    })
     await products.update({ companyId: COMPANY_ID, id: created.id, values: { availability: 'out of stock' } })
 
     const verdict = await new IsProductAvailableUseCase(dependencies).execute({ companyId: COMPANY_ID, id: created.id })
@@ -168,7 +193,11 @@ describe('attributes', () => {
     })
     expect(replaced.attributes).toEqual({ capacity: 2 })
 
-    const plain = await new CreateProductUseCase(dependencies).execute({ companyId: COMPANY_ID, name: 'Y', priceInCents: 1 })
+    const plain = await new CreateProductUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      name: 'Y',
+      priceInCents: 1,
+    })
     expect(plain.attributes).toEqual({})
   })
 
@@ -182,8 +211,34 @@ describe('attributes', () => {
     const { dependencies, products } = build({ attributesValidator })
     const create = new CreateProductUseCase(dependencies)
 
-    await expect(create.execute({ companyId: COMPANY_ID, name: 'Q', priceInCents: 1, attributes: { capacity: 'x' } })).rejects.toBeInstanceOf(HostError)
+    await expect(
+      create.execute({ companyId: COMPANY_ID, name: 'Q', priceInCents: 1, attributes: { capacity: 'x' } }),
+    ).rejects.toBeInstanceOf(HostError)
     expect(products.rows).toHaveLength(0)
-    await expect(create.execute({ companyId: COMPANY_ID, name: 'Q', priceInCents: 1, attributes: { capacity: 3 } })).resolves.toBeDefined()
+    await expect(
+      create.execute({ companyId: COMPANY_ID, name: 'Q', priceInCents: 1, attributes: { capacity: 3 } }),
+    ).resolves.toBeDefined()
+  })
+})
+
+describe('attributes.orderEligibility', () => {
+  it('é guardado em attributes, devolvido na leitura e substituído no update', async () => {
+    const { dependencies } = build()
+    const created = await new CreateProductUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      name: 'Item restrito',
+      priceInCents: 1000,
+      attributes: { orderEligibility: { minimumAge: 18, audience: 'staying_guests' } },
+    })
+
+    expect(created.attributes?.orderEligibility).toEqual({ minimumAge: 18, audience: 'staying_guests' })
+
+    const updated = await new UpdateProductUseCase(dependencies).execute({
+      companyId: COMPANY_ID,
+      id: created.id,
+      attributes: { orderEligibility: { minimumAge: null } },
+    })
+
+    expect(updated.attributes?.orderEligibility).toEqual({ minimumAge: null })
   })
 })
