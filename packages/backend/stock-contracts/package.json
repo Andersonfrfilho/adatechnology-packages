@@ -1,0 +1,37 @@
+{
+  "name": "@adatechnology/stock-contracts",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "Shared types, zod schemas, errors and ports for the optional stock trio — levels per ingredient with minimum, batches with expiry, movements (in/out/adjust/loss) with reason and actor, order deduction through recipes, inventory counts; builds on recipe-contracts units and exact decimals; isomorphic, no I/O",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "zod": "^3.24.1",
+    "@adatechnology/recipe-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.14",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  }
+}
