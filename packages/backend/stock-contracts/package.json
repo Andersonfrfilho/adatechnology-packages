@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/stock-contracts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Shared types, zod schemas, errors and ports for the optional stock trio — levels per ingredient with minimum, batches with expiry, movements (in/out/adjust/loss) with reason and actor, order deduction through recipes, inventory counts; builds on recipe-contracts units and exact decimals; isomorphic, no I/O",
   "publishConfig": {

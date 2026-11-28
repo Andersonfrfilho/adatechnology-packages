@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/recipe-module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Stateful recipe costing module (ficha técnica) — ingredients with exact cost per unit, recipe per host product with unit conversion, yield, preparation time and instructions, cost per portion and margin, shopping list with optional stock port, CSV/XLSX export; schema, migrations and module-http routes",
   "publishConfig": {

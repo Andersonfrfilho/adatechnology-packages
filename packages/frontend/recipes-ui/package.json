@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/recipes-ui",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Recipe costing UI (ficha técnica) — IngredientsWorkspace (search, unit filter, sort, server pagination, total, CSV/XLSX export, create/edit/delete), RecipeEditor with live cost and margin, RecipeCostSummary and ShoppingListWorkspace; headless hooks; API injected, no native controls, themable tokens",
   "publishConfig": {

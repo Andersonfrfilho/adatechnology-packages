@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/stock-module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Optional stateful stock module — levels per ingredient with minimum and alert hook, batches with expiry and expiry scan job, movements (in/out/adjust/loss) with reason and actor, idempotent deduction per order line through recipes (FEFO), inventory count sessions; implements recipe-module StockLevelPort; enabled per company; schema, migrations and module-http routes",
   "publishConfig": {

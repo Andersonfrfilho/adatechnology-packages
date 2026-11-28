@@ -1,6 +1,6 @@
 {
   "name": "@adatechnology/recipe-contracts",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Shared types, zod schemas, errors and ports for the recipe costing trio (ficha técnica) — exact decimal arithmetic, unit conversion, pure recipe cost, margin, ingredient needs and shopping list, plus dependency-free CSV and XLSX writers; isomorphic, no I/O",
   "publishConfig": {
