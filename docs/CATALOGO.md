@@ -105,6 +105,14 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 | [`recipes-ui`](#adatechnologyrecipes-ui) | lista de insumos completa, editor da ficha dentro do produto com custo ao vivo, resumo de custo e margem, tela de lista de compras | `IngredientsWorkspace`, `RecipeEditor`, `ShoppingListWorkspace` |
 | [`recipe-contracts`](#adatechnologyrecipe-contracts) | aritmética decimal exata, conversão de unidade, custo e necessidade de insumos puros (a mesma regra no navegador, no servidor e na baixa de estoque) | `calculateRecipeCost`, `calculateIngredientNeedsExact`, `buildShoppingList` |
 
+### Estoque de insumos: saldo, mínimo, lotes e validade, baixa por pedido, inventário (opcional por empresa)
+
+| Pacote | O que resolve | Entrada |
+|---|---|---|
+| [`stock-module`](#adatechnologystock-module) | saldo por insumo com mínimo e aviso, lotes com validade e varredura diária, movimentos com motivo e autor, baixa por pedido pela ficha (idempotente por linha, FEFO), inventário; ligado por empresa; é o `StockLevelPort` do `recipe-module` | `createStockModule`, `createStockRoutes` |
+| [`stock-ui`](#adatechnologystock-ui) | painel do estoque do insumo (no slot da lista de insumos), saldos com filtro, inventário | `IngredientStockButton`, `StockLevelsWorkspace`, `InventoryWorkspace` |
+| [`stock-contracts`](#adatechnologystock-contracts) | tipos, schemas e o plano FEFO puro | `planFefoConsumption`, `deductOrderSchema` |
+
 ### Notificações e modelos de mensagem/e-mail
 
 | Pacote | O que resolve | Entrada |
@@ -1141,6 +1149,42 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
   - Headless: `useIngredientList`, `useRecipeEditor`, `useShoppingList`; sem controle nativo; `renderSelect` do host; rótulos por `messages` (pt-BR, `en`); tema `--arc-*`
 - **Entradas:** `src/index.ts`
 - **Precisa de:** API compatível com `recipe-module` (interface `RecipesApi`). Peers: `react`, `react-dom`.
+- **Compatibilidade:** React 18+.
+- **Usado por:** nenhum ainda.
+
+### Estoque
+
+### @adatechnology/stock-contracts
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/backend/stock-contracts`
+- **Para quê:** Contratos do trio de estoque: saldo, lote, movimento, inventário, baixa por pedido.
+- **O que você ganha:** schemas zod de entrada, ajuste, perda, baixa e inventário; erros `StockError`; portas `IngredientCatalogPort` e `RecipeSourcePort` no formato do `recipe-module`; `planFefoConsumption` puro.
+- **Entradas:** `src/index.ts`
+- **Precisa de:** `@adatechnology/recipe-contracts` (unidades e decimal exato).
+- **Compatibilidade:** Isomórfico.
+- **Usado por:** nenhum ainda.
+
+### @adatechnology/stock-module
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/backend/stock-module` · subpaths: `./http/fetch`, `./http/uws`, `./openapi`
+- **Para quê:** Estoque opcional sobre os insumos e fichas do `recipe-module`, ligado só para as empresas que usam.
+- **O que você ganha:**
+  - Saldo por insumo (`numeric(14,4)`, pode ficar negativo e aparece), mínimo com gancho `onBelowMinimum` uma vez por cruzamento
+  - Lotes com validade e custo; varredura `scanExpiringBatches` para o job diário do host (`onBatchesExpiring` por empresa)
+  - Movimentos `in`/`out`/`adjust`/`loss` com motivo e autor; perda de lote certo ou FEFO
+  - `deductOrder`: baixa pela ficha, idempotente por linha do pedido (PK em `stock.deductions`), FEFO, níveis travados em ordem (sem deadlock)
+  - Inventário com contagem parcial, um aberto por empresa (índice parcial), aplicado contra o saldo do momento
+  - `useCases.getLevels` implementa o `StockLevelPort` do `recipe-module` (lista de compras desconta o saldo)
+  - `isEnabledForCompany`: desligado = rotas 404, baixa `disabled`, `getLevels` vazio
+- **Entradas:** `createStockModule`, `createStockRoutes`, `runStockMigrations`, `stockOpenApiPaths`
+- **Precisa de:** PostgreSQL (Drizzle); portas de catálogo e de fichas (ex.: `recipe-module`).
+- **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `stock`; journal `stock_migrations`.
+- **Usado por:** nenhum ainda (roteiro de adoção: `docs/adoption/comandada-recipe-stock.md`).
+
+### @adatechnology/stock-ui
+- **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/stock-ui` · subpath: `./styles.css`
+- **Para quê:** Telas de estoque sobre as peças e tokens do `recipes-ui` (vão dentro do `RecipesProvider`).
+- **O que você ganha:** `IngredientStockButton` para o slot da lista de insumos, `IngredientStockPanel` (saldo, mínimo, entrada com validade digitada, ajuste, perda, lotes, movimentos), `StockLevelsWorkspace`, `InventoryWorkspace`; sem controle nativo.
+- **Entradas:** `src/index.ts`
+- **Precisa de:** `recipes-ui`; API compatível com `stock-module` (`StockApi`). Peers: `react`, `react-dom`.
 - **Compatibilidade:** React 18+.
 - **Usado por:** nenhum ainda.
 
