@@ -116,10 +116,14 @@ jobs:
             # Espera crescente (5+10+20+40+60+60 = ~3min por pacote): propagação passa sozinha,
             # restrição de acesso nunca passa. Os pacotes esperam em paralelo, então o pior caso
             # é o de um pacote só, e não a soma de todos.
+            # `-s` sem `-S`: cada tentativa que ainda dá 404 durante a propagação é esperada e não
+            # vai para o log; só o resultado final de cada pacote aparece.
+            tentativas=0
             for espera in 0 5 10 20 40 60 60; do
               [ "$espera" -gt 0 ] && sleep "$espera"
-              if curl -fsS -o /dev/null "$url"; then
-                echo "ok       $nome@$versao"
+              tentativas=$((tentativas + 1))
+              if curl -fs -o /dev/null "$url"; then
+                echo "ok       $nome@$versao (tentativa $tentativas)"
                 return 0
               fi
             done
