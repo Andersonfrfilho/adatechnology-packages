@@ -54,6 +54,10 @@ export type {
   RenderTimeInput,
   TimeInputProps,
 } from './AvailabilityScheduleEditor'
+export { OrderEligibilitySection } from './OrderEligibilitySection'
+export type { OrderEligibilitySectionProps } from './OrderEligibilitySection'
+export { DEFAULT_ORDER_ELIGIBILITY_LABELS } from './lib/orderEligibility'
+export type { OrderEligibilityLabels } from './lib/orderEligibility'
 export { AttributesEditor } from './AttributesEditor'
 export type { AttributesEditorProps } from './AttributesEditor'
 
@@ -63,6 +67,7 @@ export type { MoneyFormat } from './lib/money'
 
 export {
   PRODUCT_OPTIONAL_FIELD,
+  ORDER_AUDIENCE,
   PRODUCT_SYNC_STATUS,
   DEFAULT_PRODUCTS_CONFIG,
   DEFAULT_UNIT_OPTIONS,
@@ -78,6 +83,8 @@ export type {
   ProductsConfig,
   MetaSyncConfig,
   ProductOptionalField,
+  OrderAudience,
+  ProductOrderEligibility,
   ProductSyncStatus,
   AvailabilitySchedule,
   Weekday,

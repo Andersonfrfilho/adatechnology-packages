@@ -7,6 +7,16 @@ import { ImageUpload } from './ImageUpload'
 import { AttributesEditor } from './AttributesEditor'
 import { AvailabilityScheduleEditor, type AvailabilityScheduleDraft, type RenderTimeInput } from './AvailabilityScheduleEditor'
 import { ActiveSwitch } from './ActiveSwitch'
+import { OrderEligibilitySection } from './OrderEligibilitySection'
+import {
+  DEFAULT_ORDER_ELIGIBILITY_LABELS,
+  ORDER_ELIGIBILITY_KEY,
+  buildOrderEligibility,
+  toOrderEligibilityDraft,
+  validateOrderEligibility,
+  withoutOrderEligibility,
+  type OrderEligibilityDraft,
+} from './lib/orderEligibility'
 import { DEFAULT_PRICE_ON_REQUEST_LABEL, attributesToEntries, buildSchedule, entriesToAttributes, validateSchedule, type AttributeEntry } from './lib/productFields'
 import { applyMarginToCost, formatMoney, maskMoneyInput } from './lib/money'
 
@@ -57,6 +67,7 @@ type FormState = {
   hasSchedule: boolean
   schedule: AvailabilityScheduleDraft
   attributes: readonly AttributeEntry[]
+  orderEligibility: OrderEligibilityDraft
 }
 
 const INPUT_CLASS = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
@@ -115,6 +126,7 @@ export function ProductForm({
 }: ProductFormProps) {
   const config = useProductsConfig()
   const isFieldEnabled = useIsProductFieldEnabled()
+  const orderEligibilityLabels = { ...DEFAULT_ORDER_ELIGIBILITY_LABELS, ...config.orderEligibilityLabels }
   const moneyFormat = { currency: config.currency, locale: config.locale }
 
   const toMoneyField = useCallback(
@@ -146,7 +158,9 @@ export function ProductForm({
       until: initialValues?.availabilitySchedule?.until ?? '',
       timeZone: initialValues?.availabilitySchedule?.timeZone ?? '',
     },
-    attributes: attributesToEntries(initialValues?.attributes),
+    // A chave reservada tem seção própria; no editor de pares ela viraria JSON cru.
+    attributes: attributesToEntries(withoutOrderEligibility(initialValues?.attributes)),
+    orderEligibility: toOrderEligibilityDraft(initialValues?.attributes),
   })
 
   const [submitting, setSubmitting] = useState(false)
@@ -269,9 +283,27 @@ export function ProductForm({
       if (scheduleError) newErrors.schedule = scheduleError
     }
 
+    if (isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ORDER_ELIGIBILITY) && !validateOrderEligibility(form.orderEligibility)) {
+      newErrors.orderEligibility = orderEligibilityLabels.invalidAge
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
-  }, [form, isFieldEnabled])
+  }, [form, isFieldEnabled, orderEligibilityLabels.invalidAge])
+
+  // O update substitui `attributes` inteiro: com só a seção de elegibilidade ligada, as demais
+  // chaves do produto precisam voltar junto, senão o salvamento as apaga.
+  const buildAttributes = useCallback((): Record<string, unknown> => {
+    const base = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ATTRIBUTES)
+      ? withoutOrderEligibility(entriesToAttributes(form.attributes))
+      : withoutOrderEligibility(initialValues?.attributes)
+    if (!isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ORDER_ELIGIBILITY)) {
+      const preserved = initialValues?.attributes?.[ORDER_ELIGIBILITY_KEY]
+      return preserved === undefined ? base : { ...base, [ORDER_ELIGIBILITY_KEY]: preserved }
+    }
+    const orderEligibility = buildOrderEligibility(form.orderEligibility)
+    return orderEligibility ? { ...base, [ORDER_ELIGIBILITY_KEY]: orderEligibility } : base
+  }, [form.attributes, form.orderEligibility, initialValues?.attributes, isFieldEnabled])
 
   const handleSubmit = useCallback(async (e: FormEvent) => {
     e.preventDefault()
@@ -318,15 +350,15 @@ export function ProductForm({
               ? { availabilitySchedule: null }
               : {}
           : {}),
-        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ATTRIBUTES)
-          ? { attributes: entriesToAttributes(form.attributes) }
+        ...(isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ATTRIBUTES) || isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ORDER_ELIGIBILITY)
+          ? { attributes: buildAttributes() }
           : {}),
         active: form.active,
       })
     } finally {
       setSubmitting(false)
     }
-  }, [form, initialValues?.id, isFieldEnabled, onSubmit, validate])
+  }, [buildAttributes, form, initialValues?.id, isFieldEnabled, onSubmit, validate])
 
   const isEditing = !!initialValues?.id
   const showCostPrice = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.COST_PRICE)
@@ -340,6 +372,7 @@ export function ProductForm({
   const showPriceOnRequest = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.PRICE_ON_REQUEST)
   const showSchedule = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.AVAILABILITY_SCHEDULE)
   const showAttributes = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ATTRIBUTES)
+  const showOrderEligibility = isFieldEnabled(PRODUCT_OPTIONAL_FIELD.ORDER_ELIGIBILITY)
   const isPriceOnRequest = showPriceOnRequest && form.priceOnRequest
   const moneyPlaceholder = formatMoney(0, moneyFormat)
   const unitOptions = config.unitOptions ?? DEFAULT_UNIT_OPTIONS
@@ -646,6 +679,15 @@ export function ProductForm({
 
       {showAttributes && (
         <AttributesEditor entries={form.attributes} onChange={(entries) => updateField('attributes', entries)} />
+      )}
+
+      {showOrderEligibility && (
+        <OrderEligibilitySection
+          value={form.orderEligibility}
+          labels={orderEligibilityLabels}
+          onChange={(value) => updateField('orderEligibility', value)}
+          {...(errors.orderEligibility ? { error: errors.orderEligibility } : {})}
+        />
       )}
 
       <div className="flex items-center gap-3">

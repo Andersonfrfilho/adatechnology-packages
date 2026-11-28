@@ -8,6 +8,7 @@
  */
 
 import type { AvailabilitySchedule } from './availabilitySchedule'
+import type { ProductOrderEligibility } from './orderEligibility'
 
 export type CatalogId = string
 export type ProductId = string
@@ -32,6 +33,11 @@ export const PRODUCT_AVAILABILITY = {
   OUT_OF_STOCK: 'out of stock',
 } as const
 export type ProductAvailability = (typeof PRODUCT_AVAILABILITY)[keyof typeof PRODUCT_AVAILABILITY]
+
+/** Objeto livre do host; `orderEligibility` é a única chave com formato definido pelo contrato. */
+export type ProductAttributes = Readonly<Record<string, unknown>> & {
+  readonly orderEligibility?: ProductOrderEligibility
+}
 
 export type Product = {
   readonly id: ProductId
@@ -75,9 +81,10 @@ export type Product = {
   /**
    * Dados livres do host (capacidade, "o que inclui", alérgenos…). O módulo não interpreta; a
    * validação é do host, pela porta `ProductAttributesValidatorPort`. **Sai também na projeção de
-   * cliente** — não guardar aqui nada que o cliente final não possa ver.
+   * cliente** — não guardar aqui nada que o cliente final não possa ver. A chave reservada
+   * `orderEligibility` (`ProductOrderEligibility`) diz quem pode pedir o produto.
    */
-  readonly attributes?: Readonly<Record<string, unknown>>
+  readonly attributes?: ProductAttributes
 
   readonly externalId?: string | null
   readonly syncStatus?: ProductSyncStatus | null
@@ -139,8 +146,8 @@ export type CreateProductInput = {
   readonly sortOrder?: number
   /** No update, `null` remove a restrição. */
   readonly availabilitySchedule?: AvailabilitySchedule | null
-  /** No update, substitui o objeto inteiro (não faz merge por chave). */
-  readonly attributes?: Readonly<Record<string, unknown>>
+  /** No update, substitui o objeto inteiro (não faz merge por chave) — inclusive `orderEligibility`. */
+  readonly attributes?: ProductAttributes
 }
 
 export type UpdateProductInput = Partial<CreateProductInput> & {
