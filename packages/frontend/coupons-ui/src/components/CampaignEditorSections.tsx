@@ -164,7 +164,6 @@ export function LeadCaptureSection({ editor }: SectionProps) {
         id={controlId('leadCapture.enabled')}
         label={messages.fieldLeadCaptureEnabled}
         checked={draft.leadCaptureEnabled}
-        disabled={draft.isAutomatic}
         onChange={(value) => setField('leadCaptureEnabled', value)}
       />
       {draft.leadCaptureEnabled ? (
@@ -193,6 +192,15 @@ export function LeadCaptureSection({ editor }: SectionProps) {
             rows={2}
             onChange={(value) => setField('consentText', value)}
             {...errorProp(issueFor('leadCapture.consentText'))}
+          />
+          <TextControl
+            id={controlId('leadTag')}
+            label={messages.fieldLeadTag}
+            hint={messages.fieldLeadTagHint}
+            value={draft.leadTag}
+            maxLength={40}
+            onChange={(value) => setField('leadTag', value)}
+            {...errorProp(issueFor('leadTag'))}
           />
         </>
       ) : null}

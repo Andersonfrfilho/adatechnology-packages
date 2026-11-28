@@ -36,6 +36,7 @@ import {
   FindAutomaticUseCase,
   GetPublicCampaignUseCase,
   ListPublicCampaignsUseCase,
+  QuoteCouponUseCase,
   ValidateCouponUseCase,
 } from './use-cases/Validation.use-cases'
 
@@ -72,6 +73,8 @@ export type CouponModule = {
     readonly setCouponStatus: SetCouponStatusUseCase
     readonly validateCoupon: ValidateCouponUseCase
     readonly findAutomatic: FindAutomaticUseCase
+    /** Desconto e total para um pedido do host, sem resgatar (ex.: tela de orçamento da reserva). */
+    readonly quoteCoupon: QuoteCouponUseCase
     readonly listPublicCampaigns: ListPublicCampaignsUseCase
     readonly getPublicCampaign: GetPublicCampaignUseCase
     readonly redeemCoupon: RedeemCouponUseCase
@@ -125,6 +128,7 @@ export function createCouponModule(params: CreateCouponModuleParams): CouponModu
       setCouponStatus: new SetCouponStatusUseCase(dependencies),
       validateCoupon: new ValidateCouponUseCase(dependencies),
       findAutomatic: new FindAutomaticUseCase(dependencies),
+      quoteCoupon: new QuoteCouponUseCase(dependencies),
       listPublicCampaigns: new ListPublicCampaignsUseCase(dependencies),
       getPublicCampaign: new GetPublicCampaignUseCase(dependencies),
       redeemCoupon: new RedeemCouponUseCase(dependencies),

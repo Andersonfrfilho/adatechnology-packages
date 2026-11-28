@@ -12,7 +12,7 @@ import {
   cryptoRandomInt,
 } from './code'
 import { canonicalEmail, canonicalPhone, maskPhone } from './contact'
-import { checkCampaignRules, createCampaignSchema, redeemCouponSchema } from './schemas'
+import { checkCampaignRules, createCampaignSchema, quoteCouponSchema, redeemCouponSchema } from './schemas'
 
 describe('código', () => {
   it('normaliza caixa e espaço', () => {
@@ -69,7 +69,6 @@ describe('regras da campanha', () => {
       'endsAt',
       'leadCapture.fields',
       'leadCapture.consentText',
-      'leadCapture.enabled',
       'codeMode',
     ])
   })
@@ -106,5 +105,41 @@ describe('desconto no schema', () => {
         .success,
     ).toBe(true)
     expect(createCampaignSchema.safeParse({ name: 'x', discount: { kind: 'fixed', value: 0 } }).success).toBe(false)
+  })
+})
+
+describe('automática com captação', () => {
+  it('desconto automático e captação de contato juntos são permitidos', () => {
+    const issues = checkCampaignRules({
+      startsAt: null,
+      endsAt: null,
+      codeMode: 'fixed',
+      isAutomatic: true,
+      leadCapture: {
+        enabled: true,
+        fields: { name: 'optional', phone: 'required', email: 'off' },
+        consentText: 'Aceito.',
+      },
+    })
+    expect(issues).toEqual([])
+  })
+
+  it('etiqueta do lead: vazio vira null, limite de tamanho', () => {
+    expect(
+      createCampaignSchema.parse({ name: 'x', discount: { kind: 'percent', value: 5 }, leadTag: '  ' }).leadTag,
+    ).toBeNull()
+    expect(
+      createCampaignSchema.parse({ name: 'x', discount: { kind: 'percent', value: 5 }, leadTag: ' vip ' }).leadTag,
+    ).toBe('vip')
+    expect(
+      createCampaignSchema.safeParse({ name: 'x', discount: { kind: 'percent', value: 5 }, leadTag: 'x'.repeat(41) })
+        .success,
+    ).toBe(false)
+  })
+
+  it('cotação: código ou campanha; itens ou subtotal', () => {
+    expect(quoteCouponSchema.safeParse({ code: 'ABC', subtotalCents: 1000 }).success).toBe(true)
+    expect(quoteCouponSchema.safeParse({ code: 'ABC' }).success).toBe(false)
+    expect(quoteCouponSchema.safeParse({ code: 'ABC', items: [], subtotalCents: 1 }).success).toBe(false)
   })
 })

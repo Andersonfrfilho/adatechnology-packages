@@ -52,6 +52,7 @@ function toRowValues(
     ...(input.scope !== undefined ? { scope: input.scope } : {}),
     ...(input.isAutomatic !== undefined ? { isAutomatic: input.isAutomatic } : {}),
     ...(input.leadCapture !== undefined ? { leadCapture: input.leadCapture } : {}),
+    ...(input.leadTag !== undefined ? { leadTag: input.leadTag } : {}),
   }
   const startsAt = toDate(input.startsAt)
   const endsAt = toDate(input.endsAt)

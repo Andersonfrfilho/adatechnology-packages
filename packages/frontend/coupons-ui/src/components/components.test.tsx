@@ -13,6 +13,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { CouponsProvider, type CouponsProviderProps } from '../providers/CouponsProvider'
 import type { CouponsAdminApi } from '../providers/types'
 import { CampaignBanner } from './CampaignBanner'
+import { CampaignDetail } from './CampaignDetail'
+import { DateRangeField } from './DateRangeField'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DateTimeField } from './DateTimeField'
 import { Pagination } from './Pagination'
@@ -62,6 +64,7 @@ const CAMPAIGN: Campaign = {
     fields: { name: 'optional', phone: 'required', email: 'off' },
     consentText: 'Aceito receber o cupom (LGPD).',
   },
+  leadTag: null,
   createdAt: '2026-11-01T00:00:00.000Z',
   updatedAt: '2026-11-01T00:00:00.000Z',
 }
@@ -215,7 +218,9 @@ describe('site', () => {
       publicApi: {
         captureLead: async () => ({
           leadId: 'l',
+          outcome: 'created',
           isNew: true,
+          codeResent: true,
           couponCode: 'X',
           discount: CAMPAIGN.discount,
           endsAt: null,
@@ -298,5 +303,55 @@ describe('controles próprios', () => {
       />,
     )
     expect(html).toContain('Este cupom não vale para este pedido.')
+  })
+})
+
+describe('integração com host de reservas', () => {
+  it('editor tem a etiqueta do cliente e a captação liga também em campanha automática', () => {
+    const html = render(<CampaignEditor campaign={{ ...CAMPAIGN, isAutomatic: true, leadTag: 'inauguracao' }} />)
+    expect(html).toContain('Etiqueta do cliente')
+    expect(html).toContain('value="inauguracao"')
+    expect(html).not.toMatch(/id="acp-campaign-leadCapture-enabled"[^>]*disabled/)
+  })
+
+  it('filtro de período padrão com máscara e fuso; slot do host substitui', () => {
+    const value = { from: '2026-11-01', to: '2026-11-30' }
+    const html = render(<DateRangeField id="r" label="Período" value={value} onChange={() => undefined} />, {
+      timeZone: 'America/Sao_Paulo',
+    })
+    expect(html).toContain('value="01/11/2026"')
+    expect(html).toContain('value="30/11/2026"')
+    expect(html).not.toContain('type="date"')
+    const injected = render(<DateRangeField id="r" label="Período" value={value} onChange={() => undefined} />, {
+      renderDateRangeInput: (props) => <div data-range={props.value.from} />,
+    })
+    expect(injected).toContain('data-range="2026-11-01"')
+  })
+
+  it('só leitura: abre nos contatos com o filtro de período, sem configuração nem excluir', () => {
+    const html = render(
+      <CampaignDetail
+        campaign={CAMPAIGN}
+        readOnly
+        onBack={() => undefined}
+        onSaved={() => undefined}
+        onRemoved={() => undefined}
+      />,
+      {
+        adminApi: {
+          ...adminApi,
+          removeCampaign: async () => undefined,
+          listLeads: async () => ({ data: [], pagination: { total: 0, page: 1, pageSize: 20, totalPages: 1 } }),
+        },
+      },
+    )
+    expect(html).not.toContain('Configuração')
+    expect(html).not.toContain('Excluir')
+    expect(html).toContain('Período')
+    expect(html).toContain('aria-selected="true"')
+  })
+
+  it('workspace só leitura não oferece nova campanha', () => {
+    expect(render(<CampaignsWorkspace syncUrl={false} readOnly />)).not.toContain('Nova campanha')
   })
 })

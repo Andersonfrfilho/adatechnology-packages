@@ -75,7 +75,14 @@ function splitFormat<TQuery extends { format: ExportFormat }>(
 
 export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
   const { useCases } = module
-  const admin = { scope: 'admin' as const, requiredScopes: module.config.adminScopes ?? DEFAULT_ADMIN_SCOPES }
+  const adminScopes = module.config.adminScopes ?? DEFAULT_ADMIN_SCOPES
+  const admin = { scope: 'admin' as const, requiredScopes: adminScopes }
+  // Leitura de contatos (ex.: recepção): listar campanhas, ver uma e listar os contatos dela. Exportar,
+  // editar e apagar continuam só com `adminScopes`.
+  const leadReader = {
+    scope: 'admin' as const,
+    requiredScopes: [...adminScopes, ...(module.config.leadReadScopes ?? [])],
+  }
 
   const exportRoute = (
     kind: ExportFilters['kind'],
@@ -103,7 +110,7 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
 
   return [
     {
-      ...admin,
+      ...leadReader,
       method: 'GET',
       path: '/campaigns',
       querySchema: listCampaignsQuerySchema,
@@ -135,7 +142,7 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
       },
     },
     {
-      ...admin,
+      ...leadReader,
       method: 'GET',
       path: '/campaigns/:id',
       operationId: 'getCampaign',
@@ -236,7 +243,7 @@ export function buildAdminRoutes(module: CouponModule): ModuleRoute[] {
       },
     },
     {
-      ...admin,
+      ...leadReader,
       method: 'GET',
       path: '/campaigns/:id/leads',
       querySchema: listLeadsQuerySchema,

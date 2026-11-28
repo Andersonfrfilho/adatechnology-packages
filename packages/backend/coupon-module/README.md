@@ -67,6 +67,25 @@ Repetir o resgate do mesmo pedido com o mesmo código devolve o resgate existent
 pedido é `409 COUPON_ORDER_ALREADY_REDEEMED`. Liberar duas vezes não desconta duas vezes. O resgate trava a linha da
 campanha, então limites nunca estouram com pedidos simultâneos.
 
+### Reserva como pedido
+
+O `orderRef` é opaco: uma solicitação de reserva serve de pedido sem adaptação.
+
+| Momento no host | Chamada |
+|---|---|
+| Tela de orçamento / prévia do total | `quoteCoupon({ code, subtotalCents })` (ou `items`) → `{ discountCents, totalCents, reasons }`, nada gravado |
+| Solicitação criada | `redeemCoupon({ code, orderRef: { kind: 'reservation', id }, items, customerRef })` |
+| Solicitação recusada ou cancelada | `releaseRedemption({ orderRef })` — idempotente; libera o uso para outro pedido |
+| Solicitação reaberta | `redeemCoupon` de novo com o mesmo `orderRef`: reaproveita a linha liberada |
+
+Só `subtotalCents` vira uma linha sem produto: serve à campanha de escopo "todo o pedido". Campanha restrita a produtos,
+categorias ou etiquetas precisa dos `items` (senão a cotação volta `no_eligible_items`).
+
+## Drivers
+
+Testado com **Bun SQL** e **postgres.js** (a suíte de integração roda inteira nos dois). Toda comparação de data usa os
+comparadores de coluna do Drizzle: `Date` cru dentro de `sql` quebra no postgres.js (`ERR_INVALID_ARG_TYPE`).
+
 ## Rotas
 
 | Escopo | Método e caminho | O quê |
@@ -75,10 +94,11 @@ campanha, então limites nunca estouram com pedidos simultâneos.
 | admin | `POST /campaigns`, `GET/PATCH/DELETE /campaigns/:id` | CRUD (apagar com histórico é 409: desative) |
 | admin | `GET /campaigns/:id/report` | usos, liberações, desconto total, vendido, leads e códigos |
 | admin | `POST/GET /campaigns/:id/codes`, `PATCH /campaigns/:id/codes/:codeId` | gerar lote, listar, ativar/desativar código |
-| admin | `GET /campaigns/:id/leads`, `GET /campaigns/:id/redemptions` | contatos e usos paginados |
+| admin | `GET /campaigns/:id/leads`, `GET /campaigns/:id/redemptions` | contatos (com `from`/`to`, meio aberto) e usos paginados |
 | admin | `DELETE /campaigns/:id/leads/:leadId` | LGPD: apaga nome, telefone, e-mail, cliente e código do contato (linha fica anônima) |
 | admin | `GET /campaigns/:id/{leads,redemptions,codes}/export?format=csv\|xlsx` | todos os resultados do filtro, arquivo para baixar |
 | service | `POST /coupons/validate`, `POST /coupons/automatic` | prévia do desconto; melhor automática do carrinho |
+| service | `POST /coupons/quote` | desconto e total para itens ou só o subtotal, por código ou automática, sem resgatar |
 | service | `POST /redemptions`, `POST /redemptions/release` | resgate (201/200) e liberação idempotentes |
 | public | `GET /public/campaigns`, `GET /public/campaigns/:id` | banner (sem código, limite nem contagem) |
 | public | `POST /public/coupons/validate` | prévia anônima, **com limitador**; recusa sai genérica (`not_applicable`), sem motivo nem campanha |
@@ -95,6 +115,9 @@ Todo `:id`, `:codeId` e `:leadId` que não é UUID responde o mesmo 404 de "não
 - Banner em cache sai com `Vary: Host` mais o que o resolvedor declarar em `varyHeaders` (ex.: `X-Tenant`). Resolvedor
   que lê a query string deve usar `publicCacheControl: 'private, max-age=60'`.
 
+`config.leadReadScopes` (ex.: `['coupons:leads:read']` para a recepção) libera **só leitura**: `GET /campaigns`,
+`GET /campaigns/:id` e `GET /campaigns/:id/leads`. Exportar, editar, apagar e relatório continuam em `adminScopes`.
+
 Escopos padrão: `coupons:admin` (painel) e `coupons:service` ou `coupons:admin` (serviço); troque em `config`.
 Recusas vêm com `error.details`: `{ reasons: [...] }` no resgate, `{ fields: [{ field, message }] }` em formulário.
 
@@ -107,6 +130,12 @@ Recusas vêm com `error.details`: `{ reasons: [...] }` no resgate, `{ fields: [{
 - O reenvio vai **sempre para o contato guardado** e só acontece se telefone e e-mail informados são exatamente os
   guardados. Casamento parcial (telefone de um, e-mail de outro) é "já cadastrado" e não envia nada.
 - A campanha fica travada durante a captação; campanha fixa sem código não capta.
+- Resposta explícita: `outcome` é `created` ou `already-registered`; `couponCode` só vem no cadastro novo e, no modo
+  fixo, também na repetição; `codeResent` diz se o código foi (re)enviado agora. O site nunca precisa adivinhar por
+  um código vazio.
+- `leadTag` da campanha (opcional) chega no `onLeadCaptured` como `leadTag`: o host etiqueta o cliente.
+- Campanha **automática** pode captar contato também: o desconto entra sozinho no pedido e o contato recebe o código
+  público da campanha (o mesmo que resgataria por código).
 - Lote: entrega o próximo código livre com `FOR UPDATE SKIP LOCKED`; lote vazio desfaz o cadastro (`409 CODES_EXHAUSTED`).
 - `leadNotifier`, `customerIdentity` e ganchos rodam depois do commit; falha neles é logada e não desfaz o cadastro.
 

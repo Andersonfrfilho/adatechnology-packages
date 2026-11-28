@@ -24,9 +24,11 @@ export type CampaignListProps = {
   readonly onCreate?: () => void
   readonly reloadKey?: number
   readonly syncUrl?: boolean
+  /** Só leitura: sem seleção em lote (ativar/desativar). */
+  readonly readOnly?: boolean
 }
 
-export function CampaignList({ onOpen, onCreate, reloadKey, syncUrl }: CampaignListProps) {
+export function CampaignList({ onOpen, onCreate, reloadKey, syncUrl, readOnly = false }: CampaignListProps) {
   const api = useCouponsAdminApi()
   const { messages, format } = useCouponsText()
   const list = useCampaignList({ ...(syncUrl ? { syncUrl } : {}), ...(reloadKey === undefined ? {} : { reloadKey }) })
@@ -103,7 +105,7 @@ export function CampaignList({ onOpen, onCreate, reloadKey, syncUrl }: CampaignL
           </>
         }
       />
-      {list.selectedIds.size > 0 ? (
+      {list.selectedIds.size > 0 && !readOnly ? (
         <div
           className="acp-batch-bar"
           role="region"

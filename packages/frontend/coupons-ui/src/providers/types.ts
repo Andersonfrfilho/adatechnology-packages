@@ -49,6 +49,9 @@ export type ListRecordsParams = {
   readonly statuses?: readonly RedemptionStatus[]
   /** Só em códigos: os ainda não entregues a ninguém. */
   readonly unassigned?: boolean
+  /** Só em contatos: período da captação, meio aberto (`from <= capturado < to`), instantes ISO. */
+  readonly from?: string
+  readonly to?: string
 }
 
 export type ExportRequest = {
@@ -117,3 +120,19 @@ export type DateTimeInputProps = {
 
 /** Troca o `<input type="datetime-local">` nativo pelo seletor de data e hora do host. */
 export type RenderDateTimeInput = (props: DateTimeInputProps) => ReactNode
+
+export type DateRangeValue = {
+  /** `YYYY-MM-DD` (dia no fuso da empresa), ou vazio. Os dois limites são dias inteiros, inclusive. */
+  readonly from: string
+  readonly to: string
+}
+
+export type DateRangeInputProps = {
+  readonly id: string
+  readonly label: string
+  readonly value: DateRangeValue
+  readonly onChange: (value: DateRangeValue) => void
+}
+
+/** Troca o filtro de período padrão (dois campos de data com máscara) pelo seletor de intervalo do host. */
+export type RenderDateRangeInput = (props: DateRangeInputProps) => ReactNode

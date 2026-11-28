@@ -29,6 +29,7 @@ import {
 
 export const COUPON_LIMITS = {
   NAME: 120,
+  LEAD_TAG: 40,
   TITLE: 160,
   TEXT: 1000,
   TERMS: 3000,
@@ -142,6 +143,14 @@ const campaignFieldsShape = {
   usageLimitPerCode: limitSchema.default(null),
   scope: scopeSchema.default({ kind: 'all' }),
   isAutomatic: z.boolean().default(false),
+  /** Etiqueta que o host põe no cliente captado (vai no `onLeadCaptured`). Vazio: nenhuma. */
+  leadTag: z
+    .string()
+    .trim()
+    .max(COUPON_LIMITS.LEAD_TAG)
+    .transform((value) => value || null)
+    .nullable()
+    .default(null),
   leadCapture: leadCaptureSchema.default({}),
 }
 
@@ -170,11 +179,6 @@ export function checkCampaignRules(campaign: {
     })
   if (campaign.leadCapture.enabled && !campaign.leadCapture.consentText)
     issues.push({ field: 'leadCapture.consentText', message: 'Escreva o texto do aceite (LGPD).' })
-  if (campaign.isAutomatic && campaign.leadCapture.enabled)
-    issues.push({
-      field: 'leadCapture.enabled',
-      message: 'Campanha automática não entrega código: desligue a captação.',
-    })
   if (campaign.isAutomatic && campaign.codeMode !== CODE_MODE.FIXED)
     issues.push({ field: 'codeMode', message: 'Campanha automática usa o modo de código fixo.' })
   return issues
@@ -217,6 +221,13 @@ export const updateCampaignSchema = z.object({
   usageLimitPerCode: limitSchema.optional(),
   scope: scopeSchema.optional(),
   isAutomatic: z.boolean().optional(),
+  leadTag: z
+    .string()
+    .trim()
+    .max(COUPON_LIMITS.LEAD_TAG)
+    .transform((value) => value || null)
+    .nullable()
+    .optional(),
   leadCapture: leadCaptureSchema.optional(),
 })
 export type UpdateCampaignInput = z.input<typeof updateCampaignSchema>
@@ -280,6 +291,30 @@ export type ValidateCouponInput = z.input<typeof validateCouponSchema>
 export const publicValidateCouponSchema = z.object({ code: couponCodeSchema, items: cartSchema })
 export type PublicValidateCouponInput = z.input<typeof publicValidateCouponSchema>
 
+/**
+ * Cotação para o pedido do host (reserva, orçamento): o desconto sem resgatar. Itens OU só o
+ * subtotal (vira uma linha sem produto — serve à campanha de escopo "todo o pedido"); código OU
+ * campanha automática.
+ */
+export const quoteCouponSchema = z
+  .object({
+    code: couponCodeSchema.optional(),
+    campaignId: z.string().uuid().optional(),
+    items: cartSchema.optional(),
+    subtotalCents: centsSchema.optional(),
+    customerRef: customerRefSchema.optional(),
+    at: z.string().datetime({ offset: true }).optional(),
+  })
+  .refine((input) => (input.code === undefined) !== (input.campaignId === undefined), {
+    message: 'Informe o código ou a campanha automática, um dos dois.',
+    path: ['code'],
+  })
+  .refine((input) => (input.items === undefined) !== (input.subtotalCents === undefined), {
+    message: 'Informe os itens ou o subtotal, um dos dois.',
+    path: ['items'],
+  })
+export type QuoteCouponInput = z.input<typeof quoteCouponSchema>
+
 export const findAutomaticSchema = z.object({
   items: cartSchema,
   customerRef: customerRefSchema.optional(),
@@ -320,6 +355,9 @@ export const listLeadsQuerySchema = z.object({
   search: searchSchema,
   sort: z.enum(['createdAt', 'name', 'email']).default('createdAt'),
   order: orderSchema,
+  /** Período da captação, meio aberto: `from <= capturado < to` (instantes ISO com fuso). */
+  from: z.string().datetime({ offset: true }).optional(),
+  to: z.string().datetime({ offset: true }).optional(),
 })
 export type ListLeadsQuery = z.output<typeof listLeadsQuerySchema>
 

@@ -22,9 +22,15 @@ export type CampaignsWorkspaceProps = {
   /** Busca, situação, ordem e página da lista na URL (padrão: sim). */
   readonly syncUrl?: boolean
   readonly onCampaignSaved?: (campaign: Campaign) => void
+  /**
+   * Só leitura (ex.: recepção com o escopo `leadReadScopes`): lista e abre campanhas, vê os contatos;
+   * sem criar, editar, excluir nem lote. A API injetada continua decidindo o resto (sem `exportRecords`,
+   * sem "todos os resultados").
+   */
+  readonly readOnly?: boolean
 }
 
-export function CampaignsWorkspace({ syncUrl = true, onCampaignSaved }: CampaignsWorkspaceProps) {
+export function CampaignsWorkspace({ syncUrl = true, onCampaignSaved, readOnly = false }: CampaignsWorkspaceProps) {
   const api = useCouponsAdminApi()
   const { messages } = useCouponsText()
   const [view, setView] = useState<WorkspaceView>({ kind: 'list' })
@@ -62,6 +68,7 @@ export function CampaignsWorkspace({ syncUrl = true, onCampaignSaved }: Campaign
         campaign={view.campaign}
         onBack={() => setView({ kind: 'list' })}
         onSaved={handleSaved}
+        readOnly={readOnly}
         onRemoved={() => {
           setReloadKey((value) => value + 1)
           setView({ kind: 'list' })
@@ -74,7 +81,8 @@ export function CampaignsWorkspace({ syncUrl = true, onCampaignSaved }: Campaign
     <CampaignList
       reloadKey={reloadKey}
       syncUrl={syncUrl}
-      onCreate={() => setView({ kind: 'new' })}
+      readOnly={readOnly}
+      {...(readOnly ? {} : { onCreate: () => setView({ kind: 'new' }) })}
       onOpen={(campaign) => void handleOpen(campaign.id)}
     />
   )

@@ -73,6 +73,7 @@ function buildStores(state: InMemoryState): CouponStores {
           usageLimitPerCode: null,
           scope: { kind: 'all' },
           isAutomatic: false,
+          leadTag: null,
           createdAt: now,
           updatedAt: now,
           ...values,
@@ -265,6 +266,10 @@ function buildStores(state: InMemoryState): CouponStores {
               (digits !== '' && (row.phone ?? '').includes(digits)),
           )
         }
+        const from = query.from ? Date.parse(query.from) : undefined
+        const to = query.to ? Date.parse(query.to) : undefined
+        if (from !== undefined) rows = rows.filter((row) => row.createdAt.getTime() >= from)
+        if (to !== undefined) rows = rows.filter((row) => row.createdAt.getTime() < to)
         return pageOf(sortBy([...rows], query.sort, query.order), query.page, query.pageSize)
       },
       async count({ companyId, campaignId }) {

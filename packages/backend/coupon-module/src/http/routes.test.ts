@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import { randomUUID } from 'node:crypto'
+import type { CouponModuleConfig } from '@adatechnology/coupon-contracts'
 import type { AuthContextResolverPort } from '@adatechnology/module-http'
 import { createModuleFetchRouter } from '@adatechnology/module-http/fetch'
 
@@ -15,8 +16,8 @@ import { createCouponRoutes } from './routes'
 const COMPANY_A = randomUUID()
 const COMPANY_B = randomUUID()
 
-function setup(params: { allowed?: boolean } = {}) {
-  const { module, persistence } = buildTestModule()
+function setup(params: { allowed?: boolean; config?: CouponModuleConfig } = {}) {
+  const { module, persistence } = buildTestModule(params.config ? { config: params.config } : {})
   const consumed: string[] = []
   const authResolver: AuthContextResolverPort = {
     async resolve({ headers }) {
@@ -329,6 +330,64 @@ describe('ids no caminho', () => {
       email: null,
       customerRef: null,
       couponCode: null,
+    })
+  })
+})
+
+describe('leitura de contatos e cotação', () => {
+  it('escopo só de leitura: lista campanhas, abre uma e lista contatos; não exporta nem edita', async () => {
+    const { call } = setup({ config: { leadReadScopes: ['coupons:leads:read'] } })
+    const id = await createCampaign(call)
+    const reader = { company: COMPANY_A, scopes: 'coupons:leads:read' }
+    expect((await call('/campaigns', reader)).status).toBe(200)
+    expect((await call(`/campaigns/${id}`, reader)).status).toBe(200)
+    expect(
+      (await call(`/campaigns/${id}/leads?from=2026-01-01T00:00:00Z&to=2027-01-01T00:00:00Z`, reader)).status,
+    ).toBe(200)
+    expect((await call(`/campaigns/${id}/leads/export`, reader)).status).toBe(403)
+    expect((await call(`/campaigns/${id}`, { ...reader, method: 'PATCH', body: { name: 'x' } })).status).toBe(403)
+    expect((await call(`/campaigns/${id}/report`, reader)).status).toBe(403)
+  })
+
+  it('sem leadReadScopes configurado, o escopo de leitura não entra', async () => {
+    const { call } = setup()
+    await createCampaign(call)
+    expect((await call('/campaigns', { company: COMPANY_A, scopes: 'coupons:leads:read' })).status).toBe(403)
+  })
+
+  it('período inválido na lista de contatos é 400', async () => {
+    const { call } = setup()
+    const id = await createCampaign(call)
+    expect((await call(`/campaigns/${id}/leads?from=ontem`, { company: COMPANY_A })).status).toBe(400)
+  })
+
+  it('cotação pelo serviço: só subtotal, total descontado', async () => {
+    const { call, persistence } = setup()
+    await createCampaign(call)
+    const response = await call('/coupons/quote', {
+      method: 'POST',
+      company: COMPANY_A,
+      scopes: 'coupons:service',
+      body: { code: 'bemvindo', subtotalCents: 20_000 },
+    })
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as { data: unknown }).data).toMatchObject({
+      valid: true,
+      discountCents: 2_000,
+      totalCents: 18_000,
+    })
+    expect(persistence.state.redemptions).toHaveLength(0)
+  })
+
+  it('captação pública responde o resultado explícito', async () => {
+    const { call } = setup()
+    const id = await createCampaign(call)
+    const body = { phone: '(11) 98765-4321', email: 'ana@exemplo.com', consent: true }
+    await call(`/public/campaigns/${id}/leads`, { method: 'POST', host: 'loja.a.test', body })
+    const again = await call(`/public/campaigns/${id}/leads`, { method: 'POST', host: 'loja.a.test', body })
+    expect(((await again.json()) as { data: unknown }).data).toMatchObject({
+      outcome: 'already-registered',
+      couponCode: 'BEMVINDO',
     })
   })
 })

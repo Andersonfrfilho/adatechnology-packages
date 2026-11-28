@@ -187,5 +187,15 @@
   "timeZoneLocal": "Horário deste computador.",
   "confirm": "Confirmar",
   "cancel": "Cancelar",
-  "selectPlaceholder": "Escolha"
+  "selectPlaceholder": "Escolha",
+  "fieldLeadTag": "Etiqueta do cliente",
+  "fieldLeadTagHint": "Opcional. O sistema marca quem deixar o contato com esta etiqueta.",
+  "leadAlreadyResent": "Você já estava cadastrado. Reenviamos o seu cupom para o contato informado no cadastro.",
+  "leadAlreadyNotResent": "Você já estava cadastrado. O cupom foi enviado para o contato do primeiro cadastro.",
+  "leadSuccessSent": "Também enviamos o cupom para o seu contato.",
+  "leadAutomaticNote": "O desconto entra sozinho no pedido; o código é só para guardar.",
+  "filterPeriod": "Período",
+  "periodFrom": "De",
+  "periodTo": "Até",
+  "periodInvalid": "Período inválido."
 }

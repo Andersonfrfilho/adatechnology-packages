@@ -8,6 +8,7 @@
 import {
   DEFAULT_SERVICE_SCOPES,
   findAutomaticSchema,
+  quoteCouponSchema,
   redeemCouponSchema,
   releaseRedemptionSchema,
   validateCouponSchema,
@@ -41,6 +42,27 @@ export function buildServiceRoutes(module: CouponModule): ModuleRoute[] {
           items: body.items,
           customerRef: body.customerRef,
           at: body.at ? new Date(body.at) : undefined,
+        })
+        return json(200, result)
+      },
+    },
+    {
+      ...service,
+      method: 'POST',
+      path: '/coupons/quote',
+      bodySchema: quoteCouponSchema,
+      operationId: 'quoteCoupon',
+      summary: 'Desconto e total do pedido (itens ou só o subtotal), por código ou automática, sem resgatar',
+      async handler(context) {
+        const body = context.body as CartBody & { code?: string; campaignId?: string; subtotalCents?: number }
+        const result = await useCases.quoteCoupon.execute({
+          code: body.code,
+          campaignId: body.campaignId,
+          items: body.items,
+          subtotalCents: body.subtotalCents,
+          customerRef: body.customerRef,
+          at: body.at ? new Date(body.at) : undefined,
+          companyId: requireCompany(context),
         })
         return json(200, result)
       },

@@ -16,6 +16,7 @@ export {
   REDEMPTION_STATUS,
   REDEMPTION_STATUSES,
   COUPON_REJECTION,
+  CAPTURE_OUTCOME,
 } from './coupon.types'
 export type {
   DiscountKind,
@@ -43,6 +44,8 @@ export type {
   Pagination,
   Paginated,
   CaptureLeadResult,
+  CaptureOutcome,
+  CouponQuote,
 } from './coupon.types'
 
 export {
@@ -88,6 +91,7 @@ export {
   validateCouponSchema,
   publicValidateCouponSchema,
   findAutomaticSchema,
+  quoteCouponSchema,
   redeemCouponSchema,
   releaseRedemptionSchema,
   captureLeadSchema,
@@ -110,6 +114,7 @@ export type {
   ValidateCouponInput,
   PublicValidateCouponInput,
   FindAutomaticInput,
+  QuoteCouponInput,
   RedeemCouponInput,
   ReleaseRedemptionInput,
   CaptureLeadInput,

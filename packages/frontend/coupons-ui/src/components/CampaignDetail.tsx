@@ -31,13 +31,15 @@ export type CampaignDetailProps = {
   readonly onBack: () => void
   readonly onSaved: (campaign: Campaign) => void
   readonly onRemoved: () => void
+  /** Só leitura (ex.: recepção): sem configuração nem excluir; abre nos contatos. */
+  readonly readOnly?: boolean
 }
 
 /** Abas por capacidade: método ausente na API = aba ausente. */
-export function CampaignDetail({ campaign, onBack, onSaved, onRemoved }: CampaignDetailProps) {
+export function CampaignDetail({ campaign, onBack, onSaved, onRemoved, readOnly = false }: CampaignDetailProps) {
   const api = useCouponsAdminApi()
   const { messages } = useCouponsText()
-  const [tab, setTab] = useState<CampaignTab>(CAMPAIGN_TAB.SETTINGS)
+  const [tab, setTab] = useState<CampaignTab>(readOnly ? CAMPAIGN_TAB.LEADS : CAMPAIGN_TAB.SETTINGS)
   const [removeError, setRemoveError] = useState<string>()
   const [isConfirming, setIsConfirming] = useState(false)
   const getReport = api.getReport
@@ -46,7 +48,7 @@ export function CampaignDetail({ campaign, onBack, onSaved, onRemoved }: Campaig
     `report-${campaign.id}-${tab}`,
   )
   const tabs = [
-    { id: CAMPAIGN_TAB.SETTINGS, label: messages.tabSettings, isAvailable: true },
+    { id: CAMPAIGN_TAB.SETTINGS, label: messages.tabSettings, isAvailable: !readOnly },
     { id: CAMPAIGN_TAB.CODES, label: messages.tabCodes, isAvailable: Boolean(api.listCoupons) },
     { id: CAMPAIGN_TAB.LEADS, label: messages.tabLeads, isAvailable: Boolean(api.listLeads) },
     { id: CAMPAIGN_TAB.REDEMPTIONS, label: messages.tabRedemptions, isAvailable: Boolean(api.listRedemptions) },
@@ -75,7 +77,7 @@ export function CampaignDetail({ campaign, onBack, onSaved, onRemoved }: Campaig
           {campaign.name}
         </h2>
         <StateChip state={campaignState(campaign, new Date())} />
-        {api.removeCampaign ? (
+        {api.removeCampaign && !readOnly ? (
           <button type="button" className="acp-button acp-button--danger" onClick={() => setIsConfirming(true)}>
             <Trash2 aria-hidden="true" className="acp-icon" />
             <span>{messages.remove}</span>

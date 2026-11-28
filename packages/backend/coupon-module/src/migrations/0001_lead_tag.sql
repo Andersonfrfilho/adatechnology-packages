@@ -1,0 +1,1 @@
+ALTER TABLE "coupons"."campaigns" ADD COLUMN "lead_tag" varchar(40);

@@ -110,8 +110,12 @@ export function LeadCaptureDialog({ campaign, onClose, privacyNote }: LeadCaptur
                 </button>
               </>
             ) : (
-              <p>{messages.leadSuccessAgain}</p>
+              <p>{result.codeResent ? messages.leadAlreadyResent : messages.leadAlreadyNotResent}</p>
             )}
+            {result.outcome === 'created' && result.codeResent ? (
+              <p className="acp-hint">{messages.leadSuccessSent}</p>
+            ) : null}
+            {campaign.isAutomatic ? <p className="acp-hint">{messages.leadAutomaticNote}</p> : null}
             {result.endsAt ? (
               <p className="acp-hint">
                 {format('leadValidUntil', { date: formatDateTime(result.endsAt, locale, timeZone) })}

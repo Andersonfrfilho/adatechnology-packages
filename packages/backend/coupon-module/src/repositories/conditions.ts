@@ -12,7 +12,7 @@ import {
   type CampaignState,
   type RedemptionStatus,
 } from '@adatechnology/coupon-contracts'
-import { and, eq, gt, inArray, isNull, lte, or, sql, type SQL } from 'drizzle-orm'
+import { and, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from 'drizzle-orm'
 
 import { campaigns, coupons, leads, redemptions } from '../schema/schema'
 
@@ -27,8 +27,10 @@ export function campaignOwnedCondition(params: { companyId: string; id: string }
 
 /** Mesma regra de `campaignState` do contracts, em SQL. */
 export function campaignStateCondition(state: CampaignState, now: Date): SQL {
-  const ended = sql`(${campaigns.endsAt} is not null and ${campaigns.endsAt} <= ${now})`
-  const notEnded = sql`(${campaigns.endsAt} is null or ${campaigns.endsAt} > ${now})`
+  // Comparadores de coluna, não `sql` cru: o Drizzle converte o `Date` pelo tipo da coluna. Com o
+  // `Date` cru no template, o postgres.js recusa o parâmetro (ERR_INVALID_ARG_TYPE).
+  const ended = and(isNotNull(campaigns.endsAt), lte(campaigns.endsAt, now)) as SQL
+  const notEnded = or(isNull(campaigns.endsAt), gt(campaigns.endsAt, now)) as SQL
   if (state === CAMPAIGN_STATE.ENDED) return ended
   if (state === CAMPAIGN_STATE.INACTIVE) return and(notEnded, eq(campaigns.isActive, false)) as SQL
   if (state === CAMPAIGN_STATE.SCHEDULED)
@@ -106,7 +108,14 @@ export function leadContactCondition(params: {
 }
 
 /** Busca por nome ou e-mail; telefone compara só os dígitos do que foi digitado. */
-export function leadListCondition(params: { companyId: string; campaignId: string; search?: string | undefined }): SQL {
+export function leadListCondition(params: {
+  companyId: string
+  campaignId: string
+  search?: string | undefined
+  /** Meio aberto: `from <= capturado < to`. */
+  from?: string | undefined
+  to?: string | undefined
+}): SQL {
   const conditions: SQL[] = [eq(leads.companyId, params.companyId), eq(leads.campaignId, params.campaignId)]
   if (params.search) {
     const pattern = likePattern(params.search)
@@ -114,6 +123,8 @@ export function leadListCondition(params: { companyId: string; campaignId: strin
     const byPhone = digits ? sql` or ${leads.phone} like ${likePattern(digits)}` : sql``
     conditions.push(sql`(${leads.name} ilike ${pattern} or ${leads.email} ilike ${pattern}${byPhone})`)
   }
+  if (params.from) conditions.push(gte(leads.createdAt, new Date(params.from)))
+  if (params.to) conditions.push(lt(leads.createdAt, new Date(params.to)))
   return and(...conditions) as SQL
 }
 
