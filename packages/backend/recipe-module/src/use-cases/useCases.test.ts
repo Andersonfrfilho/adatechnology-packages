@@ -211,6 +211,8 @@ describe('fichas técnicas', () => {
     const lookup = await useCases.lookupRecipes.execute({ companyId: COMPANY, productIds: ['bread', 'bread'] })
     expect(lookup.recipes).toHaveLength(1)
     expect(lookup.ingredients.map((item) => item.unit)).toEqual(['kg'])
+    const found = await useCases.findIngredients.execute({ companyId: OTHER, ingredientIds: [flour.id] })
+    expect(found).toEqual([])
   })
 })
 

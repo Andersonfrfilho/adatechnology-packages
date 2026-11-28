@@ -43,6 +43,7 @@ export {
   CreateIngredientUseCase,
   UpdateIngredientUseCase,
   GetIngredientUseCase,
+  FindIngredientsUseCase,
   ListIngredientsUseCase,
   RemoveIngredientUseCase,
   ExportIngredientsUseCase,

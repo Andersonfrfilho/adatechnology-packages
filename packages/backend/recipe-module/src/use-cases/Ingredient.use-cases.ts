@@ -106,6 +106,20 @@ export class GetIngredientUseCase {
   }
 }
 
+/** Vários insumos por id, da empresa (porta de catálogo do `stock-module`). Id de outra empresa some. */
+export class FindIngredientsUseCase {
+  constructor(private readonly dependencies: RecipeDependencies) {}
+
+  async execute(params: {
+    readonly companyId: string
+    readonly ingredientIds: readonly string[]
+  }): Promise<Ingredient[]> {
+    const ids = [...new Set(params.ingredientIds)]
+    const rows = await this.dependencies.persistence.ingredients.findByIds({ companyId: params.companyId, ids })
+    return rows.map(toIngredient)
+  }
+}
+
 export class ListIngredientsUseCase {
   constructor(private readonly dependencies: RecipeDependencies) {}
 

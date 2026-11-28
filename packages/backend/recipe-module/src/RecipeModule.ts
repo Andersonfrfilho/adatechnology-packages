@@ -20,6 +20,7 @@ import { createDrizzleRecipePersistence } from './repositories/createDrizzleReci
 import {
   CreateIngredientUseCase,
   ExportIngredientsUseCase,
+  FindIngredientsUseCase,
   GetIngredientUseCase,
   ListIngredientsUseCase,
   RemoveIngredientUseCase,
@@ -58,6 +59,7 @@ export type RecipeModule = {
     readonly createIngredient: CreateIngredientUseCase
     readonly updateIngredient: UpdateIngredientUseCase
     readonly getIngredient: GetIngredientUseCase
+    readonly findIngredients: FindIngredientsUseCase
     readonly listIngredients: ListIngredientsUseCase
     readonly removeIngredient: RemoveIngredientUseCase
     readonly exportIngredients: ExportIngredientsUseCase
@@ -101,6 +103,7 @@ export function createRecipeModule(params: CreateRecipeModuleParams): RecipeModu
       createIngredient: new CreateIngredientUseCase(dependencies),
       updateIngredient: new UpdateIngredientUseCase(dependencies),
       getIngredient: new GetIngredientUseCase(dependencies),
+      findIngredients: new FindIngredientsUseCase(dependencies),
       listIngredients: new ListIngredientsUseCase(dependencies),
       removeIngredient: new RemoveIngredientUseCase(dependencies),
       exportIngredients: new ExportIngredientsUseCase(dependencies),
