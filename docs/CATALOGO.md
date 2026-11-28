@@ -1137,7 +1137,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Entradas:** `createRecipeModule` em `src/RecipeModule.ts`; `createRecipeRoutes`; `runRecipeMigrations`; `recipeOpenApiPaths` em `./openapi`
 - **Precisa de:** PostgreSQL (Drizzle). Peers: `drizzle-orm`.
 - **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `recipes`; journal `recipe_migrations` no formato clássico (`meta/_journal.json`).
-- **Usado por:** nenhum ainda (Comandada tem a versão à mão a migrar: `docs/adoption/comandada-recipe-stock.md`).
+- **Usado por:** nenhum ainda (Comandada tem a versão à mão a migrar: `docs/adoption/comandada-recipe-stock-coupons.md`).
 
 ### @adatechnology/recipes-ui
 - **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/recipes-ui` · subpath: `./styles.css`
@@ -1177,7 +1177,7 @@ Organizado por necessidade. Se a necessidade está na lista, use o pacote: não 
 - **Entradas:** `createStockModule`, `createStockRoutes`, `runStockMigrations`, `stockOpenApiPaths`
 - **Precisa de:** PostgreSQL (Drizzle); portas de catálogo e de fichas (ex.: `recipe-module`).
 - **Compatibilidade:** Drizzle peer `>=0.36.0 <1`; schema `stock`; journal `stock_migrations`.
-- **Usado por:** nenhum ainda (roteiro de adoção: `docs/adoption/comandada-recipe-stock.md`).
+- **Usado por:** nenhum ainda (roteiro de adoção: `docs/adoption/comandada-recipe-stock-coupons.md`).
 
 ### @adatechnology/stock-ui
 - **Versão:** `0.0.0` (primeira publicação sai `0.1.0`) · `packages/frontend/stock-ui` · subpath: `./styles.css`
